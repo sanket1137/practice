@@ -1,0 +1,37 @@
+using CCMS.Domain.Enums;
+
+namespace CCMS.Domain.Entities;
+
+public class Booking : BaseEntity
+{
+    public Guid ScreenId { get; set; }
+    public Guid CampaignId { get; set; }
+    public Guid CreativeId { get; set; }
+    
+    // Booking period
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    
+    // Slot allocation (stored as JSON array, e.g., [1, 2, 3])
+    public List<int> SlotNumbers { get; set; } = new();
+    
+    // Status and approval
+    public BookingStatus Status { get; set; } = BookingStatus.Pending;
+    public string? RejectionReason { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    
+    // Metrics
+    public int ExpectedImpressions { get; set; }
+    public int DeliveredImpressions { get; set; }
+    
+    // Pricing
+    public decimal TotalPrice { get; set; }
+    public string Currency { get; set; } = "USD";
+    
+    // Navigation properties
+    public virtual Screen Screen { get; set; } = null!;
+    public virtual Campaign Campaign { get; set; } = null!;
+    public virtual Creative Creative { get; set; } = null!;
+    public virtual ICollection<Impression> Impressions { get; set; } = new List<Impression>();
+}
