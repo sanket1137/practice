@@ -20,7 +20,8 @@ public class MappingProfiles : Profile
         
         // Screen mappings
         CreateMap<Screen, ScreenDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.RevenueEstimate, opt => opt.Ignore()); // Set manually in handlers
         
         CreateMap<CreateScreenRequest, Screen>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())

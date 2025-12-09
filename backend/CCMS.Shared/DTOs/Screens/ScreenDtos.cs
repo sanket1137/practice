@@ -22,6 +22,7 @@ public class ScreenDto
     public string Currency { get; set; } = "USD";
     public int ImpressionsPerSlot { get; set; }
     public int DailyTotalImpressions { get; set; }
+    public RevenueEstimateDto? RevenueEstimate { get; set; }
     public DateTime? LastSyncAt { get; set; }
     public bool IsOnline { get; set; }
     public DateTime? LastSeenAt { get; set; }
