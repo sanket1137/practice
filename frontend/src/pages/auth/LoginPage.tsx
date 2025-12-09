@@ -83,6 +83,19 @@ const LoginPage = () => {
                         >
                             {loading ? 'Logging in...' : 'Login'}
                         </Button>
+
+                        <Box sx={{ mt: 2, textAlign: 'center' }}>
+                            <Typography variant="body2">
+                                Don't have an account?{' '}
+                                <Button
+                                    variant="text"
+                                    onClick={() => navigate('/register')}
+                                    sx={{ textTransform: 'none' }}
+                                >
+                                    Sign Up
+                                </Button>
+                            </Typography>
+                        </Box>
                     </form>
                 </CardContent>
             </Card>

@@ -1,9 +1,77 @@
 using Microsoft.AspNetCore.SignalR;
+using CCMS.Domain.Entities;
+using CCMS.Domain.Interfaces;
+using System.Collections.Concurrent;
 
 namespace CCMS.Api.Hubs;
 
 public class PlaybackHub : Hub
 {
+    private readonly IRepository<Screen> _screenRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private static readonly ConcurrentDictionary<string, Guid> _connectionToScreen = new();
+
+    public PlaybackHub(IRepository<Screen> screenRepository, IUnitOfWork unitOfWork)
+    {
+        _screenRepository = screenRepository;
+        _unitOfWork = unitOfWork;
+    }
+
+    /// <summary>
+    /// Register a device (Raspberry Pi/Player) with a screen
+    /// </summary>
+    public async Task RegisterDevice(Guid screenId, string deviceId)
+    {
+        var screen = await _screenRepository.GetByIdAsync(screenId);
+        if (screen == null)
+            throw new ArgumentException($"Screen with ID {screenId} not found");
+
+        // Update screen status
+        screen.IsOnline = true;
+        screen.ConnectedDeviceId = deviceId;
+        screen.LastSeenAt = DateTime.UtcNow;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        // Track connection
+        _connectionToScreen[Context.ConnectionId] = screenId;
+
+        // Join screen group
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"screen_{screenId}");
+
+        // Notify clients that screen is now online
+        await Clients.All.SendAsync("ScreenStatusChanged", new
+        {
+            ScreenId = screenId,
+            IsOnline = true,
+            LastSeenAt = DateTime.UtcNow
+        });
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        // Mark screen as offline when device disconnects
+        if (_connectionToScreen.TryRemove(Context.ConnectionId, out var screenId))
+        {
+            var screen = await _screenRepository.GetByIdAsync(screenId);
+            if (screen != null)
+            {
+                screen.IsOnline = false;
+                screen.LastSeenAt = DateTime.UtcNow;
+                await _unitOfWork.SaveChangesAsync();
+
+                // Notify clients that screen is now offline
+                await Clients.All.SendAsync("ScreenStatusChanged", new
+                {
+                    ScreenId = screenId,
+                    IsOnline = false,
+                    LastSeenAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        await base.OnDisconnectedAsync(exception);
+    }
     public async Task SubscribeToScreen(string screenId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"screen_{screenId}");

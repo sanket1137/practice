@@ -56,9 +56,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Screen>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.DeviceId).IsUnique();
+            entity.HasIndex(e => e.DeviceId);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
-            entity.Property(e => e.DeviceId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DeviceId).HasMaxLength(100);
             
             // Complex type for Address
             entity.OwnsOne(e => e.Location, address =>

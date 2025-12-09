@@ -35,6 +35,11 @@ public class Screen : BaseEntity
     public DateTime? LastSyncAt { get; set; }
     public ScreenStatus Status { get; set; } = ScreenStatus.Active;
     
+    // Online status tracking
+    public bool IsOnline { get; set; } = false;
+    public DateTime? LastSeenAt { get; set; }
+    public string? ConnectedDeviceId { get; set; }
+    
     // Pricing
     public decimal PricePerSlot { get; set; }
     public string Currency { get; set; } = "USD";

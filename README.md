@@ -89,12 +89,17 @@ practice/
 - [x] Live preview system
 - [x] Analytics dashboards
 
-### Phase 5: Testing & Polish
+### Phase 5: Frontend UI & Polish ✅
+- [x] Dashboard page with statistics
+- [x] Campaign management (list, create, edit, delete)
+- [x] Screen browsing with search and filters
+- [x] Booking management with approval workflow
+- [x] Creative upload component
+- [x] Responsive navigation with sidebar
+- [x] User profile menu
+- [ ] Analytics dashboards (placeholder)
 - [ ] End-to-end testing
-- [ ] Error handling
-- [ ] UI/UX refinements
-- [ ] Documentation
-- [ ] Deployment
+- [ ] Advanced error handling
 
 ## 🔧 Development Setup
 
@@ -276,3 +281,14 @@ For issues and questions, contact the development team.
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:5257
    - Swagger Docs: http://localhost:5257/swagger
+
+## 🔑 Dummy Login Credentials
+
+For testing the frontend login functionality, use these credentials:
+
+| Email | Password |
+|-------|----------|
+| `dummy@example.com` | `Password123!` |
+
+**Role**: Advertiser  
+**Note**: This user is automatically created during database migration.

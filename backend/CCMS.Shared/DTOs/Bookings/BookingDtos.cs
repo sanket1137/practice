@@ -9,6 +9,8 @@ public class BookingDto
     public string CampaignName { get; set; } = string.Empty;
     public Guid CreativeId { get; set; }
     public string CreativeName { get; set; } = string.Empty;
+    public string? CreativeFileUrl { get; set; }
+    public string? CreativeMimeType { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public List<int> SlotNumbers { get; set; } = new();
@@ -29,7 +31,7 @@ public class CreateBookingRequest
     public Guid CreativeId { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
-    public List<int> SlotNumbers { get; set; } = new();
+    // SlotNumbers removed - will be auto-calculated as [1] (one slot per advertiser)
 }
 
 public class ApproveBookingRequest
