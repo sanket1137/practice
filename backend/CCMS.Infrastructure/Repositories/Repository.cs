@@ -18,12 +18,28 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
 
     public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+        // Use FirstOrDefaultAsync instead of FindAsync to respect global query filters
+        return await _dbSet.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        // Special handling for Booking to include navigation properties
+        if (typeof(T) == typeof(Booking))
+        {
+            return (IEnumerable<T>)await _context.Bookings
+                .Include(b => b.Campaign)
+                .Include(b => b.Screen)
+                .Include(b => b.Creative)
+                .ToListAsync(cancellationToken);
+        }
+        
         return await _dbSet.ToListAsync(cancellationToken);
+    }
+
+    public virtual async Task<IEnumerable<T>> FindAsync(System.Linq.Expressions.Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
     }
 
     public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
@@ -46,10 +62,17 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
             entity.IsDeleted = true;
             await UpdateAsync(entity, cancellationToken);
         }
-    }
+   }
 
     public virtual async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbSet.AnyAsync(e => e.Id == id, cancellationToken);
+    }
+
+    public virtual async Task<int> CountAsync(System.Linq.Expressions.Expression<Func<T, bool>>? predicate = null, CancellationToken cancellationToken = default)
+    {
+        return predicate == null
+            ? await _dbSet.CountAsync(cancellationToken)
+            : await _dbSet.CountAsync(predicate, cancellationToken);
     }
 }

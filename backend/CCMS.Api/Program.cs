@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using CCMS.Api.Hubs;
 using CCMS.Application.Interfaces;
 using CCMS.Application.Mappings;
+using CCMS.Application.Services;
 using CCMS.Domain.Interfaces;
 using CCMS.Infrastructure.Data;
 using CCMS.Infrastructure.Repositories;
@@ -55,7 +56,14 @@ builder.Services.AddSwaggerGen(c =>
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null
+        )
+    ));
 
 // CORS
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
@@ -129,11 +137,21 @@ builder.Services.AddMediatR(cfg =>
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+
 // Application Services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IPlaylistService, PlaylistService>();
+builder.Services.AddScoped<BookingCalculationService>();
+
+// Azure Blob Storage
+builder.Services.AddSingleton(x =>
+{
+    var connectionString = builder.Configuration.GetValue<string>("AzureStorage:ConnectionString");
+    return new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+});
+builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
 // Static Files (for uploads)
 builder.Services.AddDirectoryBrowser();
@@ -174,5 +192,30 @@ app.MapControllers();
 
 // SignalR Hub
 app.MapHub<PlaybackHub>("/hubs/playback");
+
+// Auto-apply migrations
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        context.Database.Migrate();
+        Console.WriteLine("Database migration applied successfully.");
+        
+        // Seed data in development mode
+        var env = services.GetRequiredService<IWebHostEnvironment>();
+        if (env.IsDevelopment())
+        {
+            await DataSeeder.SeedAsync(context);
+            Console.WriteLine("Seed data applied successfully.");
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+}
 
 app.Run();

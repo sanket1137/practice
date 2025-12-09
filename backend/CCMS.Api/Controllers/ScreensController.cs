@@ -21,6 +21,21 @@ public class ScreensController : ControllerBase
         _mediator = mediator;
     }
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ScreenDto>>>> GetAll()
+    {
+        try
+        {
+            var query = new GetScreensQuery();
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<IEnumerable<ScreenDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<IEnumerable<ScreenDto>>.ErrorResponse($"Error retrieving screens: {ex.Message}"));
+        }
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<ScreenDto>>> GetById(Guid id)
     {
@@ -61,7 +76,12 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse($"Error creating screen: {ex.Message}"));
+            var errorMessage = $"Error creating screen: {ex.Message}";
+            if (ex.InnerException != null)
+            {
+                errorMessage += $" Inner: {ex.InnerException.Message}";
+            }
+            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse(errorMessage));
         }
     }
 

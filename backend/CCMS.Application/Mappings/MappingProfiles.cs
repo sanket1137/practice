@@ -26,7 +26,15 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.OwnerId, opt => opt.Ignore())
             .ForMember(dest => dest.Owner, opt => opt.Ignore())
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(_ => ScreenStatus.Active));
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(_ => ScreenStatus.Active))
+            .ForMember(dest => dest.IsOnline, opt => opt.MapFrom(_ => false))
+            .ForMember(dest => dest.LastSeenAt, opt => opt.Ignore())
+            .ForMember(dest => dest.LastSyncAt, opt => opt.Ignore())
+            .ForMember(dest => dest.ConnectedDeviceId, opt => opt.Ignore())
+            .ForMember(dest => dest.Bookings, opt => opt.Ignore())
+            .ForMember(dest => dest.Impressions, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore());
         
         CreateMap<Address, AddressDto>().ReverseMap();
         CreateMap<OperatingSchedule, OperatingScheduleDto>().ReverseMap();
@@ -41,9 +49,9 @@ public class MappingProfiles : Profile
         // Campaign mappings
         CreateMap<Campaign, CampaignDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.TotalCreatives, opt => opt.MapFrom(src => src.Creatives.Count))
-            .ForMember(dest => dest.TotalBookings, opt => opt.MapFrom(src => src.Bookings.Count))
-            .ForMember(dest => dest.TotalImpressions, opt => opt .MapFrom(src => src.Bookings.Sum(b => b.DeliveredImpressions)));
+            .ForMember(dest => dest.TotalCreatives, opt => opt.MapFrom(src => src.Creatives != null ? src.Creatives.Count : 0))
+            .ForMember(dest => dest.TotalBookings, opt => opt.MapFrom(src => src.Bookings != null ? src.Bookings.Count : 0))
+            .ForMember(dest => dest.TotalImpressions, opt => opt.MapFrom(src => src.Bookings != null ? src.Bookings.Sum(b => b.DeliveredImpressions) : 0));
         
         CreateMap<CreateCampaignRequest, Campaign>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -55,9 +63,11 @@ public class MappingProfiles : Profile
         
         // Booking mappings
         CreateMap<Booking, BookingDto>()
-            .ForMember(dest => dest.ScreenName, opt => opt.MapFrom(src => src.Screen.Name))
-            .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Campaign.Name))
-            .ForMember(dest => dest.CreativeName, opt => opt.MapFrom(src => src.Creative.Name))
+            .ForMember(dest => dest.ScreenName, opt => opt.MapFrom(src => src.Screen != null ? src.Screen.Name : ""))
+            .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Campaign != null ? src.Campaign.Name : ""))
+            .ForMember(dest => dest.CreativeName, opt => opt.MapFrom(src => src.Creative != null ? src.Creative.Name : ""))
+            .ForMember(dest => dest.CreativeFileUrl, opt => opt.MapFrom(src => src.Creative != null ? src.Creative.FileUrl : null))
+            .ForMember(dest => dest.CreativeMimeType, opt => opt.MapFrom(src => src.Creative != null ? src.Creative.MimeType : null))
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
         
         CreateMap<CreateBookingRequest, Booking>()
