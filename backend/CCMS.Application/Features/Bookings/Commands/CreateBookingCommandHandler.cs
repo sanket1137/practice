@@ -61,8 +61,9 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         if (calculation.OperatingDays == 0)
             throw new InvalidOperationException("Screen does not operate during the selected date range");
 
-        // Calculate total price (per operating day)
-        var totalPrice = screen.PricePerSlot * calculation.OperatingDays;
+        // Calculate total price (per-minute pricing)
+        // PricePerSlot is now per minute, and each impression = 1 minute of operating time
+        var totalPrice = screen.PricePerSlot * calculation.TotalExpectedImpressions;
 
         var booking = new Booking
         {

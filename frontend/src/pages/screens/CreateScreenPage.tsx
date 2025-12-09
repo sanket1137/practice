@@ -8,10 +8,14 @@ import {
     Grid,
     Box,
     MenuItem,
+    Alert,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
+import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
+import { useRevenueCalculation } from '../../hooks/useRevenueCalculation';
 
 export default function CreateScreenPage() {
     const navigate = useNavigate();
@@ -26,7 +30,7 @@ export default function CreateScreenPage() {
         street: '',
         city: '',
         state: '',
-        country: 'USA',
+        country: 'India',
         postalCode: '',
         latitude: '',
         longitude: '',
@@ -34,8 +38,31 @@ export default function CreateScreenPage() {
         slotsPerFrame: '6',
         deviceId: '',
         pricePerSlot: '',
-        currency: 'USD',
+        currency: 'INR',
     });
+
+    const [schedule, setSchedule] = useState({
+        monday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
+        tuesday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
+        wednesday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
+        thursday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
+        friday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
+        saturday: { isOperating: true, startTime: '10:00', endTime: '22:00' },
+        sunday: { isOperating: true, startTime: '10:00', endTime: '21:00' },
+    });
+
+    // Calculate revenue estimates in real-time
+    const revenueEstimate = useRevenueCalculation({
+        timeFrameMinutes: parseInt(formData.timeFrameMinutes) || 1,
+        slotsPerFrame: parseInt(formData.slotsPerFrame) || 6,
+        pricePerSlot: parseFloat(formData.pricePerSlot) || 0,
+        schedule,
+    });
+
+    // Calculate ad duration per slot
+    const adDurationSeconds = formData.timeFrameMinutes && formData.slotsPerFrame
+        ? (parseInt(formData.timeFrameMinutes) * 60) / parseInt(formData.slotsPerFrame)
+        : 0;
 
     const createScreenMutation = useMutation({
         mutationFn: async (data: any) => {
@@ -56,15 +83,7 @@ export default function CreateScreenPage() {
                 },
                 latitude: data.latitude ? parseFloat(data.latitude) : 0,
                 longitude: data.longitude ? parseFloat(data.longitude) : 0,
-                schedule: {
-                    monday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
-                    tuesday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
-                    wednesday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
-                    thursday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
-                    friday: { isOperating: true, startTime: '09:00', endTime: '22:00' },
-                    saturday: { isOperating: true, startTime: '10:00', endTime: '22:00' },
-                    sunday: { isOperating: true, startTime: '10:00', endTime: '21:00' },
-                },
+                schedule: data.schedule,
                 timeFrameMinutes: parseInt(data.timeFrameMinutes),
                 slotsPerFrame: parseInt(data.slotsPerFrame),
                 deviceId: data.deviceId,
@@ -87,11 +106,11 @@ export default function CreateScreenPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        createScreenMutation.mutate(formData);
+        createScreenMutation.mutate({ ...formData, schedule });
     };
 
     return (
-        <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             <Paper sx={{ p: 4 }}>
                 <Typography variant="h4" gutterBottom>
                     Add New Screen
@@ -259,13 +278,13 @@ export default function CreateScreenPage() {
                             />
                         </Grid>
 
-                        {/* Technical Details */}
+                        {/* Slot Configuration & Pricing */}
                         <Grid item xs={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                                Technical Details
+                                Slot Configuration & Pricing
                             </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <TextField
                                 required
                                 fullWidth
@@ -274,10 +293,10 @@ export default function CreateScreenPage() {
                                 label="Time Frame (minutes)"
                                 value={formData.timeFrameMinutes}
                                 onChange={handleChange}
-                                helperText="Duration of each advertising cycle"
+                                helperText="Duration of one ad cycle"
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={4}>
                             <TextField
                                 required
                                 fullWidth
@@ -286,38 +305,36 @@ export default function CreateScreenPage() {
                                 label="Slots Per Frame"
                                 value={formData.slotsPerFrame}
                                 onChange={handleChange}
-                                helperText="Number of ads shown per cycle"
+                                helperText="Number of ads per cycle"
                             />
                         </Grid>
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                name="deviceId"
-                                label="Device ID (optional)"
-                                value={formData.deviceId}
-                                onChange={handleChange}
-                                helperText="ID of the Raspberry Pi or player device"
-                            />
-                        </Grid>
-
-                        {/* Pricing */}
-                        <Grid item xs={12}>
-                            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                                Pricing
-                            </Typography>
-                        </Grid>
-                        <Grid item xs={12} sm={8}>
+                        <Grid item xs={12} sm={4}>
                             <TextField
                                 required
                                 fullWidth
                                 type="number"
                                 name="pricePerSlot"
-                                label="Price Per Slot"
+                                label="Price Per Slot Per Minute"
                                 value={formData.pricePerSlot}
                                 onChange={handleChange}
+                                helperText={`${formData.currency} per slot per minute`}
+                                inputProps={{ step: '0.01' }}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+
+                        {adDurationSeconds > 0 && (
+                            <Grid item xs={12}>
+                                <Alert severity="info">
+                                    <strong>Ad Duration per Slot:</strong> {adDurationSeconds.toFixed(1)} seconds
+                                    <br />
+                                    <Typography variant="caption">
+                                        Each ad will play for {adDurationSeconds.toFixed(1)} seconds in the {formData.timeFrameMinutes}-minute cycle
+                                    </Typography>
+                                </Alert>
+                            </Grid>
+                        )}
+
+                        <Grid item xs={12} sm={12}>
                             <TextField
                                 select
                                 fullWidth
@@ -332,6 +349,41 @@ export default function CreateScreenPage() {
                                 <MenuItem value="INR">INR</MenuItem>
                             </TextField>
                         </Grid>
+
+                        {/* Operating Schedule */}
+                        <Grid item xs={12} sx={{ mt: 2 }}>
+                            <OperatingScheduleForm
+                                schedule={schedule}
+                                onChange={setSchedule}
+                            />
+                        </Grid>
+
+                        {/* Device ID */}
+                        <Grid item xs={12} sx={{ mt: 2 }}>
+                            <Typography variant="h6" gutterBottom>
+                                Device Configuration
+                            </Typography>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField
+                                fullWidth
+                                name="deviceId"
+                                label="Device ID (optional)"
+                                value={formData.deviceId}
+                                onChange={handleChange}
+                                helperText="ID of the Raspberry Pi or player device"
+                            />
+                        </Grid>
+
+                        {/* Revenue Estimate */}
+                        {formData.pricePerSlot && (
+                            <Grid item xs={12}>
+                                <RevenueEstimateCard
+                                    estimate={revenueEstimate}
+                                    currency={formData.currency}
+                                />
+                            </Grid>
+                        )}
 
                         {/* Actions */}
                         <Grid item xs={12}>
@@ -354,9 +406,9 @@ export default function CreateScreenPage() {
 
                         {createScreenMutation.isError && (
                             <Grid item xs={12}>
-                                <Typography color="error">
+                                <Alert severity="error">
                                     Error creating screen. Please try again.
-                                </Typography>
+                                </Alert>
                             </Grid>
                         )}
                     </Grid>

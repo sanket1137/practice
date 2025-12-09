@@ -144,6 +144,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
 builder.Services.AddScoped<IPlaylistService, PlaylistService>();
 builder.Services.AddScoped<BookingCalculationService>();
+builder.Services.AddScoped<IRevenueCalculationService, RevenueCalculationService>();
 
 // Azure Blob Storage
 builder.Services.AddSingleton(x =>

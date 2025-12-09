@@ -23,14 +23,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 
+// Calculate tomorrow's date for validation
+const getTomorrow = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    return tomorrow;
+};
+
 const bookingSchema = z.object({
     campaignId: z.string().min(1, 'Campaign is required'),
     creativeId: z.string().min(1, 'Creative is required'),
     screenId: z.string().min(1, 'Screen is required'),
-    startDate: z.date(),
+    startDate: z.date().refine((date) => {
+        const tomorrow = getTomorrow();
+        return date >= tomorrow;
+    }, {
+        message: 'Booking start date must be at least tomorrow. Same-day bookings are not allowed.',
+    }),
     endDate: z.date(),
-}).refine((data) => data.endDate > data.startDate, {
-    message: 'End date must be after start date',
+}).refine((data) => data.endDate >= data.startDate, {
+    message: 'End date must be greater than or equal to start date',
     path: ['endDate'],
 });
 
@@ -88,8 +101,8 @@ export default function CreateBookingPage() {
             campaignId: preSelectedCampaignId || '',
             creativeId: '',
             screenId: preSelectedScreenId || '',
-            startDate: new Date(),
-            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+            startDate: getTomorrow(), // Start from tomorrow
+            endDate: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000), // 8 days from now (tomorrow + 7 days)
         },
     });
 
@@ -178,7 +191,8 @@ export default function CreateBookingPage() {
         }
 
         const totalDays = Math.floor((end.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        const totalPrice = selectedScreenDetails.pricePerSlot * operatingDays;
+        // Per-minute pricing: price per slot × total minutes (impressions)
+        const totalPrice = selectedScreenDetails.pricePerSlot * totalImpressions;
 
         return {
             totalDays,
@@ -314,11 +328,12 @@ export default function CreateBookingPage() {
                                                 <DatePicker
                                                     {...field}
                                                     label="Start Date"
+                                                    minDate={getTomorrow()}
                                                     slotProps={{
                                                         textField: {
                                                             fullWidth: true,
                                                             error: !!errors.startDate,
-                                                            helperText: errors.startDate?.message,
+                                                            helperText: errors.startDate?.message || 'Bookings must start from tomorrow onwards',
                                                             required: true,
                                                         },
                                                     }}
@@ -338,6 +353,7 @@ export default function CreateBookingPage() {
                                                 <DatePicker
                                                     {...field}
                                                     label="End Date"
+                                                    minDate={startDate || getTomorrow()}
                                                     slotProps={{
                                                         textField: {
                                                             fullWidth: true,
@@ -422,7 +438,7 @@ export default function CreateBookingPage() {
                                             {selectedScreenDetails?.currency} {calculation.totalPrice.toLocaleString()}
                                         </Typography>
                                         <Typography variant="caption" color="textSecondary">
-                                            ({selectedScreenDetails?.pricePerSlot}/day × {calculation.operatingDays} days)
+                                            ({selectedScreenDetails?.currency} {selectedScreenDetails?.pricePerSlot}/minute × {calculation.totalImpressions} minutes)
                                         </Typography>
                                     </Box>
                                 </>
