@@ -10,17 +10,20 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
 {
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Screen> _screenRepository;
+    private readonly IRepository<Creative> _creativeRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
     public ApproveBookingCommandHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
+        IRepository<Creative> creativeRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
+        _creativeRepository = creativeRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
@@ -41,6 +44,16 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
         booking.ApprovedBy = request.UserId;
         booking.ApprovedAt = DateTime.UtcNow;
         booking.UpdatedAt = DateTime.UtcNow;
+
+        // Lock the creative to prevent editing/deletion
+        var creative = await _creativeRepository.GetByIdAsync(booking.CreativeId, cancellationToken);
+        if (creative != null)
+        {
+            creative.IsLocked = true;
+            creative.LockedReason = $"Used in approved booking {booking.Id}";
+            creative.UpdatedAt = DateTime.UtcNow;
+            await _creativeRepository.UpdateAsync(creative, cancellationToken);
+        }
 
         await _bookingRepository.UpdateAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

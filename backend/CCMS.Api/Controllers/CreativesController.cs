@@ -28,7 +28,13 @@ public class CreativesController : ControllerBase
     [HttpPost("upload")]
     [Authorize(Roles = "Advertiser,ScreenOwner,Admin")]
     [RequestSizeLimit(100_000_000)] // 100MB limit
-    public async Task<ActionResult<ApiResponse<CreativeDto>>> Upload([FromForm] IFormFile file, [FromForm] Guid campaignId, [FromForm] string name, [FromForm] int duration = 10)
+    public async Task<ActionResult<ApiResponse<CreativeDto>>> Upload(
+        [FromForm] IFormFile file, 
+        [FromForm] Guid campaignId, 
+        [FromForm] string name, 
+        [FromForm] int duration = 10,
+        [FromForm] int width = 1920,
+        [FromForm] int height = 1080)
     {
         try
         {
@@ -46,7 +52,9 @@ public class CreativesController : ControllerBase
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 Name = name,
-                Duration = duration
+                Duration = duration,
+                Width = width,
+                Height = height
             };
 
             var result = await _mediator.Send(command);
@@ -132,6 +140,32 @@ public class CreativesController : ControllerBase
         {
             return StatusCode(500,
                 ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse($"Error retrieving creatives: {ex.Message}"));
+        }
+    }
+
+    // GET /api/creatives/{id}/validate-for-screen/{screenId}
+    [HttpGet("{id}/validate-for-screen/{screenId}")]
+    public async Task<ActionResult<ApiResponse<CreativeValidationDto>>> ValidateForScreen(Guid id, Guid screenId)
+    {
+        try
+        {
+            var query = new CCMS.Application.Features.Creatives.Queries.ValidateCreativeForScreenQuery
+            {
+                CreativeId = id,
+                ScreenId = screenId
+            };
+
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<CreativeValidationDto>.SuccessResponse(result));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<CreativeValidationDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500,
+                ApiResponse<CreativeValidationDto>.ErrorResponse($"Error validating creative: {ex.Message}"));
         }
     }
 }

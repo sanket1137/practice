@@ -31,7 +31,7 @@ public class CreateBookingRequest
     public Guid CreativeId { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
-    // SlotNumbers removed - will be auto-calculated as [1] (one slot per advertiser)
+    public int? SlotNumber { get; set; } // null = auto-assign, 1-6 = specific slot
 }
 
 public class ApproveBookingRequest

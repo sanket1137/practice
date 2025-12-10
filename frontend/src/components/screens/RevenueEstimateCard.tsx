@@ -17,11 +17,12 @@ import {
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
 interface RevenueEstimate {
-    perMinute: number;
+    perFrame: number;  // Revenue per complete time frame cycle
     perHour: number;
     daily: Record<string, number>;
     weekly: number;
     monthly: number;
+    perMinute?: number; // Deprecated, kept for backward compatibility
 }
 
 interface RevenueEstimateCardProps {
@@ -62,10 +63,10 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                     <Grid item xs={6} sm={3}>
                         <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
                             <Typography variant="caption" color="textSecondary">
-                                Per Minute
+                                Per Frame
                             </Typography>
                             <Typography variant="h6" fontWeight="bold">
-                                {formatCurrency(estimate.perMinute)}
+                                {formatCurrency(estimate.perFrame)}
                             </Typography>
                         </Paper>
                     </Grid>

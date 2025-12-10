@@ -85,5 +85,33 @@ public class ScreensController : ControllerBase
         }
     }
 
+    [HttpGet("{id}/availability")]
+    public async Task<ActionResult<ApiResponse<ScreenAvailabilityDto>>> GetAvailability(
+        Guid id,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var query = new GetScreenAvailabilityQuery
+            {
+                ScreenId = id,
+                StartDate = startDate,
+                EndDate = endDate
+            };
+
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<ScreenAvailabilityDto>.SuccessResponse(result));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<ScreenAvailabilityDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<ScreenAvailabilityDto>.ErrorResponse($"Error checking availability: {ex.Message}"));
+        }
+    }
+
     // Additional endpoints would go here (Update, Delete, List, etc.)
 }

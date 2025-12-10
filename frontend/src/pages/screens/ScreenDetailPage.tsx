@@ -24,6 +24,9 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
+import SlotBookingsCard from '../../components/screens/SlotBookingsCard';
+import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 
 interface Screen {
     id: string;
@@ -50,6 +53,7 @@ interface Screen {
 export default function ScreenDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const user = useAuthStore((state) => state.user);
 
     // Fetch screen details
     const { data: screen, isLoading } = useQuery<Screen>({
@@ -258,6 +262,13 @@ export default function ScreenDetailPage() {
                         </CardContent>
                     </Card>
                 </Grid>
+
+                {/* Slot Bookings Card - Only for Screen Owners and Admins */}
+                {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
+                    <Grid item xs={12}>
+                        <SlotBookingsCard screenId={id!} />
+                    </Grid>
+                )}
             </Grid>
         </Container>
     );

@@ -6,5 +6,5 @@ namespace CCMS.Application.Interfaces;
 public interface IRevenueCalculationService
 {
     RevenueEstimateDto CalculateRevenueEstimate(Screen screen);
-    decimal CalculateDailyRevenue(Domain.ValueObjects.DaySchedule schedule, decimal revenuePerMinute);
+    decimal CalculateDailyRevenue(Domain.ValueObjects.DaySchedule schedule, decimal revenuePerFrame, int timeFrameMinutes);
 }
