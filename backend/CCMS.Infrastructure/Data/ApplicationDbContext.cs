@@ -16,6 +16,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Screen> Screens => Set<Screen>();
+    public DbSet<SlotAvailability> SlotAvailabilities => Set<SlotAvailability>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<Creative> Creatives => Set<Creative>();
     public DbSet<Booking> Bookings => Set<Booking>();
@@ -205,6 +206,37 @@ public class ApplicationDbContext : DbContext
                 .WithMany(o => o.Memberships)
                 .HasForeignKey(e => e.OrganizationId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // SlotAvailability configuration
+        modelBuilder.Entity<SlotAvailability>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Unique constraint: one record per screen per date
+            entity.HasIndex(e => new { e.ScreenId, e.Date }).IsUnique();
+            
+            // Check constraints
+            entity.ToTable(t => 
+            {
+                t.HasCheckConstraint("CK_SlotAvailability_BookedSlotsNonNegative", "[BookedSlots] >= 0");
+                t.HasCheckConstraint("CK_SlotAvailability_BookedSlotsNotExceedTotal", "[BookedSlots] <= [TotalSlots]");
+            });
+            
+            // JSON column for slot bookings
+            entity.Property(e => e.SlotBookings)
+                .HasColumnType("nvarchar(max)")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
+                    v => JsonSerializer.Deserialize<Dictionary<int, Guid?>>(v, (JsonSerializerOptions)null!) ?? new Dictionary<int, Guid?>()
+                );
+            
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }
 

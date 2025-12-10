@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
+import SlotAvailabilityCard from '../../components/bookings/SlotAvailabilityCard';
 
 // Calculate tomorrow's date for validation
 const getTomorrow = () => {
@@ -112,13 +113,19 @@ export default function CreateBookingPage() {
     const endDate = watch('endDate');
 
     // Fetch campaigns
-    const { data: campaigns } = useQuery<Campaign[]>({
+    const { data: campaigns, error: campaignsError, isLoading: campaignsLoading } = useQuery<Campaign[]>({
         queryKey: ['campaigns'],
         queryFn: async () => {
             const response = await api.get('/campaigns');
+            console.log('Campaigns API response:', response.data);
             return response.data.data; // ApiResponse wrapper
         },
     });
+
+    // Log campaigns for debugging
+    console.log('Campaigns data:', campaigns);
+    console.log('Campaigns error:', campaignsError);
+    console.log('Campaigns loading:', campaignsLoading);
 
     // Fetch creatives for selected campaign
     const { data: creatives } = useQuery<Creative[]>({
@@ -149,9 +156,37 @@ export default function CreateBookingPage() {
         enabled: !!selectedScreenId,
     });
 
-    // Calculate booking impressions and price
+    // Fetch availability data for accurate calculation
+    const { data: availabilityData } = useQuery({
+        queryKey: ['screen-availability-calc', selectedScreenId, startDate, endDate],
+        queryFn: async () => {
+            // Format dates in local timezone to avoid UTC offset issues
+            const formatDate = (date: Date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            const response = await api.get(`/screens/${selectedScreenId}/availability`, {
+                params: {
+                    startDate: formatDate(startDate!),
+                    endDate: formatDate(endDate!),
+                },
+            });
+            return response.data.data;
+        },
+        enabled: !!selectedScreenId && !!startDate && !!endDate,
+    });
+
+    // Calculate booking impressions and price (using availability data)
     const calculation = useMemo(() => {
-        if (!selectedScreenDetails || !startDate || !endDate) return null;
+        if (!selectedScreenDetails || !startDate || !endDate || !availabilityData) return null;
+
+        console.log('=== Booking Calculation ===');
+        console.log('Start Date:', startDate);
+        console.log('End Date:', endDate);
+        console.log('Availability Data:', availabilityData);
 
         const parseTime = (timeStr: string) => {
             const [hours, minutes] = timeStr.split(':').map(Number);
@@ -160,7 +195,8 @@ export default function CreateBookingPage() {
 
         let totalImpressions = 0;
         let operatingDays = 0;
-        const breakdown: Array<{ date: Date; day: string; hours: number; plays: number }> = [];
+        let bookableDays = 0;
+        const breakdown: Array<{ date: Date; day: string; hours: number; plays: number; available: boolean }> = [];
 
         const current = new Date(startDate);
         const end = new Date(endDate);
@@ -170,20 +206,45 @@ export default function CreateBookingPage() {
             const dayName = dayNames[current.getDay()] as keyof typeof selectedScreenDetails.schedule;
             const daySchedule = selectedScreenDetails.schedule[dayName];
 
-            if (daySchedule?.isOperating) {
+            // Find availability for this specific date (improved date matching)
+            const currentDateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+            const dayAvailability = availabilityData.availability.find((a: any) => {
+                const availDate = a.date.split('T')[0];
+                return availDate === currentDateStr;
+            });
+
+            console.log('Checking date:', currentDateStr, 'Found availability:', dayAvailability);
+
+            const hasAvailableSlots = dayAvailability && dayAvailability.availableSlots > 0;
+
+            if (daySchedule?.isOperating && hasAvailableSlots) {
                 const startMin = parseTime(daySchedule.startTime);
                 const endMin = parseTime(daySchedule.endTime);
                 const operatingMinutes = endMin - startMin;
                 const frames = Math.floor(operatingMinutes / selectedScreenDetails.timeFrameMinutes);
 
                 operatingDays++;
+                bookableDays++;
                 totalImpressions += frames;
+
+                console.log('Day has availability:', currentDateStr, 'frames:', frames);
 
                 breakdown.push({
                     date: new Date(current),
                     day: dayName,
                     hours: operatingMinutes / 60,
                     plays: frames,
+                    available: true,
+                });
+            } else if (daySchedule?.isOperating) {
+                // Operating but sold out
+                operatingDays++;
+                breakdown.push({
+                    date: new Date(current),
+                    day: dayName,
+                    hours: 0,
+                    plays: 0,
+                    available: false,
                 });
             }
 
@@ -192,16 +253,18 @@ export default function CreateBookingPage() {
 
         const totalDays = Math.floor((end.getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
         // Per-minute pricing: price per slot × total minutes (impressions)
+        // Only charges for bookable days (days with available slots)
         const totalPrice = selectedScreenDetails.pricePerSlot * totalImpressions;
 
         return {
             totalDays,
             operatingDays,
+            bookableDays,  // NEW
             totalImpressions,
             totalPrice,
             breakdown,
         };
-    }, [selectedScreenDetails, startDate, endDate]);
+    }, [selectedScreenDetails, startDate, endDate, availabilityData]);
 
     const createMutation = useMutation({
         mutationFn: async (data: BookingFormData) => {
@@ -222,7 +285,21 @@ export default function CreateBookingPage() {
     });
 
     const onSubmit = (data: BookingFormData) => {
-        createMutation.mutate(data);
+        // Format dates in local timezone to avoid UTC offset issues
+        const formatDate = (date: Date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        const formattedData = {
+            ...data,
+            startDate: formatDate(data.startDate),
+            endDate: formatDate(data.endDate),
+        };
+
+        createMutation.mutate(formattedData as any);
     };
 
     return (
@@ -257,11 +334,17 @@ export default function CreateBookingPage() {
                                                 helperText={errors.campaignId?.message}
                                                 required
                                             >
-                                                {campaigns?.map((campaign) => (
-                                                    <MenuItem key={campaign.id} value={campaign.id}>
-                                                        {campaign.name}
+                                                {!campaigns || campaigns.length === 0 ? (
+                                                    <MenuItem value="" disabled>
+                                                        No campaigns available
                                                     </MenuItem>
-                                                ))}
+                                                ) : (
+                                                    campaigns.map((campaign) => (
+                                                        <MenuItem key={campaign.id} value={campaign.id}>
+                                                            {campaign.name}
+                                                        </MenuItem>
+                                                    ))
+                                                )}
                                             </TextField>
                                         )}
                                     />
@@ -283,11 +366,17 @@ export default function CreateBookingPage() {
                                                 disabled={!selectedCampaignId}
                                                 required
                                             >
-                                                {creatives?.map((creative) => (
-                                                    <MenuItem key={creative.id} value={creative.id}>
-                                                        {creative.name}
+                                                {!creatives || creatives.length === 0 ? (
+                                                    <MenuItem value="" disabled>
+                                                        {selectedCampaignId ? 'No creatives available' : 'Select a campaign first'}
                                                     </MenuItem>
-                                                ))}
+                                                ) : (
+                                                    creatives.map((creative) => (
+                                                        <MenuItem key={creative.id} value={creative.id}>
+                                                            {creative.name}
+                                                        </MenuItem>
+                                                    ))
+                                                )}
                                             </TextField>
                                         )}
                                     />
@@ -308,18 +397,24 @@ export default function CreateBookingPage() {
                                                 helperText={errors.screenId?.message}
                                                 required
                                             >
-                                                {screens?.map((screen) => (
-                                                    <MenuItem key={screen.id} value={screen.id}>
-                                                        {screen.name} - {screen.currency} {screen.pricePerSlot}/slot
+                                                {!screens || screens.length === 0 ? (
+                                                    <MenuItem value="" disabled>
+                                                        No screens available
                                                     </MenuItem>
-                                                ))}
+                                                ) : (
+                                                    screens.map((screen) => (
+                                                        <MenuItem key={screen.id} value={screen.id}>
+                                                            {screen.name} - {screen.currency} {screen.pricePerSlot}/slot
+                                                        </MenuItem>
+                                                    ))
+                                                )}
                                             </TextField>
                                         )}
                                     />
                                 </Grid>
 
                                 {/* Start Date */}
-                                <Grid item xs={12} sm={6}>
+                                <Grid item xs={12} md={6}>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                                         <Controller
                                             name="startDate"
@@ -368,6 +463,17 @@ export default function CreateBookingPage() {
                                     </LocalizationProvider>
                                 </Grid>
 
+
+                                {/* Slot Availability */}
+                                {selectedScreenId && startDate && endDate && (
+                                    <Grid item xs={12}>
+                                        <SlotAvailabilityCard
+                                            screenId={selectedScreenId}
+                                            startDate={startDate}
+                                            endDate={endDate}
+                                        />
+                                    </Grid>
+                                )}
 
                                 {/* Actions */}
                                 <Grid item xs={12}>

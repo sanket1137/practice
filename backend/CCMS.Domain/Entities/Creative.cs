@@ -22,6 +22,10 @@ public class Creative : BaseEntity
     // Thumbnail for preview
     public string? ThumbnailUrl { get; set; }
     
+    // Locking for approved bookings
+    public bool IsLocked { get; set; }
+    public string? LockedReason { get; set; }
+    
     // Navigation properties
     public virtual Campaign Campaign { get; set; } = null!;
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();

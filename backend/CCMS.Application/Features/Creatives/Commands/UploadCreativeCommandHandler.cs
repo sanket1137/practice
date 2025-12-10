@@ -12,20 +12,20 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
 {
     private readonly IRepository<Creative> _creativeRepository;
     private readonly IRepository<Campaign> _campaignRepository;
-    private readonly IBlobStorageService _blobStorageService;
+    private readonly IFileStorageService _fileStorageService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
     public UploadCreativeCommandHandler(
         IRepository<Creative> creativeRepository,
         IRepository<Campaign> campaignRepository,
-        IBlobStorageService blobStorageService,
+        IFileStorageService fileStorageService,
         IUnitOfWork unitOfWork,
         IMapper mapper)
     {
         _creativeRepository = creativeRepository;
         _campaignRepository = campaignRepository;
-        _blobStorageService = blobStorageService;
+        _fileStorageService = fileStorageService;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
@@ -40,13 +40,13 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         if (campaign.AdvertiserId != request.UserId)
             throw new UnauthorizedAccessException("You can only upload creatives to your own campaigns");
 
-        // Upload file to blob storage
+        // Upload file to storage
         string fileUrl;
         string fileHash;
         
         using (var stream = request.FileStream)
         {
-            fileUrl = await _blobStorageService.UploadFileAsync(
+            fileUrl = await _fileStorageService.UploadFileAsync(
                 stream,
                 request.FileName,
                 request.ContentType);
@@ -69,8 +69,8 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             FileSize = request.FileSize,
             FileHash = fileHash,
             Duration = request.Duration,
-            Width = 0, // You can extract from image/video metadata if needed
-            Height = 0,
+            Width = request.Width,
+            Height = request.Height,
             CreatedAt = DateTime.UtcNow
         };
 

@@ -24,6 +24,8 @@ const creativeSchema = z.object({
     name: z.string().min(3, 'Name must be at least 3 characters'),
     type: z.enum(['Image', 'Video']),
     durationSeconds: z.number().min(1, 'Duration must be at least 1 second'),
+    width: z.number().min(1, 'Width must be at least 1'),
+    height: z.number().min(1, 'Height must be at least 1'),
     file: z.instanceof(File).optional(),
 });
 
@@ -48,6 +50,8 @@ export default function UploadCreativePage() {
             name: '',
             type: 'Video',
             durationSeconds: 10,
+            width: 1920,
+            height: 1080,
         },
     });
 
@@ -59,6 +63,8 @@ export default function UploadCreativePage() {
             formData.append('name', data.name);
             formData.append('campaignId', id!);
             formData.append('duration', data.durationSeconds.toString());
+            formData.append('width', data.width.toString());
+            formData.append('height', data.height.toString());
             if (selectedFile) {
                 formData.append('file', selectedFile);
             }
@@ -181,6 +187,48 @@ export default function UploadCreativePage() {
                                                 onChange={(e) => onChange(parseInt(e.target.value))}
                                                 error={!!errors.durationSeconds}
                                                 helperText={errors.durationSeconds?.message}
+                                                required
+                                            />
+                                        )}
+                                    />
+                                </Grid>
+
+                                {/* Width */}
+                                <Grid item xs={12} sm={6}>
+                                    <Controller
+                                        name="width"
+                                        control={control}
+                                        render={({ field: { onChange, value, ...field } }) => (
+                                            <TextField
+                                                {...field}
+                                                fullWidth
+                                                label="Width (pixels)"
+                                                type="number"
+                                                value={value}
+                                                onChange={(e) => onChange(parseInt(e.target.value))}
+                                                error={!!errors.width}
+                                                helperText={errors.width?.message || 'e.g., 1920 for Full HD'}
+                                                required
+                                            />
+                                        )}
+                                    />
+                                </Grid>
+
+                                {/* Height */}
+                                <Grid item xs={12} sm={6}>
+                                    <Controller
+                                        name="height"
+                                        control={control}
+                                        render={({ field: { onChange, value, ...field } }) => (
+                                            <TextField
+                                                {...field}
+                                                fullWidth
+                                                label="Height (pixels)"
+                                                type="number"
+                                                value={value}
+                                                onChange={(e) => onChange(parseInt(e.target.value))}
+                                                error={!!errors.height}
+                                                helperText={errors.height?.message || 'e.g., 1080 for Full HD'}
                                                 required
                                             />
                                         )}

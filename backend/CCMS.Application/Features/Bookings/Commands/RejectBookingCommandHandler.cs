@@ -1,4 +1,5 @@
 using AutoMapper;
+using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
@@ -12,17 +13,20 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
     private readonly IRepository<Screen> _screenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly SlotAvailabilityService _slotAvailabilityService;
 
     public RejectBookingCommandHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        SlotAvailabilityService slotAvailabilityService)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _slotAvailabilityService = slotAvailabilityService;
     }
 
     public async Task<BookingDto> Handle(RejectBookingCommand request, CancellationToken cancellationToken)
@@ -40,6 +44,18 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
         booking.Status = Domain.Enums.BookingStatus.Rejected;
         booking.RejectionReason = request.RejectionReason;
         booking.UpdatedAt = DateTime.UtcNow;
+
+        // Release the booked slot
+        if (booking.SlotNumbers != null && booking.SlotNumbers.Any())
+        {
+            var slotNumber = booking.SlotNumbers.First();
+            await _slotAvailabilityService.ReleaseSlot(
+                booking.ScreenId,
+                slotNumber,
+                booking.StartDate,
+                booking.EndDate,
+                cancellationToken);
+        }
 
         await _bookingRepository.UpdateAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

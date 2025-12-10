@@ -9,18 +9,25 @@ public class RevenueCalculationService : IRevenueCalculationService
 {
     public RevenueEstimateDto CalculateRevenueEstimate(Screen screen)
     {
-        var revenuePerMinute = screen.SlotsPerFrame * screen.PricePerSlot;
-        var revenuePerHour = revenuePerMinute * 60;
+        // CORRECTED FORMULA
+        // Revenue per frame = price_per_slot_per_minute × time_frame_minutes
+        var revenuePerFrame = screen.PricePerSlot * screen.TimeFrameMinutes;
+        
+        // Frames per hour
+        var framesPerHour = 60m / screen.TimeFrameMinutes;
+        
+        // Revenue per hour
+        var revenuePerHour = framesPerHour * revenuePerFrame;
 
         var dailyBreakdown = new Dictionary<string, decimal>
         {
-            { "monday", CalculateDailyRevenue(screen.Schedule.Monday, revenuePerMinute) },
-            { "tuesday", CalculateDailyRevenue(screen.Schedule.Tuesday, revenuePerMinute) },
-            { "wednesday", CalculateDailyRevenue(screen.Schedule.Wednesday, revenuePerMinute) },
-            { "thursday", CalculateDailyRevenue(screen.Schedule.Thursday, revenuePerMinute) },
-            { "friday", CalculateDailyRevenue(screen.Schedule.Friday, revenuePerMinute) },
-            { "saturday", CalculateDailyRevenue(screen.Schedule.Saturday, revenuePerMinute) },
-            { "sunday", CalculateDailyRevenue(screen.Schedule.Sunday, revenuePerMinute) }
+            { "monday", CalculateDailyRevenue(screen.Schedule.Monday, revenuePerFrame, screen.TimeFrameMinutes) },
+            { "tuesday", CalculateDailyRevenue(screen.Schedule.Tuesday, revenuePerFrame, screen.TimeFrameMinutes) },
+            { "wednesday", CalculateDailyRevenue(screen.Schedule.Wednesday, revenuePerFrame, screen.TimeFrameMinutes) },
+            { "thursday", CalculateDailyRevenue(screen.Schedule.Thursday, revenuePerFrame, screen.TimeFrameMinutes) },
+            { "friday", CalculateDailyRevenue(screen.Schedule.Friday, revenuePerFrame, screen.TimeFrameMinutes) },
+            { "saturday", CalculateDailyRevenue(screen.Schedule.Saturday, revenuePerFrame, screen.TimeFrameMinutes) },
+            { "sunday", CalculateDailyRevenue(screen.Schedule.Sunday, revenuePerFrame, screen.TimeFrameMinutes) }
         };
 
         var weeklyRevenue = dailyBreakdown.Values.Sum();
@@ -28,15 +35,18 @@ public class RevenueCalculationService : IRevenueCalculationService
 
         return new RevenueEstimateDto
         {
-            PerMinute = revenuePerMinute,
+            PerFrame = revenuePerFrame,
             PerHour = revenuePerHour,
             Daily = dailyBreakdown,
             Weekly = weeklyRevenue,
-            Monthly = monthlyRevenue
+            Monthly = monthlyRevenue,
+            
+            // Deprecated but kept for backward compatibility
+            PerMinute = revenuePerFrame / screen.TimeFrameMinutes
         };
     }
 
-    public decimal CalculateDailyRevenue(DaySchedule schedule, decimal revenuePerMinute)
+    public decimal CalculateDailyRevenue(DaySchedule schedule, decimal revenuePerFrame, int timeFrameMinutes)
     {
         if (!schedule.IsOperating)
             return 0;
@@ -47,6 +57,9 @@ public class RevenueCalculationService : IRevenueCalculationService
         if (operatingMinutes < 0)
             operatingMinutes += 24 * 60; // Add 24 hours in minutes
 
-        return revenuePerMinute * operatingMinutes;
+        // Number of frames (complete cycles) in the day
+        var framesPerDay = operatingMinutes / timeFrameMinutes;
+        
+        return revenuePerFrame * framesPerDay;
     }
 }

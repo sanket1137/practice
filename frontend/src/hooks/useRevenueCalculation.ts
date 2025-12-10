@@ -17,7 +17,7 @@ interface OperatingSchedule {
 }
 
 interface RevenueEstimate {
-    perMinute: number;
+    perFrame: number;  // Revenue per complete time frame
     perHour: number;
     daily: Record<string, number>;
     weekly: number;
@@ -38,7 +38,8 @@ const timeToMinutes = (timeString: string): number => {
 
 const calculateDailyRevenue = (
     schedule: DaySchedule,
-    revenuePerMinute: number
+    revenuePerFrame: number,
+    timeFrameMinutes: number
 ): number => {
     if (!schedule.isOperating) return 0;
 
@@ -50,7 +51,10 @@ const calculateDailyRevenue = (
         operatingMinutes += 24 * 60;
     }
 
-    return revenuePerMinute * operatingMinutes;
+    // Number of complete frames in the day
+    const framesPerDay = operatingMinutes / timeFrameMinutes;
+
+    return revenuePerFrame * framesPerDay;
 };
 
 export const useRevenueCalculation = (
@@ -59,24 +63,31 @@ export const useRevenueCalculation = (
     return useMemo(() => {
         const { timeFrameMinutes, slotsPerFrame, pricePerSlot, schedule } = config;
 
-        const revenuePerMinute = slotsPerFrame * pricePerSlot;
-        const revenuePerHour = revenuePerMinute * 60;
+        // CORRECTED FORMULA
+        // Revenue per frame = price_per_slot_per_minute × time_frame_minutes
+        const revenuePerFrame = pricePerSlot * timeFrameMinutes;
+
+        // Frames per hour
+        const framesPerHour = 60 / timeFrameMinutes;
+
+        // Revenue per hour
+        const revenuePerHour = framesPerHour * revenuePerFrame;
 
         const daily: Record<string, number> = {
-            monday: calculateDailyRevenue(schedule.monday, revenuePerMinute),
-            tuesday: calculateDailyRevenue(schedule.tuesday, revenuePerMinute),
-            wednesday: calculateDailyRevenue(schedule.wednesday, revenuePerMinute),
-            thursday: calculateDailyRevenue(schedule.thursday, revenuePerMinute),
-            friday: calculateDailyRevenue(schedule.friday, revenuePerMinute),
-            saturday: calculateDailyRevenue(schedule.saturday, revenuePerMinute),
-            sunday: calculateDailyRevenue(schedule.sunday, revenuePerMinute),
+            monday: calculateDailyRevenue(schedule.monday, revenuePerFrame, timeFrameMinutes),
+            tuesday: calculateDailyRevenue(schedule.tuesday, revenuePerFrame, timeFrameMinutes),
+            wednesday: calculateDailyRevenue(schedule.wednesday, revenuePerFrame, timeFrameMinutes),
+            thursday: calculateDailyRevenue(schedule.thursday, revenuePerFrame, timeFrameMinutes),
+            friday: calculateDailyRevenue(schedule.friday, revenuePerFrame, timeFrameMinutes),
+            saturday: calculateDailyRevenue(schedule.saturday, revenuePerFrame, timeFrameMinutes),
+            sunday: calculateDailyRevenue(schedule.sunday, revenuePerFrame, timeFrameMinutes),
         };
 
         const weekly = Object.values(daily).reduce((sum, val) => sum + val, 0);
         const monthly = weekly * 4.33; // Average weeks per month
 
         return {
-            perMinute: revenuePerMinute,
+            perFrame: revenuePerFrame,
             perHour: revenuePerHour,
             daily,
             weekly,
