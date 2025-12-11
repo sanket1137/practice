@@ -15,9 +15,16 @@ import {
     Avatar,
     Menu,
     MenuItem,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import MobileBottomNav from './MobileBottomNav';
+import BreadcrumbNavigation from '../common/BreadcrumbNavigation';
+import GlobalSearch, { useGlobalSearch } from '../common/GlobalSearch';
+import QuickActions from '../common/QuickActions';
+import KeyboardShortcutsPanel, { useKeyboardShortcuts } from '../common/KeyboardShortcutsPanel';
 import {
     Menu as MenuIcon,
     Dashboard as DashboardIcon,
@@ -27,16 +34,24 @@ import {
     BarChart as AnalyticsIcon,
     AccountCircle as AccountIcon,
     Logout as LogoutIcon,
+    ChevronLeft as ChevronLeftIcon,
+    Search as SearchIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
+const miniDrawerWidth = 60;
 
 const MainLayout = () => {
+    const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuthStore();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [desktopOpen, setDesktopOpen] = useState(true);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+    const { open: shortcutsOpen, setOpen: setShortcutsOpen } = useKeyboardShortcuts();
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -119,6 +134,15 @@ const MainLayout = () => {
                     </Typography>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {/* Global Search Trigger */}
+                        <IconButton
+                            color="inherit"
+                            onClick={() => setSearchOpen(true)}
+                            sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                        >
+                            <SearchIcon />
+                        </IconButton>
+
                         <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
                             {user?.firstName} {user?.lastName}
                         </Typography>
@@ -204,12 +228,28 @@ const MainLayout = () => {
                     p: 3,
                     width: { sm: `calc(100% - ${drawerWidth}px)` },
                     mt: 8,
+                    mb: { xs: 8, md: 0 }, // Add bottom margin for mobile bottom nav
                     bgcolor: 'background.default',
                     minHeight: '100vh',
                 }}
             >
+                {/* Breadcrumb Navigation */}
+                <BreadcrumbNavigation />
+
                 <Outlet />
             </Box>
+
+            {/* Mobile bottom navigation */}
+            <MobileBottomNav />
+
+            {/* Global Search Dialog */}
+            <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+            {/* Keyboard Shortcuts Panel */}
+            <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+            {/* Quick Actions Speed Dial */}
+            <QuickActions />
         </Box>
     );
 };
