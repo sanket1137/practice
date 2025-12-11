@@ -1,4 +1,6 @@
 using CCMS.Domain.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 
 namespace CCMS.Domain.Entities;
 
@@ -13,7 +15,41 @@ public class Booking : BaseEntity
     public DateTime EndDate { get; set; }
     
     // Slot allocation (stored as JSON array, e.g., [1, 2, 3])
+    // NOTE: This is kept for backward compatibility
     public List<int> SlotNumbers { get; set; } = new();
+    
+    // NEW: Per-day slot assignments (stored as JSON)
+    // Maps each date to its assigned slot number
+    public string? DailySlotAssignmentsJson { get; set; }
+    
+    [NotMapped]
+    public Dictionary<DateTime, int>? DailySlotAssignments
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(DailySlotAssignmentsJson))
+                return null;
+            
+            try
+            {
+                return JsonSerializer.Deserialize<Dictionary<DateTime, int>>(DailySlotAssignmentsJson);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        set
+        {
+            if (value == null || !value.Any())
+            {
+                DailySlotAssignmentsJson = null;
+                return;
+            }
+            
+            DailySlotAssignmentsJson = JsonSerializer.Serialize(value);
+        }
+    }
     
     // Status and approval
     public BookingStatus Status { get; set; } = BookingStatus.Pending;

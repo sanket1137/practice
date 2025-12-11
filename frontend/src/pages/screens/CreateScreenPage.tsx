@@ -314,10 +314,10 @@ export default function CreateScreenPage() {
                                 fullWidth
                                 type="number"
                                 name="pricePerSlot"
-                                label="Price Per Slot Per Minute"
+                                label="Price Per Slot"
                                 value={formData.pricePerSlot}
                                 onChange={handleChange}
-                                helperText={`${formData.currency} per slot per minute`}
+                                helperText={`${formData.currency} per slot (for one complete ad cycle)`}
                                 inputProps={{ step: '0.01' }}
                             />
                         </Grid>

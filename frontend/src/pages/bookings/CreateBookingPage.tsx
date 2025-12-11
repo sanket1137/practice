@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -14,6 +14,7 @@ import {
     Card,
     CardContent,
     Divider,
+    CircularProgress,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -23,6 +24,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import SlotAvailabilityCard from '../../components/bookings/SlotAvailabilityCard';
+import BookingConfirmationDialog from '../../components/bookings/BookingConfirmationDialog';
+
+// Define type directly to avoid import issues
+interface BookingDateBreakdown {
+    requestedDates: string[];
+    availableDates: string[];
+    unavailableDates: string[];
+    totalRequested: number;
+    totalAvailable: number;
+    totalUnavailable: number;
+    isPartialBooking: boolean;
+}
 
 // Calculate tomorrow's date for validation
 const getTomorrow = () => {
@@ -284,22 +297,73 @@ export default function CreateBookingPage() {
         },
     });
 
-    const onSubmit = (data: BookingFormData) => {
-        // Format dates in local timezone to avoid UTC offset issues
-        const formatDate = (date: Date) => {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
+    // State for confirmation dialog
+    const [showConfirmation, setShowConfirmation] = useState(false);
+    const [dateBreakdown, setDateBreakdown] = useState<BookingDateBreakdown | null>(null);
+    const [pendingBookingData, setPendingBookingData] = useState<any>(null);
+    const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
 
-        const formattedData = {
-            ...data,
-            startDate: formatDate(data.startDate),
-            endDate: formatDate(data.endDate),
-        };
+    // Format date helper
+    const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
-        createMutation.mutate(formattedData as any);
+    // Check availability and show confirmation dialog
+    const onSubmit = async (data: BookingFormData) => {
+        setIsCheckingAvailability(true);
+
+        try {
+            // Get selected slot from availability data or default to 1
+            const selectedSlot = availabilityData?.slotAvailability?.[0]?.slotNumber || 1;
+
+            // Call availability check endpoint
+            const response = await api.get('/bookings/availability-check', {
+                params: {
+                    screenId: data.screenId,
+                    startDate: formatDate(data.startDate),
+                    endDate: formatDate(data.endDate),
+                    slotNumber: selectedSlot,
+                },
+            });
+
+            const breakdown: BookingDateBreakdown = response.data.data;
+
+            // Check if any dates are available
+            if (breakdown.totalAvailable === 0) {
+                enqueueSnackbar('No dates available in the selected range. All slots are sold out.', { variant: 'error' });
+                setIsCheckingAvailability(false);
+                return;
+            }
+
+            // Store the booking data and breakdown
+            const formattedData = {
+                ...data,
+                startDate: formatDate(data.startDate),
+                endDate: formatDate(data.endDate),
+            };
+
+            setPendingBookingData(formattedData);
+            setDateBreakdown(breakdown);
+            setShowConfirmation(true);
+        } catch (error: any) {
+            enqueueSnackbar(
+                error.response?.data?.message || 'Failed to check availability',
+                { variant: 'error' }
+            );
+        } finally {
+            setIsCheckingAvailability(false);
+        }
+    };
+
+    // Handle confirmation from dialog
+    const handleConfirmBooking = () => {
+        if (pendingBookingData) {
+            createMutation.mutate(pendingBookingData);
+            setShowConfirmation(false);
+        }
     };
 
     return (
@@ -488,9 +552,10 @@ export default function CreateBookingPage() {
                                         <Button
                                             type="submit"
                                             variant="contained"
-                                            disabled={createMutation.isPending}
+                                            disabled={createMutation.isPending || isCheckingAvailability}
+                                            startIcon={isCheckingAvailability ? <CircularProgress size={20} /> : null}
                                         >
-                                            {createMutation.isPending ? 'Creating...' : 'Create Booking'}
+                                            {isCheckingAvailability ? 'Checking Availability...' : 'Create Booking'}
                                         </Button>
                                     </Box>
                                 </Grid>
@@ -557,6 +622,16 @@ export default function CreateBookingPage() {
                     </Card>
                 </Grid>
             </Grid>
+
+            {/* Booking Confirmation Dialog */}
+            <BookingConfirmationDialog
+                open={showConfirmation}
+                onClose={() => setShowConfirmation(false)}
+                onConfirm={handleConfirmBooking}
+                dateBreakdown={dateBreakdown}
+                calculatedPrice={calculation?.totalPrice || 0}
+                currency={selectedScreenDetails?.currency || 'INR'}
+            />
         </Container>
     );
 }

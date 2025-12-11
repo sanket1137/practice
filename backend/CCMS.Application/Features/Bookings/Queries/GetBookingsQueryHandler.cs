@@ -52,6 +52,48 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
             allBookings = allBookings.Where(b => b.CampaignId == request.CampaignId.Value).ToList();
         }
 
-        return _mapper.Map<IEnumerable<BookingDto>>(allBookings.OrderByDescending(b => b.CreatedAt));
+        var bookingDtos = _mapper.Map<List<BookingDto>>(allBookings.OrderByDescending(b => b.CreatedAt));
+
+        // Populate dateBreakdown for each booking
+        foreach (var dto in bookingDtos)
+        {
+            var booking = allBookings.First(b => b.Id == dto.Id);
+            
+            // If booking has daily slot assignments, use those for breakdown
+            if (booking.DailySlotAssignments != null && booking.DailySlotAssignments.Any())
+            {
+                var bookedDates = booking.DailySlotAssignments.Keys.OrderBy(d => d).ToList();
+                dto.BookedDates = bookedDates;
+
+                // Calculate total requested days
+                var totalDays = (int)(booking.EndDate.Date - booking.StartDate.Date).TotalDays + 1;
+                
+                // Generate all requested dates
+                var requestedDates = new List<DateTime>();
+                var currentDate = booking.StartDate.Date;
+                while (currentDate <= booking.EndDate.Date)
+                {
+                    requestedDates.Add(currentDate);
+                    currentDate = currentDate.AddDays(1);
+                }
+
+                // Find unavailable dates
+                var unavailableDates = requestedDates.Except(bookedDates).ToList();
+
+                // Create breakdown
+                dto.DateBreakdown = new BookingDateBreakdown
+                {
+                    RequestedDates = requestedDates,
+                    AvailableDates = bookedDates,
+                    UnavailableDates = unavailableDates,
+                    TotalRequested = totalDays,
+                    TotalAvailable = bookedDates.Count,
+                    TotalUnavailable = unavailableDates.Count,
+                    IsPartialBooking = unavailableDates.Count > 0
+                };
+            }
+        }
+
+        return bookingDtos;
     }
 }

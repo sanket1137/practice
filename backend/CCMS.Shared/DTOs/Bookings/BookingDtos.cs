@@ -22,6 +22,21 @@ public class BookingDto
     public string Currency { get; set; } = "USD";
     public DateTime CreatedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
+    
+    // NEW: Actual booked dates (for partial bookings)
+    public List<DateTime>? BookedDates { get; set; }
+    public BookingDateBreakdown? DateBreakdown { get; set; }
+}
+
+public class BookingDateBreakdown
+{
+    public List<DateTime> RequestedDates { get; set; } = new();
+    public List<DateTime> AvailableDates { get; set; } = new();
+    public List<DateTime> UnavailableDates { get; set; } = new();
+    public int TotalRequested { get; set; }
+    public int TotalAvailable { get; set; }
+    public int TotalUnavailable { get; set; }
+    public bool IsPartialBooking { get; set; }
 }
 
 public class CreateBookingRequest

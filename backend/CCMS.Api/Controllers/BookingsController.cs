@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CCMS.Application.Features.Bookings.Commands;
 using CCMS.Application.Features.Bookings.Queries;
+using CCMS.Application.Services;
 using CCMS.Shared.DTOs.Bookings;
 using System.Security.Claims;
 
@@ -14,10 +15,12 @@ namespace CCMS.Api.Controllers;
 public class BookingsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly BookingCalculationService _calculationService;
 
-    public BookingsController(IMediator mediator)
+    public BookingsController(IMediator mediator, BookingCalculationService calculationService)
     {
         _mediator = mediator;
+        _calculationService = calculationService;
     }
 
     [HttpGet]
@@ -95,5 +98,30 @@ public class BookingsController : ControllerBase
         var command = new RejectBookingCommand(id, Guid.Parse(userId), request.Reason);
         var result = await _mediator.Send(command);
         return Ok(result);
+    }
+
+    [HttpGet("availability-check")]
+    public async Task<IActionResult> CheckBookingAvailability(
+        [FromQuery] Guid screenId,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate,
+        [FromQuery] int slotNumber,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var breakdown = await _calculationService.GetDateBreakdown(
+                screenId,
+                slotNumber,
+                startDate,
+                endDate,
+                cancellationToken);
+
+            return Ok(CCMS.Shared.Common.ApiResponse<BookingDateBreakdown>.SuccessResponse(breakdown));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDateBreakdown>.ErrorResponse(ex.Message));
+        }
     }
 }

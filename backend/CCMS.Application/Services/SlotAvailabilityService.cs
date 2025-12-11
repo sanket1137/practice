@@ -177,6 +177,7 @@ public class SlotAvailabilityService
         var currentDate = startDate.Date;
         var end = endDate.Date;
         int daysBooked = 0;
+        var bookedDates = new List<DateTime>();  // Track booked dates for logging
 
         while (currentDate <= end)
         {
@@ -196,6 +197,7 @@ public class SlotAvailabilityService
 
                     await _slotAvailabilityRepo.UpdateAsync(dayAvailability, cancellationToken);
                     daysBooked++;
+                    bookedDates.Add(currentDate);  // Track this booked date
                 }
                 // else: Slot already booked, skip this day (allows partial bookings)
             }
@@ -205,11 +207,79 @@ public class SlotAvailabilityService
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // Log booked dates for debugging
+        Console.WriteLine($"[BookSlot] Booking {bookingId}: Reserved slot {slotNumber} on {daysBooked} days: {string.Join(", ", bookedDates.Select(d => d.ToString("yyyy-MM-dd")))}");
+
         // Ensure at least one day was booked
         if (daysBooked == 0)
         {
             throw new InvalidOperationException($"Slot {slotNumber} is already fully booked for the entire date range.");
         }
+    }
+
+    /// <summary>
+    /// Book slots with per-day assignment (finds best available slot for each day)
+    /// This solves the overlapping booking issue where one booking takes a slot on specific   days
+    /// </summary>
+    public async Task<Dictionary<DateTime, int>> BookWithDailyAssignment(
+        Guid screenId, 
+        Guid bookingId, 
+        DateTime startDate, 
+        DateTime endDate, 
+        CancellationToken cancellationToken = default)
+    {
+        await InitializeSlotAvailability(screenId, startDate, endDate, cancellationToken);
+
+        var dailyAssignments = new Dictionary<DateTime, int>();
+        var currentDate = startDate.Date;
+        var end = endDate.Date;
+
+        while (currentDate <= end)
+        {
+            // Get available slots for THIS specific day
+            var availableSlots = await GetDayAvailableSlots (screenId, currentDate, cancellationToken);
+
+            if (!availableSlots.Any())
+            {
+                // No slots available on this date – skip it for partial booking
+                // Continue to next date (increment handled at loop end)
+                continue;
+            }
+
+            // Take the first available slot
+            var slotToUse = availableSlots.First();
+
+            // Get the day's availability record
+            var availability = await _slotAvailabilityRepo
+                .FindAsync(sa => sa.ScreenId == screenId && sa.Date == currentDate, cancellationToken);
+
+            var dayAvailability = availability.FirstOrDefault();
+            if (dayAvailability != null)
+            {
+                // Book this slot for this day
+                dayAvailability.SlotBookings[slotToUse] = bookingId;
+                dayAvailability.BookedSlots++;
+                dayAvailability.UpdatedAt = DateTime.UtcNow;
+
+                await _slotAvailabilityRepo.UpdateAsync(dayAvailability, cancellationToken);
+                
+                // Record the assignment
+                dailyAssignments[currentDate] = slotToUse;
+            }
+
+            currentDate = currentDate.AddDays(1);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Log for debugging
+        Console.WriteLine($"[BookWithDailyAssignment] Booking {bookingId}: Assigned slots per day:");
+        foreach (var assignment in dailyAssignments)
+        {
+            Console.WriteLine($"  {assignment.Key:yyyy-MM-dd} → Slot {assignment.Value}");
+        }
+
+        return dailyAssignments;
     }
 
     /// <summary>
@@ -236,6 +306,36 @@ public class SlotAvailabilityService
             }
 
             currentDate = currentDate.AddDays(1);
+        }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Unbook all slots for a specific booking (used when booking is rejected/cancelled)
+    /// </summary>
+    public async Task UnbookSlot(Guid bookingId, CancellationToken cancellationToken = default)
+    {
+        // Find all slot availability records that have this booking
+        var allAvailability = await _slotAvailabilityRepo
+            .FindAsync(sa => sa.SlotBookings.Values.Contains(bookingId), cancellationToken);
+
+        foreach (var dayAvailability in allAvailability)
+        {
+            // Find and remove all slots booked by this booking
+            var slotsToRemove = dayAvailability.SlotBookings
+                .Where(kvp => kvp.Value == bookingId)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var slotNum in slotsToRemove)
+            {
+                dayAvailability.SlotBookings.Remove(slotNum);
+                dayAvailability.BookedSlots = Math.Max(0, dayAvailability.BookedSlots - 1);
+            }
+
+            dayAvailability.UpdatedAt = DateTime.UtcNow;
+            await _slotAvailabilityRepo.UpdateAsync(dayAvailability, cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
