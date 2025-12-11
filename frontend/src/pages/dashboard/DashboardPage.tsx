@@ -3,26 +3,29 @@ import {
     Box,
     Container,
     Grid,
-    Paper,
     Typography,
+    Paper,
     Card,
     CardContent,
     CardActions,
     Button,
     Chip,
-    LinearProgress,
 } from '@mui/material';
 import {
     Campaign as CampaignIcon,
     Tv as ScreenIcon,
-    Image as CreativeIcon,
+    BookOnline as BookingIcon,
     TrendingUp as TrendingUpIcon,
+    Image as CreativeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useUserRole } from '../../hooks/useUserRole';
+import EnhancedStatCard from '../../components/dashboard/EnhancedStatCard';
+import { StatCardSkeleton } from '../../components/common/LoadingSkeletons';
+import { RESPONSIVE_GRID } from '../../constants/layout';
 
 interface DashboardStats {
     totalCampaigns: number;
@@ -64,7 +67,7 @@ export default function DashboardPage() {
         queryKey: ['campaigns'],
         queryFn: async () => {
             const response = await api.get('/campaigns');
-            return response.data.data; // ApiResponse wrapper
+            return response.data.data;
         },
     });
 
@@ -72,58 +75,29 @@ export default function DashboardPage() {
         queryKey: ['bookings'],
         queryFn: async () => {
             const response = await api.get('/bookings');
-            return response.data.data; // ApiResponse wrapper
+            return response.data.data;
         },
     });
+
+    const isLoading = campaignsLoading || bookingsLoading;
 
     // Calculate stats
     const stats: DashboardStats = {
         totalCampaigns: campaigns?.length || 0,
         activeCampaigns: campaigns?.filter(c => c.status === 'Active').length || 0,
-        totalCreatives: 0, // Will be populated when we fetch creatives
+        totalCreatives: 0,
         totalBookings: bookings?.length || 0,
         pendingBookings: bookings?.filter(b => b.status === 'Pending').length || 0,
-        totalImpressions: 0, // Will be populated from analytics
+        totalImpressions: 0,
     };
 
-    const StatCard = ({ title, value, icon, color, subtitle }: any) => (
-        <Card sx={{ height: '100%' }}>
-            <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                        <Typography color="textSecondary" gutterBottom variant="body2">
-                            {title}
-                        </Typography>
-                        <Typography variant="h4" component="div">
-                            {value}
-                        </Typography>
-                        {subtitle && (
-                            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                                {subtitle}
-                            </Typography>
-                        )}
-                    </Box>
-                    <Box
-                        sx={{
-                            backgroundColor: `${color}.light`,
-                            borderRadius: 2,
-                            p: 1.5,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        {icon}
-                    </Box>
-                </Box>
-            </CardContent>
-        </Card>
-    );
-
-    if (campaignsLoading || bookingsLoading) {
+    if (isLoading) {
         return (
             <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-                <LinearProgress />
+                <Typography variant="h4" gutterBottom>
+                    Welcome back, {user?.firstName}!
+                </Typography>
+                <StatCardSkeleton count={4} />
             </Container>
         );
     }
@@ -144,37 +118,37 @@ export default function DashboardPage() {
             {/* Stats Grid */}
             <Grid container spacing={3} mb={4}>
                 <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
+                    <EnhancedStatCard
                         title="Total Campaigns"
                         value={stats.totalCampaigns}
                         subtitle={`${stats.activeCampaigns} active`}
-                        icon={<CampaignIcon sx={{ fontSize: 40, color: 'primary.main' }} />}
-                        color="primary"
+                        icon={<CampaignIcon />}
+                        color="primary.main"
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
+                    <EnhancedStatCard
                         title="Total Bookings"
                         value={stats.totalBookings}
                         subtitle={`${stats.pendingBookings} pending`}
-                        icon={<ScreenIcon sx={{ fontSize: 40, color: 'success.main' }} />}
-                        color="success"
+                        icon={<BookingIcon />}
+                        color="success.main"
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
+                    <EnhancedStatCard
                         title="Creatives"
                         value={stats.totalCreatives}
-                        icon={<CreativeIcon sx={{ fontSize: 40, color: 'warning.main' }} />}
-                        color="warning"
+                        icon={<CreativeIcon />}
+                        color="warning.main"
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
-                    <StatCard
+                    <EnhancedStatCard
                         title="Total Impressions"
                         value={stats.totalImpressions.toLocaleString()}
-                        icon={<TrendingUpIcon sx={{ fontSize: 40, color: 'info.main' }} />}
-                        color="info"
+                        icon={<TrendingUpIcon />}
+                        color="info.main"
                     />
                 </Grid>
             </Grid>

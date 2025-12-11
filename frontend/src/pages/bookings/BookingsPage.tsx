@@ -12,14 +12,12 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    Chip,
     Button,
     Dialog,
     DialogTitle,
     DialogContent,
     DialogActions,
     TextField,
-    LinearProgress,
     Card,
     CardMedia,
     CardContent,
@@ -29,7 +27,6 @@ import {
 import {
     CheckCircle as ApproveIcon,
     Cancel as RejectIcon,
-    Visibility as ViewIcon,
     Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -37,6 +34,11 @@ import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { format } from 'date-fns';
+import BookingFiltersBar from '../../components/bookings/BookingFiltersBar';
+import StatusChip from '../../components/common/StatusChip';
+import { TableSkeleton } from '../../components/common/LoadingSkeletons';
+import EmptyState from '../../components/common/EmptyState';
+import type { BookingStatus } from '../../constants/statusConfig';
 
 interface BookingDateBreakdown {
     requestedDates: string[];
@@ -55,7 +57,7 @@ interface Booking {
     creativeName: string;
     creativeFileUrl: string;
     creativeMimeType: string;
-    status: string;
+    status: BookingStatus;
     startDate: string;
     endDate: string;
     totalPrice: number;
@@ -76,24 +78,58 @@ export default function BookingsPage() {
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
 
+    // Filter state
+    const [filters, setFilters] = useState({
+        status: 'all' as BookingStatus | 'all',
+        search: '',
+        dateFrom: '',
+        dateTo: '',
+    });
+
     // Fetch bookings
     const { data: bookings, isLoading } = useQuery<Booking[]>({
         queryKey: ['bookings'],
         queryFn: async () => {
             const response = await api.get('/bookings');
-            // Handle both ApiResponse wrapper and direct array
             if (response.data?.data) {
                 return response.data.data;
             }
-            // Direct array response
             return response.data || [];
         },
     });
 
-    // Filter bookings by status
-    const pendingBookings = bookings?.filter(b => b.status === 'Pending') || [];
-    const approvedBookings = bookings?.filter(b => b.status === 'Approved') || [];
-    const rejectedBookings = bookings?.filter(b => b.status === 'Rejected') || [];
+    // Apply filters
+    const filteredBookings = bookings?.filter((booking) => {
+        // Search filter
+        if (filters.search) {
+            const searchLower = filters.search.toLowerCase();
+            const matchesSearch =
+                booking.campaignName.toLowerCase().includes(searchLower) ||
+                booking.screenName.toLowerCase().includes(searchLower) ||
+                booking.creativeName.toLowerCase().includes(searchLower);
+            if (!matchesSearch) return false;
+        }
+
+        // Status filter (when not using tabs)
+        if (filters.status !== 'all' && booking.status !== filters.status) {
+            return false;
+        }
+
+        // Date filters
+        if (filters.dateFrom && new Date(booking.startDate) < new Date(filters.dateFrom)) {
+            return false;
+        }
+        if (filters.dateTo && new Date(booking.endDate) > new Date(filters.dateTo)) {
+            return false;
+        }
+
+        return true;
+    }) || [];
+
+    // Filter bookings by tab
+    const pendingBookings = filteredBookings.filter(b => b.status === 'Pending');
+    const approvedBookings = filteredBookings.filter(b => b.status === 'Approved');
+    const rejectedBookings = filteredBookings.filter(b => b.status === 'Rejected');
 
     // Approve booking mutation
     const approveMutation = useMutation({
@@ -113,7 +149,7 @@ export default function BookingsPage() {
 
     // Reject booking mutation
     const rejectMutation = useMutation({
-        mutationFn: async ({ bookingId, note }: { bookingId: string, note: string }) => {
+        mutationFn: async ({ bookingId, note }: { bookingId: string; note: string }) => {
             await api.post(`/bookings/${bookingId}/reject`, { rejectionNote: note });
         },
         onSuccess: () => {
@@ -138,33 +174,36 @@ export default function BookingsPage() {
         setRejectDialogOpen(true);
     };
 
-    const renderBookingsTable = (bookingsList: Booking[], showActions: boolean = false) => (
-        <TableContainer>
-            <Table>
-                <TableHead>
-                    <TableRow>
-                        <TableCell>Campaign</TableCell>
-                        <TableCell>Screen</TableCell>
-                        <TableCell>Creative</TableCell>
-                        <TableCell>Period</TableCell>
-                        <TableCell>Type</TableCell>
-                        <TableCell>Created</TableCell>
-                        <TableCell>Impressions</TableCell>
-                        <TableCell>Price</TableCell>
-                        <TableCell>Status</TableCell>
-                        {showActions && <TableCell align="right">Actions</TableCell>}
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {bookingsList.length === 0 ? (
+    const renderBookingsTable = (bookingsList: Booking[], showActions: boolean = false) => {
+        if (bookingsList.length === 0) {
+            return (
+                <EmptyState
+                    title="No bookings found"
+                    message={filters.search ? "Try adjusting your filters" : "Create a new booking to get started"}
+                />
+            );
+        }
+
+        return (
+            <TableContainer>
+                <Table>
+                    <TableHead>
                         <TableRow>
-                            <TableCell colSpan={showActions ? 9 : 8} align="center">
-                                <Typography color="textSecondary">No bookings found</Typography>
-                            </TableCell>
+                            <TableCell>Campaign</TableCell>
+                            <TableCell>Screen</TableCell>
+                            <TableCell>Creative</TableCell>
+                            <TableCell>Period</TableCell>
+                            <TableCell>Type</TableCell>
+                            <TableCell>Created</TableCell>
+                            <TableCell>Impressions</TableCell>
+                            <TableCell>Price</TableCell>
+                            <TableCell>Status</TableCell>
+                            {showActions && <TableCell align="right">Actions</TableCell>}
                         </TableRow>
-                    ) : (
-                        bookingsList.map((booking) => (
-                            <TableRow key={booking.id}>
+                    </TableHead>
+                    <TableBody>
+                        {bookingsList.map((booking) => (
+                            <TableRow key={booking.id} hover>
                                 <TableCell>{booking.campaignName}</TableCell>
                                 <TableCell>{booking.screenName}</TableCell>
                                 <TableCell>{booking.creativeName}</TableCell>
@@ -175,13 +214,29 @@ export default function BookingsPage() {
                                             {new Date(booking.endDate).toLocaleDateString()}
                                         </Typography>
                                         {booking.dateBreakdown?.isPartialBooking && (
-                                            <Chip
-                                                size="small"
-                                                label={`${booking.dateBreakdown.totalAvailable}/${booking.dateBreakdown.totalRequested} days`}
-                                                color="warning"
-                                                icon={<WarningIcon />}
-                                                sx={{ mt: 0.5 }}
-                                            />
+                                            <Tooltip
+                                                title={`${booking.dateBreakdown.totalAvailable} of ${booking.dateBreakdown.totalRequested} days booked`}
+                                            >
+                                                <Box
+                                                    component="span"
+                                                    sx={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: 0.5,
+                                                        mt: 0.5,
+                                                        px: 1,
+                                                        py: 0.25,
+                                                        bgcolor: 'warning.lighter',
+                                                        borderRadius: 1,
+                                                        fontSize: '0.75rem',
+                                                        color: 'warning.dark',
+                                                    }}
+                                                >
+                                                    <WarningIcon fontSize="small" />
+                                                    {booking.dateBreakdown.totalAvailable}/
+                                                    {booking.dateBreakdown.totalRequested} days
+                                                </Box>
+                                            </Tooltip>
                                         )}
                                     </Box>
                                 </TableCell>
@@ -212,73 +267,59 @@ export default function BookingsPage() {
                                                 </Box>
                                             }
                                         >
-                                            <Chip
-                                                label="Partial"
-                                                size="small"
-                                                color="warning"
-                                                variant="outlined"
-                                            />
+                                            <StatusChip status="Pending" type="booking" showTooltip={false} />
                                         </Tooltip>
                                     ) : (
-                                        <Chip
-                                            label="Full"
-                                            size="small"
-                                            color="success"
-                                            variant="outlined"
-                                        />
+                                        <StatusChip status="Approved" type="booking" showTooltip={false} />
                                     )}
                                 </TableCell>
-                                <TableCell>
-                                    {new Date(booking.createdAt).toLocaleDateString()}
-                                </TableCell>
+                                <TableCell>{new Date(booking.createdAt).toLocaleDateString()}</TableCell>
                                 <TableCell>{booking.expectedImpressions.toLocaleString()}</TableCell>
                                 <TableCell>
                                     {booking.currency} {booking.totalPrice.toLocaleString()}
                                 </TableCell>
                                 <TableCell>
-                                    <Chip
-                                        label={booking.status}
-                                        size="small"
-                                        color={
-                                            booking.status === 'Approved' ? 'success' :
-                                                booking.status === 'Rejected' ? 'error' :
-                                                    'warning'
-                                        }
-                                    />
+                                    <StatusChip status={booking.status} type="booking" />
                                 </TableCell>
                                 {showActions && (
                                     <TableCell align="right">
-                                        <Button
-                                            size="small"
-                                            startIcon={<ApproveIcon />}
-                                            color="success"
-                                            onClick={() => handleOpenApprove(booking)}
-                                            sx={{ mr: 1 }}
-                                        >
-                                            Approve
-                                        </Button>
-                                        <Button
-                                            size="small"
-                                            startIcon={<RejectIcon />}
-                                            color="error"
-                                            onClick={() => handleOpenReject(booking)}
-                                        >
-                                            Reject
-                                        </Button>
+                                        <Box display="flex" gap={1} justifyContent="flex-end">
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                startIcon={<ApproveIcon />}
+                                                color="success"
+                                                onClick={() => handleOpenApprove(booking)}
+                                            >
+                                                Approve
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={<RejectIcon />}
+                                                color="error"
+                                                onClick={() => handleOpenReject(booking)}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </Box>
                                     </TableCell>
                                 )}
                             </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
-        </TableContainer>
-    );
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+        );
+    };
 
     if (isLoading) {
         return (
             <Container maxWidth="xl" sx={{ mt: 4 }}>
-                <LinearProgress />
+                <Typography variant="h4" gutterBottom>
+                    Booking Management
+                </Typography>
+                <TableSkeleton rows={8} columns={10} />
             </Container>
         );
     }
@@ -295,6 +336,20 @@ export default function BookingsPage() {
                         : 'View and manage your bookings'}
                 </Typography>
             </Box>
+
+            {/* Filters */}
+            <BookingFiltersBar
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearFilters={() =>
+                    setFilters({
+                        status: 'all',
+                        search: '',
+                        dateFrom: '',
+                        dateTo: '',
+                    })
+                }
+            />
 
             <Paper>
                 <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
@@ -333,28 +388,43 @@ export default function BookingsPage() {
                                 </Card>
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <Typography variant="h6" gutterBottom>Booking Details</Typography>
+                                <Typography variant="h6" gutterBottom>
+                                    Booking Details
+                                </Typography>
                                 <Box sx={{ '& > *': { mb: 2 } }}>
                                     <div>
-                                        <Typography variant="body2" color="textSecondary">Campaign</Typography>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Campaign
+                                        </Typography>
                                         <Typography variant="body1">{selectedBooking.campaignName}</Typography>
                                     </div>
                                     <div>
-                                        <Typography variant="body2" color="textSecondary">Screen</Typography>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Screen
+                                        </Typography>
                                         <Typography variant="body1">{selectedBooking.screenName}</Typography>
                                     </div>
                                     <div>
-                                        <Typography variant="body2" color="textSecondary">Period</Typography>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Period
+                                        </Typography>
                                         <Typography variant="body1">
-                                            {new Date(selectedBooking.startDate).toLocaleDateString()} - {new Date(selectedBooking.endDate).toLocaleDateString()}
+                                            {new Date(selectedBooking.startDate).toLocaleDateString()} -{' '}
+                                            {new Date(selectedBooking.endDate).toLocaleDateString()}
                                         </Typography>
                                     </div>
                                     <div>
-                                        <Typography variant="body2" color="textSecondary">Expected Impressions</Typography>
-                                        <Typography variant="body1">{selectedBooking.expectedImpressions.toLocaleString()}</Typography>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Expected Impressions
+                                        </Typography>
+                                        <Typography variant="body1">
+                                            {selectedBooking.expectedImpressions.toLocaleString()}
+                                        </Typography>
                                     </div>
                                     <div>
-                                        <Typography variant="body2" color="textSecondary">Total Price</Typography>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Total Price
+                                        </Typography>
                                         <Typography variant="h6" color="primary">
                                             {selectedBooking.currency} {selectedBooking.totalPrice.toLocaleString()}
                                         </Typography>
@@ -399,10 +469,13 @@ export default function BookingsPage() {
                     <Button
                         variant="contained"
                         color="error"
-                        onClick={() => selectedBooking && rejectMutation.mutate({
-                            bookingId: selectedBooking.id,
-                            note: rejectNote
-                        })}
+                        onClick={() =>
+                            selectedBooking &&
+                            rejectMutation.mutate({
+                                bookingId: selectedBooking.id,
+                                note: rejectNote,
+                            })
+                        }
                         disabled={rejectMutation.isPending || !rejectNote.trim()}
                     >
                         {rejectMutation.isPending ? 'Rejecting...' : 'Reject Booking'}

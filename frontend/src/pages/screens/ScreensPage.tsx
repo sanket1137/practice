@@ -6,29 +6,24 @@ import {
     Button,
     Paper,
     Grid,
-    Card,
-    CardContent,
-    CardActions,
-    CardMedia,
-    Chip,
     TextField,
     InputAdornment,
     MenuItem,
     Select,
     FormControl,
     InputLabel,
-    LinearProgress,
 } from '@mui/material';
 import {
     Search as SearchIcon,
-    LocationOn as LocationIcon,
-    Tv as TvIcon,
-    AttachMoney as MoneyIcon,
+    Add as AddIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import EnhancedScreenCard from '../../components/screens/EnhancedScreenCard';
+import { CardSkeleton } from '../../components/common/LoadingSkeletons';
+import EmptyState from '../../components/common/EmptyState';
 
 interface Screen {
     id: string;
@@ -48,12 +43,14 @@ interface Screen {
     timeFrameMinutes: number;
     isOnline: boolean;
     lastSeenAt?: string;
+    totalSlots: number;
 }
 
 export default function ScreensPage() {
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
     const isAdvertiser = user?.role === 'Advertiser';
+    const isScreenOwner = user?.role === 'ScreenOwner';
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
@@ -62,22 +59,9 @@ export default function ScreensPage() {
         queryKey: ['screens'],
         queryFn: async () => {
             const response = await api.get('/screens');
-            return response.data.data; // ApiResponse wrapper
+            return response.data.data;
         },
     });
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Active':
-                return 'success';
-            case 'Inactive':
-                return 'error';
-            case 'Maintenance':
-                return 'warning';
-            default:
-                return 'default';
-        }
-    };
 
     const filteredScreens = screens?.filter((screen) => {
         const matchesSearch =
@@ -92,8 +76,13 @@ export default function ScreensPage() {
 
     if (isLoading) {
         return (
-            <Container maxWidth="lg" sx={{ mt: 4 }}>
-                <LinearProgress />
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Box mb={3}>
+                    <Typography variant="h4" gutterBottom>
+                        {isScreenOwner ? 'My Screens' : 'Available Screens'}
+                    </Typography>
+                </Box>
+                <CardSkeleton count={6} />
             </Container>
         );
     }
@@ -101,13 +90,26 @@ export default function ScreensPage() {
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             {/* Header */}
-            <Box mb={3}>
-                <Typography variant="h4" gutterBottom>
-                    Available Screens
-                </Typography>
-                <Typography variant="body1" color="textSecondary">
-                    Browse and book digital signage screens for your campaigns
-                </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                <Box>
+                    <Typography variant="h4" gutterBottom>
+                        {isScreenOwner ? 'My Screens' : 'Available Screens'}
+                    </Typography>
+                    <Typography variant="body1" color="textSecondary">
+                        {isAdvertiser
+                            ? 'Browse and book digital signage screens for your campaigns'
+                            : 'Manage your digital signage screens'}
+                    </Typography>
+                </Box>
+                {isScreenOwner && (
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => navigate('/screens/new')}
+                    >
+                        Add Screen
+                    </Button>
+                )}
             </Box>
 
             {/* Filters */}
@@ -147,122 +149,54 @@ export default function ScreensPage() {
             </Paper>
 
             {/* Screens Grid */}
-            {filteredScreens && filteredScreens.length > 0 ? (
+            {!filteredScreens || filteredScreens.length === 0 ? (
+                <EmptyState
+                    title="No screens found"
+                    message={
+                        searchQuery || statusFilter !== 'all'
+                            ? 'Try adjusting your filters'
+                            : isScreenOwner
+                                ? 'Add your first screen to start accepting bookings'
+                                : 'No screens are currently available'
+                    }
+                    action={
+                        isScreenOwner
+                            ? {
+                                label: 'Add Screen',
+                                onClick: () => navigate('/screens/new'),
+                            }
+                            : searchQuery || statusFilter !== 'all'
+                                ? {
+                                    label: 'Clear Filters',
+                                    onClick: () => {
+                                        setSearchQuery('');
+                                        setStatusFilter('all');
+                                    },
+                                }
+                                : undefined
+                    }
+                />
+            ) : (
                 <Grid container spacing={3}>
                     {filteredScreens.map((screen) => (
                         <Grid item xs={12} sm={6} md={4} key={screen.id}>
-                            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                                <CardMedia
-                                    component="div"
-                                    sx={{
-                                        height: 200,
-                                        bgcolor: 'grey.200',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    <TvIcon sx={{ fontSize: 80, color: 'grey.400' }} />
-                                </CardMedia>
-                                <CardContent sx={{ flexGrow: 1 }}>
-                                    <Box display="flex" justifyContent="space-between" alignItems="start" mb={1}>
-                                        <Typography variant="h6" component="div">
-                                            {screen.name}
-                                        </Typography>
-                                        <Chip
-                                            label={screen.status}
-                                            color={getStatusColor(screen.status) as any}
-                                            size="small"
-                                        />
-                                    </Box>
-
-                                    {/* Online Status */}
-                                    <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                                        <Box
-                                            sx={{
-                                                width: 8,
-                                                height: 8,
-                                                borderRadius: '50%',
-                                                bgcolor: screen.isOnline ? 'success.main' : 'grey.400',
-                                            }}
-                                        />
-                                        <Typography variant="caption" color="textSecondary">
-                                            {screen.isOnline ? 'Online' : screen.lastSeenAt
-                                                ? `Offline (last seen ${new Date(screen.lastSeenAt).toLocaleString()})`
-                                                : 'Never connected'}
-                                        </Typography>
-                                    </Box>
-
-                                    <Typography variant="body2" color="textSecondary" paragraph>
-                                        {screen.description.substring(0, 100)}
-                                        {screen.description.length > 100 ? '...' : ''}
-                                    </Typography>
-
-                                    <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                                        <LocationIcon fontSize="small" color="action" />
-                                        <Typography variant="body2" color="textSecondary">
-                                            {screen.location.city}, {screen.location.state}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                                        <TvIcon fontSize="small" color="action" />
-                                        <Typography variant="body2" color="textSecondary">
-                                            {screen.resolutionWidth} x {screen.resolutionHeight}
-                                        </Typography>
-                                    </Box>
-
-                                    <Box display="flex" alignItems="center" gap={0.5} mb={2}>
-                                        <MoneyIcon fontSize="small" color="action" />
-                                        <Typography variant="body2" color="textSecondary">
-                                            {screen.currency} {screen.pricePerSlot.toLocaleString()} per slot
-                                        </Typography>
-                                    </Box>
-
-                                    <Box>
-                                        <Typography variant="caption" color="textSecondary">
-                                            {screen.slotsPerFrame} slots per {screen.timeFrameMinutes} minutes
-                                        </Typography>
-                                    </Box>
-                                </CardContent>
-                                <CardActions>
-                                    <Button
-                                        size="small"
-                                        onClick={() => navigate(`/screens/${screen.id}`)}
-                                    >
-                                        View Details
-                                    </Button>
-                                    {isAdvertiser && (
-                                        <Button
-                                            size="small"
-                                            variant="contained"
-                                            onClick={() => navigate(`/bookings/new?screenId=${screen.id}`)}
-                                            disabled={screen.status !== 'Active'}
-                                        >
-                                            Book Now
-                                        </Button>
-                                    )}
-                                </CardActions>
-                            </Card>
+                            <EnhancedScreenCard
+                                screen={{
+                                    id: screen.id,
+                                    name: screen.name,
+                                    location: `${screen.location.city}, ${screen.location.state}`,
+                                    city: screen.location.city,
+                                    totalSlots: screen.slotsPerFrame,
+                                    bookedSlots: Math.floor(screen.slotsPerFrame * 0.6), // TODO: Get from API
+                                    revenue: screen.pricePerSlot * screen.slotsPerFrame * 30, // TODO: Calculate actual
+                                    currency: screen.currency,
+                                    activeBookings: 3, // TODO: Get from API
+                                }}
+                                onClick={() => navigate(`/screens/${screen.id}`)}
+                            />
                         </Grid>
                     ))}
                 </Grid>
-            ) : (
-                <Paper sx={{ p: 4, textAlign: 'center' }}>
-                    <Typography color="textSecondary" gutterBottom>
-                        No screens found matching your criteria
-                    </Typography>
-                    <Button
-                        variant="outlined"
-                        sx={{ mt: 2 }}
-                        onClick={() => {
-                            setSearchQuery('');
-                            setStatusFilter('all');
-                        }}
-                    >
-                        Clear Filters
-                    </Button>
-                </Paper>
             )}
         </Container>
     );
