@@ -1,10 +1,63 @@
 using CCMS.Domain.Entities;
 using CCMS.Domain.ValueObjects;
+using CCMS.Shared.DTOs.Bookings;
 
 namespace CCMS.Application.Services;
 
 public class BookingCalculationService
 {
+    private readonly SlotAvailabilityService _availabilityService;
+
+    public BookingCalculationService(SlotAvailabilityService availabilityService)
+    {
+        _availabilityService = availabilityService;
+    }
+
+    /// <summary>
+    /// Get detailed breakdown of available vs unavailable dates for a booking request
+    /// </summary>
+    public async Task<BookingDateBreakdown> GetDateBreakdown(
+        Guid screenId,
+        int slotNumber,
+        DateTime startDate,
+        DateTime endDate,
+        CancellationToken cancellationToken = default)
+    {
+        var breakdown = new BookingDateBreakdown
+        {
+            TotalRequested = (int)(endDate.Date - startDate.Date).TotalDays + 1
+        };
+
+        var currentDate = startDate.Date;
+        while (currentDate <= endDate.Date)
+        {
+            breakdown.RequestedDates.Add(currentDate);
+
+            // Check if slot is available on this day
+            var availableSlots = await _availabilityService.GetDayAvailableSlots(
+                screenId,
+                currentDate,
+                cancellationToken);
+
+            if (availableSlots.Contains(slotNumber))
+            {
+                breakdown.AvailableDates.Add(currentDate);
+            }
+            else
+            {
+                breakdown.UnavailableDates.Add(currentDate);
+            }
+
+            currentDate = currentDate.AddDays(1);
+        }
+
+        breakdown.TotalAvailable = breakdown.AvailableDates.Count;
+        breakdown.TotalUnavailable = breakdown.UnavailableDates.Count;
+        breakdown.IsPartialBooking = breakdown.TotalUnavailable > 0;
+
+        return breakdown;
+    }
+
     public BookingCalculation CalculateBooking(
         Screen screen, 
         DateTime startDate, 
@@ -16,12 +69,13 @@ public class BookingCalculationService
         decimal totalOperatingMinutes = 0;
         decimal totalFrames = 0;
         
-        // CORRECTED FORMULA
-        // Display time per slot (in minutes)
+        // SLOT-BASED PRICING MODEL
+        // Display time per slot (in minutes) - for informational purposes
         decimal displayTimePerSlot = (decimal)screen.TimeFrameMinutes / screen.SlotsPerFrame;
         
-        // Cost per frame for ONE advertiser
-        decimal costPerFrame = screen.PricePerSlot * displayTimePerSlot;
+        // Cost per frame = Price per slot (ONE advertiser gets ONE slot per frame)
+        // The advertiser pays the slot price once per complete cycle
+        decimal costPerFrame = screen.PricePerSlot;
         
         while (currentDate <= endDate.Date)
         {
@@ -95,12 +149,13 @@ public class BookingCalculationService
         decimal totalOperatingMinutes = 0;
         decimal totalFrames = 0;
         
-        // CORRECTED FORMULA
-        // Display time per slot (in minutes)
+        // SLOT-BASED PRICING MODEL
+        // Display time per slot (in minutes) - for informational purposes
         decimal displayTimePerSlot = (decimal)screen.TimeFrameMinutes / screen.SlotsPerFrame;
         
-        // Cost per frame for ONE advertiser
-        decimal costPerFrame = screen.PricePerSlot * displayTimePerSlot;
+        // Cost per frame = Price per slot (ONE advertiser gets ONE slot per frame)
+        // The advertiser pays the slot price once per complete cycle
+        decimal costPerFrame = screen.PricePerSlot;
         
         while (currentDate <= endDate.Date)
         {

@@ -63,7 +63,7 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                     <Grid item xs={6} sm={3}>
                         <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
                             <Typography variant="caption" color="textSecondary">
-                                Per Frame
+                                Per Cycle
                             </Typography>
                             <Typography variant="h6" fontWeight="bold">
                                 {formatCurrency(estimate.perFrame)}

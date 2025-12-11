@@ -120,9 +120,26 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             throw new InvalidOperationException(
                 "No available slots found for the selected date range. All days are sold out.");
 
+        // FIXED: Use user's requested dates as-is (BookSlot handles gaps naturally)
+        // Previously: adjusted to first/last bookable days, causing wrong dates to be booked
+        var bookingStartDate = request.Request.StartDate;
+        var bookingEndDate = request.Request.EndDate;
+
         // CORRECTED FORMULA: Use calculated cost from service
         // Cost = price_per_slot_per_minute × display_time_per_slot × total_frames
         var totalPrice = calculation.TotalCost;
+
+        // Get list of dates that have available slots (for partial booking tracking)
+        var bookedDates = calculation.DailyBreakdown
+            .Where(d => d.IsAvailable && d.Frames > 0)
+            .Select(d => d.Date)
+            .ToList();
+
+        // Create daily slot assignments dictionary for partial booking tracking
+        var dailySlotAssignments = bookedDates.ToDictionary(
+            date => date,
+            date => slotNumber  // Assign the same slot for all dates (will be finalized on approval)
+        );
 
         // STEP 4: Create booking entity
         var booking = new Booking
@@ -130,30 +147,25 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             ScreenId = request.Request.ScreenId,
             CampaignId = request.Request.CampaignId,
             CreativeId = request.Request.CreativeId,
-            StartDate = request.Request.StartDate,
-            EndDate = request.Request.EndDate,
+            StartDate = bookingStartDate,  // User's requested start
+            EndDate = bookingEndDate,      // User's requested end
             SlotNumbers = new List<int> { slotNumber },
             Status = Domain.Enums.BookingStatus.Pending,
             ExpectedImpressions = calculation.TotalExpectedImpressions,
             DeliveredImpressions = 0,
             TotalPrice = totalPrice,
             Currency = screen.Currency,
+            DailySlotAssignments = dailySlotAssignments,  // Store dates for partial booking display
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
-        // STEP 5: Save booking and book the slot (in transaction)
+        // STEP 5: Save booking (NO SLOT BOOKING YET - reserved on approval)
         await _bookingRepository.AddAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // Book the slot after booking is created (so we have booking.Id)
-        await _slotAvailabilityService.BookSlot(
-            screen.Id,
-            slotNumber,
-            booking.Id,
-            request.Request.StartDate,
-            request.Request.EndDate,
-            cancellationToken);
+        // REMOVED: BookSlot call - slots are now reserved only when booking is approved
+        // This allows multiple pending bookings and shows accurate availability
 
         return _mapper.Map<BookingDto>(booking);
     }

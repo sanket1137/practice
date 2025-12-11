@@ -63,11 +63,11 @@ export const useRevenueCalculation = (
     return useMemo(() => {
         const { timeFrameMinutes, slotsPerFrame, pricePerSlot, schedule } = config;
 
-        // CORRECTED FORMULA
-        // Revenue per frame = price_per_slot_per_minute × time_frame_minutes
-        const revenuePerFrame = pricePerSlot * timeFrameMinutes;
+        // CORRECTION: Revenue per Cycle = Price per Slot * Number of ads per cycle
+        // Previously (Incorrect): Price per slot per minute * time frame minutes
+        const revenuePerFrame = pricePerSlot * slotsPerFrame;
 
-        // Frames per hour
+        // Frames per hour (how many cycles fit in an hour)
         const framesPerHour = 60 / timeFrameMinutes;
 
         // Revenue per hour
@@ -84,7 +84,11 @@ export const useRevenueCalculation = (
         };
 
         const weekly = Object.values(daily).reduce((sum, val) => sum + val, 0);
-        const monthly = weekly * 4.33; // Average weeks per month
+
+        // CORRECTION: Monthly Revenue = Daily Revenue * 30
+        // Use average daily revenue from weekly schedule
+        const averageDailyRevenue = weekly / 7;
+        const monthly = averageDailyRevenue * 30;
 
         return {
             perFrame: revenuePerFrame,

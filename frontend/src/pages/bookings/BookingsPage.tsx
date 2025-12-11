@@ -24,16 +24,29 @@ import {
     CardMedia,
     CardContent,
     Grid,
+    Tooltip,
 } from '@mui/material';
 import {
     CheckCircle as ApproveIcon,
     Cancel as RejectIcon,
     Visibility as ViewIcon,
+    Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { format } from 'date-fns';
+
+interface BookingDateBreakdown {
+    requestedDates: string[];
+    availableDates: string[];
+    unavailableDates: string[];
+    totalRequested: number;
+    totalAvailable: number;
+    totalUnavailable: number;
+    isPartialBooking: boolean;
+}
 
 interface Booking {
     id: string;
@@ -49,6 +62,8 @@ interface Booking {
     currency: string;
     createdAt: string;
     expectedImpressions: number;
+    bookedDates?: string[];
+    dateBreakdown?: BookingDateBreakdown;
 }
 
 export default function BookingsPage() {
@@ -132,6 +147,7 @@ export default function BookingsPage() {
                         <TableCell>Screen</TableCell>
                         <TableCell>Creative</TableCell>
                         <TableCell>Period</TableCell>
+                        <TableCell>Type</TableCell>
                         <TableCell>Created</TableCell>
                         <TableCell>Impressions</TableCell>
                         <TableCell>Price</TableCell>
@@ -153,8 +169,64 @@ export default function BookingsPage() {
                                 <TableCell>{booking.screenName}</TableCell>
                                 <TableCell>{booking.creativeName}</TableCell>
                                 <TableCell>
-                                    {new Date(booking.startDate).toLocaleDateString()} -{' '}
-                                    {new Date(booking.endDate).toLocaleDateString()}
+                                    <Box>
+                                        <Typography variant="body2">
+                                            {new Date(booking.startDate).toLocaleDateString()} -{' '}
+                                            {new Date(booking.endDate).toLocaleDateString()}
+                                        </Typography>
+                                        {booking.dateBreakdown?.isPartialBooking && (
+                                            <Chip
+                                                size="small"
+                                                label={`${booking.dateBreakdown.totalAvailable}/${booking.dateBreakdown.totalRequested} days`}
+                                                color="warning"
+                                                icon={<WarningIcon />}
+                                                sx={{ mt: 0.5 }}
+                                            />
+                                        )}
+                                    </Box>
+                                </TableCell>
+                                <TableCell>
+                                    {booking.dateBreakdown?.isPartialBooking ? (
+                                        <Tooltip
+                                            title={
+                                                <Box>
+                                                    <Typography variant="caption" fontWeight="bold" display="block">
+                                                        Requested: {booking.dateBreakdown.totalRequested} days
+                                                    </Typography>
+                                                    <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                                                        ✅ Booked:
+                                                    </Typography>
+                                                    <Typography variant="caption" display="block">
+                                                        {booking.dateBreakdown.availableDates
+                                                            .map(d => format(new Date(d), 'MMM dd'))
+                                                            .join(', ')}
+                                                    </Typography>
+                                                    <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                                                        ❌ Excluded:
+                                                    </Typography>
+                                                    <Typography variant="caption" display="block">
+                                                        {booking.dateBreakdown.unavailableDates
+                                                            .map(d => format(new Date(d), 'MMM dd'))
+                                                            .join(', ')}
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                        >
+                                            <Chip
+                                                label="Partial"
+                                                size="small"
+                                                color="warning"
+                                                variant="outlined"
+                                            />
+                                        </Tooltip>
+                                    ) : (
+                                        <Chip
+                                            label="Full"
+                                            size="small"
+                                            color="success"
+                                            variant="outlined"
+                                        />
+                                    )}
                                 </TableCell>
                                 <TableCell>
                                     {new Date(booking.createdAt).toLocaleDateString()}
