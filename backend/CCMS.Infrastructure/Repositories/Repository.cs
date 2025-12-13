@@ -28,13 +28,15 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         if (typeof(T) == typeof(Booking))
         {
             return (IEnumerable<T>)await _context.Bookings
+                .Where(b => !b.IsDeleted)  // Filter out soft-deleted bookings
                 .Include(b => b.Campaign)
                 .Include(b => b.Screen)
                 .Include(b => b.Creative)
                 .ToListAsync(cancellationToken);
         }
         
-        return await _dbSet.ToListAsync(cancellationToken);
+        // For other entities, filter out soft-deleted records
+        return await _dbSet.Where(e => !e.IsDeleted).ToListAsync(cancellationToken);
     }
 
     public virtual async Task<IEnumerable<T>> FindAsync(System.Linq.Expressions.Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)

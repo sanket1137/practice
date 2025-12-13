@@ -11,6 +11,7 @@ using CCMS.Domain.Interfaces;
 using CCMS.Infrastructure.Data;
 using CCMS.Infrastructure.Repositories;
 using CCMS.Infrastructure.Services;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +53,9 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+    
+    // Handle file upload parameters (commented out temporarily - access API directly instead of Swagger for file uploads)
+    // c.OperationFilter<FileUploadOperationFilter>();
 });
 
 // Database
@@ -147,6 +151,17 @@ builder.Services.AddScoped<BookingCalculationService>();
 builder.Services.AddScoped<IRevenueCalculationService, RevenueCalculationService>();
 builder.Services.AddScoped<SlotAvailabilityService>();
 builder.Services.AddScoped<CreativeValidationService>();
+builder.Services.AddScoped<BookingStatusUpdateService>();
+
+// Background Services (conditionally enabled via configuration)
+var bookingStatusUpdateEnabled = builder.Configuration
+    .GetValue<bool>("BookingStatusUpdate:BackgroundService:Enabled", true);
+
+if (bookingStatusUpdateEnabled)
+{
+    builder.Services.AddHostedService<BookingStatusBackgroundService>();
+}
+
 
 // Azure Blob Storage
 builder.Services.AddSingleton(x =>

@@ -4,8 +4,6 @@ import {
     Container,
     Typography,
     Paper,
-    Tabs,
-    Tab,
     Table,
     TableBody,
     TableCell,
@@ -72,7 +70,6 @@ export default function BookingsPage() {
     const { user } = useAuthStore();
     const queryClient = useQueryClient();
     const { enqueueSnackbar } = useSnackbar();
-    const [tabValue, setTabValue] = useState(0);
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -87,16 +84,20 @@ export default function BookingsPage() {
     });
 
     // Fetch bookings
-    const { data: bookings, isLoading } = useQuery<Booking[]>({
+    const { data: bookings, isLoading, error } = useQuery<Booking[]>({
         queryKey: ['bookings'],
         queryFn: async () => {
+            console.log('Fetching bookings...');
             const response = await api.get('/bookings');
+            console.log('Bookings response:', response);
             if (response.data?.data) {
                 return response.data.data;
             }
             return response.data || [];
         },
     });
+
+    console.log('Bookings state:', { bookings, isLoading, error });
 
     // Apply filters
     const filteredBookings = bookings?.filter((booking) => {
@@ -110,7 +111,7 @@ export default function BookingsPage() {
             if (!matchesSearch) return false;
         }
 
-        // Status filter (when not using tabs)
+        // Status filter
         if (filters.status !== 'all' && booking.status !== filters.status) {
             return false;
         }
@@ -125,11 +126,6 @@ export default function BookingsPage() {
 
         return true;
     }) || [];
-
-    // Filter bookings by tab
-    const pendingBookings = filteredBookings.filter(b => b.status === 'Pending');
-    const approvedBookings = filteredBookings.filter(b => b.status === 'Approved');
-    const rejectedBookings = filteredBookings.filter(b => b.status === 'Rejected');
 
     // Approve booking mutation
     const approveMutation = useMutation({
@@ -267,10 +263,43 @@ export default function BookingsPage() {
                                                 </Box>
                                             }
                                         >
-                                            <StatusChip status="Pending" type="booking" showTooltip={false} />
+                                            <Box
+                                                component="span"
+                                                sx={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 0.5,
+                                                    px: 1.5,
+                                                    py: 0.5,
+                                                    bgcolor: 'warning.lighter',
+                                                    color: 'warning.dark',
+                                                    borderRadius: 1,
+                                                    fontSize: '0.875rem',
+                                                    fontWeight: 500,
+                                                }}
+                                            >
+                                                <WarningIcon fontSize="small" />
+                                                Partial
+                                            </Box>
                                         </Tooltip>
                                     ) : (
-                                        <StatusChip status="Approved" type="booking" showTooltip={false} />
+                                        <Box
+                                            component="span"
+                                            sx={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 0.5,
+                                                px: 1.5,
+                                                py: 0.5,
+                                                bgcolor: 'success.lighter',
+                                                color: 'success.dark',
+                                                borderRadius: 1,
+                                                fontSize: '0.875rem',
+                                                fontWeight: 500,
+                                            }}
+                                        >
+                                            ✓ Full
+                                        </Box>
                                     )}
                                 </TableCell>
                                 <TableCell>{new Date(booking.createdAt).toLocaleDateString()}</TableCell>
@@ -283,26 +312,36 @@ export default function BookingsPage() {
                                 </TableCell>
                                 {showActions && (
                                     <TableCell align="right">
-                                        <Box display="flex" gap={1} justifyContent="flex-end">
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                startIcon={<ApproveIcon />}
-                                                color="success"
-                                                onClick={() => handleOpenApprove(booking)}
-                                            >
-                                                Approve
-                                            </Button>
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                startIcon={<RejectIcon />}
-                                                color="error"
-                                                onClick={() => handleOpenReject(booking)}
-                                            >
-                                                Reject
-                                            </Button>
-                                        </Box>
+                                        {booking.status === 'Pending' ? (
+                                            <Box display="flex" gap={1} justifyContent="flex-end">
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    startIcon={<ApproveIcon />}
+                                                    color="success"
+                                                    onClick={() => handleOpenApprove(booking)}
+                                                >
+                                                    Approve
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    startIcon={<RejectIcon />}
+                                                    color="error"
+                                                    onClick={() => handleOpenReject(booking)}
+                                                >
+                                                    Reject
+                                                </Button>
+                                            </Box>
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">
+                                                {booking.status === 'Approved' && '✓ Approved'}
+                                                {booking.status === 'Rejected' && '✗ Rejected'}
+                                                {booking.status === 'Cancelled' && '⊗ Cancelled'}
+                                                {booking.status === 'Active' && '▶ Active'}
+                                                {booking.status === 'Completed' && '✓ Completed'}
+                                            </Typography>
+                                        )}
                                     </TableCell>
                                 )}
                             </TableRow>
@@ -320,6 +359,40 @@ export default function BookingsPage() {
                     Booking Management
                 </Typography>
                 <TableSkeleton rows={8} columns={10} />
+            </Container>
+        );
+    }
+
+    if (error) {
+        return (
+            <Container maxWidth="xl" sx={{ mt: 4 }}>
+                <Typography variant="h4" gutterBottom>
+                    Booking Management
+                </Typography>
+                <Box
+                    sx={{
+                        bgcolor: 'error.lighter',
+                        color: 'error.dark',
+                        p: 3,
+                        borderRadius: 1,
+                        textAlign: 'center',
+                    }}
+                >
+                    <Typography variant="h6" gutterBottom>
+                        Failed to load bookings
+                    </Typography>
+                    <Typography variant="body2">
+                        {error instanceof Error ? error.message : 'An error occurred'}
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        sx={{ mt: 2 }}
+                        onClick={() => window.location.reload()}
+                    >
+                        Retry
+                    </Button>
+                </Box>
             </Container>
         );
     }
@@ -352,16 +425,8 @@ export default function BookingsPage() {
             />
 
             <Paper>
-                <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
-                    <Tab label={`Pending (${pendingBookings.length})`} />
-                    <Tab label={`Approved (${approvedBookings.length})`} />
-                    <Tab label={`Rejected (${rejectedBookings.length})`} />
-                </Tabs>
-
                 <Box p={3}>
-                    {tabValue === 0 && renderBookingsTable(pendingBookings, user?.role === 'ScreenOwner')}
-                    {tabValue === 1 && renderBookingsTable(approvedBookings)}
-                    {tabValue === 2 && renderBookingsTable(rejectedBookings)}
+                    {renderBookingsTable(filteredBookings, user?.role === 'ScreenOwner')}
                 </Box>
             </Paper>
 
