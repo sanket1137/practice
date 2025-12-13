@@ -28,6 +28,11 @@ public class CreativesController : ControllerBase
     [HttpPost("upload")]
     [Authorize(Roles = "Advertiser,ScreenOwner,Admin")]
     [RequestSizeLimit(100_000_000)] // 100MB limit
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<CreativeDto>), 201)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(500)]
+    [ApiExplorerSettings(IgnoreApi = true)] // Hide from Swagger due to IFormFile limitation
     public async Task<ActionResult<ApiResponse<CreativeDto>>> Upload(
         [FromForm] IFormFile file, 
         [FromForm] Guid campaignId, 

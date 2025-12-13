@@ -6,5 +6,6 @@ public enum BookingStatus
     Approved = 1,
     Rejected = 2,
     Cancelled = 3,
-    Completed = 4
+    Active = 4,      // Booking is currently running
+    Completed = 5    // Booking has finished
 }
