@@ -24,7 +24,7 @@ public class BookingsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetBookings()
+    public async Task<IActionResult> GetBookings([FromQuery] Guid? screenId = null)
     {
         try
         {
@@ -50,6 +50,12 @@ public class BookingsController : ControllerBase
             }
             // Admins see all bookings (no filter)
 
+            // Apply screen filter if specified (for screen details page)
+            if (screenId.HasValue)
+            {
+                query.ScreenId = screenId.Value;
+            }
+
             var result = await _mediator.Send(query);
             return Ok(CCMS.Shared.Common.ApiResponse<IEnumerable<BookingDto>>.SuccessResponse(result));
         }
@@ -59,9 +65,34 @@ public class BookingsController : ControllerBase
         }
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetBookingById(Guid id)
+    {
+        try
+        {
+            var query = new GetBookingsQuery { BookingId = id };
+            var result = await _mediator.Send(query);
+            var booking = result.FirstOrDefault();
+            
+            if (booking == null)
+                return NotFound(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("Booking not found"));
+            
+            return Ok(CCMS.Shared.Common.ApiResponse<BookingDto>.SuccessResponse(booking));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+    }
+
     [HttpPost]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequest request)
     {
+        // DIAGNOSTIC: Log incoming request to verify ScreenId
+        Console.WriteLine($"[DIAGNOSTIC CREATE] ScreenId: {request.ScreenId.ToString().Substring(0, 8)}, " +
+                        $"CampaignId: {request.CampaignId.ToString().Substring(0, 8)}, " +
+                        $"StartDate: {request.StartDate:yyyy-MM-dd}");
+
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();

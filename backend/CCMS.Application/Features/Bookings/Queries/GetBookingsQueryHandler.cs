@@ -52,7 +52,24 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
             allBookings = allBookings.Where(b => b.CampaignId == request.CampaignId.Value).ToList();
         }
 
+        // Filter by specific screen if specified (for screen details page)
+        if (request.ScreenId.HasValue)
+        {
+            allBookings = allBookings.Where(b => b.ScreenId == request.ScreenId.Value).ToList();
+        }
+
         var bookingDtos = _mapper.Map<List<BookingDto>>(allBookings.OrderByDescending(b => b.CreatedAt));
+
+        // DIAGNOSTIC: Log booking-screen relationships to identify mismatches
+        foreach (var dto in bookingDtos)
+        {
+            var booking = allBookings.First(b => b.Id == dto.Id);
+            Console.WriteLine($"[DIAGNOSTIC] Booking {booking.Id.ToString().Substring(0, 8)}: " +
+                            $"ScreenId={booking.ScreenId.ToString().Substring(0, 8)}, " +
+                            $"Screen.Name={booking.Screen?.Name ?? "NULL"}, " +
+                            $"DTO.ScreenName={dto.ScreenName}, " +
+                            $"Campaign={dto.CampaignName}");
+        }
 
         // Populate dateBreakdown for each booking
         foreach (var dto in bookingDtos)
@@ -89,7 +106,8 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
                     TotalRequested = totalDays,
                     TotalAvailable = bookedDates.Count,
                     TotalUnavailable = unavailableDates.Count,
-                    IsPartialBooking = unavailableDates.Count > 0
+                    // Only partial if some REQUESTED days couldn't be booked
+                    IsPartialBooking = bookedDates.Count < totalDays
                 };
             }
         }
