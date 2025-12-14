@@ -113,5 +113,92 @@ public class ScreensController : ControllerBase
         }
     }
 
-    // Additional endpoints would go here (Update, Delete, List, etc.)
+    [HttpGet("{id}/calendar")]
+    public async Task<ActionResult<ApiResponse<SlotCalendarDto>>> GetSlotCalendar(
+        Guid id,
+        [FromQuery] DateTime startDate,
+        [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var query = new GetSlotCalendarQuery
+            {
+                ScreenId = id,
+                StartDate = startDate.Date,
+                EndDate = endDate.Date
+            };
+
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<SlotCalendarDto>.SuccessResponse(result));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<SlotCalendarDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<SlotCalendarDto>.ErrorResponse($"Error retrieving calendar: {ex.Message}"));
+        }
+    }
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<ScreenDto>>> Update(Guid id, [FromBody] UpdateScreenRequest request)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var command = new UpdateScreenCommand
+            {
+                ScreenId = id,
+                UserId = userId,
+                Request = request
+            };
+
+            var result = await _mediator.Send(command);
+            return Ok(ApiResponse<ScreenDto>.SuccessResponse(result, "Screen updated successfully"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<ScreenDto>.ErrorResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ApiResponse<ScreenDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse($"Error updating screen: {ex.Message}"));
+        }
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var command = new DeleteScreenCommand
+            {
+                ScreenId = id,
+                UserId = userId
+            };
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<object>.ErrorResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ApiResponse<object>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error deleting screen: {ex.Message}"));
+        }
+    }
 }

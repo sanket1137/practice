@@ -72,7 +72,15 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
         }
     };
 
-    const totalRevenue = bookings?.reduce((sum, booking) => sum + booking.totalPrice, 0) || 0;
+    // Revenue calculation - only count Approved, Active, and Completed bookings
+    const confirmedBookings = bookings?.filter(b =>
+        b.status === 'Approved' || b.status === 'Active' || b.status === 'Completed'
+    ) || [];
+
+    const pendingBookings = bookings?.filter(b => b.status === 'Pending') || [];
+
+    const totalRevenue = confirmedBookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
+    const potentialRevenue = pendingBookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
 
     if (isLoading) {
         return (
@@ -138,12 +146,15 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
                 {/* Summary */}
                 <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
                     <Grid container spacing={2}>
-                        <Grid item xs={6}>
+                        <Grid item xs={12} sm={4}>
                             <Typography variant="caption" color="textSecondary">
                                 Total Bookings
                             </Typography>
                             <Typography variant="h5">
-                                {bookings?.length || 0}
+                                {confirmedBookings.length}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary">
+                                (Approved/Active/Completed)
                             </Typography>
                         </Grid>
                         <Grid item xs={6}>

@@ -53,7 +53,8 @@ public class BookingCalculationService
 
         breakdown.TotalAvailable = breakdown.AvailableDates.Count;
         breakdown.TotalUnavailable = breakdown.UnavailableDates.Count;
-        breakdown.IsPartialBooking = breakdown.TotalUnavailable > 0;
+        // Only partial if some REQUESTED days couldn't be booked
+        breakdown.IsPartialBooking = breakdown.AvailableDates.Count < breakdown.TotalRequested;
 
         return breakdown;
     }

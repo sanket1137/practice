@@ -70,7 +70,7 @@ public class CreativesController : ControllerBase
         {
             return NotFound(ApiResponse<CreativeDto>.ErrorResponse(ex.Message));
         }
-        catch (UnauthorizedAccessException ex)
+        catch (UnauthorizedAccessException)
         {
             return Forbid();
         }

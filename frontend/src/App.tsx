@@ -14,9 +14,11 @@ import EditCampaignPage from './pages/campaigns/EditCampaignPage';
 import CampaignDetailPage from './pages/campaigns/CampaignDetailPage';
 import ScreensPage from './pages/screens/ScreensPage';
 import CreateScreenPage from './pages/screens/CreateScreenPage';
+import UpdateScreenPage from './pages/screens/UpdateScreenPage';
 import ScreenDetailPage from './pages/screens/ScreenDetailPage';
 import BookingsPage from './pages/bookings/BookingsPage';
 import CreateBookingPage from './pages/bookings/CreateBookingPage';
+import BookingDetailPage from './pages/bookings/BookingDetailPage';
 import UploadCreativePage from './pages/creatives/UploadCreativePage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import MainLayout from './components/Layout/MainLayout';
@@ -55,9 +57,11 @@ function App() {
                 <Route path="campaigns/:id/creatives/new" element={<UploadCreativePage />} />
                 <Route path="screens" element={<ScreensPage />} />
                 <Route path="screens/new" element={<CreateScreenPage />} />
+                <Route path="screens/:id/edit" element={<UpdateScreenPage />} />
                 <Route path="screens/:id" element={<ScreenDetailPage />} />
                 <Route path="bookings" element={<BookingsPage />} />
                 <Route path="bookings/new" element={<CreateBookingPage />} />
+                <Route path="bookings/:id" element={<BookingDetailPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
               </Route>
             </Routes>

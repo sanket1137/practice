@@ -6,6 +6,7 @@ using CCMS.Application.Features.Campaigns.Commands;
 using CCMS.Application.Features.Campaigns.Queries;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Campaigns;
+using CCMS.Shared.DTOs.Bookings;
 
 namespace CCMS.Api.Controllers;
 
@@ -141,6 +142,26 @@ public class CampaignsController : ControllerBase
         {
             return StatusCode(500,
                 ApiResponse<object>.ErrorResponse($"Error deleting campaign: {ex.Message}"));
+        }
+    }
+
+    // GET /api/campaigns/{id}/bookings
+    [HttpGet("{id}/bookings")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<BookingDto>>>> GetCampaignBookings(Guid id)
+    {
+        try
+        {
+            var query = new Application.Features.Bookings.Queries.GetBookingsQuery 
+            { 
+                CampaignId = id 
+            };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<IEnumerable<BookingDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500,
+                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse($"Error retrieving campaign bookings: {ex.Message}"));
         }
     }
 }
