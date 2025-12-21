@@ -39,6 +39,7 @@ import { useSnackbar } from 'notistack';
 import SlotBookingsCard from '../../components/screens/SlotBookingsCard';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import SlotCalendarView from '../../components/screens/SlotCalendarView';
+import LivePreviewWidget from '../../components/common/LivePreviewWidget';
 import { useState } from 'react';
 
 interface Screen {
@@ -186,6 +187,7 @@ export default function ScreenDetailPage() {
                     <Tab label="Details" />
                     <Tab label="Calendar" />
                     {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Bookings" />}
+                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Live Activity" />}
                 </Tabs>
             </Box>
 
@@ -331,13 +333,6 @@ export default function ScreenDetailPage() {
                             </CardContent>
                         </Card>
                     </Grid>
-
-                    {/* Slot Bookings Card - Only for Screen Owners and Admins */}
-                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
-                        <Grid item xs={12}>
-                            <SlotBookingsCard screenId={id!} />
-                        </Grid>
-                    )}
                 </Grid>
             )}
 
@@ -349,6 +344,19 @@ export default function ScreenDetailPage() {
             {/* Bookings Tab - Only for Screen Owners and Admins */}
             {activeTab === 2 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
                 <SlotBookingsCard screenId={id!} />
+            )}
+
+            {/* Live Activity Tab - Only for Screen Owners and Admins */}
+            {activeTab === 3 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
+                <Box>
+                    <Typography variant="h6" gutterBottom>
+                        Real-Time Screen Activity
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" paragraph>
+                        Monitor live playback on this screen in real-time
+                    </Typography>
+                    <LivePreviewWidget screenId={id!} mode="screen" />
+                </Box>
             )}
 
             {/* Delete Confirmation Dialog */}

@@ -142,7 +142,7 @@ export default function CreateCampaignPage() {
                                         label="Budget"
                                         type="number"
                                         value={value}
-                                        onChange={(e) => onChange(parseFloat(e.target.value))}
+                                        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
                                         error={!!errors.budget}
                                         helperText={errors.budget?.message}
                                         required

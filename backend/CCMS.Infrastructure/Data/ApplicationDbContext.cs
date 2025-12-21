@@ -166,6 +166,11 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(e => e.BookingId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
+            entity.HasOne(e => e.Campaign)
+                .WithMany()
+                .HasForeignKey(e => e.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
             entity.HasOne(e => e.Screen)
                 .WithMany(s => s.Impressions)
                 .HasForeignKey(e => e.ScreenId)

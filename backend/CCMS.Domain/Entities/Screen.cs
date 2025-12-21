@@ -39,6 +39,7 @@ public class Screen : BaseEntity
     public bool IsOnline { get; set; } = false;
     public DateTime? LastSeenAt { get; set; }
     public string? ConnectedDeviceId { get; set; }
+    public string? ApiKeyHash { get; set; } // Hashed API key for player authentication
     
     // Pricing
     public decimal PricePerSlot { get; set; }

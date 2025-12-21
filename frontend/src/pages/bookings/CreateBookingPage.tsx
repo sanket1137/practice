@@ -297,11 +297,8 @@ export default function CreateBookingPage() {
         },
     });
 
-    // State for confirmation dialog
-    const [showConfirmation, setShowConfirmation] = useState(false);
-    const [dateBreakdown, setDateBreakdown] = useState<BookingDateBreakdown | null>(null);
-    const [pendingBookingData, setPendingBookingData] = useState<any>(null);
-    const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+    // State for confirmation dialog - REMOVED (no longer needed)
+    // Backend will handle slot assignment automatically
 
     // Format date helper
     const formatDate = (date: Date) => {
@@ -311,59 +308,25 @@ export default function CreateBookingPage() {
         return `${year}-${month}-${day}`;
     };
 
-    // Check availability and show confirmation dialog
-    const onSubmit = async (data: BookingFormData) => {
-        setIsCheckingAvailability(true);
-
-        try {
-            // Get selected slot from availability data or default to 1
-            const selectedSlot = availabilityData?.slotAvailability?.[0]?.slotNumber || 1;
-
-            // Call availability check endpoint
-            const response = await api.get('/bookings/availability-check', {
-                params: {
-                    screenId: data.screenId,
-                    startDate: formatDate(data.startDate),
-                    endDate: formatDate(data.endDate),
-                    slotNumber: selectedSlot,
-                },
-            });
-
-            const breakdown: BookingDateBreakdown = response.data.data;
-
-            // Check if any dates are available
-            if (breakdown.totalAvailable === 0) {
-                enqueueSnackbar('No dates available in the selected range. All slots are sold out.', { variant: 'error' });
-                setIsCheckingAvailability(false);
-                return;
-            }
-
-            // Store the booking data and breakdown
-            const formattedData = {
-                ...data,
-                startDate: formatDate(data.startDate),
-                endDate: formatDate(data.endDate),
-            };
-
-            setPendingBookingData(formattedData);
-            setDateBreakdown(breakdown);
-            setShowConfirmation(true);
-        } catch (error: any) {
+    // Submit booking directly - backend auto-assigns available slot
+    const onSubmit = (data: BookingFormData) => {
+        // Check if there are any available slots based on calculation
+        if (!calculation || calculation.bookableDays === 0) {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to check availability',
+                'No dates available in the selected range. All slots are sold out.',
                 { variant: 'error' }
             );
-        } finally {
-            setIsCheckingAvailability(false);
+            return;
         }
-    };
 
-    // Handle confirmation from dialog
-    const handleConfirmBooking = () => {
-        if (pendingBookingData) {
-            createMutation.mutate(pendingBookingData);
-            setShowConfirmation(false);
-        }
+        // Format and submit booking - backend will auto-assign an available slot
+        const formattedData = {
+            ...data,
+            startDate: formatDate(data.startDate),
+            endDate: formatDate(data.endDate),
+        };
+
+        createMutation.mutate(formattedData);
     };
 
     return (
@@ -552,10 +515,9 @@ export default function CreateBookingPage() {
                                         <Button
                                             type="submit"
                                             variant="contained"
-                                            disabled={createMutation.isPending || isCheckingAvailability}
-                                            startIcon={isCheckingAvailability ? <CircularProgress size={20} /> : null}
+                                            disabled={createMutation.isPending}
                                         >
-                                            {isCheckingAvailability ? 'Checking Availability...' : 'Create Booking'}
+                                            Create Booking
                                         </Button>
                                     </Box>
                                 </Grid>
@@ -623,15 +585,7 @@ export default function CreateBookingPage() {
                 </Grid>
             </Grid>
 
-            {/* Booking Confirmation Dialog */}
-            <BookingConfirmationDialog
-                open={showConfirmation}
-                onClose={() => setShowConfirmation(false)}
-                onConfirm={handleConfirmBooking}
-                dateBreakdown={dateBreakdown}
-                calculatedPrice={calculation?.totalPrice || 0}
-                currency={selectedScreenDetails?.currency || 'INR'}
-            />
+            {/* Confirmation dialog removed - booking submits directly */}
         </Container>
     );
 }

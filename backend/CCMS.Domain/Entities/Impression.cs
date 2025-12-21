@@ -3,6 +3,7 @@ namespace CCMS.Domain.Entities;
 public class Impression : BaseEntity
 {
     public Guid BookingId { get; set; }
+    public Guid CampaignId { get; set; }
     public Guid ScreenId { get; set; }
     public Guid CreativeId { get; set; }
     
@@ -20,6 +21,7 @@ public class Impression : BaseEntity
     
     // Navigation properties
     public virtual Booking Booking { get; set; } = null!;
+    public virtual Campaign Campaign { get; set; } = null!;
     public virtual Screen Screen { get; set; } = null!;
     public virtual Creative Creative { get; set; } = null!;
 }

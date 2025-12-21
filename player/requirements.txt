@@ -1,2 +1,4 @@
 requests==2.31.0
 python-socketio[client]==5.10.0
+signalrcore==0.9.5
+python-vlc

@@ -44,6 +44,11 @@ interface Screen {
     isOnline: boolean;
     lastSeenAt?: string;
     totalSlots: number;
+    bookedSlots?: number;  // Added: number of booked slots
+    activeBookings?: number;  // Added: number of active bookings
+    revenueEstimate?: {
+        daily?: { [key: string]: number };
+    };
 }
 
 export default function ScreensPage() {
@@ -187,10 +192,10 @@ export default function ScreensPage() {
                                     location: `${screen.location.city}, ${screen.location.state}`,
                                     city: screen.location.city,
                                     totalSlots: screen.slotsPerFrame,
-                                    bookedSlots: Math.floor(screen.slotsPerFrame * 0.6), // TODO: Get from API
-                                    revenue: screen.pricePerSlot * screen.slotsPerFrame * 30, // TODO: Calculate actual
+                                    bookedSlots: screen.bookedSlots || 0,  // Use real data from backend
+                                    revenue: screen.revenueEstimate?.daily?.[new Date().toISOString().split('T')[0]] || 0,
                                     currency: screen.currency,
-                                    activeBookings: 3, // TODO: Get from API
+                                    activeBookings: screen.activeBookings || 0,  // Use real data from backend
                                 }}
                                 onClick={() => navigate(`/screens/${screen.id}`)}
                             />

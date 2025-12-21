@@ -13,7 +13,8 @@ public class HandshakeResponse
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
     public DateTime ServerTime { get; set; }
-    public PlaylistDto? Playlist { get; set; }
+    public object? Playlist { get; set; }
+    public int SyncIntervalMinutes { get; set; }
 }
 
 public class PlaylistDto

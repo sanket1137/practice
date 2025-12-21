@@ -16,11 +16,13 @@ public class BookingsController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly BookingCalculationService _calculationService;
+    private readonly ILogger<BookingsController> _logger;
 
-    public BookingsController(IMediator mediator, BookingCalculationService calculationService)
+    public BookingsController(IMediator mediator, BookingCalculationService calculationService, ILogger<BookingsController> logger)
     {
         _mediator = mediator;
         _calculationService = calculationService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -88,23 +90,39 @@ public class BookingsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateBooking([FromBody] CreateBookingRequest request)
     {
-        // DIAGNOSTIC: Log incoming request to verify ScreenId
-        Console.WriteLine($"[DIAGNOSTIC CREATE] ScreenId: {request.ScreenId.ToString().Substring(0, 8)}, " +
-                        $"CampaignId: {request.CampaignId.ToString().Substring(0, 8)}, " +
-                        $"StartDate: {request.StartDate:yyyy-MM-dd}");
-
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
-
-        var command = new CreateBookingCommand
+        try
         {
-            UserId = Guid.Parse(userId),
-            Request = request
-        };
+            // DIAGNOSTIC: Log incoming request to verify ScreenId
+            Console.WriteLine($"[DIAGNOSTIC CREATE] ScreenId: {request.ScreenId.ToString().Substring(0, 8)}, " +
+                            $"CampaignId: {request.CampaignId.ToString().Substring(0, 8)}, " +
+                            $"StartDate: {request.StartDate:yyyy-MM-dd}");
 
-        var result = await _mediator.Send(command);
-        return Ok(result);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var command = new CreateBookingCommand
+            {
+                UserId = Guid.Parse(userId),
+                Request = request
+            };
+
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating booking");
+            return StatusCode(500, new { message = $"Error creating booking: {ex.Message}", innerException = ex.InnerException?.Message });
+        }
     }
 
     [HttpPost("{id}/approve")]

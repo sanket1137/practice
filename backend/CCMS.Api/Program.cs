@@ -19,6 +19,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// Add SignalR for real-time connectivity
+builder.Services.AddSignalR();
+
 // Swagger/OpenAPI configuration
 builder.Services.AddSwaggerGen(c =>
 {
@@ -69,9 +72,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
         )
     ));
 
+
+
 // CORS
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
-    ?? new[] { "http://localhost:3000" };
+    ?? new[] { "http://localhost:3000", "http://localhost:5173", "http://localhost:5174" };
 
 builder.Services.AddCors(options =>
 {
@@ -115,7 +120,8 @@ builder.Services.AddAuthentication(options =>
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            if (!string.IsNullOrEmpty(accessToken) && 
+                (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/playerhub")))
             {
                 context.Token = accessToken;
             }
@@ -150,8 +156,15 @@ builder.Services.AddScoped<IPlaylistService, PlaylistService>();
 builder.Services.AddScoped<BookingCalculationService>();
 builder.Services.AddScoped<IRevenueCalculationService, RevenueCalculationService>();
 builder.Services.AddScoped<SlotAvailabilityService>();
+builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
+
+// TimeZone Service (Singleton for performance)
+builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
+
+// Background Services
+builder.Services.AddHostedService<CCMS.Api.Services.ScreenStatusMonitor>();
 
 // Background Services (conditionally enabled via configuration)
 var bookingStatusUpdateEnabled = builder.Configuration
@@ -203,13 +216,15 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
+// SignalR Hub - Map BEFORE authentication to allow negotiate endpoint
+// Authentication is skipped for negotiate, then enforced in hub methods if needed
+app.MapHub<PlaybackHub>("/hubs/playback").AllowAnonymous();
+app.MapHub<PlayerHub>("/playerhub").AllowAnonymous();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// SignalR Hub
-app.MapHub<PlaybackHub>("/hubs/playback");
 
 // Auto-apply migrations
 using (var scope = app.Services.CreateScope())
