@@ -1,0 +1,63 @@
+{
+    "screenId": "TEST-SCREEN-001",
+    "deviceId": "raspberry-pi-test-001",
+    "apiKey": "test-api-key-replace-with-actual",
+    "serverUrl": "http://localhost:5257",
+    "screenConfig": {
+        "name": "Test Screen 24/7",
+        "location": {
+            "street": "Test Street 123",
+            "city": "Test City",
+            "state": "Test State",
+            "country": "Test Country",
+            "postalCode": "12345"
+        },
+        "resolution": "1920x1080",
+        "orientation": "Landscape",
+        "screenType": "Indoor",
+        "operatingSchedule": {
+            "monday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            },
+            "tuesday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            },
+            "wednesday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            },
+            "thursday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            },
+            "friday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            },
+            "saturday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            },
+            "sunday": {
+                "isOpen": true,
+                "openTime": "00:00",
+                "closeTime": "23:59"
+            }
+        },
+        "slotsPerFrame": 6,
+        "timeFrameMinutes": 1,
+        "pricePerSlot": 100.00
+    },
+    "syncSettings": {
+        "syncIntervalMinutes": 10,
+        "retentionDays": 30
+    }
+}

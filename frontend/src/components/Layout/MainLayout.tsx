@@ -18,8 +18,10 @@ import {
     useMediaQuery,
     useTheme,
 } from '@mui/material';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import ConnectionStatus from '../common/ConnectionStatus';
 import MobileBottomNav from './MobileBottomNav';
 import BreadcrumbNavigation from '../common/BreadcrumbNavigation';
 import GlobalSearch, { useGlobalSearch } from '../common/GlobalSearch';
@@ -46,6 +48,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuthStore();
+    const { connectionState } = useWebSocket();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [desktopOpen, setDesktopOpen] = useState(true);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -134,6 +137,9 @@ const MainLayout = () => {
                     </Typography>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {/* WebSocket Connection Status */}
+                        <ConnectionStatus status={connectionState} />
+
                         {/* Global Search Trigger */}
                         <IconButton
                             color="inherit"

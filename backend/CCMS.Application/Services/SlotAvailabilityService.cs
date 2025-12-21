@@ -76,7 +76,11 @@ public class SlotAvailabilityService
                 .FindAsync(sa => sa.ScreenId == screenId && sa.Date == currentDate, cancellationToken);
 
             var dayAvailability = availability.FirstOrDefault();
-            if (dayAvailability == null || dayAvailability.SlotBookings.ContainsKey(slotNumber))
+            if (dayAvailability == null)
+                return false; // No availability record exists
+            
+            // Slot is booked if SlotBookings contains the key AND the value is not null
+            if (dayAvailability.SlotBookings.ContainsKey(slotNumber) && dayAvailability.SlotBookings[slotNumber] != null)
             {
                 return false; // Slot is booked on this date
             }
@@ -99,7 +103,14 @@ public class SlotAvailabilityService
         
         var dayAvailability = availability.FirstOrDefault();
         if (dayAvailability == null)
+        {
+            Console.WriteLine($"[SLOT DEBUG] No availability record found for screen {screenId} on {date:yyyy-MM-dd} after initialization!");
             return new List<int>();
+        }
+        
+        Console.WriteLine($"[SLOT DEBUG] Screen {screenId.ToString().Substring(0,8)} on {date:yyyy-MM-dd}: TotalSlots={dayAvailability.TotalSlots}, BookedSlots={dayAvailability.BookedSlots}, SlotBookings.Count={dayAvailability.SlotBookings.Count}");
+        Console.WriteLine($"[SLOT DEBUG] SlotBookings details: {string.Join(", ", dayAvailability.SlotBookings.Select(kvp => $"{kvp.Key}={kvp.Value?.ToString()?.Substring(0,8) ?? "null"}"))}");
+
         
         var availableSlotNumbers = new List<int>();
         for (int i = 1; i <= dayAvailability.TotalSlots; i++)
@@ -110,6 +121,8 @@ public class SlotAvailabilityService
                 availableSlotNumbers.Add(i);
             }
         }
+        
+        Console.WriteLine($"[SLOT DEBUG] Available slots: [{string.Join(", ", availableSlotNumbers)}]");
         
         return availableSlotNumbers;
     }
@@ -187,8 +200,9 @@ public class SlotAvailabilityService
             var dayAvailability = availability.FirstOrDefault();
             if (dayAvailability != null)
             {
-                // Check if slot is already booked - SKIP this day instead of throwing error
-                if (!dayAvailability.SlotBookings.ContainsKey(slotNumber))
+                // Check if slot is available: either not in dictionary OR value is null
+                if (!dayAvailability.SlotBookings.ContainsKey(slotNumber) || 
+                    dayAvailability.SlotBookings[slotNumber] == null)
                 {
                     // Slot is available - book it
                     dayAvailability.SlotBookings[slotNumber] = bookingId;
@@ -365,7 +379,9 @@ public class SlotAvailabilityService
                 var availableSlots = new List<int>();
                 for (int i = 1; i <= dayAvailability.TotalSlots; i++)
                 {
-                    if (!dayAvailability.SlotBookings.ContainsKey(i))
+                    // Check if slot is available: either not in dictionary OR value is null
+                    if (!dayAvailability.SlotBookings.ContainsKey(i) || 
+                        dayAvailability.SlotBookings[i] == null)
                     {
                         availableSlots.Add(i);
                     }

@@ -31,6 +31,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
+import LivePreviewWidget from '../../components/common/LivePreviewWidget';
 
 interface Campaign {
     id: string;
@@ -231,6 +232,7 @@ export default function CampaignDetailPage() {
                 <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
                     <Tab label="Creatives" />
                     <Tab label="Bookings" />
+                    <Tab label="Live Activity" />
                 </Tabs>
                 <Divider />
 
@@ -406,6 +408,19 @@ export default function CampaignDetailPage() {
                                 </Button>
                             </Box>
                         )}
+                    </Box>
+                )}
+
+                {/* Live Activity Tab */}
+                {tabValue === 2 && (
+                    <Box p={3}>
+                        <Typography variant="h6" gutterBottom>
+                            Real-Time Campaign Activity
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Monitor live playback of your campaign across all booked screens
+                        </Typography>
+                        <LivePreviewWidget campaignId={id!} mode="campaign" />
                     </Box>
                 )}
             </Paper>
