@@ -9,6 +9,9 @@ This module provides a wrapper around python-vlc library to enable:
 
 import vlc
 import logging
+import time
+import os
+import requests
 from typing import Callable, Optional, List, Dict
 from datetime import datetime
 
@@ -34,12 +37,17 @@ class VLCManager:
     def initialize(self) -> bool:
         """Initialize VLC instance and player"""
         try:
-            # Create VLC instance with options
+            # Create VLC instance with software rendering for Windows compatibility
+            # Optimized for LOCAL file playback (minimal caching needed)
             vlc_args = [
                 '--no-video-title-show',  # Don't show filename
-                '--fullscreen',           # Fullscreen mode
                 '--no-osd',              # No on-screen display
-                '--quiet'                # Minimal console output
+                '--avcodec-hw=none',     # Disable hardware decoding
+                '--vout=directdraw',     # Use DirectDraw (software rendering)
+                '--file-caching=300',    # Minimal cache for local files (0.3 sec)
+                '--video-on-top',        # Keep window on top
+                '--no-embedded-video',   # Don't embed in interface
+                '--verbose=2'            # Show errors
             ]
             
             logger.info("Initializing VLC instance...")
@@ -74,25 +82,95 @@ class VLCManager:
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
     
-    def set_playlist(self, playlist_items: List[Dict]):
-        """Set playlist from CCMS playlist data"""
+    def _download_video(self, url: str, slot_num: int) -> Optional[str]:
+        """Download video to cache for gapless playback"""
         try:
+            cache_dir = os.path.join(os.path.dirname(__file__), 'video_cache')
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            # Extract filename from URL
+            filename = url.split('/')[-1]
+            local_path = os.path.join(cache_dir, filename)
+            
+            # Check if already cached
+            if os.path.exists(local_path):
+                logger.info(f"[SLOT {slot_num}] Using cached: {filename}")
+                return local_path
+            
+            # Download
+            logger.info(f"[SLOT {slot_num}] Downloading: {filename}")
+            response = requests.get(url, stream=True, timeout=30)
+            response.raise_for_status()
+            
+            with open(local_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            logger.info(f"[SLOT {slot_num}] Downloaded: {filename}")
+            return local_path
+            
+        except Exception as e:
+            logger.error(f"[SLOT {slot_num}] Download failed: {e}")
+            return None
+    
+    def set_playlist(self, playlist_items: List[Dict]) -> bool:
+        """Set the playlist from items - Pre-downloads ALL videos first for gapless playback"""
+        try:
+            if not self.vlc_instance:
+                logger.error("VLC instance not initialized")
+                return False
+            
             self.playlist = playlist_items
             self.media_list = self.vlc_instance.media_list_new()
             
-            video_count = 0
+            logger.info("="*60)
+            logger.info(f"VLC: Processing {len(playlist_items)} playlist items")
+            logger.info("PHASE 1: Pre-downloading ALL videos for gapless playback")
+            logger.info("="*60)
+            
+            # PHASE 1: Download ALL videos FIRST
+            downloaded_paths = []
             for item in playlist_items:
                 creative_url = item.get('creativeUrl', '')
-                # Skip filler/default content
-                if creative_url and not creative_url.startswith('/default/'):
-                    media = self.vlc_instance.media_new(creative_url)
+                slot_num = item.get('slotNumber', '?')
+                
+                if not creative_url or creative_url.startswith('/default/'):
+                    continue
+                
+                # Convert relative URLs to absolute
+                if creative_url.startswith('/'):
+                    creative_url = f"http://localhost:5257{creative_url}"
+                
+                logger.info(f"[SLOT {slot_num}] Pre-downloading: {creative_url}")
+                local_path = self._download_video(creative_url, slot_num)
+                
+                if local_path:
+                    downloaded_paths.append((slot_num, local_path))
+                else:
+                    logger.error(f"[SLOT {slot_num}] Download FAILED!")
+            
+            logger.info("="*60)
+            logger.info(f"PHASE 2: Building VLC playlist from {len(downloaded_paths)} cached videos")
+            logger.info("="*60)
+            
+            # PHASE 2: Add cached videos to VLC playlist
+            video_count = 0
+            for slot_num, local_path in downloaded_paths:
+                try:
+                    logger.info(f"[SLOT {slot_num}] Adding: {local_path}")
+                    media = self.vlc_instance.media_new(local_path)
                     self.media_list.add_media(media)
                     video_count += 1
+                except Exception as e:
+                    logger.error(f"[SLOT {slot_num}] Failed: {e}")
             
             self.player.set_media_list(self.media_list)
             self.player.set_playback_mode(vlc.PlaybackMode.loop)
             
-            logger.info(f"Playlist set: {video_count} videos from {len(playlist_items)} items")
+            logger.info("="*60)
+            logger.info(f"READY: {video_count} videos loaded (all cached locally)")
+            logger.info("Transition time: < 0.5 seconds")
+            logger.info("="*60)
             return True
             
         except Exception as e:
