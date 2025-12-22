@@ -2,19 +2,37 @@ using Microsoft.AspNetCore.SignalR;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace CCMS.Api.Hubs;
 
 public class PlaybackHub : Hub
 {
+    // In-memory cache for impressions waiting to be flushed
+    private static readonly ConcurrentBag<Impression> _pendingImpressions = new();
+    private static DateTime _lastFlush = DateTime.UtcNow;
+    private static readonly object _flushLock = new();
+    
     private readonly IRepository<Screen> _screenRepository;
+    private readonly IRepository<Impression> _impressionRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<PlaybackHub> _logger;
+    private readonly IConfiguration _configuration;
     private static readonly ConcurrentDictionary<string, Guid> _connectionToScreen = new();
 
-    public PlaybackHub(IRepository<Screen> screenRepository, IUnitOfWork unitOfWork)
+    public PlaybackHub(
+        IRepository<Screen> screenRepository,
+        IRepository<Impression> impressionRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<PlaybackHub> logger,
+        IConfiguration configuration)
     {
         _screenRepository = screenRepository;
+        _impressionRepository = impressionRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -72,9 +90,11 @@ public class PlaybackHub : Hub
 
         await base.OnDisconnectedAsync(exception);
     }
+    
     public async Task SubscribeToScreen(string screenId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"screen_{screenId}");
+        _logger.LogInformation($"Client {Context.ConnectionId} subscribed to screen {screenId}");
     }
 
     public async Task UnsubscribeFromScreen(string screenId)
@@ -85,6 +105,7 @@ public class PlaybackHub : Hub
     public async Task SubscribeToCampaign(string campaignId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"campaign_{campaignId}");
+        _logger.LogInformation($"Client {Context.ConnectionId} subscribed to campaign {campaignId}");
     }
 
     public async Task UnsubscribeFromCampaign(string campaignId)
@@ -106,11 +127,37 @@ public class PlaybackHub : Hub
 
     public async Task AdCompleted(AdPlaybackEvent eventData)
     {
-        // Broadcast to screen subscribers
+        try
+        {
+            // Store in memory buffer
+            var impression = new Impression
+            {
+                Id = Guid.NewGuid(),
+                BookingId = Guid.Parse(eventData.BookingId.ToString()),
+                CampaignId = Guid.Parse(eventData.CampaignId.ToString()),
+                ScreenId = Guid.Parse(eventData.ScreenId.ToString()),
+                CreativeId = Guid.Parse(eventData.CreativeId.ToString()),
+                PlayedAt = eventData.Timestamp,
+                SessionDate = eventData.Timestamp.Date,
+                DeviceId = eventData.DeviceId,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            _pendingImpressions.Add(impression);
+            
+            _logger.LogInformation($"[BUFFER] Added impression {impression.Id.ToString().Substring(0, 8)}... Buffer size: {_pendingImpressions.Count}");
+            
+            // Don't call CheckAndFlush here - let the background timer handle it
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to buffer impression");
+        }
+        
+        // Always broadcast to subscribers (real-time updates)
         await Clients.Group($"screen_{eventData.ScreenId}")
             .SendAsync("AdCompleted", eventData);
 
-        // Broadcast to campaign subscribers
         await Clients.Group($"campaign_{eventData.CampaignId}")
             .SendAsync("AdCompleted", eventData);
     }
@@ -123,7 +170,121 @@ public class PlaybackHub : Hub
         await Clients.Group($"campaign_{eventData.CampaignId}")
             .SendAsync("ImpressionUpdate", eventData);
     }
+    
+    /// <summary>
+    /// Flush impressions to database every minute (configurable)
+    /// </summary>
+    private async Task CheckAndFlush()
+    {
+        var flushInterval = _configuration.GetValue<int>("PlaybackSettings:FlushIntervalMinutes", 1);
+        var maxBufferSize = _configuration.GetValue<int>("PlaybackSettings:MaxBufferSize", 10000);
+        
+        var elapsed = DateTime.UtcNow - _lastFlush;
+        var shouldFlush = elapsed.TotalMinutes >= flushInterval || 
+                          _pendingImpressions.Count >= maxBufferSize;
+        
+        Console.WriteLine($"[FLUSH CHECK] Elapsed: {elapsed.TotalMinutes:F2} min, Buffer: {_pendingImpressions.Count}, Should flush: {shouldFlush}");
+        _logger.LogInformation($"[FLUSH CHECK] Elapsed: {elapsed.TotalMinutes:F2} min, Buffer: {_pendingImpressions.Count}, Should flush: {shouldFlush}");
+        
+        if (!shouldFlush)
+        {
+            return;
+        }
+        
+        // Use lock to prevent concurrent flushes
+        bool lockAcquired = false;
+        try
+        {
+            lockAcquired = Monitor.TryEnter(_flushLock);
+            if (!lockAcquired)
+            {
+                Console.WriteLine("[FLUSH] Another flush in progress, skipping");
+                _logger.LogWarning("[FLUSH] Another flush in progress, skipping");
+                return; // Another thread is already flushing
+            }
+            
+            Console.WriteLine("[FLUSH] Lock acquired, starting flush process");
+            
+            // Take all pending impressions
+            var toFlush = new List<Impression>();
+            while (_pendingImpressions.TryTake(out var impression))
+            {
+                toFlush.Add(impression);
+            }
+            
+            if (toFlush.Count == 0)
+            {
+                Console.WriteLine("[FLUSH] No impressions to flush");
+                _logger.LogInformation("[FLUSH] No impressions to flush");
+                // Don't return here - let finally block release the lock
+            }
+            else
+            {
+                // Batch insert to database
+                Console.WriteLine($"[FLUSH] Starting flush of {toFlush.Count} impressions to database...");
+                _logger.LogInformation($"[FLUSH] Starting flush of {toFlush.Count} impressions to database...");
+                
+                foreach (var impression in toFlush)
+                {
+                    await _impressionRepository.AddAsync(impression);
+                }
+                
+                Console.WriteLine("[FLUSH] All impressions added, saving changes...");
+                await _unitOfWork.SaveChangesAsync();
+                
+                Console.WriteLine($"[FLUSH] ✓ Successfully flushed {toFlush.Count} impressions to database");
+                _logger.LogInformation($"[FLUSH] ✓ Successfully flushed {toFlush.Count} impressions to database");
+                
+                // Update last flush time
+                _lastFlush = DateTime.UtcNow;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FLUSH] ERROR: {ex.Message}");
+            Console.WriteLine($"[FLUSH] Stack trace: {ex.StackTrace}");
+            _logger.LogError(ex, "[FLUSH] Failed to flush impressions to database");
+            // Impressions are lost from memory but player will re-sync in 10 minutes
+        }
+        finally
+        {
+            // Only exit the lock if we actually acquired it
+            if (lockAcquired)
+            {
+                Monitor.Exit(_flushLock);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Get in-memory impression count (not yet in DB)
+    /// </summary>
+    public static int GetPendingCount(Guid? screenId = null, Guid? campaignId = null)
+    {
+        var impressions = _pendingImpressions.ToList();
+        
+        if (screenId.HasValue)
+        {
+            impressions = impressions.Where(i => i.ScreenId == screenId.Value).ToList();
+        }
+        
+        if (campaignId.HasValue)
+        {
+            impressions = impressions.Where(i => i.CampaignId == campaignId.Value).ToList();
+        }
+        
+        return impressions.Count;
+    }
+    
+    /// <summary>
+    /// Try to take one pending impression from the buffer (for background flush service)
+    /// </summary>
+    public static bool TryTakePendingImpression(out Impression? impression)
+    {
+        return _pendingImpressions.TryTake(out impression);
+    }
 }
+
 
 public class AdPlaybackEvent
 {

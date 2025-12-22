@@ -17,6 +17,7 @@ try:
     import requests
     import vlc
     from signalrcore.hub_connection_builder import HubConnectionBuilder
+    from vlc_manager import VLCManager
 except ImportError as e:
     print(f"Missing dependency: {e}")
     print("Install with: pip install -r requirements.txt")
@@ -78,6 +79,19 @@ class CCMSPlayer:
         self.signalr_connected = False
         
         # Track impressions for sync
+        self.impressions = defaultdict(lambda: {'playCount': 0, 'lastPlayed': None})
+        
+        # HTTP session
+        self.session = requests.Session()
+        self.session.headers.update({
+            "X-API-Key": self.api_key,
+            "Content-Type": "application/json"
+        })
+        
+        # VLC Manager for event-driven playback
+        self.vlc_manager = VLCManager()
+        self.vlc_manager.set_on_started(self._handle_video_started)
+        self.vlc_manager.set_on_ended(self._handle_video_ended)
         self.session_data = {
             'date': datetime.now().date(),
             'start_time': datetime.now(),
@@ -238,15 +252,19 @@ class CCMSPlayer:
             
             self.signalr_connection = HubConnectionBuilder() \
                 .with_url(hub_url) \
+                .configure_logging(logging.INFO) \
                 .with_automatic_reconnect({
-                    "type": "interval",
-                    "intervals": [1, 2, 5, 10, 30]
-                }).build()
+                    "type": "raw",
+                    "keep_alive_interval": 10,
+                    "reconnect_interval": 5,
+                    "max_attempts": 5
+                }) \
+                .build()
             
-            # Connection handlers
-            self.signalr_connection.on_open(lambda: self._on_signalr_open())
-            self.signalr_connection.on_close(lambda: self._on_signalr_close())
-            self.signalr_connection.on_error(lambda msg: logger.error(f"SignalR error: {msg}"))
+            # Connection handlers (correct API)
+            self.signalr_connection.on_open(self._on_signalr_open)
+            self.signalr_connection.on_close(self._on_signalr_close)
+            self.signalr_connection.on_error(lambda error: logger.error(f"SignalR error: {error}"))
             
             # Start connection
             self.signalr_connection.start()
@@ -258,7 +276,7 @@ class CCMSPlayer:
     
     def _on_signalr_open(self):
         """Called when SignalR connection opens"""
-        logger.info("✓ Connected to SignalR PlaybackHub")
+        logger.info("Connected to SignalR PlaybackHub")
         self.signalr_connected = True
     
     def _on_signalr_close(self):
@@ -371,159 +389,85 @@ class CCMSPlayer:
         logger.info(f"Created playlist: {playlist_path} with {len(video_files)} videos")
         return playlist_path
     
-    async def play_loop(self):
-        """Download videos and play continuously with VLC"""
-        logger.info("Starting playback loop...")
-        self.is_running = True
-        
-        while self.is_running:
-            if not self.playlist:
-                logger.warning("No playlist loaded, sleeping 5s...")
-                await asyncio.sleep(5)
-                continue
-            
-            # Download all videos
-            video_files = await self.download_videos()
-            
-            if not video_files:
-                logger.error("No videos downloaded, retrying in 60s...")
-                await asyncio.sleep(60)
-                continue
-            
-            # Create playlist file
-            playlist_file = self.create_playlist_file(video_files)
-            
-            # Find VLC executable
-            import os
-            vlc_paths = [
-                r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-                r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
-                "vlc"
-            ]
-            
-            vlc_exe = None
-            for path in vlc_paths:
-                if os.path.exists(path) or path == "vlc":
-                    vlc_exe = path
-                    break
-            
-            if not vlc_exe:
-                logger.error("VLC not found!")
-                await asyncio.sleep(60)
-                continue
-            
-            logger.info("="*60)
-            logger.info("Starting VLC playback - playing playlist in loop")
-            logger.info(f"VLC: {vlc_exe}")
-            logger.info(f"Playlist: {playlist_file}")
-            logger.info(f"Videos: {len(video_files)}")
-            logger.info("="*60)
-            
-            try:
-                import subprocess
-                # Launch VLC with playlist in loop mode - simplified arguments
-                vlc_process = subprocess.Popen([
-                    vlc_exe,
-                    playlist_file,
-                    "--fullscreen",
-                    "--loop",
-                    "--no-video-title"
-                ])
-                
-                logger.info("VLC launched successfully!")
-                logger.info("Press Ctrl+C to stop playback")
-                
-                # Wait for VLC to exit (it won't unless manually closed)
-                vlc_process.wait()
-                
-            except Exception as e:
-                logger.error(f"VLC playback error: {e}")
-                await asyncio.sleep(60)
-            
-            logger.info("VLC stopped, restarting in 5s...")
-            await asyncio.sleep(5)
-
-        """Main playback loop"""
-        logger.info("Starting playback loop...")
-        self.is_running = True
-        
-        while self.is_running:
-            if not self.playlist:
-                logger.warning("No playlist loaded, sleeping 5s...")
-                await asyncio.sleep(5)  # Retry every 5 seconds instead of 60
-                continue
-            
-            # Play with VLC
-            item = self.playlist[self.current_index]
-            duration = item.get("durationSeconds", 10)
-            slot_number = item.get("slotNumber", self.current_index + 1)
-            creative_url = item.get("creativeUrl", "")
-            
-            logger.info(f"Playing slot {slot_number} ({duration}s)")
-            logger.info(f"  Video: {creative_url}")
-            
-            # Emit AdStarted event
+    def _handle_video_started(self, item):
+        """Called when VLC starts playing a video"""
+        try:
+            # Emit SignalR event for real-time frontend updates
             self.emit_ad_started(item)
-            
-            # Launch VLC to play the video
-            if creative_url and not creative_url.startswith("/default/"):
-                try:
-                    import subprocess
-                    import os
-                    
-                    # Find VLC executable
-                    vlc_paths = [
-                        r"C:\Program Files\VideoLAN\VLC\vlc.exe",
-                        r"C:\Program Files (x86)\VideoLAN\VLC\vlc.exe",
-                        "vlc"  # Fallback to PATH
-                    ]
-                    
-                    vlc_exe = None
-                    for path in vlc_paths:
-                        if os.path.exists(path) or path == "vlc":
-                            vlc_exe = path
-                            break
-                    
-                    if not vlc_exe:
-                        raise FileNotFoundError("VLC not found")
-                    
-                    # Play video with VLC in fullscreen, close when done
-                    logger.info(f"  Launching VLC: {vlc_exe}")
-                    vlc_process = subprocess.Popen([
-                        vlc_exe,
-                        creative_url,
-                        "--fullscreen",
-                        "--play-and-exit",
-                        "--no-video-title-show",
-                        "--no-embedded-video"
-                    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    
-                    # Wait for video to finish or duration to expire
-                    try:
-                        stdout, stderr = vlc_process.communicate(timeout=duration)
-                        if stderr:
-                            logger.warning(f"VLC stderr: {stderr.decode('utf-8', errors='ignore')[:200]}")
-                        logger.info(f"  VLC finished (exit code: {vlc_process.returncode})")
-                    except subprocess.TimeoutExpired:
-                        vlc_process.kill()
-                        logger.warning(f"VLC process killed after {duration}s timeout")
-                except Exception as e:
-                    logger.error(f"Failed to play video with VLC: {e}")
-                    await asyncio.sleep(duration)  # Fallback to simulation
-            else:
-                # Filler content or invalid URL - just sleep
-                logger.info("  (Filler content - skipping)")
-                await asyncio.sleep(duration)
-            
-            # Emit AdCompleted event
+        except Exception as e:
+            logger.error(f"Error handling video started: {e}")
+    
+    def _handle_video_ended(self, item):
+        """Called when VLC finishes a video"""
+        try:
+            # Emit SignalR event
             self.emit_ad_completed(item)
             
-            # Record impression
+            # Record impression for 10-minute sync
             self.record_impression(item)
-            
-            # Move to next
-            self.current_index = (self.current_index + 1) % len(self.playlist)
-            await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.error(f"Error handling video ended: {e}")
+    
+    async def play_loop(self):
+        """Main playback loop using VLC library"""
+        logger.info("Starting VLC playback loop...")
+        
+        # Initialize VLC
+        if not self.vlc_manager.initialize():
+            logger.error("VLC initialization failed, exiting")
+            return
+        
+        self.is_running = True
+        
+        try:
+            while self.is_running:
+                # Check if playlist needs refresh
+                if not self.playlist:
+                    logger.warning("No playlist loaded, waiting...")
+                    await asyncio.sleep(5)
+                    continue
+                
+                # Set/update playlist in VLC
+                if self.vlc_manager.set_playlist(self.playlist):
+                    logger.info("Playlist loaded into VLC")
+                    
+                    # Start playback (loops automatically)
+                    self.vlc_manager.play()
+                    
+                    # Keep alive and emit events based on playlist timing
+                    logger.info("="*60)
+                    logger.info("VLC playback running with timer-based event emission")
+                    logger.info("Press Ctrl+C to stop playback")
+                    logger.info("="*60)
+                    
+                    # Start looping through playlist to emit events
+                    slot_index = 0
+                    while self.is_running:
+                        item = self.playlist[slot_index]
+                        duration = item.get('durationSeconds', 10)
+                        
+                        # Emit AdStarted
+                        self._handle_video_started(item)
+                        
+                        # Wait for video duration
+                        await asyncio.sleep(duration)
+                        
+                        # Emit AdCompleted
+                        self._handle_video_ended(item)
+                        
+                        # Move to next slot
+                        slot_index = (slot_index + 1) % len(self.playlist)
+                        
+                        # Small gap between videos
+                        await asyncio.sleep(0.5)
+                else:
+                    logger.error("Failed to set playlist, retrying in 30s...")
+                    await asyncio.sleep(30)
+        
+        finally:
+            logger.info("Stopping playback...")
+            self.vlc_manager.stop()
+            self.vlc_manager.cleanup()
 
     
     async def run(self):

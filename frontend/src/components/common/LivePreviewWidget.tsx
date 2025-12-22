@@ -10,14 +10,18 @@ import {
     ListItemText,
     Avatar,
     ListItemAvatar,
+    CircularProgress,
 } from '@mui/material';
 import {
     PlayArrow as PlayIcon,
     Visibility as ViewIcon,
     SignalCellularAlt as SignalIcon,
+    Schedule as ClockIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { websocketService } from '../../services/websocket';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5257';
 
 interface LivePreviewWidgetProps {
     screenId?: string;
@@ -41,13 +45,75 @@ interface ConnectionStatus {
     lastUpdate?: Date;
 }
 
+interface Stats {
+    totalPlaysToday: number;
+    savedPlays: number;
+    pendingPlays: number;
+    lastUpdated: string;
+}
+
 export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePreviewWidgetProps) {
     const [nowPlaying, setNowPlaying] = useState<PlayEvent | null>(null);
-    const [playCount, setPlayCount] = useState(0);
+    const [realtimeCount, setRealtimeCount] = useState(0);
+    const [stats, setStats] = useState<Stats>({
+        totalPlaysToday: 0,
+        savedPlays: 0,
+        pendingPlays: 0,
+        lastUpdated: new Date().toISOString()
+    });
+    const [loading, setLoading] = useState(true);
     const [recentPlays, setRecentPlays] = useState<PlayEvent[]>([]);
     const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
         isConnected: false
     });
+
+    // Load initial stats from API
+    useEffect(() => {
+        const loadInitialStats = async () => {
+            try {
+                setLoading(true);
+                let endpoint = '';
+
+                if (mode === 'screen' && screenId) {
+                    endpoint = `/api/stats/screen/${screenId}/today`;
+                } else if (mode === 'campaign' && campaignId) {
+                    endpoint = `/api/stats/campaign/${campaignId}/today`;
+                } else {
+                    setLoading(false);
+                    return;
+                }
+
+                console.log('[LivePreview] Loading initial stats from:', endpoint);
+                const response = await fetch(`${API_URL}${endpoint}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    setStats({
+                        totalPlaysToday: result.data.totalPlaysToday,
+                        savedPlays: result.data.savedPlays,
+                        pendingPlays: result.data.pendingPlays,
+                        lastUpdated: result.data.lastUpdated
+                    });
+
+                    // Reset realtime counter
+                    setRealtimeCount(0);
+
+                    console.log('[LivePreview] Loaded initial stats:', result.data);
+                }
+            } catch (error) {
+                console.error('[LivePreview] Failed to load stats:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadInitialStats();
+    }, [screenId, campaignId, mode]);
 
     useEffect(() => {
         let isSubscribed = true;
@@ -108,10 +174,10 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                     if (!isSubscribed) return;
 
                     if (mode === 'screen' && eventData.screenId === screenId) {
-                        setPlayCount(prev => prev + 1);
+                        setRealtimeCount(prev => prev + 1);
                         setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
                     } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
-                        setPlayCount(prev => prev + 1);
+                        setRealtimeCount(prev => prev + 1);
                         setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
                     }
                 };
@@ -123,10 +189,10 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                     if (!isSubscribed) return;
 
                     if (mode === 'screen' && eventData.screenId === screenId) {
-                        setPlayCount(prev => prev + eventData.playCount);
+                        setRealtimeCount(prev => prev + eventData.playCount);
                         setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
                     } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
-                        setPlayCount(prev => prev + eventData.playCount);
+                        setRealtimeCount(prev => prev + eventData.playCount);
                         setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
                     }
                 };
@@ -163,6 +229,9 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
         return <Chip label="Live" color="success" size="small" icon={<SignalIcon />} />;
     };
 
+    // Calculate display count: DB total + realtime increments
+    const displayCount = stats.totalPlaysToday + realtimeCount;
+
     return (
         <Card>
             <CardContent>
@@ -194,16 +263,44 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                     </Box>
                 )}
 
-                <Box display="flex" justifyContent="space-between" py={1}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                        <ViewIcon fontSize="small" color="action" />
-                        <Typography variant="body2" color="textSecondary">
-                            Total Plays Today
-                        </Typography>
+                <Box py={1}>
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                            <ViewIcon fontSize="small" color="action" />
+                            <Typography variant="body2" color="textSecondary">
+                                Total Plays Today
+                            </Typography>
+                        </Box>
+                        {loading ? (
+                            <CircularProgress size={20} />
+                        ) : (
+                            <Typography variant="h6" color="primary">
+                                {displayCount}
+                            </Typography>
+                        )}
                     </Box>
-                    <Typography variant="h6" color="primary">
-                        {playCount}
-                    </Typography>
+
+                    {/* Show pending indicator if there are buffered impressions */}
+                    {stats.pendingPlays > 0 && (
+                        <Box display="flex" alignItems="center" justifyContent="center" mt={1}>
+                            <Chip
+                                size="small"
+                                icon={<ClockIcon />}
+                                label={`${stats.pendingPlays} pending save`}
+                                color="info"
+                                variant="outlined"
+                            />
+                        </Box>
+                    )}
+
+                    {/* Show breakdown */}
+                    {!loading && displayCount > 0 && (
+                        <Typography variant="caption" color="textSecondary" display="block" textAlign="center" mt={1}>
+                            {stats.savedPlays} saved
+                            {stats.pendingPlays > 0 && ` • ${stats.pendingPlays} buffered`}
+                            {realtimeCount > 0 && ` • ${realtimeCount} live`}
+                        </Typography>
+                    )}
                 </Box>
 
                 {mode === 'campaign' && recentPlays.length > 0 && (
@@ -231,7 +328,7 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                     </>
                 )}
 
-                {!nowPlaying && playCount === 0 && (
+                {!loading && !nowPlaying && displayCount === 0 && (
                     <Box textAlign="center" py={3}>
                         <Typography variant="body2" color="textSecondary">
                             No activity yet

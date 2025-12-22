@@ -145,7 +145,7 @@ public class PlayerController : ControllerBase
                         BookingId = campaign.BookingId,
                         CampaignId = campaign.CampaignId,
                         CreativeId = campaign.CreativeId,
-                        PlayTimestamp = timestamp,
+                        PlayedAt = timestamp,
                         SessionDate = timestamp.Date,
                         DeviceId = request.ScreenId,
                         CreatedAt = DateTime.UtcNow

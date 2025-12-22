@@ -166,11 +166,11 @@ builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
 // Background Services
 builder.Services.AddHostedService<CCMS.Api.Services.ScreenStatusMonitor>();
 
-// Background Services (conditionally enabled via configuration)
-var bookingStatusUpdateEnabled = builder.Configuration
-    .GetValue<bool>("BookingStatusUpdate:BackgroundService:Enabled", true);
+// Add impression flush service (background timer-based flush)
+builder.Services.AddHostedService<CCMS.Api.Services.ImpressionFlushService>();
 
-if (bookingStatusUpdateEnabled)
+// Add Booking status monitor (in development only)
+if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddHostedService<BookingStatusBackgroundService>();
 }
