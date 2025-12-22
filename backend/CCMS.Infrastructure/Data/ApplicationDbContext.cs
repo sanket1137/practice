@@ -158,9 +158,18 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Impression>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.BookingId, e.SessionDate });
-            entity.HasIndex(e => new { e.ScreenId, e.SessionDate });
             
+            // Indexes for stats queries
+            entity.HasIndex(e => new { e.ScreenId, e.PlayedAt })
+                .HasDatabaseName("IX_Impressions_Screen_PlayedAt");
+            
+            entity.HasIndex(e => new { e.CampaignId, e.PlayedAt })
+                .HasDatabaseName("IX_Impressions_Campaign_PlayedAt");
+            
+            entity.HasIndex(e => new { e.BookingId, e.SessionDate })
+                .HasDatabaseName("IX_Impressions_Booking_SessionDate");
+            
+            // Relationships
             entity.HasOne(e => e.Booking)
                 .WithMany(b => b.Impressions)
                 .HasForeignKey(e => e.BookingId)

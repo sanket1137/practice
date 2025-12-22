@@ -8,9 +8,8 @@ public class Impression : BaseEntity
     public Guid CreativeId { get; set; }
     
     // Playback information
-    public DateTime PlayTimestamp { get; set; }
+    public DateTime PlayedAt { get; set; } // When ad was actually played
     public DateTime SessionDate { get; set; } // Date only for daily grouping
-    public int PlayCount { get; set; } = 1;
     
     // Device information
     public string DeviceId { get; set; } = string.Empty;
@@ -25,3 +24,4 @@ public class Impression : BaseEntity
     public virtual Screen Screen { get; set; } = null!;
     public virtual Creative Creative { get; set; } = null!;
 }
+

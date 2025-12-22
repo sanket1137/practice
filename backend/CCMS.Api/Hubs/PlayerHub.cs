@@ -211,7 +211,7 @@ public class PlayerHub : Hub
                         BookingId = campaign.BookingId,
                         CampaignId = campaign.CampaignId,
                         CreativeId = campaign.CreativeId,
-                        PlayTimestamp = timestamp,
+                        PlayedAt = timestamp,
                         SessionDate = timestamp.Date,
                         DeviceId = screenId,
                         CreatedAt = DateTime.UtcNow
