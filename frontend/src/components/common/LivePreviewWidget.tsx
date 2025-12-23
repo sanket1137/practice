@@ -37,6 +37,7 @@ interface PlayEvent {
     campaignName?: string;
     screenName?: string;
     creativeName?: string;
+    thumbnailUrl?: string;  // ADD: For visual preview
     timestamp: string;
 }
 
@@ -241,25 +242,98 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 </Box>
 
                 {nowPlaying && (
-                    <Box mb={2} p={2} bgcolor="action.hover" borderRadius={1}>
-                        <Box display="flex" alignItems="center" gap={1} mb={1}>
-                            <PlayIcon color="primary" />
-                            <Typography variant="subtitle2" color="primary">
-                                Now Playing
+                    <Box>
+                        {/* Visual Preview - Thumbnail */}
+                        {nowPlaying.thumbnailUrl && (
+                            <Box
+                                mb={2}
+                                sx={{
+                                    position: 'relative',
+                                    width: '100%',
+                                    paddingTop: '56.25%', // 16:9 aspect ratio
+                                    backgroundColor: 'action.hover',
+                                    borderRadius: 1,
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={nowPlaying.thumbnailUrl}
+                                    alt={nowPlaying.creativeName || 'Now Playing'}
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover'
+                                    }}
+                                    onError={(e: any) => {
+                                        e.target.style.display = 'none';
+                                    }}
+                                />
+                                {/* Live indicator overlay */}
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 8,
+                                        left: 8,
+                                        backgroundColor: 'error.main',
+                                        color: 'white',
+                                        px: 1,
+                                        py: 0.5,
+                                        borderRadius: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.5
+                                    }}
+                                >
+                                    <Box
+                                        sx={{
+                                            width: 8,
+                                            height: 8,
+                                            backgroundColor: 'white',
+                                            borderRadius: '50%',
+                                            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                                            '@keyframes pulse': {
+                                                '0%, 100%': { opacity: 1 },
+                                                '50%': { opacity: 0.5 }
+                                            }
+                                        }}
+                                    />
+                                    <Typography variant="caption" fontWeight="bold">
+                                        LIVE
+                                    </Typography>
+                                </Box>
+                            </Box>
+                        )}
+
+                        {/* Now Playing Info */}
+                        <Box mb={2} p={2} bgcolor="action.hover" borderRadius={1}>
+                            <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <PlayIcon color="primary" />
+                                <Typography variant="subtitle2" color="primary">
+                                    Now Playing
+                                </Typography>
+                            </Box>
+                            <Typography variant="body2">
+                                {mode === 'screen'
+                                    ? nowPlaying.campaignName || `Campaign ${nowPlaying.campaignId.substring(0, 8)}`
+                                    : nowPlaying.screenName || `Screen ${nowPlaying.screenId.substring(0, 8)}`
+                                }
+                            </Typography>
+                            {nowPlaying.creativeName && (
+                                <Typography variant="caption" color="textSecondary" display="block">
+                                    {nowPlaying.creativeName}
+                                </Typography>
+                            )}
+                            <Typography variant="caption" color="textSecondary">
+                                {connectionStatus.lastUpdate
+                                    ? formatDistanceToNow(connectionStatus.lastUpdate, { addSuffix: true })
+                                    : 'Just now'
+                                }
                             </Typography>
                         </Box>
-                        <Typography variant="body2">
-                            {mode === 'screen'
-                                ? nowPlaying.campaignName || `Campaign ${nowPlaying.campaignId.substring(0, 8)}`
-                                : nowPlaying.screenName || `Screen ${nowPlaying.screenId.substring(0, 8)}`
-                            }
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                            {connectionStatus.lastUpdate
-                                ? formatDistanceToNow(connectionStatus.lastUpdate, { addSuffix: true })
-                                : 'Just now'
-                            }
-                        </Typography>
                     </Box>
                 )}
 
