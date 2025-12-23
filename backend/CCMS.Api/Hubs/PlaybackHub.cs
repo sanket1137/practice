@@ -160,6 +160,37 @@ public class PlaybackHub : Hub
 
         await Clients.Group($"campaign_{eventData.CampaignId}")
             .SendAsync("AdCompleted", eventData);
+            
+        // Emit screen-level update for campaign analytics
+        try
+        {
+            // Count today's plays for this screen
+            var today = DateTime.UtcNow.Date;
+            var playsToday = _pendingImpressions
+                .Where(i => i.ScreenId == eventData.ScreenId && 
+                           i.SessionDate == today)
+                .Count();
+            
+            // Also check database for already-flushed impressions
+            var dbPlays = await _impressionRepository
+                .FindAsync(i => i.ScreenId == eventData.ScreenId && 
+                              i.SessionDate == today);
+            
+            var totalPlays = playsToday + dbPlays.Count();
+            
+            await Clients.Group($"campaign_{eventData.CampaignId}")
+                .SendAsync("CampaignScreenUpdate", new
+                {
+                    CampaignId = eventData.CampaignId,
+                    ScreenId = eventData.ScreenId,
+                    PlayCount = totalPlays,
+                    Timestamp = DateTime.UtcNow
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to emit CampaignScreenUpdate event");
+        }
     }
 
     public async Task ImpressionUpdate(ImpressionUpdateEvent eventData)

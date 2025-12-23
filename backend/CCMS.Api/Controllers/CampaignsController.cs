@@ -161,7 +161,7 @@ public class CampaignsController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500,
-                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse($"Error retrieving campaign bookings: {ex.Message}"));
+                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse($"Error retrieving campaign book ings: {ex.Message}"));
         }
     }
 }

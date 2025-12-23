@@ -26,6 +26,12 @@ public class BookingDto
     // NEW: Actual booked dates (for partial bookings)
     public List<DateTime>? BookedDates { get; set; }
     public BookingDateBreakdown? DateBreakdown { get; set; }
+    
+    // NEW: Real-time analytics
+    public int PlaysToday { get; set; }
+    public int PlaysTotal { get; set; }
+    public bool IsLive { get; set; }
+    public DateTime? LastPlayed { get; set; }
 }
 
 public class BookingDateBreakdown

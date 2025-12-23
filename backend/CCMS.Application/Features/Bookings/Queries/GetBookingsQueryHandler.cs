@@ -10,15 +10,18 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
 {
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Screen> _screenRepository;
+    private readonly IRepository<Impression> _impressionRepository;
     private readonly IMapper _mapper;
 
     public GetBookingsQueryHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
+        IRepository<Impression> impressionRepository,
         IMapper mapper)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
+        _impressionRepository = impressionRepository;
         _mapper = mapper;
     }
 
@@ -110,6 +113,40 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
                     IsPartialBooking = bookedDates.Count < totalDays
                 };
             }
+        }
+        
+        // Populate play counts and live status
+        var today = DateTime.UtcNow.Date;
+        var now = DateTime.UtcNow;
+        
+        foreach (var dto in bookingDtos)
+        {
+            var booking = allBookings.First(b => b.Id == dto.Id);
+            
+            // Get impressions for this booking
+            var impressions = await _impressionRepository
+                .FindAsync(i => i.BookingId == dto.Id, cancellationToken);
+            
+            if (impressions.Any())
+            {
+                var impressionsList = impressions.ToList();
+                
+                // Plays today
+                dto.PlaysToday = impressionsList.Count(i => i.SessionDate == today);
+                
+                // Total plays
+                dto.PlaysTotal = impressionsList.Count;
+                
+                // Last played
+                dto.LastPlayed = impressionsList.Max(i => i.PlayedAt);
+            }
+            
+            // Is live: screen is online AND booking is currently active
+            var screen = await _screenRepository.GetByIdAsync(dto.ScreenId, cancellationToken);
+            dto.IsLive = screen?.IsOnline == true && 
+                        booking.Status == CCMS.Domain.Enums.BookingStatus.Approved &&
+                        now >= booking.StartDate && 
+                        now <= booking.EndDate;
         }
 
         return bookingDtos;
