@@ -32,6 +32,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import LivePreviewWidget from '../../components/common/LivePreviewWidget';
+import CampaignScreenStats from '../../components/campaigns/CampaignScreenStats';
 
 interface Campaign {
     id: string;
@@ -346,8 +347,9 @@ export default function CampaignDetailPage() {
                                             <TableCell>Screen</TableCell>
                                             <TableCell>Creative</TableCell>
                                             <TableCell>Status</TableCell>
+                                            <TableCell>Plays Today</TableCell>
                                             <TableCell>Period</TableCell>
-                                            <TableCell>Created</TableCell>
+                                            <TableCell>Last Played</TableCell>
                                             <TableCell>Price</TableCell>
                                             <TableCell align="right">Actions</TableCell>
                                         </TableRow>
@@ -370,11 +372,24 @@ export default function CampaignDetailPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell>
+                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                        <Typography variant="body2" fontWeight="bold" color="primary">
+                                                            {(booking as any).playsToday || 0}
+                                                        </Typography>
+                                                        {(booking as any).isLive && (
+                                                            <Chip label="LIVE" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell>
                                                     {new Date(booking.startDate).toLocaleDateString()} -{' '}
                                                     {new Date(booking.endDate).toLocaleDateString()}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {new Date(booking.createdAt || booking.startDate).toLocaleDateString()}
+                                                    {(booking as any).lastPlayed
+                                                        ? new Date((booking as any).lastPlayed).toLocaleTimeString()
+                                                        : '-'
+                                                    }
                                                 </TableCell>
                                                 <TableCell>
                                                     {booking.currency} {booking.totalPrice.toLocaleString()}
@@ -420,7 +435,14 @@ export default function CampaignDetailPage() {
                         <Typography variant="body2" color="textSecondary" paragraph>
                             Monitor live playback of your campaign across all booked screens
                         </Typography>
-                        <LivePreviewWidget campaignId={id!} mode="campaign" />
+
+                        {/* Screen-level breakdown */}
+                        <CampaignScreenStats campaignId={id!} />
+
+                        {/* Original live preview widget */}
+                        <Box mt={3}>
+                            <LivePreviewWidget campaignId={id!} mode="campaign" />
+                        </Box>
                     </Box>
                 )}
             </Paper>
