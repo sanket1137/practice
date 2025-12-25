@@ -40,6 +40,7 @@ import SlotBookingsCard from '../../components/screens/SlotBookingsCard';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import SlotCalendarView from '../../components/screens/SlotCalendarView';
 import LivePreviewWidget from '../../components/common/LivePreviewWidget';
+import { WebRTCPlayer } from '../../components/streaming/WebRTCPlayer';
 import { useState } from 'react';
 
 interface Screen {
@@ -355,7 +356,22 @@ export default function ScreenDetailPage() {
                     <Typography variant="body2" color="textSecondary" paragraph>
                         Monitor live playback on this screen in real-time
                     </Typography>
-                    <LivePreviewWidget screenId={id!} mode="screen" />
+
+                    <Grid container spacing={3}>
+                        {/* WebRTC Live Stream */}
+                        <Grid item xs={12} md={8}>
+                            <WebRTCPlayer
+                                screenId={id!}
+                                autoStart={false}
+                                fallbackToVideoSync={true}
+                            />
+                        </Grid>
+
+                        {/* Live Preview Widget */}
+                        <Grid item xs={12} md={4}>
+                            <LivePreviewWidget screenId={id!} mode="screen" />
+                        </Grid>
+                    </Grid>
                 </Box>
             )}
 

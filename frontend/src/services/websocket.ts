@@ -168,6 +168,20 @@ class WebSocketService {
             callbacks.delete(callback);
         }
     }
+
+    // Generic invoke method for signaling calls
+    async invoke(methodName: string, ...args: any[]): Promise<any> {
+        if (!this.isConnected()) {
+            await this.connect();
+        }
+
+        try {
+            return await this.connection!.invoke(methodName, ...args);
+        } catch (error) {
+            console.error(`Error invoking ${methodName}:`, error);
+            throw error;
+        }
+    }
 }
 
 // Export singleton instance

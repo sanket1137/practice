@@ -41,6 +41,11 @@ public class Screen : BaseEntity
     public string? ConnectedDeviceId { get; set; }
     public string? ApiKeyHash { get; set; } // Hashed API key for player authentication
     
+    // Live streaming (WebRTC) - Commented out until database migration is applied
+    // public bool LiveStreamingEnabled { get; set; } = false;
+    // public DateTime? LastStreamedAt { get; set; }
+    // public int CurrentViewerCount { get; set; } = 0;
+    
     // Pricing
     public decimal PricePerSlot { get; set; }
     public string Currency { get; set; } = "USD";
