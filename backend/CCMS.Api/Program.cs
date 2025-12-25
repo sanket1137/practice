@@ -220,6 +220,7 @@ app.UseStaticFiles(new StaticFileOptions
 // Authentication is skipped for negotiate, then enforced in hub methods if needed
 app.MapHub<PlaybackHub>("/hubs/playback").AllowAnonymous();
 app.MapHub<PlayerHub>("/playerhub").AllowAnonymous();
+app.MapHub<StreamingHub>("/hubs/streaming"); // WebRTC signaling hub (requires auth)
 
 app.UseAuthentication();
 app.UseAuthorization();

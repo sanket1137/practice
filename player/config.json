@@ -2,5 +2,11 @@
     "screen_id": "C7054654-DB14-4178-B5B7-389AD6BA378F",
     "api_key": "test-api-key-screen-13",
     "server_url": "http://localhost:5257",
-    "sync_interval_minutes": 10
+    "sync_interval_minutes": 10,
+    "webrtc": {
+        "enabled": true,
+        "quality": "720p",
+        "fps": 15,
+        "auto_start": true
+    }
 }

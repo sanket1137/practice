@@ -78,6 +78,16 @@ class CCMSPlayer:
         self.signalr_connection = None
         self.signalr_connected = False
         
+        # WebRTC Streaming (optional)
+        self.webrtc_streamer = None
+        self.streaming_enabled = False
+        try:
+            from webrtc_streamer import WebRTCStreamer
+            self.streaming_enabled = True
+            logger.info("[WebRTC] Module available - streaming can be enabled")
+        except ImportError:
+            logger.info("[WebRTC] Module not available - install dependencies to enable streaming")
+        
         # Track impressions for sync
         self.impressions = defaultdict(lambda: {'playCount': 0, 'lastPlayed': None})
         
@@ -487,6 +497,48 @@ class CCMSPlayer:
         except Exception as e:
             logger.warning(f"SignalR connection failed (will continue with HTTP only): {e}")
         
+        
+        # Start WebRTC streaming if enabled
+        webrtc_client = None
+        webrtc_config = {}
+        
+        # Load webrtc config from config.json
+        try:
+            import json
+            from pathlib import Path
+            config_file = Path(__file__).parent / "config.json"
+            if config_file.exists():
+                with open(config_file) as f:
+                    full_config = json.load(f)
+                    webrtc_config = full_config.get('webrtc', {})
+        except Exception as e:
+            logger.warning(f"Could not load WebRTC config: {e}")
+        
+        if webrtc_config.get('enabled', False) and self.streaming_enabled:
+            try:
+                logger.info("[WebRTC] Initializing WebRTC client...")
+                from simple_webrtc_client import SimpleWebRTCClient
+                webrtc_client = SimpleWebRTCClient(
+                    self.api_url,
+                    self.screen_id,
+                    self.api_key,
+                    webrtc_config
+                )
+                logger.info("[WebRTC] Starting WebRTC streaming...")
+                
+                # Start WebRTC client (it will connect to StreamingHub and register)
+                await webrtc_client.start()
+                
+                logger.info("[WebRTC] WebRTC streaming started successfully!")
+            except Exception as e:
+                logger.error(f"[WebRTC] Failed to initialize: {e}")
+                import traceback
+                traceback.print_exc()
+                webrtc_client = None
+        else:
+            logger.warning(f"[WebRTC] NOT starting. Config enabled: {webrtc_config.get('enabled', False)}, streaming_enabled: {self.streaming_enabled}")
+            webrtc_client = None
+        
         # Start tasks
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
         sync_task = asyncio.create_task(self.sync_loop())
@@ -499,6 +551,13 @@ class CCMSPlayer:
             self.is_running = False
             heartbeat_task.cancel()
             sync_task.cancel()
+            
+            # Stop WebRTC streaming
+            if webrtc_client:
+                try:
+                    await webrtc_client.stop()
+                except Exception as e:
+                    logger.error(f"[WebRTC] Error stopping: {e}")
             
             # Final sync
             self.sync_daily_data()
