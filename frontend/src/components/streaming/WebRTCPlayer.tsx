@@ -46,6 +46,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const isStreamingRef = useRef(false);
+    const isStoppingRef = useRef(false); // Guard against processing offers during stop
 
     // Latency monitoring
     const startLatencyMonitoring = useCallback(() => {
@@ -63,18 +64,79 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
         return () => clearInterval(interval);
     }, []);
 
+    // Handle visibility change - resume video when tab becomes visible
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && isStreamingRef.current && videoRef.current) {
+                console.log('[WebRTC] Tab became visible, attempting to resume video...');
+                // Check if video is paused and try to play
+                if (videoRef.current.paused) {
+                    videoRef.current.play()
+                        .then(() => console.log('[WebRTC] Video resumed successfully after visibility change'))
+                        .catch((err) => console.warn('[WebRTC] Could not resume video:', err));
+                }
+                // Also check if srcObject is still valid
+                if (!videoRef.current.srcObject && peerConnectionRef.current) {
+                    console.log('[WebRTC] Video srcObject lost, checking for tracks...');
+                    const receivers = peerConnectionRef.current.getReceivers();
+                    const videoReceiver = receivers.find(r => r.track?.kind === 'video');
+                    if (videoReceiver?.track && videoReceiver.track.readyState === 'live') {
+                        console.log('[WebRTC] Restoring video from existing track');
+                        const stream = new MediaStream([videoReceiver.track]);
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.play().catch(() => {});
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, []);
+
+    // Track SignalR handler references for cleanup
+    const handlersRef = useRef<{
+        onOffer?: (sdp: string) => void;
+        onIceCandidate?: (candidate: string) => void;
+        onStreamEnded?: (screenId: string) => void;
+        onStreamError?: (error: string) => void;
+    }>({});
+
     // Stop stream function
     const stopStream = useCallback(async () => {
         try {
+            // Set stopping flag FIRST to prevent race conditions
+            isStoppingRef.current = true;
             isStreamingRef.current = false;
             
             // Stop watching on server
             if (streamingHubRef.current && streamingHubRef.current.state === signalR.HubConnectionState.Connected) {
                 try {
+                    console.log('[WebRTC] Calling StopWatching...');
                     await streamingHubRef.current.invoke('StopWatching', screenId);
+                    console.log('[WebRTC] StopWatching succeeded');
                 } catch (e) {
                     console.log('[WebRTC] StopWatching invoke failed:', e);
                 }
+            }
+            
+            // CRITICAL: Always remove old SignalR handlers to prevent duplicates on reconnect
+            // Do this outside the connection check in case connection state changed
+            if (streamingHubRef.current) {
+                if (handlersRef.current.onOffer) {
+                    streamingHubRef.current.off('OnOffer', handlersRef.current.onOffer);
+                }
+                if (handlersRef.current.onIceCandidate) {
+                    streamingHubRef.current.off('OnIceCandidate', handlersRef.current.onIceCandidate);
+                }
+                if (handlersRef.current.onStreamEnded) {
+                    streamingHubRef.current.off('OnStreamEnded', handlersRef.current.onStreamEnded);
+                }
+                if (handlersRef.current.onStreamError) {
+                    streamingHubRef.current.off('OnStreamError', handlersRef.current.onStreamError);
+                }
+                handlersRef.current = {};
+                console.log('[WebRTC] Removed old SignalR handlers');
             }
 
             // Close peer connection
@@ -83,9 +145,12 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 peerConnectionRef.current = null;
             }
 
-            // Stop video
+            // Stop video and properly reset the element
             if (videoRef.current) {
+                videoRef.current.pause();
                 videoRef.current.srcObject = null;
+                // Force the video element to reset by loading empty source
+                videoRef.current.load();
             }
 
             setStatus('stopped');
@@ -97,14 +162,46 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
 
     // Start stream function
     const startStream = useCallback(async () => {
-        if (isStreamingRef.current) {
-            console.log('[WebRTC] Already streaming');
-            return;
-        }
+        // Don't check isStreamingRef here - allow restart
+        console.log('[WebRTC] startStream called, current status:', status);
 
         try {
+            // Reset flags when starting a new stream
+            isStoppingRef.current = false;
+            isStreamingRef.current = false; // Reset this to allow fresh start
             setStatus('connecting');
             setError(null);
+
+            // Clean up any existing peer connection first
+            if (peerConnectionRef.current) {
+                console.log('[WebRTC] Cleaning up existing peer connection');
+                peerConnectionRef.current.close();
+                peerConnectionRef.current = null;
+            }
+
+            // Clean up video element
+            if (videoRef.current) {
+                videoRef.current.pause();
+                videoRef.current.srcObject = null;
+            }
+
+            // CRITICAL: Remove old SignalR handlers before adding new ones
+            if (streamingHubRef.current && handlersRef.current.onOffer) {
+                console.log('[WebRTC] Removing old SignalR handlers before restart');
+                if (handlersRef.current.onOffer) {
+                    streamingHubRef.current.off('OnOffer', handlersRef.current.onOffer);
+                }
+                if (handlersRef.current.onIceCandidate) {
+                    streamingHubRef.current.off('OnIceCandidate', handlersRef.current.onIceCandidate);
+                }
+                if (handlersRef.current.onStreamEnded) {
+                    streamingHubRef.current.off('OnStreamEnded', handlersRef.current.onStreamEnded);
+                }
+                if (handlersRef.current.onStreamError) {
+                    streamingHubRef.current.off('OnStreamError', handlersRef.current.onStreamError);
+                }
+                handlersRef.current = {};
+            }
 
             if (!streamingHubRef.current || streamingHubRef.current.state !== signalR.HubConnectionState.Connected) {
                 setError('Not connected to streaming server');
@@ -127,50 +224,89 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
 
             // Handle incoming tracks
             pc.ontrack = (event) => {
+                // CRITICAL: Don't process tracks if we're stopping
+                if (isStoppingRef.current) {
+                    console.log('[WebRTC] Ignoring track - stream is stopping');
+                    return;
+                }
+                
                 console.log('[WebRTC] Received remote track:', event.track.kind);
                 console.log('[WebRTC] Track readyState:', event.track.readyState);
                 
+                // Add track event listeners to handle unmute/re-enable
+                event.track.onunmute = () => {
+                    console.log('[WebRTC] Track unmuted, attempting to play video...');
+                    if (!isStoppingRef.current && videoRef.current && videoRef.current.paused) {
+                        videoRef.current.play().catch(() => {});
+                    }
+                };
+                
+                event.track.onended = () => {
+                    console.log('[WebRTC] Track ended');
+                };
+
                 if (videoRef.current && event.streams[0]) {
                     console.log('[WebRTC] Setting video srcObject...');
-                    videoRef.current.srcObject = event.streams[0];
                     
-                    videoRef.current.play()
-                        .then(() => {
-                            console.log('[WebRTC] Video playback started successfully');
-                            isStreamingRef.current = true;
-                            setStatus('live');
-                            startLatencyMonitoring();
-                            onStreamStart?.();
-                        })
-                        .catch((playError) => {
-                            console.error('[WebRTC] Video play() failed:', playError);
-                            isStreamingRef.current = true;
-                            setStatus('live');
-                            onStreamStart?.();
-                        });
-                } else if (event.track.kind === 'video') {
-                    console.log('[WebRTC] No stream in event, creating MediaStream from track...');
-                    const stream = new MediaStream([event.track]);
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = stream;
-                        videoRef.current.play()
+                    // CRITICAL: Reset video element before setting new stream
+                    // This ensures the video element is in a clean state for the new stream
+                    const video = videoRef.current;
+                    video.srcObject = event.streams[0];
+                    
+                    // Use a small delay to let the video element process the new srcObject
+                    setTimeout(() => {
+                        if (isStoppingRef.current || !video) return;
+                        
+                        console.log('[WebRTC] Attempting to play video...');
+                        video.play()
                             .then(() => {
+                                if (isStoppingRef.current) return;
+                                console.log('[WebRTC] Video playback started successfully');
                                 isStreamingRef.current = true;
                                 setStatus('live');
                                 startLatencyMonitoring();
                                 onStreamStart?.();
                             })
-                            .catch(() => {
+                            .catch((playError) => {
+                                if (isStoppingRef.current) return;
+                                console.error('[WebRTC] Video play() failed:', playError);
+                                // Still set to live since we have a connection
                                 isStreamingRef.current = true;
                                 setStatus('live');
                                 onStreamStart?.();
                             });
+                    }, 100);
+                } else if (event.track.kind === 'video') {
+                    console.log('[WebRTC] No stream in event, creating MediaStream from track...');
+                    const stream = new MediaStream([event.track]);
+                    if (videoRef.current) {
+                        const video = videoRef.current;
+                        video.srcObject = stream;
+                        
+                        setTimeout(() => {
+                            if (isStoppingRef.current || !video) return;
+                            video.play()
+                                .then(() => {
+                                    if (isStoppingRef.current) return;
+                                    isStreamingRef.current = true;
+                                    setStatus('live');
+                                    startLatencyMonitoring();
+                                    onStreamStart?.();
+                                })
+                                .catch(() => {
+                                    if (isStoppingRef.current) return;
+                                    isStreamingRef.current = true;
+                                    setStatus('live');
+                                    onStreamStart?.();
+                                });
+                        }, 100);
                     }
                 }
             };
 
             // Handle ICE candidates
             pc.onicecandidate = async (event) => {
+                if (isStoppingRef.current) return; // Don't send ICE candidates if stopping
                 if (event.candidate && streamingHubRef.current) {
                     console.log('[WebRTC] Sending ICE candidate');
                     await streamingHubRef.current.invoke('SendViewerIceCandidate', screenId, JSON.stringify({
@@ -190,7 +326,9 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 if (pc.iceConnectionState === 'connected') {
                     console.log('[WebRTC] ✓ ICE connected - media should flow!');
                 } else if (pc.iceConnectionState === 'failed') {
-                    setError('ICE connection failed - check network/firewall');
+                    if (!isStoppingRef.current) {
+                        setError('ICE connection failed - check network/firewall');
+                    }
                 }
             };
 
@@ -216,7 +354,16 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             // Handle offer from player
             const handleOffer = async (offerSdp: string) => {
                 try {
-                    if (!peerConnectionRef.current) return;
+                    // CRITICAL: Don't process offers if we're stopping or stopped
+                    if (isStoppingRef.current) {
+                        console.log('[WebRTC] Ignoring offer - stream is stopping');
+                        return;
+                    }
+                    
+                    if (!peerConnectionRef.current) {
+                        console.log('[WebRTC] Ignoring offer - no peer connection');
+                        return;
+                    }
                     
                     if (peerConnectionRef.current.signalingState !== 'stable') {
                         console.log('[WebRTC] Ignoring duplicate offer');
@@ -274,11 +421,20 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 setStatus('error');
             };
 
+            // CRITICAL: Store handler references so we can remove them on disconnect
+            handlersRef.current = {
+                onOffer: handleOffer,
+                onIceCandidate: handleIceCandidate,
+                onStreamEnded: handleStreamEnded,
+                onStreamError: handleStreamError,
+            };
+
             // Set up SignalR event handlers
             streamingHubRef.current.on('OnOffer', handleOffer);
             streamingHubRef.current.on('OnIceCandidate', handleIceCandidate);
             streamingHubRef.current.on('OnStreamEnded', handleStreamEnded);
             streamingHubRef.current.on('OnStreamError', handleStreamError);
+            console.log('[WebRTC] SignalR handlers registered');
 
             // Request stream from player
             console.log('[WebRTC] Requesting stream for screen:', screenId);
@@ -290,11 +446,20 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             setError(err instanceof Error ? err.message : 'Failed to start stream');
             onError?.(err instanceof Error ? err : new Error('Failed to start stream'));
         }
-    }, [screenId, onStreamStart, onStreamEnd, onError, stopStream, startLatencyMonitoring]);
+    }, [screenId, onStreamStart, onStreamEnd, onError, startLatencyMonitoring, status]);
 
     // Initialize SignalR connection
     useEffect(() => {
+        let isMounted = true;
+        let connectionRef: signalR.HubConnection | null = null;
+
         const initStreamingHub = async () => {
+            // Don't start if we already have a connection
+            if (streamingHubRef.current?.state === signalR.HubConnectionState.Connected) {
+                console.log('[WebRTC] StreamingHub already connected');
+                return;
+            }
+
             const connection = new signalR.HubConnectionBuilder()
                 .withUrl('http://localhost:5257/hubs/streaming', {
                     transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
@@ -303,16 +468,28 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 .configureLogging(signalR.LogLevel.Information)
                 .build();
 
+            connectionRef = connection;
             streamingHubRef.current = connection;
 
             try {
                 await connection.start();
+                
+                // Check if component is still mounted after async operation
+                if (!isMounted) {
+                    console.log('[WebRTC] Component unmounted during connection, stopping...');
+                    connection.stop();
+                    return;
+                }
+                
                 console.log('[WebRTC] Connected to StreamingHub');
                 
                 if (autoStart) {
-                    setTimeout(() => startStream(), 100);
+                    setTimeout(() => {
+                        if (isMounted) startStream();
+                    }, 100);
                 }
             } catch (err) {
+                if (!isMounted) return; // Ignore errors if unmounted
                 console.error('[WebRTC] Failed to connect to StreamingHub:', err);
                 setError('Failed to connect to streaming server');
             }
@@ -321,10 +498,15 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
         initStreamingHub();
 
         return () => {
-            stopStream();
-            streamingHubRef.current?.stop();
+            isMounted = false;
+            // Only stop if we created this connection
+            if (connectionRef) {
+                stopStream();
+                connectionRef.stop();
+            }
         };
-    }, [screenId, autoStart, startStream, stopStream]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [screenId]); // Only re-run when screenId changes, not on function changes
 
     const toggleFullscreen = () => {
         if (!videoRef.current) return;

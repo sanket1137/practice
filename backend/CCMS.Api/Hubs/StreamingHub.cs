@@ -304,6 +304,9 @@ public class StreamingHub : Hub
     {
         try
         {
+            // Normalize screenId to lowercase for consistent key matching
+            screenId = screenId.ToLowerInvariant();
+            
             _logger.LogInformation("Viewer {ViewerId} stopping stream for screen {ScreenId}", 
                 Context.ConnectionId, screenId);
 
@@ -363,10 +366,15 @@ public class StreamingHub : Hub
 
     private async Task RemoveViewer(string viewerConnectionId, string screenId)
     {
+        _logger.LogInformation("RemoveViewer called for viewer {ViewerId} on screen {ScreenId}", 
+            viewerConnectionId, screenId);
+        
         // Remove from viewer list
         if (_streamViewers.TryGetValue(screenId, out var viewers))
         {
-            viewers.Remove(viewerConnectionId);
+            var removed = viewers.Remove(viewerConnectionId);
+            _logger.LogInformation("Removed viewer from _streamViewers: {Removed}. Remaining viewers: {Count}", 
+                removed, viewers.Count);
             
             // If no more viewers, potentially notify player to stop streaming
             if (viewers.Count == 0 && _activeStreams.TryGetValue(screenId, out var playerConnectionId))
@@ -374,6 +382,10 @@ public class StreamingHub : Hub
                 _logger.LogInformation("Last viewer disconnected from screen {ScreenId}, notifying player", screenId);
                 await Clients.Client(playerConnectionId).SendAsync("OnLastViewerDisconnected", screenId);
             }
+        }
+        else
+        {
+            _logger.LogWarning("No viewer list found for screen {ScreenId}", screenId);
         }
 
         // Remove from group

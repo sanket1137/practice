@@ -214,6 +214,18 @@ class SimpleWebRTCClient:
                     if response.status_code == 200:
                         data = response.json()
                         viewers = data.get('viewers', [])
+                        
+                        # CRITICAL FIX: Clean up known_viewers - remove any that are no longer in pending list
+                        # This handles reconnection scenarios where viewer gets new connection ID
+                        current_pending = set(v.strip() if v else None for v in viewers)
+                        current_pending.discard(None)
+                        
+                        # Remove stale viewers that are no longer pending
+                        stale_viewers = known_viewers - current_pending
+                        if stale_viewers:
+                            logger.info(f"[WebRTC-Poll] Removing {len(stale_viewers)} stale viewers from known set")
+                            known_viewers -= stale_viewers
+                        
                         # ALWAYS log first 5 polls, then every 20th, or when there are viewers
                         if poll_count <= 5 or poll_count % 20 == 1 or viewers:
                             logger.info(f"[WebRTC-Poll] Poll #{poll_count} - URL: {poll_url}")
