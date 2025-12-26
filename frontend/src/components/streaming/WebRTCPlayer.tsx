@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     Box,
     Card,
@@ -10,7 +10,6 @@ import {
     Alert,
     IconButton,
     Tooltip,
-    Grid,
 } from '@mui/material';
 import {
     PlayArrow,
@@ -25,7 +24,6 @@ import * as signalR from '@microsoft/signalr';
 interface WebRTCPlayerProps {
     screenId: string;
     autoStart?: boolean;
-    fallbackToVideoSync?: boolean;
     onStreamStart?: () => void;
     onStreamEnd?: () => void;
     onError?: (error: Error) => void;
@@ -36,7 +34,6 @@ type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'live' | 'error' |
 export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     screenId,
     autoStart = false,
-    fallbackToVideoSync = true,
     onStreamStart,
     onStreamEnd,
     onError,
@@ -48,42 +45,63 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     const [latency, setLatency] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const isStreamingRef = useRef(false);
 
-    useEffect(() => {
-        // Initialize StreamingHub connection
-        const initStreamingHub = async () => {
-            const connection = new signalR.HubConnectionBuilder()
-                .withUrl('http://localhost:5257/hubs/streaming', {
-                    transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
-                })
-                .withAutomaticReconnect()
-                .configureLogging(signalR.LogLevel.Information)
-                .build();
-
-            streamingHubRef.current = connection;
-
-            try {
-                await connection.start();
-                console.log('[WebRTC] Connected to StreamingHub');
-            } catch (err) {
-                console.error('[WebRTC] Failed to connect to StreamingHub:', err);
-                setError('Failed to connect to streaming server');
+    // Latency monitoring
+    const startLatencyMonitoring = useCallback(() => {
+        const interval = setInterval(() => {
+            if (videoRef.current && isStreamingRef.current) {
+                const buffered = videoRef.current.buffered;
+                if (buffered.length > 0) {
+                    const latencyMs = Math.round((buffered.end(0) - videoRef.current.currentTime) * 1000);
+                    setLatency(latencyMs);
+                }
+            } else {
+                clearInterval(interval);
             }
-        };
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
-        initStreamingHub();
+    // Stop stream function
+    const stopStream = useCallback(async () => {
+        try {
+            isStreamingRef.current = false;
+            
+            // Stop watching on server
+            if (streamingHubRef.current && streamingHubRef.current.state === signalR.HubConnectionState.Connected) {
+                try {
+                    await streamingHubRef.current.invoke('StopWatching', screenId);
+                } catch (e) {
+                    console.log('[WebRTC] StopWatching invoke failed:', e);
+                }
+            }
 
-        if (autoStart) {
-            startStream();
+            // Close peer connection
+            if (peerConnectionRef.current) {
+                peerConnectionRef.current.close();
+                peerConnectionRef.current = null;
+            }
+
+            // Stop video
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+
+            setStatus('stopped');
+            onStreamEnd?.();
+        } catch (err) {
+            console.error('[WebRTC] Error stopping stream:', err);
+        }
+    }, [screenId, onStreamEnd]);
+
+    // Start stream function
+    const startStream = useCallback(async () => {
+        if (isStreamingRef.current) {
+            console.log('[WebRTC] Already streaming');
+            return;
         }
 
-        return () => {
-            stopStream();
-            streamingHubRef.current?.stop();
-        };
-    }, [screenId]);
-
-    const startStream = async () => {
         try {
             setStatus('connecting');
             setError(null);
@@ -104,13 +122,50 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
 
             peerConnectionRef.current = pc;
 
+            // CRITICAL: Add transceiver to indicate we want to receive video
+            pc.addTransceiver('video', { direction: 'recvonly' });
+
             // Handle incoming tracks
             pc.ontrack = (event) => {
-                console.log('[WebRTC] Received remote track');
+                console.log('[WebRTC] Received remote track:', event.track.kind);
+                console.log('[WebRTC] Track readyState:', event.track.readyState);
+                
                 if (videoRef.current && event.streams[0]) {
+                    console.log('[WebRTC] Setting video srcObject...');
                     videoRef.current.srcObject = event.streams[0];
-                    setStatus('live');
-                    onStreamStart?.();
+                    
+                    videoRef.current.play()
+                        .then(() => {
+                            console.log('[WebRTC] Video playback started successfully');
+                            isStreamingRef.current = true;
+                            setStatus('live');
+                            startLatencyMonitoring();
+                            onStreamStart?.();
+                        })
+                        .catch((playError) => {
+                            console.error('[WebRTC] Video play() failed:', playError);
+                            isStreamingRef.current = true;
+                            setStatus('live');
+                            onStreamStart?.();
+                        });
+                } else if (event.track.kind === 'video') {
+                    console.log('[WebRTC] No stream in event, creating MediaStream from track...');
+                    const stream = new MediaStream([event.track]);
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        videoRef.current.play()
+                            .then(() => {
+                                isStreamingRef.current = true;
+                                setStatus('live');
+                                startLatencyMonitoring();
+                                onStreamStart?.();
+                            })
+                            .catch(() => {
+                                isStreamingRef.current = true;
+                                setStatus('live');
+                                onStreamStart?.();
+                            });
+                    }
                 }
             };
 
@@ -126,14 +181,24 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 }
             };
 
-            // Handle connection state changes
+            pc.onicegatheringstatechange = () => {
+                console.log('[WebRTC] ICE gathering state:', pc.iceGatheringState);
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+                if (pc.iceConnectionState === 'connected') {
+                    console.log('[WebRTC] ✓ ICE connected - media should flow!');
+                } else if (pc.iceConnectionState === 'failed') {
+                    setError('ICE connection failed - check network/firewall');
+                }
+            };
+
             pc.onconnectionstatechange = () => {
                 console.log('[WebRTC] Connection state:', pc.connectionState);
-
                 switch (pc.connectionState) {
                     case 'connected':
                         setStatus('connected');
-                        startLatencyMonitoring();
                         break;
                     case 'disconnected':
                     case 'failed':
@@ -148,6 +213,67 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 }
             };
 
+            // Handle offer from player
+            const handleOffer = async (offerSdp: string) => {
+                try {
+                    if (!peerConnectionRef.current) return;
+                    
+                    if (peerConnectionRef.current.signalingState !== 'stable') {
+                        console.log('[WebRTC] Ignoring duplicate offer');
+                        return;
+                    }
+
+                    console.log('[WebRTC] Received offer from player');
+                    const offer = JSON.parse(offerSdp);
+                    await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+
+                    const answer = await peerConnectionRef.current.createAnswer();
+                    await peerConnectionRef.current.setLocalDescription(answer);
+
+                    if (streamingHubRef.current) {
+                        await streamingHubRef.current.invoke('SendAnswer', screenId, JSON.stringify({
+                            type: peerConnectionRef.current.localDescription?.type,
+                            sdp: peerConnectionRef.current.localDescription?.sdp,
+                        }));
+                    }
+                    console.log('[WebRTC] Sent answer to player');
+                } catch (err) {
+                    console.error('[WebRTC] Error handling offer:', err);
+                    setError('Failed to establish connection');
+                }
+            };
+
+            // Handle ICE candidate from player
+            const handleIceCandidate = async (candidateJson: string) => {
+                try {
+                    if (!peerConnectionRef.current) return;
+                    const candidate = JSON.parse(candidateJson);
+                    await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                    console.log('[WebRTC] Added ICE candidate from player');
+                } catch (err) {
+                    console.error('[WebRTC] Error handling ICE candidate:', err);
+                }
+            };
+
+            // Handle stream ended
+            const handleStreamEnded = (endedScreenId: string) => {
+                if (endedScreenId === screenId) {
+                    console.log('[WebRTC] Stream ended by player');
+                    stopStream();
+                }
+            };
+
+            // Handle stream error
+            const handleStreamError = (errorMessage: string) => {
+                if (peerConnectionRef.current?.connectionState === 'connected') {
+                    console.log('[WebRTC] Ignoring stream error - already connected');
+                    return;
+                }
+                console.error('[WebRTC] Stream error:', errorMessage);
+                setError(errorMessage);
+                setStatus('error');
+            };
+
             // Set up SignalR event handlers
             streamingHubRef.current.on('OnOffer', handleOffer);
             streamingHubRef.current.on('OnIceCandidate', handleIceCandidate);
@@ -158,131 +284,50 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             console.log('[WebRTC] Requesting stream for screen:', screenId);
             await streamingHubRef.current.invoke('RequestStream', screenId);
 
-            setStatus('connecting');
-
         } catch (err) {
             console.error('[WebRTC] Error starting stream:', err);
             setStatus('error');
             setError(err instanceof Error ? err.message : 'Failed to start stream');
             onError?.(err instanceof Error ? err : new Error('Failed to start stream'));
         }
-    };
+    }, [screenId, onStreamStart, onStreamEnd, onError, stopStream, startLatencyMonitoring]);
 
-    const handleOffer = async (offerSdp: string) => {
-        try {
-            const pc = peerConnectionRef.current;
-            if (!pc) return;
+    // Initialize SignalR connection
+    useEffect(() => {
+        const initStreamingHub = async () => {
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl('http://localhost:5257/hubs/streaming', {
+                    transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
+                })
+                .withAutomaticReconnect()
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
 
-            // CRITICAL: Ignore duplicate offers if we're not in stable state (already processing one)
-            if (pc.signalingState !== 'stable') {
-                console.log('[WebRTC] Ignoring duplicate offer - already processing/connected (state: ' + pc.signalingState + ')');
-                return;
-            }
+            streamingHubRef.current = connection;
 
-            console.log('[WebRTC] Received offer from player');
-            const offer = JSON.parse(offerSdp);
-
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-            // Create and send answer
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            if (streamingHubRef.current) {
-                await streamingHubRef.current.invoke('SendAnswer', screenId, JSON.stringify({
-                    type: pc.localDescription?.type,
-                    sdp: pc.localDescription?.sdp,
-                }));
-            }
-
-            console.log('[WebRTC] Sent answer to player');
-
-        } catch (err) {
-            console.error('[WebRTC] Error handling offer:', err);
-            setError('Failed to establish connection');
-        }
-    };
-
-    const handleIceCandidate = async (candidateJson: string) => {
-        try {
-            const pc = peerConnectionRef.current;
-            if (!pc) return;
-
-            const candidate = JSON.parse(candidateJson);
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-
-            console.log('[WebRTC] Added ICE candidate from player');
-
-        } catch (err) {
-            console.error('[WebRTC] Error handling ICE candidate:', err);
-        }
-    };
-
-    const handleStreamEnded = (endedScreenId: string) => {
-        if (endedScreenId === screenId) {
-            console.log('[WebRTC] Stream ended by player');
-            stopStream();
-        }
-    };
-
-    const handleStreamError = (errorMessage: string) => {
-        console.error('[WebRTC] Stream error:', errorMessage);
-        setError(errorMessage);
-        setStatus('error');
-    };
-
-    const stopStream = async () => {
-        try {
-            // Stop watching on server
-            if (streamingHubRef.current && streamingHubRef.current.state === signalR.HubConnectionState.Connected) {
-                await streamingHubRef.current.invoke('StopWatching', screenId);
-            }
-
-            // Close peer connection
-            if (peerConnectionRef.current) {
-                peerConnectionRef.current.close();
-                peerConnectionRef.current = null;
-            }
-
-            // Stop video
-            if (videoRef.current) {
-                videoRef.current.srcObject = null;
-            }
-
-            // Cleanup event listeners
-            if (streamingHubRef.current) {
-                streamingHubRef.current.off('OnOffer', handleOffer);
-                streamingHubRef.current.off('OnIceCandidate', handleIceCandidate);
-                streamingHubRef.current.off('OnStreamEnded', handleStreamEnded);
-                streamingHubRef.current.off('OnStreamError', handleStreamError);
-            }
-
-            setStatus('stopped');
-            onStreamEnd?.();
-
-        } catch (err) {
-            console.error('[WebRTC] Error stopping stream:', err);
-        }
-    };
-
-    const startLatencyMonitoring = () => {
-        // Simple latency estimation based on video buffering
-        const interval = setInterval(() => {
-            if (videoRef.current && status === 'live') {
-                const buffered = videoRef.current.buffered;
-                if (buffered.length > 0) {
-                    const latencyMs = Math.round((buffered.end(0) - videoRef.current.currentTime) * 1000);
-                    setLatency(latencyMs);
+            try {
+                await connection.start();
+                console.log('[WebRTC] Connected to StreamingHub');
+                
+                if (autoStart) {
+                    setTimeout(() => startStream(), 100);
                 }
-            } else {
-                clearInterval(interval);
+            } catch (err) {
+                console.error('[WebRTC] Failed to connect to StreamingHub:', err);
+                setError('Failed to connect to streaming server');
             }
-        }, 1000);
-    };
+        };
+
+        initStreamingHub();
+
+        return () => {
+            stopStream();
+            streamingHubRef.current?.stop();
+        };
+    }, [screenId, autoStart, startStream, stopStream]);
 
     const toggleFullscreen = () => {
         if (!videoRef.current) return;
-
         if (!isFullscreen) {
             videoRef.current.requestFullscreen();
             setIsFullscreen(true);
@@ -294,28 +339,21 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
 
     const getStatusColor = (): 'default' | 'primary' | 'success' | 'error' | 'warning' => {
         switch (status) {
-            case 'live':
-                return 'success';
+            case 'live': return 'success';
             case 'connected':
-            case 'connecting':
-                return 'primary';
-            case 'error':
-                return 'error';
-            default:
-                return 'default';
+            case 'connecting': return 'primary';
+            case 'error': return 'error';
+            default: return 'default';
         }
     };
 
-    const getStatusIcon = () => {
+    const getStatusIcon = (): React.ReactElement | undefined => {
         switch (status) {
             case 'live':
-            case 'connected':
-                return <SignalWifi4Bar />;
+            case 'connected': return <SignalWifi4Bar />;
             case 'error':
-            case 'stopped':
-                return <SignalWifiOff />;
-            default:
-                return null;
+            case 'stopped': return <SignalWifiOff />;
+            default: return undefined;
         }
     };
 
@@ -325,23 +363,15 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 {/* Header */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">Live Stream</Typography>
-
                     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        {/* Status Chip */}
                         <Chip
                             icon={getStatusIcon()}
                             label={status.toUpperCase()}
                             color={getStatusColor()}
                             size="small"
                         />
-
-                        {/* Latency Indicator */}
                         {latency !== null && status === 'live' && (
-                            <Chip
-                                label={`${latency}ms`}
-                                size="small"
-                                variant="outlined"
-                            />
+                            <Chip label={`${latency}ms`} size="small" variant="outlined" />
                         )}
                     </Box>
                 </Box>
@@ -358,7 +388,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                     sx={{
                         position: 'relative',
                         width: '100%',
-                        paddingTop: '56.25%', // 16:9 aspect ratio
+                        paddingTop: '56.25%',
                         backgroundColor: '#000',
                         borderRadius: 1,
                         overflow: 'hidden',
@@ -369,6 +399,21 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                         autoPlay
                         playsInline
                         muted
+                        onLoadedMetadata={() => {
+                            console.log('[WebRTC] Video metadata loaded');
+                            videoRef.current?.play().catch(() => {});
+                        }}
+                        onCanPlay={() => {
+                            console.log('[WebRTC] Video can play');
+                            if (videoRef.current?.paused) {
+                                videoRef.current.play().catch(() => {});
+                            }
+                        }}
+                        onPlaying={() => {
+                            console.log('[WebRTC] Video is playing!');
+                            if (status !== 'live') setStatus('live');
+                        }}
+                        onError={(e) => console.error('[WebRTC] Video error:', e)}
                         style={{
                             position: 'absolute',
                             top: 0,
@@ -384,51 +429,93 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                         <Box
                             sx={{
                                 position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
+                                top: 0, left: 0, right: 0, bottom: 0,
                                 display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 backgroundColor: 'rgba(0,0,0,0.7)',
                             }}
                         >
-                            <CircularProgress />
+                            <CircularProgress sx={{ mb: 2 }} />
+                            <Typography variant="body2" sx={{ color: '#fff' }}>
+                                Connecting to live stream...
+                            </Typography>
                         </Box>
                     )}
 
-                    {/* Controls Overlay */}
-                    {status === 'live' && (
+                    {/* Idle Overlay */}
+                    {(status === 'idle' || status === 'stopped') && (
                         <Box
                             sx={{
                                 position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                padding: 1,
-                                background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                                top: 0, left: 0, right: 0, bottom: 0,
                                 display: 'flex',
-                                justifyContent: 'flex-end',
-                                opacity: 0,
-                                '&:hover': {
-                                    opacity: 1,
-                                },
-                                transition: 'opacity 0.3s',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: 'rgba(0,0,0,0.5)',
+                                cursor: 'pointer',
                             }}
+                            onClick={startStream}
                         >
-                            <Tooltip title="Fullscreen">
-                                <IconButton onClick={toggleFullscreen} size="small" sx={{ color: 'white' }}>
-                                    <Fullscreen />
-                                </IconButton>
-                            </Tooltip>
+                            <PlayArrow sx={{ fontSize: 64, color: '#fff', opacity: 0.8 }} />
+                            <Typography variant="body1" sx={{ color: '#fff', mt: 1 }}>
+                                Click to start live stream
+                            </Typography>
                         </Box>
+                    )}
+
+                    {/* Live Controls Overlay */}
+                    {status === 'live' && (
+                        <>
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    top: 8,
+                                    left: 8,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    backgroundColor: 'rgba(255, 0, 0, 0.9)',
+                                    padding: '4px 8px',
+                                    borderRadius: 1,
+                                    animation: 'pulse 2s infinite',
+                                    '@keyframes pulse': {
+                                        '0%': { opacity: 1 },
+                                        '50%': { opacity: 0.7 },
+                                        '100%': { opacity: 1 },
+                                    },
+                                }}
+                            >
+                                <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#fff', mr: 1 }} />
+                                <Typography variant="caption" sx={{ color: '#fff', fontWeight: 'bold' }}>LIVE</Typography>
+                            </Box>
+                            <Box
+                                sx={{
+                                    position: 'absolute',
+                                    bottom: 0, left: 0, right: 0,
+                                    padding: 1,
+                                    background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    opacity: 0,
+                                    '&:hover': { opacity: 1 },
+                                    transition: 'opacity 0.3s',
+                                }}
+                            >
+                                <Tooltip title="Fullscreen">
+                                    <IconButton onClick={toggleFullscreen} size="small" sx={{ color: 'white' }}>
+                                        <Fullscreen />
+                                    </IconButton>
+                                </Tooltip>
+                            </Box>
+                        </>
                     )}
                 </Box>
 
                 {/* Control Buttons */}
-                <Grid container spacing={1} sx={{ mt: 2 }}>
-                    <Grid item xs={6}>
+                <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
+                    <Box sx={{ flex: 1 }}>
                         {status === 'idle' || status === 'stopped' || status === 'error' ? (
                             <Button
                                 fullWidth
@@ -450,8 +537,8 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                                 Stop Stream
                             </Button>
                         )}
-                    </Grid>
-                    <Grid item xs={6}>
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
                         <Button
                             fullWidth
                             variant="outlined"
@@ -460,10 +547,9 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                         >
                             Settings
                         </Button>
-                    </Grid>
-                </Grid>
+                    </Box>
+                </Box>
 
-                {/* Info */}
                 <Box sx={{ mt: 2 }}>
                     <Typography variant="caption" color="text.secondary">
                         WebRTC ultra-low latency streaming. Typical latency: &lt;500ms

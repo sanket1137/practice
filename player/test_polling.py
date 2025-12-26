@@ -9,9 +9,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 async def main():
+    # Normalize screen ID to lowercase to match backend
     client = SimpleWebRTCPollingClient(
         api_url="http://localhost:5257",
-        screen_id="C7054654-DB14-4178-B5B7-389AD6BA378F",
+        screen_id="c7054654-db14-4178-b5b7-389ad6ba378f",
         api_key="test-api-key",
         config={"quality": "720p", "fps": 15}
     )

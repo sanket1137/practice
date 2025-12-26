@@ -21,10 +21,15 @@ from datetime import datetime
 from pathlib import Path
 import logging
 
+# Load config file
+CONFIG_FILE = Path(__file__).parent / "config.json"
+with open(CONFIG_FILE, 'r') as f:
+    config = json.load(f)
+
 # Configuration
-API_BASE_URL = os.getenv("CCMS_API_URL", "http://localhost:5257")
-DEVICE_ID = os.getenv("DEVICE_ID", "YOUR_DEVICE_ID_HERE")
-DEVICE_TOKEN = os.getenv("DEVICE_TOKEN", "YOUR_DEVICE_TOKEN_HERE")
+API_BASE_URL = config.get("server_url", "http://localhost:5257")
+DEVICE_ID = config.get("screen_id", os.getenv("DEVICE_ID", "YOUR_DEVICE_ID_HERE"))
+DEVICE_TOKEN = config.get("api_key", os.getenv("DEVICE_TOKEN", "YOUR_DEVICE_TOKEN_HERE"))
 CACHE_DIR = Path(os.getenv("CACHE_DIR", "./cache"))
 LOG_FILE = "player.log"
 
@@ -70,10 +75,9 @@ class CCMSPlayer:
         try:
             url = f"{API_BASE_URL}/api/player/handshake"
             payload = {
-                "deviceId": DEVICE_ID,
-                "deviceToken": DEVICE_TOKEN,
-                "playerVersion": "1.0.0",
-                "osVersion": self.get_os_version()
+                "screenId": DEVICE_ID,
+                "apiKey": DEVICE_TOKEN,
+                "playerVersion": "1.0.0"
             }
             
             response = requests.post(url, json=payload, timeout=10)
