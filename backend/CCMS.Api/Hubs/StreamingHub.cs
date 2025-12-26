@@ -37,6 +37,8 @@ public class StreamingHub : Hub
     /// </summary>
     public static bool RegisterStreamFromHttp(string screenId, string connectionId)
     {
+        // Normalize screenId to lowercase for consistent key matching
+        screenId = screenId.ToLowerInvariant();
         return _activeStreams.TryAdd(screenId, connectionId);
     }
 
@@ -45,6 +47,8 @@ public class StreamingHub : Hub
     /// </summary>
     public static void UnregisterStreamFromHttp(string screenId)
     {
+        // Normalize screenId to lowercase for consistent key matching
+        screenId = screenId.ToLowerInvariant();
         _activeStreams.TryRemove(screenId, out _);
         _streamViewers.TryRemove(screenId, out _);
     }
@@ -62,6 +66,8 @@ public class StreamingHub : Hub
     /// </summary>
     public static List<string> GetPendingViewers(string screenId)
     {
+        // Normalize screenId to lowercase for consistent lookup
+        screenId = screenId.ToLowerInvariant();
         if (_streamViewers.TryGetValue(screenId, out var viewers))
         {
             return viewers.ToList();
@@ -80,6 +86,9 @@ public class StreamingHub : Hub
     {
         try
         {
+            // Normalize screenId to lowercase to ensure consistent key matching
+            screenId = screenId.ToLowerInvariant();
+            
             // Validate stream key (basic security - should match player's auth)
             var userId = Context.User?.FindFirst("sub")?.Value 
                       ?? Context.User?.FindFirst("id")?.Value;
@@ -152,6 +161,9 @@ public class StreamingHub : Hub
     {
         try
         {
+            // Normalize screenId to lowercase to ensure consistent key matching
+            screenId = screenId.ToLowerInvariant();
+            
             var userId = Context.User?.FindFirst("sub")?.Value 
                       ?? Context.User?.FindFirst("id")?.Value;
 
@@ -232,14 +244,28 @@ public class StreamingHub : Hub
     {
         try
         {
+            _logger.LogInformation(
+                "Viewer {ViewerId} sending answer for screen {ScreenId}",
+                Context.ConnectionId, screenId);
+                
+            // Always store for HTTP polling (fallback path)
+            Controllers.StreamingController.StoreAnswerForPlayer(screenId, Context.ConnectionId, answerSdp);
+            
+            // Also try to send via SignalR directly
             if (_activeStreams.TryGetValue(screenId, out var playerConnectionId))
             {
                 _logger.LogInformation(
-                    "Sending answer from viewer {ViewerId} to player {PlayerConnectionId}",
-                    Context.ConnectionId, playerConnectionId);
+                    "Also sending answer via SignalR to player {PlayerConnectionId}",
+                    playerConnectionId);
                     
                 await Clients.Client(playerConnectionId)
                     .SendAsync("OnAnswer", Context.ConnectionId, answerSdp);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "No active SignalR connection for screen {ScreenId}, answer stored for HTTP polling only",
+                    screenId);
             }
         }
         catch (Exception ex)
@@ -256,6 +282,9 @@ public class StreamingHub : Hub
     {
         try
         {
+            // Always store for HTTP polling
+            Controllers.StreamingController.StoreViewerIceCandidateForPlayer(screenId, Context.ConnectionId, candidate);
+            
             if (_activeStreams.TryGetValue(screenId, out var playerConnectionId))
             {
                 await Clients.Client(playerConnectionId)

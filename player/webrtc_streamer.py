@@ -6,15 +6,13 @@ Captures the screen and streams it to viewers via WebRTC.
 import asyncio
 import json
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 import mss
 import cv2
 import numpy as np
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack
-from aiortc.contrib.media import MediaRelay
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack, RTCConfiguration, RTCIceServer
 from av import VideoFrame
 import time
-from fractions import Fraction as Rational
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +30,11 @@ class ScreenCaptureTrack(VideoStreamTrack):
         self._timestamp = 0
         self._start_time = time.time()
         
+        # Initialize aiortc internal state (required for recv() to work)
+        # _start is a float timestamp set by next_timestamp() on first call
+        # Pre-initialize it so recv() works immediately
+        self._start = time.time()
+        
         # Quality presets (width, height)
         self.quality_presets = {
             "240p": (426, 240),
@@ -46,8 +49,8 @@ class ScreenCaptureTrack(VideoStreamTrack):
     async def recv(self):
         """
         Capture and return the next video frame.
+        This method is called by aiortc's internal media handling.
         """
-        logger.info("[Track] recv() called - generating frame")
         pts, time_base = await self.next_timestamp()
         
         # Capture screen
@@ -72,7 +75,11 @@ class ScreenCaptureTrack(VideoStreamTrack):
         frame.pts = pts
         frame.time_base = time_base
         
-        logger.info(f"[Track] Frame generated: {frame.width}x{frame.height}")
+        # Log frame generation periodically (every ~60 frames / 4 seconds)
+        self._timestamp += 1
+        if self._timestamp % 60 == 1:
+            logger.info(f"[Track] Generating frames... (frame #{self._timestamp}, {frame.width}x{frame.height})")
+        
         return frame
 
 
@@ -81,12 +88,12 @@ class WebRTCStreamer:
     Manages WebRTC connections for streaming screen to viewers.
     """
     
-    def __init__(self, signalr_connection, screen_id: str):
+    def __init__(self, signalr_connection, screen_id: str, api_url: str = "http://localhost:5257"):
         self.signalr_connection = signalr_connection
         self.screen_id = screen_id
+        self.api_url = api_url
         self.peer_connections: Dict[str, RTCPeerConnection] = {}
         self.screen_track: Optional[ScreenCaptureTrack] = None
-        self.relay = MediaRelay()
         self.is_streaming = False
         
         logger.info(f"WebRTC Streamer initialized for screen {screen_id}")
@@ -105,16 +112,16 @@ class WebRTCStreamer:
             # Initialize screen capture track
             logger.info("[Streamer] Creating screen capture track...")
             self.screen_track = ScreenCaptureTrack(fps=fps, quality=quality)
-            logger.info("[Streamer] ✅ Screen capturetrack initialized")
+            logger.info("[Streamer] OK - Screen capture track initialized")
             
             self.is_streaming = True
             
             # Note: Registration handled separately via HTTP in simple_webrtc_client.py
-            logger.info(f"[Streamer] ✅✅ Stream ready for screen {self.screen_id}")
+            logger.info(f"[Streamer] OK - Stream ready for screen {self.screen_id}")
             logger.info(f"[Streamer] Quality: {quality}, FPS: {fps}")
             
         except Exception as e:
-            logger.error(f"[Streamer] ❌ Error starting stream: {e}")
+            logger.error(f"[Streamer] ERROR - Error starting stream: {e}")
             import traceback
             traceback.print_exc()
             self.is_streaming = False
@@ -145,22 +152,33 @@ class WebRTCStreamer:
         """
         Handle a new viewer connection - create peer connection and send offer.
         """
+        logger.info(f"[WebRTC] >>> handle_viewer_connected CALLED with viewer_id={viewer_id}")
+        logger.info(f"[WebRTC] >>> is_streaming={self.is_streaming}, screen_track={self.screen_track}")
+        
         if not self.is_streaming:
-            logger.warning("Not streaming, cannot accept viewer")
+            logger.warning(f"[WebRTC] >>> REJECTED - Not streaming, cannot accept viewer {viewer_id}")
             return
         
         try:
             logger.info(f"New viewer connected: {viewer_id}")
             
-            # Create peer connection
-            pc = RTCPeerConnection()
+            # Create peer connection with STUN servers for NAT traversal
+            # Use RTCConfiguration and RTCIceServer objects (not dicts)
+            config = RTCConfiguration(
+                iceServers=[
+                    RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+                    RTCIceServer(urls=["stun:stun1.l.google.com:19302"])
+                ]
+            )
+            pc = RTCPeerConnection(configuration=config)
             self.peer_connections[viewer_id] = pc
             
-            # Add screen track via MediaRelay (required for aiortc to start consuming frames)
-            logger.info(f"[WebRTC] Adding video track via relay for {viewer_id}")
-            pc.addTrack(self.relay.subscribe(self.screen_track))
+            # Add screen track directly (not via relay - simpler and more reliable)
+            # Each viewer gets the same track, which generates frames on demand
+            logger.info(f"[WebRTC] Adding video track for {viewer_id}")
+            pc.addTrack(self.screen_track)
             
-            # ICE candidate handler
+            # ICE candidate handler - use HTTP to avoid SignalR reliability issues
             @pc.on("icecandidate")
             async def on_ice_candidate(event):
                 if event.candidate:
@@ -169,22 +187,26 @@ class WebRTCStreamer:
                         "sdpMid": event.candidate.sdpMid,
                         "sdpMLineIndex": event.candidate.sdpMLineIndex
                     }
-                    await asyncio.get_event_loop().run_in_executor(
-                        None,
-                        self.signalr_connection.send,
-                        "SendIceCandidate",
-                        [viewer_id, json.dumps(candidate_dict)]
-                    )
+                    logger.info(f"[WebRTC] Sending ICE candidate to {viewer_id}")
+                    await self._send_ice_candidate_http(viewer_id, json.dumps(candidate_dict))
             
             # Connection state handler
             @pc.on("connectionstatechange")
             async def on_connection_state_change():
-                logger.info(f"Connection state for {viewer_id}: {pc.connectionState}")
-                if pc.connectionState == "failed" or pc.connectionState == "closed":
-                    if viewer_id in self.peer_connections:
-                        del self.peer_connections[viewer_id]
+                logger.info(f"[WebRTC] Connection state for {viewer_id}: {pc.connectionState}")
+                if pc.connectionState == "connected":
+                    logger.info(f"[WebRTC] ✓ Viewer {viewer_id} CONNECTED - video should be streaming!")
+                elif pc.connectionState == "failed" or pc.connectionState == "closed":
+                    logger.info(f"[WebRTC] Viewer {viewer_id} disconnected (state: {pc.connectionState})")
+                    await self._handle_viewer_disconnect(viewer_id)
+            
+            # Track handler for debugging
+            @pc.on("track")
+            async def on_track(track):
+                logger.info(f"[WebRTC] Track event: {track.kind}")
             
             # Create and send offer
+            logger.info(f"[WebRTC] Creating offer for {viewer_id}...")
             offer = await pc.createOffer()
             await pc.setLocalDescription(offer)
             
@@ -193,20 +215,19 @@ class WebRTCStreamer:
                 "sdp": pc.localDescription.sdp
             }
             
-            await asyncio.get_event_loop().run_in_executor(
-                None,
-               self.signalr_connection.send,
-                "SendOffer",
-                [viewer_id, json.dumps(offer_dict)]
-            )
+            # Send offer via HTTP (more reliable than SignalR)
+            logger.info(f"[WebRTC] Sending offer to {viewer_id}...")
+            await self._send_offer_http(viewer_id, json.dumps(offer_dict))
             
-            logger.info(f"Sent offer to viewer {viewer_id}")
+            logger.info(f"[WebRTC] ✓ Offer sent to viewer {viewer_id}")
             
         except Exception as e:
             logger.error(f"Error handling viewer {viewer_id}: {e}")
-            if viewer_id in self.peer_connections:
-                await self.peer_connections[viewer_id].close()
-                del self.peer_connections[viewer_id]
+            import traceback
+            traceback.print_exc()
+            pc = self.peer_connections.pop(viewer_id, None)
+            if pc:
+                await pc.close()
     
     async def handle_answer(self, viewer_id: str, answer_sdp: str):
         """
@@ -260,6 +281,63 @@ class WebRTCStreamer:
         logger.info("Last viewer disconnected")
         # Optionally stop streaming when no viewers
         # await self.stop_streaming()
+    
+    async def _send_offer_http(self, viewer_id: str, offer_sdp: str):
+        """
+        Send WebRTC offer to viewer via HTTP (more reliable than SignalR).
+        """
+        import requests
+        logger.info(f"[HTTP] Preparing to send offer to viewer {viewer_id}")
+        logger.info(f"[HTTP] Offer SDP length: {len(offer_sdp)} bytes")
+        try:
+            url = f"{self.api_url}/api/streaming/send-offer"
+            logger.info(f"[HTTP] Sending POST to {url}")
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: requests.post(
+                    url,
+                    json={"viewerId": viewer_id, "offerSdp": offer_sdp},
+                    timeout=5
+                )
+            )
+            logger.info(f"[HTTP] Response status: {response.status_code}")
+            if response.status_code == 200:
+                logger.info(f"[HTTP] Offer sent successfully to {viewer_id}")
+            else:
+                logger.error(f"[HTTP] Failed to send offer: {response.status_code} - {response.text}")
+        except Exception as e:
+            logger.error(f"[HTTP] Error sending offer to {viewer_id}: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _send_ice_candidate_http(self, viewer_id: str, candidate: str):
+        """
+        Send ICE candidate to viewer via HTTP.
+        """
+        import requests
+        try:
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: requests.post(
+                    f"{self.api_url}/api/streaming/send-ice-candidate",
+                    json={"viewerId": viewer_id, "candidate": candidate},
+                    timeout=5
+                )
+            )
+            if response.status_code != 200:
+                logger.warning(f"[HTTP] Failed to send ICE candidate: {response.status_code}")
+        except Exception as e:
+            logger.error(f"[HTTP] Error sending ICE candidate to {viewer_id}: {e}")
+    
+    async def _handle_viewer_disconnect(self, viewer_id: str):
+        """
+        Handle viewer disconnection - cleanup peer connection.
+        """
+        # Close peer connection (use pop to avoid KeyError)
+        pc = self.peer_connections.pop(viewer_id, None)
+        if pc:
+            await pc.close()
+            logger.info(f"[WebRTC] Cleaned up resources for viewer {viewer_id}")
     
     def get_viewer_count(self) -> int:
         """
