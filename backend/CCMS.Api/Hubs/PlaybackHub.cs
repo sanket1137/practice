@@ -113,6 +113,20 @@ public class PlaybackHub : Hub
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"campaign_{campaignId}");
     }
 
+    /// <summary>
+    /// Subscribe to booking events for a specific user (screen owner or advertiser)
+    /// </summary>
+    public async Task SubscribeToBookings(string userId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
+        _logger.LogInformation($"Client {Context.ConnectionId} subscribed to booking events for user {userId}");
+    }
+
+    public async Task UnsubscribeFromBookings(string userId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
+    }
+
     // Player events
     public async Task AdStarted(AdPlaybackEvent eventData)
     {

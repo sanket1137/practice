@@ -62,6 +62,19 @@ public class StreamingHub : Hub
     }
     
     /// <summary>
+    /// Get current viewer count for a stream
+    /// </summary>
+    public static int GetViewerCount(string screenId)
+    {
+        screenId = screenId.ToLowerInvariant();
+        if (_streamViewers.TryGetValue(screenId, out var viewers))
+        {
+            return viewers.Count;
+        }
+        return 0;
+    }
+    
+    /// <summary>
     /// Get pending viewers for HTTP polling (for Python player)
     /// </summary>
     public static List<string> GetPendingViewers(string screenId)
@@ -368,11 +381,18 @@ public class StreamingHub : Hub
         {
             viewers.Remove(viewerConnectionId);
             
-            // If no more viewers, potentially notify player to stop streaming
-            if (viewers.Count == 0 && _activeStreams.TryGetValue(screenId, out var playerConnectionId))
+            // ALWAYS notify player when a viewer disconnects so it can cleanup WebRTC resources
+            if (_activeStreams.TryGetValue(screenId, out var playerConnectionId))
             {
-                _logger.LogInformation("Last viewer disconnected from screen {ScreenId}, notifying player", screenId);
-                await Clients.Client(playerConnectionId).SendAsync("OnLastViewerDisconnected", screenId);
+                _logger.LogInformation("Viewer {ViewerId} disconnected from screen {ScreenId}, notifying player", viewerConnectionId, screenId);
+                await Clients.Client(playerConnectionId).SendAsync("OnViewerDisconnected", viewerConnectionId);
+                
+                // Also notify if this was the last viewer
+                if (viewers.Count == 0)
+                {
+                    _logger.LogInformation("Last viewer disconnected from screen {ScreenId}", screenId);
+                    await Clients.Client(playerConnectionId).SendAsync("OnLastViewerDisconnected", screenId);
+                }
             }
         }
 

@@ -1,5 +1,7 @@
 import * as signalR from '@microsoft/signalr';
 
+const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+
 class WebSocketService {
     private connection: signalR.HubConnection | null = null;
     private connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
@@ -15,7 +17,7 @@ class WebSocketService {
         this.connectionState = 'connecting';
 
         // Connect to PlaybackHub for real-time ad events
-        const url = `http://localhost:5257/hubs/playback`;
+        const url = `${BASE_URL}/hubs/playback`;
         console.log('[WebSocket] Connecting to:', url);
 
         this.connection = new signalR.HubConnectionBuilder()

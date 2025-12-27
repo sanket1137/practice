@@ -1,0 +1,143 @@
+# CCMS Docker Compose Configuration
+# Production deployment for Hetzner server
+
+services:
+  # SQL Server Database
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ccms-db
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-YourStrong!Passw0rd123}
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - ccms-network
+    restart: unless-stopped
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ccms-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Server=db;Database=CCMSDb;User Id=SA;Password=${DB_PASSWORD:-YourStrong!Passw0rd123};TrustServerCertificate=true
+      - Jwt__SecretKey=${JWT_SECRET:-your-super-secret-production-key-minimum-32-characters-long}
+      - Jwt__Issuer=PixelCCMS
+      - Jwt__Audience=PixelCCMSUsers
+      - Jwt__ExpiryMinutes=60
+      - Cors__AllowedOrigins__0=http://localhost
+      - Cors__AllowedOrigins__1=http://${SERVER_IP:-localhost}
+      - Cors__AllowedOrigins__2=https://${DOMAIN:-localhost}
+      - FileStorage__Provider=Local
+      - FileStorage__LocalPath=/app/uploads
+      - FileStorage__BaseUrl=http://${SERVER_IP:-localhost}/uploads
+      - FileStorage__MaxFileSizeInMB=100
+      - TimeZone__Id=Asia/Kolkata
+    ports:
+      - "5000:8080"
+    volumes:
+      - uploads-data:/app/uploads
+      - backend-logs:/app/logs
+    networks:
+      - ccms-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend (React SPA)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_SIGNALR_URL=
+    container_name: ccms-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - ccms-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ccms-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - uploads-data:/var/www/uploads:ro
+      - certbot-www:/var/www/certbot:ro
+      - certbot-conf:/etc/letsencrypt:ro
+    networks:
+      - ccms-network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Certbot for SSL (optional - run manually for certificate generation)
+  certbot:
+    image: certbot/certbot
+    container_name: ccms-certbot
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - ccms-network
+    profiles:
+      - ssl
+
+volumes:
+  sqlserver-data:
+    name: ccms-sqlserver-data
+  uploads-data:
+    name: ccms-uploads
+  backend-logs:
+    name: ccms-backend-logs
+  certbot-www:
+    name: ccms-certbot-www
+  certbot-conf:
+    name: ccms-certbot-conf
+
+networks:
+  ccms-network:
+    name: ccms-network
+    driver: bridge

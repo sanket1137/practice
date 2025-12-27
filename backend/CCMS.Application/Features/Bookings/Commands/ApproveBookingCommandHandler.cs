@@ -1,4 +1,5 @@
 using AutoMapper;
+using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
@@ -13,24 +14,30 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Screen> _screenRepository;
     private readonly IRepository<Creative> _creativeRepository;
+    private readonly IRepository<Campaign> _campaignRepository;
     private readonly SlotAvailabilityService _slotAvailabilityService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly IBookingNotificationService _notificationService;
 
     public ApproveBookingCommandHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
         IRepository<Creative> creativeRepository,
+        IRepository<Campaign> campaignRepository,
         SlotAvailabilityService slotAvailabilityService,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        IBookingNotificationService notificationService)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
         _creativeRepository = creativeRepository;
+        _campaignRepository = campaignRepository;
         _slotAvailabilityService = slotAvailabilityService;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _notificationService = notificationService;
     }
 
     public async Task<BookingDto> Handle(ApproveBookingCommand request, CancellationToken cancellationToken)
@@ -115,6 +122,22 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
         await _bookingRepository.UpdateAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<BookingDto>(booking);
+        var bookingDto = _mapper.Map<BookingDto>(booking);
+
+        // Notify advertiser that their booking has been approved
+        try
+        {
+            var campaign = await _campaignRepository.GetByIdAsync(booking.CampaignId, cancellationToken);
+            if (campaign != null)
+            {
+                await _notificationService.NotifyBookingApprovedAsync(bookingDto, campaign.AdvertiserId);
+            }
+        }
+        catch (Exception)
+        {
+            // Don't fail the approval if notification fails
+        }
+
+        return bookingDto;
     }
 }

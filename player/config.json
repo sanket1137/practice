@@ -1,12 +1,13 @@
 {
-    "screen_id": "c7054654-db14-4178-b5b7-389ad6ba378f",
+    "screen_id": "D8DA2F02-E461-4B4B-AC72-5F0B359767F5",
     "api_key": "test-api-key-screen-13",
-    "server_url": "http://localhost:5257",
+    "server_url": "http://91.99.190.216:80",
     "sync_interval_minutes": 10,
     "webrtc": {
         "enabled": true,
-        "quality": "720p",
-        "fps": 15,
-        "auto_start": true
+        "quality": "480p",
+        "fps": 10,
+        "auto_start": true,
+        "max_viewers": 5
     }
 }

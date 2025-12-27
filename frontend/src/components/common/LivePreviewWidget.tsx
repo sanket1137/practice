@@ -21,7 +21,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { websocketService } from '../../services/websocket';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5257';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface LivePreviewWidgetProps {
     screenId?: string;
@@ -76,9 +76,9 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 let endpoint = '';
 
                 if (mode === 'screen' && screenId) {
-                    endpoint = `/api/stats/screen/${screenId}/today`;
+                    endpoint = `/stats/screen/${screenId}/today`;
                 } else if (mode === 'campaign' && campaignId) {
-                    endpoint = `/api/stats/campaign/${campaignId}/today`;
+                    endpoint = `/stats/campaign/${campaignId}/today`;
                 } else {
                     setLoading(false);
                     return;

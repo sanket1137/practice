@@ -66,12 +66,14 @@ class SimpleWebRTCClient:
             
             # Initialize WebRTC streamer BEFORE connecting
             logger.info("[WebRTC] Step 3: Initializing WebRTC streamer...")
-            self.streamer = WebRTCStreamer(self.connection, self.screen_id)
-            logger.info("[WebRTC] OK - Streamer initialized")
+            max_viewers = self.config.get('max_viewers', 5)
+            self.streamer = WebRTCStreamer(self.connection, self.screen_id, api_url=self.api_url, max_viewers=max_viewers)
+            logger.info(f"[WebRTC] OK - Streamer initialized with API URL: {self.api_url}, max_viewers: {max_viewers}")
             
             # Register event handlers
             logger.info("[WebRTC] Step 4: Registering event handlers...")
             self.connection.on("OnViewerConnected", self.handle_viewer_connected)
+            self.connection.on("OnViewerDisconnected", self.handle_viewer_disconnected)
             self.connection.on("OnAnswer", self.handle_answer)
             self.connection.on("OnViewerIceCandidate", self.handle_ice_candidate)
             self.connection.on("OnLastViewerDisconnected", self.handle_last_viewer)
@@ -169,9 +171,18 @@ class SimpleWebRTCClient:
         """Handle when last viewer disconnects."""
         logger.info(f"[WebRTC] >>> LAST VIEWER DISCONNECTED from {screen_id}")
     
+    def handle_viewer_disconnected(self, viewer_id):
+        """Handle when a specific viewer disconnects (stops watching)."""
+        logger.info(f"[WebRTC] >>> VIEWER DISCONNECTED EVENT: {viewer_id}")
+        if self.streamer:
+            asyncio.create_task(self._async_handle_viewer_disconnect(viewer_id))
+    
     async def _async_handle_viewer(self, viewer_id):
         """Async wrapper for viewer connection."""
         try:
+            # Add to known_viewers to prevent HTTP poll from also handling this viewer
+            if hasattr(self, '_known_viewers'):
+                self._known_viewers.add(viewer_id)
             await self.streamer.handle_viewer_connected(viewer_id)
             logger.info(f"[WebRTC] Viewer {viewer_id} setup complete")
         except Exception as e:
@@ -197,11 +208,28 @@ class SimpleWebRTCClient:
             import traceback
             traceback.print_exc()
     
+    async def _async_handle_viewer_disconnect(self, viewer_id):
+        """Async wrapper for viewer disconnection cleanup."""
+        try:
+            logger.info(f"[WebRTC] Cleaning up resources for disconnected viewer {viewer_id}")
+            await self.streamer._handle_viewer_disconnect(viewer_id)
+            # Also remove from known_viewers so they can reconnect
+            if hasattr(self, '_known_viewers') and viewer_id in self._known_viewers:
+                self._known_viewers.discard(viewer_id)
+                logger.info(f"[WebRTC] Removed {viewer_id} from known_viewers - can reconnect now")
+            logger.info(f"[WebRTC] Viewer {viewer_id} cleanup complete")
+        except Exception as e:
+            logger.error(f"[WebRTC] Error handling viewer disconnect: {e}")
+            import traceback
+            traceback.print_exc()
+    
     async def _poll_for_answers_and_ice(self):
         """Poll HTTP endpoints for viewers, answers, and ICE candidates (fallback for SignalR)."""
         logger.info("[WebRTC-Poll] Starting HTTP polling loop for viewers/answers/ICE...")
         poll_interval = 0.5  # 500ms
-        known_viewers = set()  # Track viewers we've already handled
+        # Use instance variable so disconnect handler can access it
+        self._known_viewers = set()
+        known_viewers = self._known_viewers  # Local reference for convenience
         
         poll_count = 0
         while self.is_running:

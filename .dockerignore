@@ -1,0 +1,47 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.vs
+.vscode
+*.swp
+*.swo
+
+# Documentation
+*.md
+!README.md
+
+# Build outputs
+**/bin
+**/obj
+**/publish
+**/node_modules
+**/dist
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+**/logs
+
+# Test files
+**/*.test.*
+**/*.spec.*
+**/coverage
+
+# SQL scripts (not needed in container)
+*.sql
+
+# Python player (not needed in main containers)
+player/
+.venv/
+
+# Temp files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
