@@ -17,7 +17,7 @@ import {
 import { websocketService } from '../../services/websocket';
 import { formatDistanceToNow } from 'date-fns';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5257';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface ScreenStats {
     screenId: string;

@@ -8,7 +8,7 @@ Sends heartbeat every 30 seconds
 import asyncio
 import json
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections import defaultdict
 import logging
@@ -22,6 +22,27 @@ except ImportError as e:
     print(f"Missing dependency: {e}")
     print("Install with: pip install -r requirements.txt")
     sys.exit(1)
+
+
+# IST Timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Get current datetime in IST"""
+    return datetime.now(IST)
+
+
+class ISTFormatter(logging.Formatter):
+    """Custom formatter that uses IST timezone for timestamps"""
+    def formatTime(self, record, datefmt=None):
+        ct = datetime.fromtimestamp(record.created, IST)
+        if datefmt:
+            s = ct.strftime(datefmt)
+        else:
+            s = ct.strftime("%Y-%m-%d %H:%M:%S")
+            s = f"{s},{int(record.msecs):03d} IST"
+        return s
+
 
 # Configuration
 class Config:
@@ -54,15 +75,25 @@ Config.load_config()
 Config.LOGS_DIR.mkdir(exist_ok=True)
 Config.CACHE_DIR.mkdir(exist_ok=True)
 
+# Create log filename with IST date-time (each start creates new file)
+ist_now = get_ist_now()
+log_filename = f"player_{ist_now.strftime('%Y%m%d_%H%M%S')}.log"
+
+# Setup logging with IST timezone formatter
+ist_formatter = ISTFormatter('%(asctime)s - %(levelname)s - %(message)s')
+
+file_handler = logging.FileHandler(Config.LOGS_DIR / log_filename, encoding='utf-8')
+file_handler.setFormatter(ist_formatter)
+
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(ist_formatter)
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(Config.LOGS_DIR / f"player_{datetime.now():%Y%m%d}.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[file_handler, stream_handler]
 )
 logger = logging.getLogger("CCMSPlayer")
+logger.info(f"=== CCMS Player Started at {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')} ===")
 
 
 class CCMSPlayer:

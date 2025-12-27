@@ -213,6 +213,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<Guid>("BookingId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -229,10 +232,7 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<bool>("IsVerified")
                         .HasColumnType("bit");
 
-                    b.Property<int>("PlayCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("PlayTimestamp")
+                    b.Property<DateTime>("PlayedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid>("ScreenId")

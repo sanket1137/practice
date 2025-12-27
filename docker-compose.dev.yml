@@ -1,0 +1,57 @@
+# CCMS Docker Compose - Development Configuration
+# Use this for local development and testing
+
+services:
+  # SQL Server Database
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ccms-db-dev
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=DevPassword123!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data-dev:/var/opt/mssql
+    networks:
+      - ccms-network-dev
+    restart: unless-stopped
+
+  # Backend API (Development mode)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ccms-backend-dev
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db;Database=CCMSDb;User Id=SA;Password=DevPassword123!;TrustServerCertificate=true
+      - Jwt__SecretKey=dev-secret-key-minimum-32-characters-long-for-testing
+      - Jwt__Issuer=PixelCCMS
+      - Jwt__Audience=PixelCCMSUsers
+      - Cors__AllowedOrigins__0=http://localhost:5173
+      - Cors__AllowedOrigins__1=http://localhost:3000
+      - FileStorage__Provider=Local
+      - FileStorage__LocalPath=/app/uploads
+      - FileStorage__BaseUrl=http://localhost:5000/uploads
+    ports:
+      - "5000:8080"
+    volumes:
+      - uploads-data-dev:/app/uploads
+    networks:
+      - ccms-network-dev
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  sqlserver-data-dev:
+    name: ccms-sqlserver-data-dev
+  uploads-data-dev:
+    name: ccms-uploads-dev
+
+networks:
+  ccms-network-dev:
+    name: ccms-network-dev
+    driver: bridge

@@ -1,4 +1,5 @@
 using AutoMapper;
+using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
@@ -11,22 +12,28 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
 {
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Screen> _screenRepository;
+    private readonly IRepository<Campaign> _campaignRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly SlotAvailabilityService _slotAvailabilityService;
+    private readonly IBookingNotificationService _notificationService;
 
     public RejectBookingCommandHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
+        IRepository<Campaign> campaignRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        SlotAvailabilityService slotAvailabilityService)
+        SlotAvailabilityService slotAvailabilityService,
+        IBookingNotificationService notificationService)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
+        _campaignRepository = campaignRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _slotAvailabilityService = slotAvailabilityService;
+        _notificationService = notificationService;
     }
 
     public async Task<BookingDto> Handle(RejectBookingCommand request, CancellationToken cancellationToken)
@@ -60,6 +67,22 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
         await _bookingRepository.UpdateAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<BookingDto>(booking);
+        var bookingDto = _mapper.Map<BookingDto>(booking);
+
+        // Notify advertiser that their booking has been rejected
+        try
+        {
+            var campaign = await _campaignRepository.GetByIdAsync(booking.CampaignId, cancellationToken);
+            if (campaign != null)
+            {
+                await _notificationService.NotifyBookingRejectedAsync(bookingDto, campaign.AdvertiserId, request.RejectionReason);
+            }
+        }
+        catch (Exception)
+        {
+            // Don't fail the rejection if notification fails
+        }
+
+        return bookingDto;
     }
 }

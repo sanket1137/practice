@@ -1,20 +1,31 @@
 """
 WebRTC Streamer for live screen streaming.
 Captures the screen and streams it to viewers via WebRTC.
+
+Implements MediaRelay pattern for efficient multi-viewer streaming:
+- Single screen capture shared across all viewers
+- Frame pump mechanism to drive relay tracks
+- Supports up to MAX_VIEWERS concurrent connections
+- Optimized for Raspberry Pi resource constraints
 """
 
 import asyncio
 import json
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, Set
 import mss
 import cv2
 import numpy as np
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack, RTCConfiguration, RTCIceServer
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, VideoStreamTrack, RTCConfiguration, RTCIceServer, MediaStreamTrack
+from aiortc.contrib.media import MediaRelay
+from aiortc.sdp import candidate_from_sdp
 from av import VideoFrame
 import time
 
 logger = logging.getLogger(__name__)
+
+# Maximum concurrent viewers (optimized for Raspberry Pi)
+MAX_VIEWERS = 5
 
 
 class ScreenCaptureTrack(VideoStreamTrack):
@@ -86,17 +97,36 @@ class ScreenCaptureTrack(VideoStreamTrack):
 class WebRTCStreamer:
     """
     Manages WebRTC connections for streaming screen to viewers.
+    
+    Uses MediaRelay pattern to efficiently share a single screen capture
+    across multiple viewers without duplicating encoding work.
     """
     
-    def __init__(self, signalr_connection, screen_id: str, api_url: str = "http://localhost:5257"):
+    def __init__(self, signalr_connection, screen_id: str, api_url: str = "http://localhost:5257", max_viewers: int = MAX_VIEWERS):
         self.signalr_connection = signalr_connection
         self.screen_id = screen_id
         self.api_url = api_url
+        self.max_viewers = max_viewers
+        
+        # Peer connections: viewer_id -> RTCPeerConnection
         self.peer_connections: Dict[str, RTCPeerConnection] = {}
+        
+        # Source screen capture track (single instance for all viewers)
         self.screen_track: Optional[ScreenCaptureTrack] = None
+        
+        # MediaRelay for efficient multi-viewer streaming
+        self._relay: Optional[MediaRelay] = None
+        
+        # Relay tracks per viewer: viewer_id -> relayed MediaStreamTrack
+        self._relay_tracks: Dict[str, MediaStreamTrack] = {}
+        
+        # Frame pump tasks: viewer_id -> asyncio.Task
+        # Pumps drive frame consumption for each relay track
+        self._pump_tasks: Dict[str, asyncio.Task] = {}
+        
         self.is_streaming = False
         
-        logger.info(f"WebRTC Streamer initialized for screen {screen_id}")
+        logger.info(f"WebRTC Streamer initialized for screen {screen_id} (max viewers: {max_viewers})")
     
     async def start_streaming(self, quality: str = "720p", fps: int = 15):
         """
@@ -109,16 +139,20 @@ class WebRTCStreamer:
             return
         
         try:
-            # Initialize screen capture track
+            # Initialize screen capture track (single source for all viewers)
             logger.info("[Streamer] Creating screen capture track...")
             self.screen_track = ScreenCaptureTrack(fps=fps, quality=quality)
             logger.info("[Streamer] OK - Screen capture track initialized")
+            
+            # Initialize MediaRelay for efficient multi-viewer streaming
+            self._relay = MediaRelay()
+            logger.info("[Streamer] OK - MediaRelay initialized for multi-viewer support")
             
             self.is_streaming = True
             
             # Note: Registration handled separately via HTTP in simple_webrtc_client.py
             logger.info(f"[Streamer] OK - Stream ready for screen {self.screen_id}")
-            logger.info(f"[Streamer] Quality: {quality}, FPS: {fps}")
+            logger.info(f"[Streamer] Quality: {quality}, FPS: {fps}, Max Viewers: {self.max_viewers}")
             
         except Exception as e:
             logger.error(f"[Streamer] ERROR - Error starting stream: {e}")
@@ -136,47 +170,130 @@ class WebRTCStreamer:
         
         self.is_streaming = False
         
+        # Cancel all pump tasks first
+        for viewer_id in list(self._pump_tasks.keys()):
+            await self._cancel_pump_task(viewer_id)
+        
         # Close all peer connections
         for viewer_id, pc in list(self.peer_connections.items()):
             await pc.close()
             del self.peer_connections[viewer_id]
+        
+        # Clear relay tracks
+        self._relay_tracks.clear()
         
         # Stop screen capture
         if self.screen_track:
             self.screen_track.stop()
             self.screen_track = None
         
+        # Clear relay
+        self._relay = None
+        
         logger.info(f"Stopped streaming for screen {self.screen_id}")
+    
+    async def _pump_frames(self, viewer_id: str, track: MediaStreamTrack):
+        """
+        Frame pump coroutine that drives frame consumption for a relay track.
+        This ensures frames are continuously pulled from the source track
+        and forwarded to the viewer's peer connection.
+        """
+        try:
+            logger.info(f"[Pump] Starting frame pump for viewer {viewer_id}")
+            while True:
+                # Pull frame from relay track - this drives the whole pipeline
+                frame = await track.recv()
+                # Frame is automatically sent via the peer connection
+                # Just need to keep the pump running
+                await asyncio.sleep(0)  # Yield to event loop
+        except asyncio.CancelledError:
+            logger.info(f"[Pump] Frame pump cancelled for viewer {viewer_id}")
+        except Exception as e:
+            logger.error(f"[Pump] Frame pump error for viewer {viewer_id}: {e}")
+    
+    async def _cancel_pump_task(self, viewer_id: str):
+        """
+        Cancel the frame pump task for a viewer.
+        """
+        task = self._pump_tasks.pop(viewer_id, None)
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            logger.info(f"[Pump] Cancelled pump task for viewer {viewer_id}")
     
     async def handle_viewer_connected(self, viewer_id: str):
         """
         Handle a new viewer connection - create peer connection and send offer.
+        Uses MediaRelay to efficiently share screen capture across viewers.
         """
         logger.info(f"[WebRTC] >>> handle_viewer_connected CALLED with viewer_id={viewer_id}")
         logger.info(f"[WebRTC] >>> is_streaming={self.is_streaming}, screen_track={self.screen_track}")
+        logger.info(f"[WebRTC] >>> Current viewers: {len(self.peer_connections)}/{self.max_viewers}")
         
         if not self.is_streaming:
             logger.warning(f"[WebRTC] >>> REJECTED - Not streaming, cannot accept viewer {viewer_id}")
             return
         
+        # IMPORTANT: Clean up any existing connection for this viewer_id
+        # This handles the case where a viewer stops and restarts without page refresh
+        if viewer_id in self.peer_connections:
+            logger.info(f"[WebRTC] >>> Cleaning up existing connection for viewer {viewer_id}")
+            await self._handle_viewer_disconnect(viewer_id)
+        
+        # Check viewer limit (after cleanup, so reconnecting viewer doesn't count twice)
+        if len(self.peer_connections) >= self.max_viewers:
+            logger.warning(f"[WebRTC] >>> REJECTED - Max viewers ({self.max_viewers}) reached, rejecting {viewer_id}")
+            # TODO: Send rejection message to viewer via HTTP
+            return
+        
         try:
             logger.info(f"New viewer connected: {viewer_id}")
             
-            # Create peer connection with STUN servers for NAT traversal
-            # Use RTCConfiguration and RTCIceServer objects (not dicts)
+            # Create peer connection with STUN and TURN servers for NAT traversal
+            # TURN server is essential for connectivity across different networks
             config = RTCConfiguration(
                 iceServers=[
                     RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
-                    RTCIceServer(urls=["stun:stun1.l.google.com:19302"])
+                    RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+                    # Our own TURN server on production VPS
+                    RTCIceServer(
+                        urls=["turn:91.99.190.216:3478"],
+                        username="ccmsuser",
+                        credential="ccms2024secure"
+                    ),
+                    RTCIceServer(
+                        urls=["turn:91.99.190.216:3478?transport=tcp"],
+                        username="ccmsuser",
+                        credential="ccms2024secure"
+                    ),
+                    # Fallback free TURN servers
+                    RTCIceServer(
+                        urls=["turn:openrelay.metered.ca:443?transport=tcp"],
+                        username="openrelayproject",
+                        credential="openrelayproject"
+                    )
                 ]
             )
             pc = RTCPeerConnection(configuration=config)
             self.peer_connections[viewer_id] = pc
             
-            # Add screen track directly (not via relay - simpler and more reliable)
-            # Each viewer gets the same track, which generates frames on demand
-            logger.info(f"[WebRTC] Adding video track for {viewer_id}")
-            pc.addTrack(self.screen_track)
+            # Use MediaRelay to create an independent track for this viewer
+            # This shares the single screen capture across all viewers efficiently
+            logger.info(f"[WebRTC] Creating relay track for {viewer_id}")
+            relay_track = self._relay.subscribe(self.screen_track)
+            self._relay_tracks[viewer_id] = relay_track
+            
+            # Add the relay track to peer connection
+            logger.info(f"[WebRTC] Adding relay video track for {viewer_id}")
+            pc.addTrack(relay_track)
+            
+            # Start frame pump for this viewer
+            pump_task = asyncio.create_task(self._pump_frames(viewer_id, relay_track))
+            self._pump_tasks[viewer_id] = pump_task
+            logger.info(f"[WebRTC] Started frame pump for {viewer_id}")
             
             # ICE candidate handler - use HTTP to avoid SignalR reliability issues
             @pc.on("icecandidate")
@@ -262,11 +379,19 @@ class WebRTCStreamer:
                 return
             
             candidate_dict = json.loads(candidate_json)
-            candidate = RTCIceCandidate(
-                candidate=candidate_dict["candidate"],
-                sdpMid=candidate_dict["sdpMid"],
-                sdpMLineIndex=candidate_dict["sdpMLineIndex"]
-            )
+            candidate_str = candidate_dict.get("candidate", "")
+            
+            # Skip empty candidates (end-of-candidates signal)
+            if not candidate_str:
+                logger.info(f"End-of-candidates signal from {viewer_id}")
+                return
+            
+            # Parse the candidate string using aiortc's parser
+            candidate = candidate_from_sdp(candidate_str)
+            
+            # Set sdpMid and sdpMLineIndex from the received data
+            candidate.sdpMid = candidate_dict.get("sdpMid")
+            candidate.sdpMLineIndex = candidate_dict.get("sdpMLineIndex")
             
             await pc.addIceCandidate(candidate)
             logger.info(f"Added ICE candidate for viewer {viewer_id}")
@@ -331,16 +456,42 @@ class WebRTCStreamer:
     
     async def _handle_viewer_disconnect(self, viewer_id: str):
         """
-        Handle viewer disconnection - cleanup peer connection.
+        Handle viewer disconnection - cleanup peer connection, relay track, and pump task.
         """
+        logger.info(f"[WebRTC] Handling disconnect for viewer {viewer_id}")
+        
+        # Cancel pump task first
+        await self._cancel_pump_task(viewer_id)
+        
+        # Remove relay track
+        self._relay_tracks.pop(viewer_id, None)
+        
         # Close peer connection (use pop to avoid KeyError)
         pc = self.peer_connections.pop(viewer_id, None)
         if pc:
             await pc.close()
-            logger.info(f"[WebRTC] Cleaned up resources for viewer {viewer_id}")
+        
+        remaining_viewers = len(self.peer_connections)
+        logger.info(f"[WebRTC] Cleaned up resources for viewer {viewer_id}, remaining viewers: {remaining_viewers}")
+        
+        # Optionally stop screen capture if no viewers to save resources
+        if remaining_viewers == 0:
+            logger.info("[WebRTC] No viewers remaining - screen capture continues for next viewer")
     
     def get_viewer_count(self) -> int:
         """
         Get current number of connected viewers.
         """
         return len(self.peer_connections)
+    
+    def get_max_viewers(self) -> int:
+        """
+        Get maximum allowed viewers.
+        """
+        return self.max_viewers
+    
+    def is_at_capacity(self) -> bool:
+        """
+        Check if we've reached max viewer capacity.
+        """
+        return len(self.peer_connections) >= self.max_viewers

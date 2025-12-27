@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Box,
     Container,
@@ -37,6 +37,7 @@ import StatusChip from '../../components/common/StatusChip';
 import { TableSkeleton } from '../../components/common/LoadingSkeletons';
 import EmptyState from '../../components/common/EmptyState';
 import type { BookingStatus } from '../../constants/statusConfig';
+import { websocketService } from '../../services/websocket';
 
 interface BookingDateBreakdown {
     requestedDates: string[];
@@ -82,6 +83,79 @@ export default function BookingsPage() {
         dateFrom: '',
         dateTo: '',
     });
+
+    // Real-time SignalR subscription for booking updates
+    useEffect(() => {
+        const connectAndSubscribe = async () => {
+            try {
+                // Connect to SignalR hub if not already connected
+                if (!websocketService.isConnected()) {
+                    await websocketService.connect();
+                }
+
+                // Subscribe to booking events for current user
+                if (user?.id) {
+                    await websocketService.invoke('SubscribeToBookings', user.id);
+                    console.log('[BookingsPage] Subscribed to booking events for user:', user.id);
+                }
+            } catch (error) {
+                console.error('[BookingsPage] Failed to connect to SignalR:', error);
+            }
+        };
+
+        connectAndSubscribe();
+
+        // Handle booking created event
+        const handleBookingCreated = (data: { Booking: Booking; Message?: string }) => {
+            console.log('[BookingsPage] Received BookingCreated event:', data);
+            // Invalidate and refetch bookings query
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            if (data.Message) {
+                enqueueSnackbar(data.Message, { variant: 'info' });
+            }
+        };
+
+        // Handle booking approved event
+        const handleBookingApproved = (data: { Booking: Booking; Message?: string }) => {
+            console.log('[BookingsPage] Received BookingApproved event:', data);
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            if (data.Message) {
+                enqueueSnackbar(data.Message, { variant: 'success' });
+            }
+        };
+
+        // Handle booking rejected event
+        const handleBookingRejected = (data: { Booking: Booking; Reason?: string; Message?: string }) => {
+            console.log('[BookingsPage] Received BookingRejected event:', data);
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            if (data.Message) {
+                enqueueSnackbar(data.Message, { variant: 'warning' });
+            }
+        };
+
+        // Handle booking updated event
+        const handleBookingUpdated = (data: { Booking: Booking }) => {
+            console.log('[BookingsPage] Received BookingUpdated event:', data);
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        };
+
+        // Register event handlers
+        websocketService.on('BookingCreated', handleBookingCreated);
+        websocketService.on('BookingApproved', handleBookingApproved);
+        websocketService.on('BookingRejected', handleBookingRejected);
+        websocketService.on('BookingUpdated', handleBookingUpdated);
+
+        // Cleanup on unmount
+        return () => {
+            websocketService.off('BookingCreated', handleBookingCreated);
+            websocketService.off('BookingApproved', handleBookingApproved);
+            websocketService.off('BookingRejected', handleBookingRejected);
+            websocketService.off('BookingUpdated', handleBookingUpdated);
+            if (user?.id) {
+                websocketService.invoke('UnsubscribeFromBookings', user.id).catch(() => {});
+            }
+        };
+    }, [user?.id, queryClient, enqueueSnackbar]);
 
     // Fetch bookings
     const { data: bookings, isLoading, error } = useQuery<Booking[]>({

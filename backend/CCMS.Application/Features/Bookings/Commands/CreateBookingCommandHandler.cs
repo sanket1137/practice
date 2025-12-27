@@ -1,4 +1,5 @@
 using AutoMapper;
+using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
@@ -18,6 +19,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
     private readonly BookingCalculationService _calculationService;
     private readonly CreativeValidationService _validationService;
     private readonly SlotAvailabilityService _slotAvailabilityService;
+    private readonly IBookingNotificationService _notificationService;
 
     public CreateBookingCommandHandler(
         IRepository<Booking> bookingRepository,
@@ -28,7 +30,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         IMapper mapper,
         BookingCalculationService calculationService,
         CreativeValidationService validationService,
-        SlotAvailabilityService slotAvailabilityService)
+        SlotAvailabilityService slotAvailabilityService,
+        IBookingNotificationService notificationService)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
@@ -39,6 +42,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         _calculationService = calculationService;
         _validationService = validationService;
         _slotAvailabilityService = slotAvailabilityService;
+        _notificationService = notificationService;
     }
 
     public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
@@ -167,6 +171,19 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         // REMOVED: BookSlot call - slots are now reserved only when booking is approved
         // This allows multiple pending bookings and shows accurate availability
 
-        return _mapper.Map<BookingDto>(booking);
+        var bookingDto = _mapper.Map<BookingDto>(booking);
+
+        // STEP 6: Notify screen owner of new booking via SignalR
+        try
+        {
+            await _notificationService.NotifyBookingCreatedAsync(bookingDto, screen.OwnerId);
+        }
+        catch (Exception)
+        {
+            // Don't fail the booking creation if notification fails
+            // Notification is best-effort
+        }
+
+        return bookingDto;
     }
 }

@@ -130,11 +130,18 @@ class VLCManager:
             
             # PHASE 1: Download ALL videos FIRST
             downloaded_paths = []
-            for item in playlist_items:
-                creative_url = item.get('creativeUrl', '')
-                slot_num = item.get('slotNumber', '?')
+            for idx, item in enumerate(playlist_items):
+                # Debug: log the full item to see its structure
+                logger.info(f"[DEBUG] Playlist item {idx}: {item}")
+                
+                creative_url = item.get('creativeUrl', '') or item.get('creative_url', '') or item.get('url', '')
+                slot_num = item.get('slotNumber', item.get('slot_number', idx + 1))
+                
+                logger.info(f"[DEBUG] Slot {slot_num}: creative_url = '{creative_url}'")
                 
                 if not creative_url or creative_url.startswith('/default/'):
+                    logger.info(f"[SLOT {slot_num}] Skipping - no valid URL")
+                    continue
                     continue
                 
                 # Convert relative URLs to absolute

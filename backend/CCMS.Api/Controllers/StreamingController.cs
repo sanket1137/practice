@@ -65,6 +65,24 @@ public class StreamingController : ControllerBase
             message = isRegistered ? "Stream is active" : "Stream is not active"
         });
     }
+    
+    /// <summary>
+    /// Get current viewer count for a stream (for capacity checking)
+    /// </summary>
+    [HttpGet("viewer-count/{screenId}")]
+    public IActionResult GetViewerCount(string screenId)
+    {
+        screenId = screenId.ToLowerInvariant();
+        var viewerCount = StreamingHub.GetViewerCount(screenId);
+        var isRegistered = StreamingHub.IsStreamRegistered(screenId);
+        
+        return Ok(new { 
+            screenId = screenId, 
+            viewerCount = viewerCount,
+            isActive = isRegistered,
+            message = isRegistered ? $"Stream has {viewerCount} viewer(s)" : "Stream is not active"
+        });
+    }
 
     [HttpPost("register")]
     public IActionResult RegisterStream([FromBody] RegisterStreamRequest request)

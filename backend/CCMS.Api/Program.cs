@@ -160,6 +160,9 @@ builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 
+// Real-time notification services
+builder.Services.AddScoped<CCMS.Application.Interfaces.IBookingNotificationService, CCMS.Api.Services.BookingNotificationService>();
+
 // TimeZone Service (Singleton for performance)
 builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
 
