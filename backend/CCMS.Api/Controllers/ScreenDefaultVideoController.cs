@@ -34,6 +34,7 @@ public class ScreenDefaultVideoController : ControllerBase
     /// </summary>
     [HttpPost("{screenId}/default-video")]
     [Authorize(Roles = "ScreenOwner,Admin")]
+    [Consumes("multipart/form-data")]
     public async Task<ActionResult<ApiResponse<object>>> UploadDefaultVideo(
         Guid screenId,
         [FromForm] IFormFile video)

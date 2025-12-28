@@ -19,7 +19,8 @@ import {
     SignalWifi4Bar,
     SignalWifiOff,
 } from '@mui/icons-material';
-import * as signalR from '@microsoft/signalr';
+import * as signalR from '@microsoft/signalR';
+import { api } from '../../services/api';
 
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
@@ -92,7 +93,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     const stopStream = useCallback(async () => {
         try {
             isStreamingRef.current = false;
-            
+
             // Remove SignalR event handlers FIRST to prevent duplicate handlers
             if (streamingHubRef.current) {
                 streamingHubRef.current.off('OnOffer');
@@ -100,7 +101,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 streamingHubRef.current.off('OnStreamEnded');
                 streamingHubRef.current.off('OnStreamError');
             }
-            
+
             // Stop watching on server
             if (streamingHubRef.current && streamingHubRef.current.state === signalR.HubConnectionState.Connected) {
                 try {
@@ -140,6 +141,31 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
         try {
             setStatus('connecting');
             setError(null);
+
+            // Check stream access before connecting
+            logIST('[WebRTC]', 'Checking stream access...');
+            try {
+                const response = await api.get(`/screens/${screenId}/streaming/access`);
+                const { hasAccess, reason, validUntil } = response.data.data;
+
+                if (!hasAccess) {
+                    setError(`Cannot access stream: ${reason}`);
+                    setStatus('error');
+                    logWarnIST('[WebRTC]', 'Stream access denied:', reason);
+                    return;
+                }
+
+                logIST('[WebRTC]', 'Stream access granted:', reason);
+                if (validUntil) {
+                    logIST('[WebRTC]', 'Access valid until:', validUntil);
+                }
+            } catch (accessError: any) {
+                const errorMessage = accessError.response?.data?.message || 'Failed to verify streaming access';
+                setError(errorMessage);
+                setStatus('error');
+                logErrorIST('[WebRTC]', 'Access check failed:', accessError);
+                return;
+            }
 
             if (!streamingHubRef.current || streamingHubRef.current.state !== signalR.HubConnectionState.Connected) {
                 setError('Not connected to streaming server');
@@ -183,11 +209,11 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             pc.ontrack = (event) => {
                 logIST('[WebRTC]', 'Received remote track:', event.track.kind);
                 logIST('[WebRTC]', 'Track readyState:', event.track.readyState);
-                
+
                 if (videoRef.current && event.streams[0]) {
                     logIST('[WebRTC]', 'Setting video srcObject...');
                     videoRef.current.srcObject = event.streams[0];
-                    
+
                     videoRef.current.play()
                         .then(() => {
                             logIST('[WebRTC]', 'Video playback started successfully');
@@ -271,7 +297,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             const handleOffer = async (offerSdp: string) => {
                 try {
                     if (!peerConnectionRef.current) return;
-                    
+
                     if (peerConnectionRef.current.signalingState !== 'stable') {
                         logIST('[WebRTC]', 'Ignoring duplicate offer');
                         return;
@@ -361,7 +387,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     // Initialize SignalR connection
     useEffect(() => {
         let isMounted = true;
-        
+
         const initStreamingHub = async () => {
             const connection = new signalR.HubConnectionBuilder()
                 .withUrl(`${BASE_URL}/hubs/streaming`, {
@@ -377,7 +403,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 await connection.start();
                 if (!isMounted) return;
                 logIST('[WebRTC]', 'Connected to StreamingHub');
-                
+
                 if (autoStart && startStreamRef.current) {
                     setTimeout(() => {
                         if (isMounted && startStreamRef.current) {
@@ -478,12 +504,12 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                         muted
                         onLoadedMetadata={() => {
                             logIST('[WebRTC]', 'Video metadata loaded');
-                            videoRef.current?.play().catch(() => {});
+                            videoRef.current?.play().catch(() => { });
                         }}
                         onCanPlay={() => {
                             logIST('[WebRTC]', 'Video can play');
                             if (videoRef.current?.paused) {
-                                videoRef.current.play().catch(() => {});
+                                videoRef.current.play().catch(() => { });
                             }
                         }}
                         onPlaying={() => {

@@ -159,6 +159,7 @@ builder.Services.AddScoped<SlotAvailabilityService>();
 builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
+builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
 
 // Real-time notification services
 builder.Services.AddScoped<CCMS.Application.Interfaces.IBookingNotificationService, CCMS.Api.Services.BookingNotificationService>();

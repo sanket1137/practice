@@ -78,6 +78,7 @@ Config.CACHE_DIR.mkdir(exist_ok=True)
 # Create log filename with IST date-time (each start creates new file)
 ist_now = get_ist_now()
 log_filename = f"player_{ist_now.strftime('%Y%m%d_%H%M%S')}.log"
+playlog_filename = f"playlog_{ist_now.strftime('%Y%m%d_%H%M%S')}.log"
 
 # Setup logging with IST timezone formatter
 ist_formatter = ISTFormatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -93,7 +94,21 @@ logging.basicConfig(
     handlers=[file_handler, stream_handler]
 )
 logger = logging.getLogger("CCMSPlayer")
+
+# Create separate play log for detailed impression tracking
+play_logger = logging.getLogger("PlayLog")
+play_logger.setLevel(logging.INFO)
+play_handler = logging.FileHandler(Config.LOGS_DIR / playlog_filename, encoding='utf-8')
+play_handler.setFormatter(ist_formatter)
+play_logger.addHandler(play_handler)
+play_logger.propagate = False  # Don't send to root logger
+
 logger.info(f"=== CCMS Player Started at {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')} ===")
+play_logger.info(f"=== PLAY LOG SESSION STARTED ===")
+play_logger.info(f"Session Start Time: {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')}")
+play_logger.info(f"Screen ID: {Config.SCREEN_ID}")
+play_logger.info(f"Server URL: {Config.API_URL}")
+play_logger.info(f"="*80)
 
 
 class CCMSPlayer:
@@ -118,6 +133,15 @@ class CCMSPlayer:
             logger.info("[WebRTC] Module available - streaming can be enabled")
         except ImportError:
             logger.info("[WebRTC] Module not available - install dependencies to enable streaming")
+        
+        # Cache Manager for video lifecycle
+        from cache_manager import CacheManager
+        self.cache_manager = CacheManager(
+            cache_dir=Config.CACHE_DIR,
+            api_url=self.api_url,
+            screen_id=self.screen_id,
+            api_key=self.api_key
+        )
         
         # Track impressions for sync
         self.impressions = defaultdict(lambda: {'playCount': 0, 'lastPlayed': None})
@@ -327,6 +351,10 @@ class CCMSPlayer:
     
     def emit_ad_started(self, item):
         """Emit AdStarted event to SignalR"""
+        # Log to play log
+        play_logger = logging.getLogger("PlayLog")
+        play_logger.info(f"[START] Slot={item.get('slotNumber', '?')} | Campaign={item.get('campaignId', 'N/A')} | Creative={item.get('creativeId', 'N/A')} | Booking={item.get('bookingId', 'N/A')} | Screen={self.screen_id}")
+        
         if not self.signalr_connected or not self.signalr_connection:
             return
         
@@ -347,6 +375,11 @@ class CCMSPlayer:
     
     def emit_ad_completed(self, item):
         """Emit AdCompleted event to SignalR"""
+        # Log to play log
+        play_logger = logging.getLogger("PlayLog")
+        play_logger.info(f"[END]   Slot={item.get('slotNumber', '?')} | Campaign={item.get('campaignId', 'N/A')} | Creative={item.get('creativeId', 'N/A')} | Booking={item.get('bookingId', 'N/A')} | Screen={self.screen_id}")
+        play_logger.info("-" * 80)
+        
         if not self.signalr_connected or not self.signalr_connection:
             return
         
@@ -377,6 +410,18 @@ class CCMSPlayer:
             await asyncio.sleep(Config.SYNC_INTERVAL_MINUTES * 60)
             self.sync_daily_data()
     
+    async def cache_cleanup_loop(self):
+        """Run cache cleanup daily"""
+        while self.is_running:
+            # Run cleanup every 24 hours
+            await asyncio.sleep(24 * 60 * 60)
+            
+            logger.info("Running scheduled cache cleanup...")
+            try:
+                await self.cache_manager.cleanup_expired_videos()
+            except Exception as e:
+                logger.error(f"Scheduled cache cleanup failed: {e}")
+    
     async def download_videos(self):
         """Download all playlist videos to local cache"""
         import os
@@ -389,9 +434,17 @@ class CCMSPlayer:
         
         for item in self.playlist:
             creative_url = item.get("creativeUrl", "")
+            creative_id = item.get("creativeId", "")
             slot_number = item.get("slotNumber", 0)
             
             if creative_url and not creative_url.startswith("/default/"):
+                # Check if already cached
+                cached_path = self.cache_manager.is_video_cached(creative_id)
+                if cached_path:
+                    logger.info(f"  Slot {slot_number} already cached: {cached_path}")
+                    downloaded_files.append(cached_path)
+                    continue
+                
                 # Generate local filename
                 filename = f"slot_{slot_number}.mp4"
                 filepath = os.path.join(cache_dir, filename)
@@ -408,6 +461,14 @@ class CCMSPlayer:
                     
                     logger.info(f"  [OK] Slot {slot_number} downloaded ({os.path.getsize(filepath)} bytes)")
                     downloaded_files.append(filepath)
+                    
+                    # Register in cache manager
+                    self.cache_manager.register_download(
+                        booking_id=item.get('bookingId', ''),
+                        campaign_id=item.get('campaignId', ''),
+                        creative_id=creative_id,
+                        file_path=filepath
+                    )
                     
                 except Exception as e:
                     logger.error(f"  Failed to download slot {slot_number}: {e}")
@@ -473,34 +534,18 @@ class CCMSPlayer:
                     logger.info("Playlist loaded into VLC")
                     
                     # Start playback (loops automatically)
+                    # VLCManager will emit events via _handle_video_started/_handle_video_ended callbacks
                     self.vlc_manager.play()
                     
-                    # Keep alive and emit events based on playlist timing
                     logger.info("="*60)
-                    logger.info("VLC playback running with timer-based event emission")
+                    logger.info("VLC playback running - events handled by VLC callbacks")
                     logger.info("Press Ctrl+C to stop playback")
                     logger.info("="*60)
                     
-                    # Start looping through playlist to emit events
-                    slot_index = 0
+                    # Just keep alive - VLC handles playback and event callbacks
                     while self.is_running:
-                        item = self.playlist[slot_index]
-                        duration = item.get('durationSeconds', 10)
-                        
-                        # Emit AdStarted
-                        self._handle_video_started(item)
-                        
-                        # Wait for video duration
-                        await asyncio.sleep(duration)
-                        
-                        # Emit AdCompleted
-                        self._handle_video_ended(item)
-                        
-                        # Move to next slot
-                        slot_index = (slot_index + 1) % len(self.playlist)
-                        
-                        # Small gap between videos
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(10)  # Check every 10 seconds
+                        # VLC Manager is handling all playback events automatically
                 else:
                     logger.error("Failed to set playlist, retrying in 30s...")
                     await asyncio.sleep(30)
@@ -521,6 +566,13 @@ class CCMSPlayer:
         if not self.handshake():
             logger.error("Handshake failed, exiting")
             return
+        
+        # Run cache cleanup on startup
+        logger.info("Running cache cleanup check...")
+        try:
+            await self.cache_manager.cleanup_expired_videos()
+        except Exception as e:
+            logger.warning(f"Cache cleanup failed: {e}")
         
         # Connect to SignalR for real-time events
         try:
@@ -573,6 +625,7 @@ class CCMSPlayer:
         # Start tasks
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
         sync_task = asyncio.create_task(self.sync_loop())
+        cache_cleanup_task = asyncio.create_task(self.cache_cleanup_loop())
         
         try:
             await self.play_loop()
@@ -582,6 +635,7 @@ class CCMSPlayer:
             self.is_running = False
             heartbeat_task.cancel()
             sync_task.cancel()
+            cache_cleanup_task.cancel()
             
             # Stop WebRTC streaming
             if webrtc_client:
