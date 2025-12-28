@@ -2,75 +2,121 @@
 
 Digital signage content player for Raspberry Pi devices.
 
-## Installation
+## Quick Install (Raspberry Pi 5 - Single Command)
+
+**Tested on:** Raspberry Pi 5 with Raspberry Pi OS (Debian Trixie/Bookworm)
+
+### Fully Automated Installation (Recommended)
 
 ```bash
-# Install system dependencies (Raspberry Pi)
+# Copy setup script to Pi and run with all parameters
+sudo ./setup-raspberry-pi.sh \
+  --screen-id YOUR_SCREEN_ID \
+  --api-key YOUR_API_KEY \
+  --server http://your-ccms-server.com \
+  --no-confirm \
+  --auto-start
+```
+
+### Interactive Installation
+
+```bash
+# Will prompt for Screen ID, API Key, and Server URL
+sudo ./setup-raspberry-pi.sh
+```
+
+### Remote Installation (from URL)
+
+```bash
+# Interactive
+curl -sSL https://your-server.com/player/setup-raspberry-pi.sh | sudo bash
+
+# Fully automated
+curl -sSL https://your-server.com/player/setup-raspberry-pi.sh | sudo bash -s -- \
+  --screen-id YOUR_SCREEN_ID \
+  --api-key YOUR_API_KEY \
+  --server http://your-ccms-server.com \
+  -y --auto-start
+```
+
+### Setup Script Options
+
+| Option | Description |
+|--------|-------------|
+| `--screen-id ID` | Screen ID from CCMS dashboard (required) |
+| `--api-key KEY` | API key for authentication (required) |
+| `--server URL` | CCMS server URL (default: http://localhost:5257) |
+| `--user USER` | Linux user to run player (default: pi) |
+| `--install-dir DIR` | Installation directory (default: /home/pi/ccms-player) |
+| `--no-confirm`, `-y` | Skip confirmation prompts (for automated installs) |
+| `--auto-start` | Automatically start the player after installation |
+| `--help` | Show help message |
+
+## After Installation
+
+### Management Commands
+
+```bash
+# Start player
+sudo systemctl start ccms-player
+
+# Stop player
+sudo systemctl stop ccms-player
+
+# Restart player
+sudo systemctl restart ccms-player
+
+# View status
+sudo systemctl status ccms-player
+
+# View logs
+tail -f /home/pi/ccms-player/logs/player.log
+```
+
+### Configuration
+
+Config file location: `/home/pi/ccms-player/config.json`
+
+```json
+{
+    "screen_id": "YOUR_SCREEN_ID",
+    "api_key": "YOUR_API_KEY",
+    "server_url": "http://your-server.com",
+    "cache_dir": "./cache",
+    "log_level": "INFO"
+}
+```
+
+To update configuration:
+```bash
+/home/pi/ccms-player/update-config.sh
+```
+
+## Manual Installation
+
+```bash
+# Install system dependencies (Raspberry Pi OS Trixie/Bookworm)
 sudo apt-get update
-sudo apt-get install -y python3-pip omxplayer vlc
+sudo apt-get install -y python3-pip python3-venv vlc ffmpeg libopencv-dev libopenblas-dev
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
 
 # Install Python dependencies
-pip3 install -r requirements.txt
-```
-
-## Configuration
-
-Set environment variables:
-
-```bash
-export CCMS_API_URL="http://your-server.com"
-export DEVICE_ID="your-device-id"
-export DEVICE_TOKEN="your-device-token"
-export CACHE_DIR="./cache"
-```
-
-## Running
-
-```bash
-python3 player.py
-```
-
-## Auto-start on Boot
-
-Create a systemd service:
-
-```bash
-sudo nano /etc/systemd/system/ccms-player.service
-```
-
-```ini
-[Unit]
-Description=CCMS Digital Signage Player
-After=network.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/ccms-player
-Environment="CCMS_API_URL=http://your-server.com"
-Environment="DEVICE_ID=your-device-id"
-Environment="DEVICE_TOKEN=your-token"
-ExecStart=/usr/bin/python3 /home/pi/ccms-player/player.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start:
-
-```bash
-sudo systemctl enable ccms-player
-sudo systemctl start ccms-player
+pip install -r requirements.txt
 ```
 
 ## Features
 
 - Automatic playlist download and caching
-- Video playback using OMXPlayer (Raspberry Pi optimized)
+- Video playback using VLC (Raspberry Pi optimized)
 - Real-time impression reporting
+- WebRTC live streaming support
 - File integrity verification (SHA256)
 - Automatic reconnection on network issues
+- Kiosk mode (screen blanking disabled, cursor hidden)
+- Auto-start on boot via systemd
 - Logging to file and console
 
 ## Troubleshooting

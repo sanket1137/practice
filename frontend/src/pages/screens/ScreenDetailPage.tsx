@@ -41,6 +41,7 @@ import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import SlotCalendarView from '../../components/screens/SlotCalendarView';
 import LivePreviewWidget from '../../components/common/LivePreviewWidget';
 import { WebRTCPlayer } from '../../components/streaming/WebRTCPlayer';
+import DefaultVideoSettings from '../../components/screens/DefaultVideoSettings';
 import { useState } from 'react';
 
 interface Screen {
@@ -188,6 +189,7 @@ export default function ScreenDetailPage() {
                     <Tab label="Details" />
                     <Tab label="Calendar" />
                     {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Bookings" />}
+                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Default Video" />}
                     {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Live Activity" />}
                 </Tabs>
             </Box>
@@ -347,8 +349,13 @@ export default function ScreenDetailPage() {
                 <SlotBookingsCard screenId={id!} />
             )}
 
-            {/* Live Activity Tab - Only for Screen Owners and Admins */}
+            {/* Default Video Tab - Only for Screen Owners and Admins */}
             {activeTab === 3 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
+                <DefaultVideoSettings screenId={id!} />
+            )}
+
+            {/* Live Activity Tab - Only for Screen Owners and Admins */}
+            {activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
                 <Box>
                     <Typography variant="h6" gutterBottom>
                         Real-Time Screen Activity
