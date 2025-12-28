@@ -101,7 +101,11 @@ public class PlaylistGeneratorService
             }
             else
             {
-                // No booking - use filler content
+                // No booking - use default video (custom or universal)
+                var defaultVideoUrl = screen.HasCustomDefaultVideo && !string.IsNullOrEmpty(screen.DefaultVideoUrl)
+                    ? screen.DefaultVideoUrl
+                    : "/defaults/universal-default.mp4"; // Universal fallback
+                
                 playlist.Add(new PlaylistItemResponse
                 {
                     StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
@@ -110,7 +114,7 @@ public class PlaylistGeneratorService
                     BookingId = null,
                     CampaignId = null,
                     CreativeId = null,
-                    CreativeUrl = "/default/filler.mp4", // Default filler content
+                    CreativeUrl = defaultVideoUrl,
                     CreativeMimeType = "video/mp4",
                     DurationSeconds = durationPerSlot,
                     ImpressionId = Guid.NewGuid(),

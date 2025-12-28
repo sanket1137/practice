@@ -45,6 +45,13 @@ public class Screen : BaseEntity
     // public bool LiveStreamingEnabled { get; set; } = false;
     // public DateTime? LastStreamedAt { get; set; }
     // public int CurrentViewerCount { get; set; } = 0;
+    public int MaxViewers { get; set; } = 5; // Maximum concurrent live stream viewers
+    
+    // Default video for empty ad slots
+    public string? DefaultVideoUrl { get; set; }  // URL to custom uploaded video
+    public bool HasCustomDefaultVideo { get; set; } = false;
+    public DateTime? DefaultVideoUploadedAt { get; set; }
+    public long? DefaultVideoSizeBytes { get; set; }
     
     // Pricing
     public decimal PricePerSlot { get; set; }

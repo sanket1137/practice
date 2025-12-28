@@ -172,6 +172,9 @@ builder.Services.AddHostedService<CCMS.Api.Services.ScreenStatusMonitor>();
 // Add impression flush service (background timer-based flush)
 builder.Services.AddHostedService<CCMS.Api.Services.ImpressionFlushService>();
 
+// Add stream expiry service (auto-cleanup stale streams)
+builder.Services.AddHostedService<CCMS.Api.Services.StreamExpiryService>();
+
 // Add Booking status monitor (in development only)
 if (builder.Environment.IsDevelopment())
 {

@@ -1,7 +1,7 @@
 {
-    "screen_id": "D8DA2F02-E461-4B4B-AC72-5F0B359767F5",
+    "screen_id": "8dd2b115-4efd-4fde-89b9-63f218bebf7c",
     "api_key": "test-api-key-screen-13",
-    "server_url": "http://91.99.190.216:80",
+    "server_url": "http://localhost:5257",
     "sync_interval_minutes": 10,
     "webrtc": {
         "enabled": true,
@@ -9,5 +9,11 @@
         "fps": 10,
         "auto_start": true,
         "max_viewers": 5
+    },
+    "default_video": {
+        "folder": "default_videos",
+        "universal_fallback_url": "http://localhost:5257/defaults/universal-default.mp4",
+        "max_age_days": 7,
+        "redownload_on_change": true
     }
 }

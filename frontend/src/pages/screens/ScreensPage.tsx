@@ -64,7 +64,10 @@ export default function ScreensPage() {
         queryKey: ['screens'],
         queryFn: async () => {
             const response = await api.get('/screens');
-            return response.data.data;
+            // API returns ApiResponse<IEnumerable<ScreenDto>> with .data property
+            const data = response.data?.data;
+            // Ensure we always return an array
+            return Array.isArray(data) ? data : [];
         },
     });
 

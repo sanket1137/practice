@@ -155,7 +155,9 @@ export default function CreateBookingPage() {
         queryKey: ['screens'],
         queryFn: async () => {
             const response = await api.get('/screens');
-            return response.data.data; // ApiResponse wrapper
+            const data = response.data?.data;
+            // Ensure we always return an array
+            return Array.isArray(data) ? data : [];
         },
     });
 

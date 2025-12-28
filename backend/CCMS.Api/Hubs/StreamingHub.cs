@@ -39,7 +39,15 @@ public class StreamingHub : Hub
     {
         // Normalize screenId to lowercase for consistent key matching
         screenId = screenId.ToLowerInvariant();
-        return _activeStreams.TryAdd(screenId, connectionId);
+        var result = _activeStreams.TryAdd(screenId, connectionId);
+        
+        if (result)
+        {
+            // Track stream activity for expiry service
+            Services.StreamExpiryService.RecordStreamActivity(screenId);
+        }
+        
+        return result;
     }
 
     /// <summary>
@@ -51,6 +59,9 @@ public class StreamingHub : Hub
         screenId = screenId.ToLowerInvariant();
         _activeStreams.TryRemove(screenId, out _);
         _streamViewers.TryRemove(screenId, out _);
+        
+        // Clear stream activity tracking
+        Services.StreamExpiryService.ClearStreamActivity(screenId);
     }
 
     /// <summary>
@@ -58,6 +69,8 @@ public class StreamingHub : Hub
     /// </summary>
     public static bool IsStreamRegistered(string screenId)
     {
+        // Normalize screenId to lowercase for consistent lookup
+        screenId = screenId.ToLowerInvariant();
         return _activeStreams.ContainsKey(screenId);
     }
     
@@ -109,6 +122,36 @@ public class StreamingHub : Hub
             _logger.LogInformation(
                 "Player registering stream. ScreenId: {ScreenId}, ConnectionId: {ConnectionId}, UserId: {UserId}",
                 screenId, Context.ConnectionId, userId);
+
+            // TODO: Re-enable for production - Screen ownership validation
+            // Temporarily disabled for MVP testing
+            /*
+            // Validate screen exists
+            if (Guid.TryParse(screenId, out var screenGuid))
+            {
+                var screen = await _screenRepository.GetByIdAsync(screenGuid);
+                if (screen == null)
+                {
+                    _logger.LogWarning("Stream registration failed: Screen {ScreenId} not found", screenId);
+                    throw new HubException($"Screen {screenId} not found");
+                }
+                
+                // Validate ownership (when auth is enabled)
+                if (userId != null)
+                {
+                    var isOwner = screen.OwnerId == userId;
+                    var isAdmin = Context.User?.IsInRole("Admin") ?? false;
+                    
+                    if (!isOwner && !isAdmin)
+                    {
+                        _logger.LogWarning(
+                            "Access denied: User {UserId} attempted to register stream for screen {ScreenId} owned by {OwnerId}",
+                            userId, screenId, screen.OwnerId);
+                        throw new HubException("Access denied: You do not own this screen");
+                    }
+                }
+            }
+            */
 
             // Register this connection as the broadcaster for this screen
             _activeStreams[screenId] = Context.ConnectionId;
@@ -184,6 +227,21 @@ public class StreamingHub : Hub
                 "Viewer requesting stream. ScreenId: {ScreenId}, ViewerId: {ViewerId}, UserId: {UserId}",
                 screenId, Context.ConnectionId, userId);
 
+            // Check max viewers limit before allowing connection
+            var currentViewers = GetViewerCount(screenId);
+            var maxViewers = 5; // TODO: Get from screen.MaxViewers in database when available
+            
+            if (currentViewers >= maxViewers)
+            {
+                _logger.LogWarning(
+                    "Stream at capacity for screen {ScreenId}: {CurrentViewers}/{MaxViewers} viewers",
+                    screenId, currentViewers, maxViewers);
+                    
+                await Clients.Caller.SendAsync("OnStreamError", 
+                    $"Stream is at capacity ({maxViewers} viewers). Please try again later.");
+                return;
+            }
+
             // Temporarily disabled for MVP testing - allow all viewers
             // TODO: Re-enable authorization for production
             /*
@@ -240,7 +298,8 @@ public class StreamingHub : Hub
                     "Stream not active for screen {ScreenId}, viewer {ViewerId} will wait",
                     screenId, Context.ConnectionId);
                     
-                await Clients.Caller.SendAsync("OnStreamError", "Stream is not currently active");
+                await Clients.Caller.SendAsync("OnStreamError", 
+                    "Waiting for player to start streaming... Make sure the screen player is running and connected.");
             }
         }
         catch (Exception ex)
@@ -381,35 +440,40 @@ public class StreamingHub : Hub
         {
             viewers.Remove(viewerConnectionId);
             
-            // ALWAYS notify player when a viewer disconnects so it can cleanup WebRTC resources
+            // Notify player when a viewer disconnects so it can cleanup WebRTC resources
             if (_activeStreams.TryGetValue(screenId, out var playerConnectionId))
             {
-                _logger.LogInformation("Viewer {ViewerId} disconnected from screen {ScreenId}, notifying player", viewerConnectionId, screenId);
-                await Clients.Client(playerConnectionId).SendAsync("OnViewerDisconnected", viewerConnectionId);
-                
-                // Also notify if this was the last viewer
-                if (viewers.Count == 0)
+                // Check if player is using SignalR or HTTP polling
+                // HTTP players use a fixed connection ID and won't receive SignalR messages
+                if (playerConnectionId != "http-player")
                 {
-                    _logger.LogInformation("Last viewer disconnected from screen {ScreenId}", screenId);
-                    await Clients.Client(playerConnectionId).SendAsync("OnLastViewerDisconnected", screenId);
+                    _logger.LogInformation(
+                        "Viewer {ViewerId} disconnected from screen {ScreenId}, notifying SignalR player",
+                        viewerConnectionId, screenId);
+                    
+                    await Clients.Client(playerConnectionId)
+                        .SendAsync("OnViewerDisconnected", viewerConnectionId);
+                    
+                    // Also notify if this was the last viewer
+                    if (viewers.Count == 0)
+                    {
+                        _logger.LogInformation("Last viewer disconnected from screen {ScreenId}", screenId);
+                        await Clients.Client(playerConnectionId)
+                            .SendAsync("OnLastViewerDisconnected", screenId);
+                    }
+                }
+                else
+                {
+                    // HTTP player will detect disconnect on next poll when checking pending viewers
+                    _logger.LogInformation(
+                        "Viewer {ViewerId} disconnected from screen {ScreenId} (HTTP player - will detect on next poll)",
+                        viewerConnectionId, screenId);
                 }
             }
         }
 
         // Remove from group
         await Groups.RemoveFromGroupAsync(viewerConnectionId, $"screen_{screenId}_viewers");
-    }
-
-    /// <summary>
-    /// Get current viewer count for a screen (optional utility method)
-    /// </summary>
-    public int GetViewerCount(string screenId)
-    {
-        if (_streamViewers.TryGetValue(screenId, out var viewers))
-        {
-            return viewers.Count;
-        }
-        return 0;
     }
 
     #endregion
