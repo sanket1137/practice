@@ -84,6 +84,18 @@ export default function ScreenDetailPage() {
         },
     });
 
+    // Check stream access for advertisers
+    const { data: streamAccess } = useQuery({
+        queryKey: ['stream-access', id],
+        queryFn: async () => {
+            const response = await api.get(`/screens/${id}/streaming/access`);
+            console.log('[Stream Access] Response:', response.data.data);
+            console.log('[User Role]:', user?.role);
+            return response.data.data;
+        },
+        enabled: !!id && !!user, // Temporarily check for all users
+    });
+
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: async () => {
@@ -190,7 +202,10 @@ export default function ScreenDetailPage() {
                     <Tab label="Calendar" />
                     {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Bookings" />}
                     {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Default Video" />}
-                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Live Activity" />}
+                    {/* Show Live Activity tab if user is owner/admin OR advertiser with access */}
+                    {((user?.role === 'ScreenOwner' || user?.role === 'Admin') ||
+                        (user?.role === 'Advertiser' && streamAccess?.hasAccess)) &&
+                        <Tab label="Live Activity" />}
                 </Tabs>
             </Box>
 
@@ -354,33 +369,36 @@ export default function ScreenDetailPage() {
                 <DefaultVideoSettings screenId={id!} />
             )}
 
-            {/* Live Activity Tab - Only for Screen Owners and Admins */}
-            {activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
-                <Box>
-                    <Typography variant="h6" gutterBottom>
-                        Real-Time Screen Activity
-                    </Typography>
-                    <Typography variant="body2" color="textSecondary" paragraph>
-                        Monitor live playback on this screen in real-time
-                    </Typography>
+            {/* Live Activity Tab - For Screen Owners/Admins (tab 4) or Advertisers with access (tab 2) */}
+            {(
+                (activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin')) ||
+                (activeTab === 2 && user?.role === 'Advertiser' && streamAccess?.hasAccess)
+            ) && (
+                    <Box>
+                        <Typography variant="h6" gutterBottom>
+                            Real-Time Screen Activity
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Monitor live playback on this screen in real-time
+                        </Typography>
 
-                    <Grid container spacing={3}>
-                        {/* WebRTC Live Stream */}
-                        <Grid item xs={12} md={8}>
-                            <WebRTCPlayer
-                                screenId={id!}
-                                autoStart={false}
-                                fallbackToVideoSync={true}
-                            />
-                        </Grid>
+                        <Grid container spacing={3}>
+                            {/* WebRTC Live Stream */}
+                            <Grid item xs={12} md={8}>
+                                <WebRTCPlayer
+                                    screenId={id!}
+                                    autoStart={false}
+                                    fallbackToVideoSync={true}
+                                />
+                            </Grid>
 
-                        {/* Live Preview Widget */}
-                        <Grid item xs={12} md={4}>
-                            <LivePreviewWidget screenId={id!} mode="screen" />
+                            {/* Live Preview Widget */}
+                            <Grid item xs={12} md={4}>
+                                <LivePreviewWidget screenId={id!} mode="screen" />
+                            </Grid>
                         </Grid>
-                    </Grid>
-                </Box>
-            )}
+                    </Box>
+                )}
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>

@@ -27,8 +27,9 @@ public class StatsController : ControllerBase
         try
         {
             var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
             var dbCount = await _context.Impressions
-                .Where(i => i.ScreenId == screenId && i.PlayedAt >= today)
+                .Where(i => i.ScreenId == screenId && i.CreatedAt >= today && i.CreatedAt < tomorrow)
                 .CountAsync();
             
             var memoryCount = PlaybackHub.GetPendingCount(screenId: screenId);
@@ -57,8 +58,9 @@ public class StatsController : ControllerBase
         try
         {
             var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
             var dbCount = await _context.Impressions
-                .Where(i => i.CampaignId == campaignId && i.PlayedAt >= today)
+                .Where(i => i.CampaignId == campaignId && i.CreatedAt >= today && i.CreatedAt < tomorrow)
                 .CountAsync();
             
             var memoryCount = PlaybackHub.GetPendingCount(campaignId: campaignId);

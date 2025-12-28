@@ -161,7 +161,24 @@ public class CampaignsController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500,
-                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse($"Error retrieving campaign book ings: {ex.Message}"));
+                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse($"Error retrieving campaign bookings: {ex.Message}"));
+        }
+    }
+
+    // GET /api/campaigns/{id}/screens/stats
+    [HttpGet("{id}/screens/stats")]
+    public async Task<ActionResult<ApiResponse<CampaignScreensStatsDto>>> GetCampaignScreensStats(Guid id)
+    {
+        try
+        {
+            var query = new GetCampaignScreensStatsQuery { CampaignId = id };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<CampaignScreensStatsDto>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500,
+                ApiResponse<CampaignScreensStatsDto>.ErrorResponse($"Error retrieving campaign screen stats: {ex.Message}"));
         }
     }
 }

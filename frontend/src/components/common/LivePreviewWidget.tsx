@@ -76,9 +76,9 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 let endpoint = '';
 
                 if (mode === 'screen' && screenId) {
-                    endpoint = `/stats/screen/${screenId}/today`;
+                    endpoint = `/api/stats/screen/${screenId}/today`;
                 } else if (mode === 'campaign' && campaignId) {
-                    endpoint = `/stats/campaign/${campaignId}/today`;
+                    endpoint = `/api/stats/campaign/${campaignId}/today`;
                 } else {
                     setLoading(false);
                     return;
@@ -118,19 +118,55 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
 
     useEffect(() => {
         let isSubscribed = true;
+        let handlersRegistered = false;
+
+        // Define handlers outside to properly remove them later
+        const handleAdStarted = (eventData: PlayEvent) => {
+            if (!isSubscribed) return;
+
+            if (mode === 'screen' && eventData.screenId === screenId) {
+                setNowPlaying(eventData);
+                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+            } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
+                setNowPlaying(eventData);
+                setRecentPlays(prev => [eventData, ...prev.slice(0, 4)]);
+                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+            }
+        };
+
+        const handleAdCompleted = (eventData: PlayEvent) => {
+            if (!isSubscribed) return;
+
+            if (mode === 'screen' && eventData.screenId === screenId) {
+                setRealtimeCount(prev => prev + 1);
+                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+            } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
+                setRealtimeCount(prev => prev + 1);
+                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+            }
+        };
+
+        const handleImpressionUpdate = (eventData: any) => {
+            if (!isSubscribed) return;
+
+            if (mode === 'screen' && eventData.screenId === screenId) {
+                setRealtimeCount(prev => prev + eventData.playCount);
+                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+            } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
+                setRealtimeCount(prev => prev + eventData.playCount);
+                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+            }
+        };
 
         const connectAndSubscribe = async () => {
             try {
                 console.log('[LivePreview] Connecting to WebSocket...');
-                // Connect to websocket
                 await websocketService.connect();
 
                 if (!isSubscribed) return;
 
-                // Wait a brief moment to ensure connection is fully established
                 await new Promise(resolve => setTimeout(resolve, 100));
 
-                // Verify connection is actually ready
                 if (!websocketService.isConnected()) {
                     console.error('[LivePreview] Connection not ready, waiting...');
                     await new Promise(resolve => setTimeout(resolve, 500));
@@ -152,55 +188,14 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                     console.log(`[LivePreview] Subscribed to campaign: ${campaignId}`);
                 }
 
-                // Listen for AdStarted events
-                const handleAdStarted = (eventData: PlayEvent) => {
-                    console.log('[LivePreview] AdStarted event:', eventData);
-
-                    if (!isSubscribed) return;
-
-                    if (mode === 'screen' && eventData.screenId === screenId) {
-                        setNowPlaying(eventData);
-                        setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-                    } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
-                        setNowPlaying(eventData);
-                        setRecentPlays(prev => [eventData, ...prev.slice(0, 4)]);
-                        setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-                    }
-                };
-
-                // Listen for AdCompleted events
-                const handleAdCompleted = (eventData: PlayEvent) => {
-                    console.log('[LivePreview] AdCompleted event:', eventData);
-
-                    if (!isSubscribed) return;
-
-                    if (mode === 'screen' && eventData.screenId === screenId) {
-                        setRealtimeCount(prev => prev + 1);
-                        setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-                    } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
-                        setRealtimeCount(prev => prev + 1);
-                        setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-                    }
-                };
-
-                // Listen for ImpressionUpdate events
-                const handleImpressionUpdate = (eventData: any) => {
-                    console.log('[LivePreview] ImpressionUpdate event:', eventData);
-
-                    if (!isSubscribed) return;
-
-                    if (mode === 'screen' && eventData.screenId === screenId) {
-                        setRealtimeCount(prev => prev + eventData.playCount);
-                        setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-                    } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
-                        setRealtimeCount(prev => prev + eventData.playCount);
-                        setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-                    }
-                };
-
-                websocketService.on('AdStarted', handleAdStarted);
-                websocketService.on('AdCompleted', handleAdCompleted);
-                websocketService.on('ImpressionUpdate', handleImpressionUpdate);
+                // Register event handlers ONLY ONCE
+                if (!handlersRegistered) {
+                    websocketService.on('AdStarted', handleAdStarted);
+                    websocketService.on('AdCompleted', handleAdCompleted);
+                    websocketService.on('ImpressionUpdate', handleImpressionUpdate);
+                    handlersRegistered = true;
+                    console.log('[LivePreview] Event handlers registered');
+                }
 
             } catch (err) {
                 console.error('[LivePreview] Failed to connect to websocket:', err);
@@ -215,6 +210,16 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
         // Cleanup
         return () => {
             isSubscribed = false;
+
+            // Remove event handlers
+            if (handlersRegistered) {
+                websocketService.off('AdStarted', handleAdStarted);
+                websocketService.off('AdCompleted', handleAdCompleted);
+                websocketService.off('ImpressionUpdate', handleImpressionUpdate);
+                console.log('[LivePreview] Event handlers removed');
+            }
+
+            // Unsubscribe from updates
             if (mode === 'screen' && screenId) {
                 websocketService.unsubscribeFromScreen(screenId);
             } else if (mode === 'campaign' && campaignId) {
