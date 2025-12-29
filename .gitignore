@@ -488,3 +488,12 @@ node_modules/
 dist/
 .env
 .DS_Store
+
+# Player
+player/logs/
+player/video_cache/
+player/cache/
+player/default_videos/
+player/mpv_lib/*.dll
+player/mpv_lib/*.so
+player/*.log
