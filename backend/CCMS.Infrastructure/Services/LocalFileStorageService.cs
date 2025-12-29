@@ -10,8 +10,12 @@ public class LocalFileStorageService : IFileStorageService
 
     public LocalFileStorageService(IConfiguration configuration)
     {
+        Console.WriteLine("[LocalFileStorage] Initializing LOCAL File Storage Service...");
+        
         _storagePath = configuration["FileStorage:LocalPath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
         _baseUrl = configuration["FileStorage:BaseUrl"] ?? "http://localhost:5000/uploads";
+        
+        Console.WriteLine($"[LocalFileStorage] Storage path: {_storagePath}");
         
         // Ensure directory exists
         if (!Directory.Exists(_storagePath))

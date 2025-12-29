@@ -56,6 +56,7 @@ class Config:
     SYNC_INTERVAL_MINUTES = 10
     HEARTBEAT_INTERVAL_SECONDS = 30
     PLAYER_VERSION = "1.0.0"
+    LOG_RETENTION_DAYS = 7  # Default: keep logs for 7 days
     
     @classmethod
     def load_config(cls):
@@ -68,6 +69,10 @@ class Config:
                 cls.API_KEY = config.get("api_key", cls.API_KEY)
                 cls.API_URL = config.get("server_url", cls.API_URL)
                 cls.SYNC_INTERVAL_MINUTES = config.get("sync_interval_minutes", cls.SYNC_INTERVAL_MINUTES)
+                
+                # Load logging config
+                logging_config = config.get("logging", {})
+                cls.LOG_RETENTION_DAYS = logging_config.get("log_retention_days", cls.LOG_RETENTION_DAYS)
 
 # Setup
 Config.load_config()
@@ -99,7 +104,17 @@ play_logger = logging.getLogger("PlayLog")
 play_logger.setLevel(logging.INFO)
 play_handler = logging.FileHandler(Config.LOGS_DIR / playlog_filename, encoding='utf-8')
 play_handler.setFormatter(ist_formatter)
+# Separate logger for playback events
 play_logger.addHandler(play_handler)
+
+# Import and run log cleanup
+from log_cleanup import cleanup_logs_on_startup
+
+# Clean up old log files (older than configured days) on startup
+try:
+    cleanup_logs_on_startup(Config.LOGS_DIR, max_age_days=Config.LOG_RETENTION_DAYS)
+except Exception as e:
+    logger.warning(f"Log cleanup failed: {e}")
 play_logger.propagate = False  # Don't send to root logger
 
 logger.info(f"=== CCMS Player Started at {ist_now.strftime('%Y-%m-%d %H:%M:%S IST')} ===")
