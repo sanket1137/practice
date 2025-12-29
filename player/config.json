@@ -19,5 +19,9 @@
     "mpv_playback": {
         "dual_player_mode": false,
         "comment": "dual_player_mode: false = single MPV instance (lower resources), true = dual players for true gapless (zero-gap transitions)"
+    },
+    "logging": {
+        "log_retention_days": 7,
+        "comment": "Automatically delete log files older than this many days on player startup"
     }
 }

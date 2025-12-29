@@ -151,7 +151,23 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Application Services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+// File Storage Service - configurable via appsettings
+var fileStorageProvider = builder.Configuration["FileStorage:Provider"] ?? "Local";
+Console.WriteLine($"[CONFIG] FileStorage:Provider value read from config: '{fileStorageProvider}'");
+Console.WriteLine($"[CONFIG] Checking if equals 'AzureBlob': {fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase)}");
+
+if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+    Console.WriteLine("Using Azure Blob Storage for file uploads");
+}
+else
+{
+    builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+    Console.WriteLine("Using Local File System for file uploads");
+}
+
 builder.Services.AddScoped<IPlaylistService, PlaylistService>();
 builder.Services.AddScoped<BookingCalculationService>();
 builder.Services.AddScoped<IRevenueCalculationService, RevenueCalculationService>();
