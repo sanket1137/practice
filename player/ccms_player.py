@@ -8,6 +8,7 @@ Sends heartbeat every 30 seconds
 import asyncio
 import json
 import sys
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections import defaultdict
@@ -15,9 +16,7 @@ import logging
 
 try:
     import requests
-    import vlc
     from signalrcore.hub_connection_builder import HubConnectionBuilder
-    from vlc_manager import VLCManager
 except ImportError as e:
     print(f"Missing dependency: {e}")
     print("Install with: pip install -r requirements.txt")
@@ -153,10 +152,22 @@ class CCMSPlayer:
             "Content-Type": "application/json"
         })
         
-        # VLC Manager for event-driven playback
-        self.vlc_manager = VLCManager()
-        self.vlc_manager.set_on_started(self._handle_video_started)
-        self.vlc_manager.set_on_ended(self._handle_video_ended)
+        # MPV Player for gapless playback
+        from mpv_dual_player import MPVDualPlayer
+        
+        # Load MPV configuration from config file
+        config_file = Config.BASE_DIR / "config.json"
+        dual_player_mode = False  # Default
+        if config_file.exists():
+            with open(config_file) as f:
+                config_data = json.load(f)
+                mpv_config = config_data.get('mpv_playback', {})
+                dual_player_mode = mpv_config.get('dual_player_mode', False)
+        
+        self.mpv_player = MPVDualPlayer(dual_player_mode=dual_player_mode)
+        self.mpv_player.set_on_started(self._handle_video_started)
+        self.mpv_player.set_on_ended(self._handle_video_ended)
+        
         self.session_data = {
             'date': datetime.now().date(),
             'start_time': datetime.now(),
@@ -295,19 +306,90 @@ class CCMSPlayer:
             return False
     
     def record_impression(self, item):
-        """Record impression locally for later sync"""
-        campaign_id = item.get("campaignId")
-        if not campaign_id:
-            return
+        """Record impression for 10-minute sync"""
+        try:
+            campaign_id = item.get('campaignId', '')
+            creative_id = item.get('creativeId', '')
+            booking_id = item.get('bookingId', '')
+            
+            if campaign_id:
+                key = f"{campaign_id}_{creative_id}_{booking_id}"
+                session_data = self.session_data['campaign_impressions'][key]
+                session_data['booking_id'] = booking_id
+                session_data['campaign_id'] = campaign_id
+                session_data['creative_id'] = creative_id
+                session_data['play_timestamps'].append(datetime.now())
+                
+        except Exception as e:
+            logger.error(f"Error recording impression: {e}")
+    
+    async def download_videos(self):
+        """Download all playlist videos to local cache"""
+        import os
         
-        key = f"{campaign_id}_{item.get('creativeId')}"
+        cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
+        os.makedirs(cache_dir, exist_ok=True)
         
-        self.session_data['campaign_impressions'][key]['booking_id'] = item.get("bookingId")
-        self.session_data['campaign_impressions'][key]['campaign_id'] = campaign_id
-        self.session_data['campaign_impressions'][key]['creative_id'] = item.get("creativeId")
-        self.session_data['campaign_impressions'][key]['play_timestamps'].append(datetime.now())
+        logger.info(f"Downloading {len(self.playlist)} videos to cache...")
+        downloaded_count = 0
         
-        logger.debug(f"Recorded impression for {key}")
+        for idx, item in enumerate(self.playlist):
+            creative_url = item.get("creativeUrl", "")
+            creative_id = item.get("creativeId", "")
+            slot_num = item.get("slotNumber", 0)
+            
+            if not creative_url or creative_url.startswith("/default/"):
+                logger.info(f"  Slot {slot_num}: Skipping (default/empty)")
+                continue
+            
+            # Check if already cached by creative ID
+            cached_path = self.cache_manager.is_video_cached(creative_id)
+            if cached_path and os.path.exists(cached_path):
+                logger.info(f"  Slot {slot_num}: Already cached: {cached_path}")
+                self.playlist[idx]["local_path"] = cached_path  # Use index to persist
+                downloaded_count += 1
+                continue
+            
+            # Download to slot-based filename
+            filename = f"slot_{slot_num}.mp4"
+            filepath = os.path.join(cache_dir, filename)
+            
+            try:
+                logger.info(f"  Slot {slot_num}: Downloading...")
+                response = self.session.get(creative_url, stream=True, timeout=30)
+                response.raise_for_status()
+                
+                with open(filepath, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                
+                file_size = os.path.getsize(filepath)
+                logger.info(f"  Slot {slot_num}: ✓ Downloaded ({file_size} bytes)")
+                
+                # Set local path using index to persist
+                self.playlist[idx]["local_path"] = filepath
+                
+                # Register in cache manager
+                self.cache_manager.register_download(
+                    booking_id=item.get('bookingId', ''),
+                    campaign_id=item.get('campaignId', ''),
+                    creative_id=creative_id,
+                    file_path=filepath
+                )
+                
+                downloaded_count += 1
+                
+            except Exception as e:
+                logger.error(f"  Slot {slot_num}: Failed to download: {e}")
+        
+        logger.info(f"Downloaded {downloaded_count}/{len(self.playlist)} videos")
+        
+        # Debug: Check if local_path is actually set
+        logger.info("DEBUG: Checking playlist after download:")
+        for idx, item in enumerate(self.playlist):
+            logger.info(f"  [{idx}] local_path = {item.get('local_path')}")
+        
+        return downloaded_count > 0
     
     def connect_signalr(self):
         """Connect to SignalR PlaybackHub for real-time events"""
@@ -511,13 +593,8 @@ class CCMSPlayer:
             logger.error(f"Error handling video ended: {e}")
     
     async def play_loop(self):
-        """Main playback loop using VLC library"""
-        logger.info("Starting VLC playback loop...")
-        
-        # Initialize VLC
-        if not self.vlc_manager.initialize():
-            logger.error("VLC initialization failed, exiting")
-            return
+        """Main playback loop using MPV Dual Player"""
+        logger.info("Starting MPV gapless playback loop...")
         
         self.is_running = True
         
@@ -529,31 +606,48 @@ class CCMSPlayer:
                     await asyncio.sleep(5)
                     continue
                 
-                # Set/update playlist in VLC
-                if self.vlc_manager.set_playlist(self.playlist):
-                    logger.info("Playlist loaded into VLC")
+                # Set local_path from cache files BEFORE loading into MPV
+                cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
+                for idx, item in enumerate(self.playlist):
+                    slot_num = item.get('slotNumber', 0)
+                    cache_path = os.path.join(cache_dir, f"slot_{slot_num}.mp4")
                     
-                    # Start playback (loops automatically)
-                    # VLCManager will emit events via _handle_video_started/_handle_video_ended callbacks
-                    self.vlc_manager.play()
+                    if os.path.exists(cache_path):
+                        self.playlist[idx]['local_path'] = cache_path
+                        logger.info(f"  Set path for slot {slot_num}: {cache_path}")
+                
+                # Debug: log playlist structure
+                logger.info(f"Playlist has {len(self.playlist)} items:")
+                for idx, item in enumerate(self.playlist):
+                    local_path = item.get('local_path')
+                    slot_num = item.get('slotNumber')
+                    logger.info(f"  [{idx}] Slot {slot_num}: local_path = {local_path}")
+                
+                # Load playlist into MPV dual player
+                if self.mpv_player.load_playlist(self.playlist):
+                    logger.info("Playlist loaded into MPV Dual Player")
+                    
+                    # Start gapless playback
+                    self.mpv_player.play()
                     
                     logger.info("="*60)
-                    logger.info("VLC playback running - events handled by VLC callbacks")
+                    logger.info("MPV gapless playback running")
+                    logger.info("Dual-player ping-pong architecture active")
                     logger.info("Press Ctrl+C to stop playback")
                     logger.info("="*60)
                     
-                    # Just keep alive - VLC handles playback and event callbacks
+                    # Keep alive - MPV handles playback automatically
                     while self.is_running:
-                        await asyncio.sleep(10)  # Check every 10 seconds
-                        # VLC Manager is handling all playback events automatically
+                        await asyncio.sleep(10)
                 else:
-                    logger.error("Failed to set playlist, retrying in 30s...")
+                    logger.error("Failed to load playlist, retrying in 30s...")
                     await asyncio.sleep(30)
         
         finally:
             logger.info("Stopping playback...")
-            self.vlc_manager.stop()
-            self.vlc_manager.cleanup()
+            self.mpv_player.stop()
+            self.mpv_player.cleanup()
+
 
     
     async def run(self):
@@ -574,6 +668,13 @@ class CCMSPlayer:
         except Exception as e:
             logger.warning(f"Cache cleanup failed: {e}")
         
+        # Download videos before starting playback
+        logger.info("Downloading playlist videos...")
+        try:
+            await self.download_videos()
+        except Exception as e:
+            logger.error(f"Video download failed: {e}")
+        
         # Connect to SignalR for real-time events
         try:
             self.connect_signalr()
@@ -581,21 +682,20 @@ class CCMSPlayer:
             logger.warning(f"SignalR connection failed (will continue with HTTP only): {e}")
         
         
-        # Start WebRTC streaming if enabled
+        # Initialize WebRTC streaming if enabled
         webrtc_client = None
-        webrtc_config = {}
         
         # Load webrtc config from config.json
         try:
             import json
-            from pathlib import Path
-            config_file = Path(__file__).parent / "config.json"
-            if config_file.exists():
-                with open(config_file) as f:
-                    full_config = json.load(f)
-                    webrtc_config = full_config.get('webrtc', {})
+            import os # Added import for os.path.join
+            config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+            with open(config_path, 'r') as f:
+                config_data = json.load(f)
+                webrtc_config = config_data.get('webrtc', {'enabled': False})
         except Exception as e:
-            logger.warning(f"Could not load WebRTC config: {e}")
+            logger.warning(f"[WebRTC] Failed to load config: {e}")
+            webrtc_config = {'enabled': False}
         
         if webrtc_config.get('enabled', False) and self.streaming_enabled:
             try:
