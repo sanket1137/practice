@@ -15,5 +15,9 @@
         "universal_fallback_url": "http://localhost:5257/defaults/universal-default.mp4",
         "max_age_days": 7,
         "redownload_on_change": true
+    },
+    "mpv_playback": {
+        "dual_player_mode": false,
+        "comment": "dual_player_mode: false = single MPV instance (lower resources), true = dual players for true gapless (zero-gap transitions)"
     }
 }
