@@ -54,6 +54,17 @@
           "last_accessed": "2025-12-29T14:41:27.061149"
         }
       ]
+    },
+    "None": {
+      "campaign_id": null,
+      "videos": [
+        {
+          "creative_id": null,
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_1.mp4",
+          "downloaded_at": "2025-12-30T12:35:06.814475",
+          "last_accessed": "2025-12-30T13:02:19.530048"
+        }
+      ]
     }
   },
   "last_cleanup": null
