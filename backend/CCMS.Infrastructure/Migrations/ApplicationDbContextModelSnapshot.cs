@@ -47,6 +47,9 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("DailySlotAssignmentsJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("DeliveredImpressions")
                         .HasColumnType("int");
 
@@ -179,6 +182,12 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LockedReason")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("MimeType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -213,7 +222,7 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<Guid>("BookingId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("CampaignId")
+                    b.Property<Guid>("CampaignId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
@@ -251,9 +260,14 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.HasIndex("CreativeId");
 
-                    b.HasIndex("BookingId", "SessionDate");
+                    b.HasIndex("BookingId", "SessionDate")
+                        .HasDatabaseName("IX_Impressions_Booking_SessionDate");
 
-                    b.HasIndex("ScreenId", "SessionDate");
+                    b.HasIndex("CampaignId", "PlayedAt")
+                        .HasDatabaseName("IX_Impressions_Campaign_PlayedAt");
+
+                    b.HasIndex("ScreenId", "PlayedAt")
+                        .HasDatabaseName("IX_Impressions_Screen_PlayedAt");
 
                     b.ToTable("Impressions");
                 });
@@ -386,11 +400,26 @@ namespace CCMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ApiKeyHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConnectedDeviceId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Currency")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("DefaultVideoSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("DefaultVideoUploadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DefaultVideoUrl")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Description")
@@ -406,8 +435,17 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("HasCustomDefaultVideo")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsOnline")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LastSyncAt")
                         .HasColumnType("datetime2");
@@ -417,6 +455,9 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<decimal>("Longitude")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("MaxViewers")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -455,12 +496,55 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DeviceId")
-                        .IsUnique();
+                    b.HasIndex("DeviceId");
 
                     b.HasIndex("OwnerId");
 
                     b.ToTable("Screens");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.SlotAvailability", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("BookedSlots")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SlotBookings")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TotalSlots")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScreenId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("SlotAvailabilities", t =>
+                        {
+                            t.HasCheckConstraint("CK_SlotAvailability_BookedSlotsNonNegative", "[BookedSlots] >= 0");
+
+                            t.HasCheckConstraint("CK_SlotAvailability_BookedSlotsNotExceedTotal", "[BookedSlots] <= [TotalSlots]");
+                        });
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.User", b =>
@@ -577,6 +661,12 @@ namespace CCMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("CCMS.Domain.Entities.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("CCMS.Domain.Entities.Creative", "Creative")
                         .WithMany()
                         .HasForeignKey("CreativeId")
@@ -590,6 +680,8 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
+
+                    b.Navigation("Campaign");
 
                     b.Navigation("Creative");
 
@@ -878,6 +970,17 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Navigation("Schedule")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.SlotAvailability", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany()
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Screen");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.Booking", b =>

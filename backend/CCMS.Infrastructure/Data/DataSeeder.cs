@@ -465,15 +465,17 @@ public static class DataSeeder
 
     private static OperatingSchedule Create24HourSchedule()
     {
+        // Use 23:59:59 instead of 24:00:00 to avoid SQL Time overflow (max is 23:59:59.9999999)
+        var endOfDay = new TimeSpan(23, 59, 59);
         return new OperatingSchedule
         {
-            Monday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) },
-            Tuesday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) },
-            Wednesday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) },
-            Thursday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) },
-            Friday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) },
-            Saturday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) },
-            Sunday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = TimeSpan.FromHours(24) }
+            Monday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay },
+            Tuesday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay },
+            Wednesday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay },
+            Thursday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay },
+            Friday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay },
+            Saturday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay },
+            Sunday = new DaySchedule { IsOperating = true, StartTime = TimeSpan.Zero, EndTime = endOfDay }
         };
     }
 
