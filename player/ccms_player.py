@@ -157,6 +157,16 @@ class CCMSPlayer:
             api_key=self.api_key
         )
         
+        # Default Video Manager for default/filler content
+        from default_video_manager import DefaultVideoManager
+        import json
+        with open(Config.BASE_DIR / 'config.json') as f:
+            config_data = json.load(f)
+        self.default_video_manager = DefaultVideoManager(
+            config=config_data,
+            screen_id=self.screen_id
+        )
+        
         # Track impressions for sync
         self.impressions = defaultdict(lambda: {'playCount': 0, 'lastPlayed': None})
         
@@ -352,9 +362,11 @@ class CCMSPlayer:
             creative_url = item.get("creativeUrl", "")
             creative_id = item.get("creativeId", "")
             slot_num = item.get("slotNumber", 0)
+            is_filler = item.get("isFillerContent", False) or item.get("IsFillerContent", False)
             
-            if not creative_url or creative_url.startswith("/default/"):
-                logger.info(f"  Slot {slot_num}: Skipping (default/empty)")
+            # Skip default/filler videos - they're handled by default_video_manager
+            if is_filler or not creative_url or creative_url.startswith("/default/"):
+                logger.info(f"  Slot {slot_num}: Skipping (default/filler video)")
                 continue
             
             # Check if already cached by creative ID
@@ -365,8 +377,12 @@ class CCMSPlayer:
                 downloaded_count += 1
                 continue
             
-            # Download to slot-based filename
-            filename = f"slot_{slot_num}.mp4"
+            # Download to creative-based filename (fallback to slot if no creative_id)
+            if creative_id:
+                filename = f"{creative_id}.mp4"
+            else:
+                logger.warning(f"  Slot {slot_num}: No creative_id, using slot-based name")
+                filename = f"slot_{slot_num}.mp4"
             filepath = os.path.join(cache_dir, filename)
             
             try:
@@ -384,13 +400,14 @@ class CCMSPlayer:
                 # Set local path using index to persist
                 self.playlist[idx]["local_path"] = filepath
                 
-                # Register in cache manager
-                self.cache_manager.register_download(
-                    booking_id=item.get('bookingId', ''),
-                    campaign_id=item.get('campaignId', ''),
-                    creative_id=creative_id,
-                    file_path=filepath
-                )
+                # Register in cache manager (only if has creative_id)
+                if creative_id:
+                    self.cache_manager.register_download(
+                        booking_id=item.get('bookingId', ''),
+                        campaign_id=item.get('campaignId', ''),
+                        creative_id=creative_id,
+                        file_path=filepath
+                    )
                 
                 downloaded_count += 1
                 
@@ -529,21 +546,28 @@ class CCMSPlayer:
         logger.info(f"Downloading {len(self.playlist)} videos to cache...")
         downloaded_files = []
         
-        for item in self.playlist:
+        for idx, item in enumerate(self.playlist):
             creative_url = item.get("creativeUrl", "")
             creative_id = item.get("creativeId", "")
             slot_number = item.get("slotNumber", 0)
+            is_filler = item.get("isFillerContent", False) or item.get("IsFillerContent", False)
             
-            if creative_url and not creative_url.startswith("/default/"):
+            # Skip default/filler videos - they're handled by default_video_manager
+            if creative_url and not creative_url.startswith("/default/") and not is_filler:
                 # Check if already cached
                 cached_path = self.cache_manager.is_video_cached(creative_id)
                 if cached_path:
                     logger.info(f"  Slot {slot_number} already cached: {cached_path}")
+                    self.playlist[idx]["local_path"] = cached_path  # Set local_path
                     downloaded_files.append(cached_path)
                     continue
                 
-                # Generate local filename
-                filename = f"slot_{slot_number}.mp4"
+                # Generate creative-based filename (fallback to slot if no creative_id)
+                if creative_id:
+                    filename = f"{creative_id}.mp4"
+                else:
+                    logger.warning(f"  Slot {slot_number}: No creative_id, using slot-based name")
+                    filename = f"slot_{slot_number}.mp4"
                 filepath = os.path.join(cache_dir, filename)
                 
                 try:
@@ -557,15 +581,19 @@ class CCMSPlayer:
                             f.write(chunk)
                     
                     logger.info(f"  [OK] Slot {slot_number} downloaded ({os.path.getsize(filepath)} bytes)")
+                    
+                    # Set local_path on playlist item
+                    self.playlist[idx]["local_path"] = filepath
                     downloaded_files.append(filepath)
                     
-                    # Register in cache manager
-                    self.cache_manager.register_download(
-                        booking_id=item.get('bookingId', ''),
-                        campaign_id=item.get('campaignId', ''),
-                        creative_id=creative_id,
-                        file_path=filepath
-                    )
+                    # Register in cache manager (only if has creative_id)
+                    if creative_id:
+                        self.cache_manager.register_download(
+                            booking_id=item.get('bookingId', ''),
+                            campaign_id=item.get('campaignId', ''),
+                            creative_id=creative_id,
+                            file_path=filepath
+                        )
                     
                 except Exception as e:
                     logger.error(f"  Failed to download slot {slot_number}: {e}")
@@ -621,17 +649,7 @@ class CCMSPlayer:
                     await asyncio.sleep(5)
                     continue
                 
-                # Set local_path from cache files BEFORE loading into MPV
-                cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
-                for idx, item in enumerate(self.playlist):
-                    slot_num = item.get('slotNumber', 0)
-                    cache_path = os.path.join(cache_dir, f"slot_{slot_num}.mp4")
-                    
-                    if os.path.exists(cache_path):
-                        self.playlist[idx]['local_path'] = cache_path
-                        logger.info(f"  Set path for slot {slot_num}: {cache_path}")
-                
-                # Debug: log playlist structure
+                # Debug: log playlist structure (local_path already set during download)
                 logger.info(f"Playlist has {len(self.playlist)} items:")
                 for idx, item in enumerate(self.playlist):
                     local_path = item.get('local_path')
@@ -683,12 +701,35 @@ class CCMSPlayer:
         except Exception as e:
             logger.warning(f"Cache cleanup failed: {e}")
         
+        # Migrate old slot-based cache to creative-based naming
+        try:
+            self.cache_manager.migrate_slot_based_cache()
+        except Exception as e:
+            logger.warning(f"Cache migration failed: {e}")
+        
         # Download videos before starting playback
         logger.info("Downloading playlist videos...")
         try:
             await self.download_videos()
         except Exception as e:
             logger.error(f"Video download failed: {e}")
+        
+        # Download default video if needed
+        logger.info("Checking default video...")
+        try:
+            default_path = await self.default_video_manager.sync_default_video({'playlist': self.playlist})
+            if default_path:
+                logger.info(f"Default video ready: {default_path}")
+                # Set local_path for filler content slots
+                for idx, item in enumerate(self.playlist):
+                    is_filler = item.get('isFillerContent', False) or item.get('IsFillerContent', False)
+                    if is_filler:
+                        self.playlist[idx]['local_path'] = default_path
+                        logger.info(f"  Set default video for slot {item.get('slotNumber', 0)}")
+            else:
+                logger.warning("No default video configured")
+        except Exception as e:
+            logger.error(f"Default video sync failed: {e}")
         
         # Connect to SignalR for real-time events
         try:
