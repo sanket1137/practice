@@ -1,71 +1,60 @@
 {
   "bookings": {
-    "2ebbbb03-c19e-4dc1-94dd-202ba7e756fd": {
-      "campaign_id": "068f2e2b-9f07-4736-9575-bf5bd1cb48f1",
+    "53e0d78c-d8cc-44d0-be90-386a9ec54aa4": {
+      "campaign_id": "0d235209-97d6-4759-82a2-7ab82b8f0f8f",
       "videos": [
         {
-          "creative_id": "ea4b16fe-7cee-4aeb-bb5f-90adb124cdbc",
-          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_1.mp4",
-          "downloaded_at": "2025-12-29T01:34:50.352614",
-          "last_accessed": "2025-12-29T14:41:27.027183"
+          "creative_id": "07bdcc59-7810-4dd2-bca9-916307f08d22",
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\07bdcc59-7810-4dd2-bca9-916307f08d22.mp4",
+          "downloaded_at": "2025-12-30T14:15:07.546395",
+          "last_accessed": "2025-12-30T14:15:07.546395"
         }
       ]
     },
-    "f08e9d56-5328-4931-922f-6a75f4a14753": {
-      "campaign_id": "18118af9-9c96-486f-b082-29904bca6bc1",
+    "0a863d23-2c7b-4698-b19a-42096072e150": {
+      "campaign_id": "13bcd1f9-28dd-4a9b-b367-b6f015d4df8d",
       "videos": [
         {
-          "creative_id": "e06f1216-f764-421c-b9cd-8b7f2a132d7e",
-          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_2.mp4",
-          "downloaded_at": "2025-12-29T01:34:50.535347",
-          "last_accessed": "2025-12-29T14:41:27.029907"
+          "creative_id": "0c217ab8-be3c-4c27-adf9-84af61e43710",
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\0c217ab8-be3c-4c27-adf9-84af61e43710.mp4",
+          "downloaded_at": "2025-12-30T14:15:07.696661",
+          "last_accessed": "2025-12-30T14:15:07.696661"
         }
       ]
     },
-    "2a5fab6d-02e7-456b-a2db-82bbfef6d588": {
-      "campaign_id": "1e8db56c-ea3a-427f-8dbb-f14fecaea88f",
+    "7fda1f7c-588a-4092-884d-82ac6e65a4c6": {
+      "campaign_id": "44449b12-4d7c-48c8-b32a-a1cdef31674c",
       "videos": [
         {
-          "creative_id": "894f1614-7531-419f-875e-485541afd654",
-          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_4.mp4",
-          "downloaded_at": "2025-12-29T01:34:50.695723",
-          "last_accessed": "2025-12-29T14:41:27.055292"
+          "creative_id": "99acae84-5067-4fc8-a218-a0b9757dc530",
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\99acae84-5067-4fc8-a218-a0b9757dc530.mp4",
+          "downloaded_at": "2025-12-30T14:15:08.052394",
+          "last_accessed": "2025-12-30T14:15:08.052394"
         }
       ]
     },
-    "dc6e7886-bcc9-4fb3-9d29-4e28a894774c": {
-      "campaign_id": "a111a8b5-546d-4d24-85bb-e8f93a177a88",
+    "d26cc15e-a103-46dc-a2e6-a2aae493a35b": {
+      "campaign_id": "62f3ba60-19f8-4a38-8b60-af1afe411a42",
       "videos": [
         {
-          "creative_id": "6e7e89a2-07de-4170-b682-55518b84ee9c",
-          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_5.mp4",
-          "downloaded_at": "2025-12-29T01:34:51.289409",
-          "last_accessed": "2025-12-29T14:41:27.056811"
+          "creative_id": "fc1df97e-d485-4d82-9d60-e7169575a653",
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\fc1df97e-d485-4d82-9d60-e7169575a653.mp4",
+          "downloaded_at": "2025-12-30T14:15:08.210484",
+          "last_accessed": "2025-12-30T14:15:08.210484"
         }
       ]
     },
-    "38badd40-897e-4c92-8f6b-86ccb248b361": {
-      "campaign_id": "0d8faa7a-cf9b-4a6d-baf4-f3407d6e9fb1",
+    "ff7f4a27-8819-4600-b24c-4f66d0a31cf4": {
+      "campaign_id": "8a9b454a-9ef5-43a4-8900-61cb1c90f3e5",
       "videos": [
         {
-          "creative_id": "f59abd84-387e-4668-a649-64b2c2f0d954",
-          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_6.mp4",
-          "downloaded_at": "2025-12-29T01:34:51.707422",
-          "last_accessed": "2025-12-29T14:41:27.061149"
-        }
-      ]
-    },
-    "None": {
-      "campaign_id": null,
-      "videos": [
-        {
-          "creative_id": null,
-          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\slot_1.mp4",
-          "downloaded_at": "2025-12-30T12:35:06.814475",
-          "last_accessed": "2025-12-30T13:02:19.530048"
+          "creative_id": "9f8901b1-136e-40e2-bc15-8fd1d2607be0",
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\9f8901b1-136e-40e2-bc15-8fd1d2607be0.mp4",
+          "downloaded_at": "2025-12-30T14:15:08.241265",
+          "last_accessed": "2025-12-30T14:15:08.241265"
         }
       ]
     }
   },
-  "last_cleanup": null
+  "last_cleanup": "2025-12-30T14:15:07.070628"
 }

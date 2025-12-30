@@ -47,6 +47,11 @@ class CacheManager:
     def register_download(self, booking_id: str, campaign_id: str, 
                          creative_id: str, file_path: str):
         """Register a downloaded video in the manifest"""
+        # Validate inputs - don't register if creative_id is None/empty
+        if not creative_id or not booking_id:
+            logger.warning(f"Skipping registration: invalid creative_id={creative_id} or booking_id={booking_id}")
+            return
+            
         booking_key = str(booking_id)
         
         if booking_key not in self.manifest['bookings']:
@@ -82,6 +87,9 @@ class CacheManager:
             
             if not expired_bookings:
                 logger.info("No expired bookings found")
+                # Still update last_cleanup timestamp
+                self.manifest['last_cleanup'] = datetime.now().isoformat()
+                self._save_manifest()
                 return
             
             logger.info(f"Found {len(expired_bookings)} expired bookings to clean")
@@ -101,10 +109,16 @@ class CacheManager:
                 
                 for video in videos:
                     file_path = video['file_path']
+                    creative_id = video['creative_id']
                     
                     # Safety check: verify file exists
                     if not os.path.exists(file_path):
                         logger.debug(f"Video {file_path} already deleted")
+                        continue
+                    
+                    # Safety check: verify not used by other bookings
+                    if self.is_creative_used_by_other_bookings(creative_id, booking_id):
+                        logger.info(f"Skipping {file_path} - still used by other active booking")
                         continue
                     
                     # Safety check: verify not locked (in use)
@@ -184,3 +198,71 @@ class CacheManager:
                         self._save_manifest()
                         return file_path
         return None
+    
+    def migrate_slot_based_cache(self) -> None:
+        """
+        Migrate existing slot-based files to creative-based naming.
+        Renames files from slot_X.mp4 to {creative_id}.mp4
+        """
+        logger.info("Checking for slot-based cache migration...")
+        migration_count = 0
+        
+        try:
+            for booking_id, booking_data in self.manifest['bookings'].items():
+                for video in booking_data['videos']:
+                    old_path = video['file_path']
+                    creative_id = video['creative_id']
+                    
+                    # Check if still using old slot-based naming
+                    if 'slot_' in old_path and os.path.exists(old_path):
+                        # Generate new creative-based filename
+                        new_filename = f"{creative_id}.mp4"
+                        new_path = os.path.join(self.cache_dir, new_filename)
+                        
+                        # Skip if target already exists (avoid overwrites)
+                        if os.path.exists(new_path):
+                            logger.warning(f"Migration skipped: {new_path} already exists")
+                            continue
+                        
+                        try:
+                            # Rename file
+                            os.rename(old_path, new_path)
+                            
+                            # Update manifest
+                            video['file_path'] = new_path
+                            
+                            logger.info(f"Migrated: {os.path.basename(old_path)} → {new_filename}")
+                            migration_count += 1
+                        except Exception as e:
+                            logger.error(f"Failed to migrate {old_path}: {e}")
+            
+            if migration_count > 0:
+                self._save_manifest()
+                logger.info(f"✓ Cache migration complete: {migration_count} files renamed")
+            else:
+                logger.info("No slot-based cache files found, migration not needed")
+                
+        except Exception as e:
+            logger.error(f"Error during cache migration: {e}")
+    
+    def is_creative_used_by_other_bookings(self, creative_id: str, exclude_booking_id: str) -> bool:
+        """
+        Check if a creative is used by any booking other than the one being cleaned up.
+        This prevents deleting shared creative files.
+        
+        Args:
+            creative_id: Creative ID to check
+            exclude_booking_id: Booking ID to exclude from check (the one being deleted)
+            
+        Returns:
+            True if creative is used by other bookings
+        """
+        for booking_id, booking_data in self.manifest['bookings'].items():
+            if booking_id == exclude_booking_id:
+                continue
+                
+            for video in booking_data['videos']:
+                if video['creative_id'] == creative_id:
+                    return True
+        
+        return False
