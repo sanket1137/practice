@@ -125,6 +125,46 @@ public class PlaylistGeneratorService
             }
         }
 
+        // Serialize operating schedule for player
+        var operatingHours = new Dictionary<string, object>
+        {
+            ["Monday"] = new { 
+                startTime = screen.Schedule.Monday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Monday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Monday.IsOperating
+            },
+            ["Tuesday"] = new { 
+                startTime = screen.Schedule.Tuesday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Tuesday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Tuesday.IsOperating
+            },
+            ["Wednesday"] = new {
+                startTime = screen.Schedule.Wednesday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Wednesday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Wednesday.IsOperating
+            },
+            ["Thursday"] = new {
+                startTime = screen.Schedule.Thursday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Thursday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Thursday.IsOperating
+            },
+            ["Friday"] = new {
+                startTime = screen.Schedule.Friday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Friday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Friday.IsOperating
+            },
+            ["Saturday"] = new {
+                startTime = screen.Schedule.Saturday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Saturday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Saturday.IsOperating
+            },
+            ["Sunday"] = new {
+                startTime = screen.Schedule.Sunday.StartTime.ToString(@"hh\:mm"),
+                endTime = screen.Schedule.Sunday.EndTime.ToString(@"hh\:mm"),
+                isOperating = screen.Schedule.Sunday.IsOperating
+            }
+        };
+        
         return new PlaylistResponse
         {
             ScreenId = screenId,
@@ -137,7 +177,8 @@ public class PlaylistGeneratorService
             Playlist = playlist,
             TotalSlots = screen.SlotsPerFrame,
             BookedSlots = bookedSlots,
-            FillerSlots = fillerSlots
+            FillerSlots = fillerSlots,
+            OperatingHours = operatingHours
         };
     }
 

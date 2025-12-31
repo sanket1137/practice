@@ -9,9 +9,10 @@ import asyncio
 import json
 import sys
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from pathlib import Path
 from collections import defaultdict
+from typing import Optional
 import logging
 
 try:
@@ -167,6 +168,12 @@ class CCMSPlayer:
             screen_id=self.screen_id
         )
         
+        # Playlist Validator for operating hours and slot assignment validation
+        from playlist_validator import PlaylistValidator
+        self.screen_schedule = {}  # Will be populated from handshake
+        self.validator = None  # Will be initialized after handshake
+
+        
         # Track impressions for sync
         self.impressions = defaultdict(lambda: {'playCount': 0, 'lastPlayed': None})
         
@@ -233,6 +240,16 @@ class CCMSPlayer:
                     if playlist_data and isinstance(playlist_data, dict):
                         self.playlist = playlist_data.get("playlist", [])
                         logger.info(f"[OK] Playlist received: {len(self.playlist)} items")
+                        
+                        # Extract operating schedule for validation
+                        # Backend sends operating hours info with playlist
+                        operating_hours = playlist_data.get("operatingHours", {})
+                        if operating_hours:
+                            self.screen_schedule = operating_hours
+                            # Initialize validator with schedule
+                            from playlist_validator import PlaylistValidator
+                            self.validator = PlaylistValidator(self.screen_schedule)
+                            logger.info("Playlist validator initialized with operating schedule")
                     else:
                         logger.warning("No playlist in handshake response")
                         self.playlist = []
@@ -358,11 +375,20 @@ class CCMSPlayer:
         logger.info(f"Downloading {len(self.playlist)} videos to cache...")
         downloaded_count = 0
         
+        # DEBUG: Log playlist structure to see actual field names
+        logger.info("DEBUG: First playlist item keys:")
+        if self.playlist:
+            logger.info(f"  Keys: {list(self.playlist[0].keys())}")
+            logger.info(f"  Full item: {self.playlist[0]}")
+        
         for idx, item in enumerate(self.playlist):
-            creative_url = item.get("creativeUrl", "")
-            creative_id = item.get("creativeId", "")
-            slot_num = item.get("slotNumber", 0)
+            # Try both PascalCase (backend) and camelCase (potentially) versions
+            creative_url = item.get("creativeUrl") or item.get("CreativeUrl") or ""
+            creative_id = item.get("creativeId") or item.get("CreativeId") or ""
+            slot_num = item.get("slotNumber") or item.get("SlotNumber") or 0
             is_filler = item.get("isFillerContent", False) or item.get("IsFillerContent", False)
+            
+            logger.info(f"  Slot {slot_num}: URL='{creative_url}', CreativeId={creative_id}, IsFiller={is_filler}")
             
             # Skip default/filler videos - they're handled by default_video_manager
             if is_filler or not creative_url or creative_url.startswith("/default/"):
@@ -546,11 +572,20 @@ class CCMSPlayer:
         logger.info(f"Downloading {len(self.playlist)} videos to cache...")
         downloaded_files = []
         
+        # DEBUG: Log playlist structure to see actual field names
+        logger.info("DEBUG: First playlist item keys:")
+        if self.playlist:
+            logger.info(f"  Keys: {list(self.playlist[0].keys())}")
+            logger.info(f"  Full item: {self.playlist[0]}")
+        
         for idx, item in enumerate(self.playlist):
-            creative_url = item.get("creativeUrl", "")
-            creative_id = item.get("creativeId", "")
-            slot_number = item.get("slotNumber", 0)
+            # Try both PascalCase (backend) and camelCase (potentially) versions
+            creative_url = item.get("creativeUrl") or item.get("CreativeUrl") or ""
+            creative_id = item.get("creativeId") or item.get("CreativeId") or ""
+            slot_number = item.get("slotNumber") or item.get("SlotNumber") or 0
             is_filler = item.get("isFillerContent", False) or item.get("IsFillerContent", False)
+            
+            logger.info(f"  Slot {slot_number}: URL='{creative_url}', CreativeId={creative_id}, IsFiller={is_filler}")
             
             # Skip default/filler videos - they're handled by default_video_manager
             if creative_url and not creative_url.startswith("/default/") and not is_filler:
@@ -782,6 +817,8 @@ class CCMSPlayer:
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
         sync_task = asyncio.create_task(self.sync_loop())
         cache_cleanup_task = asyncio.create_task(self.cache_cleanup_loop())
+        daily_refresh_task = asyncio.create_task(self.schedule_daily_refresh())
+        operating_hours_task = asyncio.create_task(self.monitor_operating_hours())
         
         try:
             await self.play_loop()
@@ -792,6 +829,8 @@ class CCMSPlayer:
             heartbeat_task.cancel()
             sync_task.cancel()
             cache_cleanup_task.cancel()
+            daily_refresh_task.cancel()
+            operating_hours_task.cancel()
             
             # Stop WebRTC streaming
             if webrtc_client:
@@ -803,6 +842,161 @@ class CCMSPlayer:
             # Final sync
             self.sync_daily_data()
             logger.info("Player stopped")
+    
+    async def schedule_daily_refresh(self):
+        """Refresh playlist at end of operating hours each day"""
+        while self.is_running:
+            now = datetime.now()
+            
+            # Get today's operating schedule
+            today_schedule = self.get_schedule_for_day(now.date())
+            
+            if today_schedule and today_schedule.get('isOperating'):
+                # Calculate end time today
+                end_time = self._parse_time_to_datetime(
+                    today_schedule.get('endTime', '23:59'), 
+                    now.date()
+                )
+                
+                if now < end_time:
+                    # Wait until end of operating hours today
+                    sleep_seconds = (end_time - now).total_seconds()
+                    logger.info(f"Next refresh scheduled for {end_time} ({sleep_seconds/3600:.1f} hours)")
+                else:
+                    # Already past today's end, calculate next day's end
+                    tomorrow = now.date() + timedelta(days=1)
+                    next_schedule = self.get_schedule_for_day(tomorrow)
+                    if next_schedule and next_schedule.get('isOperating'):
+                        next_end = self._parse_time_to_datetime(
+                            next_schedule.get('endTime', '23:59'),
+                            tomorrow
+                        )
+                        sleep_seconds = (next_end - now).total_seconds()
+                        logger.info(f"Next refresh scheduled for {next_end} tomorrow")
+                    else:
+                        # Tomorrow not operating, check hourly
+                        sleep_seconds = 3600
+            else:
+                # Not operating today, check hourly
+                sleep_seconds = 3600
+                logger.info("Screen not operating today, checking again in 1 hour")
+            
+            await asyncio.sleep(sleep_seconds)
+            
+            logger.info("=" * 60)
+            logger.info("End of operating hours - triggering refresh")
+            logger.info("=" * 60)
+            await self.end_of_day_refresh()
+    
+    async def end_of_day_refresh(self):
+        """Cleanup and prep for next day"""
+        logger.info("Running end-of-day maintenance...")
+        
+        # 1. Cleanup expired bookings
+        try:
+            logger.info("Cleaning up expired videos...")
+            await self.cache_manager.cleanup_expired_videos()
+        except Exception as e:
+            logger.error(f"Cleanup failed: {e}")
+        
+        # 2. Fetch tomorrow's playlist
+        logger.info("Fetching tomorrow's playlist...")
+        if self.handshake():
+            try:
+                await self.download_videos()
+                logger.info("Tomorrow's playlist ready")
+            except Exception as e:
+                logger.error(f"Video download failed: {e}")
+        
+        # 3. Player will restart with new playlist on next operating hours start
+        logger.info("End-of-day maintenance complete")
+    
+    async def monitor_operating_hours(self):
+        """Pause/resume playback based on operating hours"""
+        while self.is_running:
+            await asyncio.sleep(60)  # Check every minute
+            
+            now = datetime.now()
+            today_schedule = self.get_schedule_for_day(now.date())
+            
+            if not today_schedule or not today_schedule.get('isOperating'):
+                # Screen not operating today
+                if self.mpv_player and hasattr(self.mpv_player, 'is_playing'):
+                    # Pause if playing
+                    logger.info("Screen closed today - no operations")
+                continue
+            
+            start_time = self._parse_time_to_datetime(
+                today_schedule.get('startTime', '00:00'), 
+                now.date()
+            )
+            end_time = self._parse_time_to_datetime(
+                today_schedule.get('endTime', '23:59'),
+                now.date()
+            )
+            
+            # Handle overnight schedules (e.g., 6 PM - 2 AM)
+            if end_time < start_time:
+                # Overnight schedule
+                within_hours = now.time() >= start_time.time() or now.time() <= end_time.time()
+            else:
+                # Normal schedule
+                within_hours = start_time <= now <= end_time
+            
+            # Log operating status (only on changes to avoid spam)
+            if not within_hours:
+                # Outside operating hours - just log once per check cycle
+                pass
+    
+    def get_schedule_for_day(self, check_date: date) -> Optional[dict]:
+        """Get operating schedule for a specific date"""
+        if not self.screen_schedule:
+            return None
+        
+        day_name = check_date.strftime('%A')  # Monday, Tuesday, etc.
+        # Try capitalized first, then lowercase
+        schedule = self.screen_schedule.get(day_name) or self.screen_schedule.get(day_name.lower())
+        return schedule
+    
+    def _parse_time_to_datetime(self, time_str: str, on_date: date) -> datetime:
+        """
+        Parse time string to datetime on specific date
+        
+        Args:
+            time_str: Time string in format "HH:MM" or "HH:MM:SS"
+            on_date: Date to apply the time to
+            
+        Returns:
+            datetime object
+        """
+        from datetime import time as time_type
+        
+        # Parse time string
+        parts = time_str.split(':')
+        hours = int(parts[0])
+        minutes = int(parts[1]) if len(parts) > 1 else 0
+        seconds = int(parts[2]) if len(parts) > 2 else 0
+        
+        return datetime.combine(on_date, time_type(hours, minutes, seconds))
+    
+    def _has_slot_for_today(self, item: dict, check_date: date) -> bool:
+        """Check if item has slot assignment for given date"""
+        if not self.validator:
+            return True  # No validator, assume valid
+        
+        return self.validator._has_slot_for_date(item, check_date)
+    
+    def _create_default_item(self, slot_number: int) -> dict:
+        """Create a default video playlist item for a slot"""
+        default_video_path = self.default_video_manager.get_default_video_path()
+        
+        return {
+            'slotNumber': slot_number,
+            'isFillerContent': True,
+            'creativeUrl': '/default/video',
+            'local_path': default_video_path if default_video_path else None
+        }
+
 
 
 async def main():

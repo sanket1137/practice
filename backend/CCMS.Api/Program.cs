@@ -239,6 +239,19 @@ app.UseStaticFiles(new StaticFileOptions
     RequestPath = "/uploads"
 });
 
+// Static files for default videos
+var defaultsPath = Path.Combine(Directory.GetCurrentDirectory(), "defaults");
+if (!Directory.Exists(defaultsPath))
+{
+    Directory.CreateDirectory(defaultsPath);
+}
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(defaultsPath),
+    RequestPath = "/defaults"
+});
+
 // SignalR Hub - Map BEFORE authentication to allow negotiate endpoint
 // Authentication is skipped for negotiate, then enforced in hub methods if needed
 app.MapHub<PlaybackHub>("/hubs/playback").AllowAnonymous();

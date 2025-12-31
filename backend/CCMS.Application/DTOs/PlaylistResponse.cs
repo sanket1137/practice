@@ -30,4 +30,5 @@ public class PlaylistResponse
     public int TotalSlots { get; set; }
     public int BookedSlots { get; set; }
     public int FillerSlots { get; set; }
+    public Dictionary<string, object>? OperatingHours { get; set; } // Full weekly schedule for player validation
 }
