@@ -22,6 +22,7 @@ import BookingDetailPage from './pages/bookings/BookingDetailPage';
 import UploadCreativePage from './pages/creatives/UploadCreativePage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import MainLayout from './components/Layout/MainLayout';
+import DemoPage from './pages/demo/DemoPage';
 
 const queryClient = new QueryClient();
 
@@ -38,8 +39,10 @@ function App() {
         <SnackbarProvider maxSnack={3}>
           <BrowserRouter>
             <Routes>
+              {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/demo" element={<DemoPage />} />
               <Route
                 path="/"
                 element={
