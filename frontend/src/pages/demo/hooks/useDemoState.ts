@@ -56,7 +56,7 @@ export const useDemoState = () => {
             bookingsReceived: 0,
             bookingsApproved: 0,
             bookingsRejected: 0,
-            totalRevenue: 800, // Pre-booked slots revenue (3 + 5 = 8 × ₹100)
+            totalRevenue: 0, // Start from 0, will increment with plays
         },
     });
 
@@ -308,25 +308,27 @@ export const useDemoState = () => {
         });
     }, []);
 
-    // Increment play count for a slot/booking
+    // Increment play count when a slot completes playing
     const incrementPlayCount = useCallback((screenId: string, slotNumber: number) => {
         setState(prev => {
-            const screenSlots = prev.slots[screenId] || [];
-            const slot = screenSlots.find(s => s.slotNumber === slotNumber);
+            const slot = prev.slots[screenId]?.find(s => s.slotNumber === slotNumber);
 
+            // Only track booked slots (not empty/default content)
             if (!slot || !slot.isBooked) return prev;
+
+            const pricePerPlay = 10; // ₹10 per play
 
             // Update slot play count
             const updatedSlots = {
                 ...prev.slots,
-                [screenId]: screenSlots.map(s =>
+                [screenId]: prev.slots[screenId].map(s =>
                     s.slotNumber === slotNumber
                         ? { ...s, playCount: (s.playCount || 0) + 1 }
                         : s
                 ),
             };
 
-            // Update booking play count only if it's not a pre-booked slot
+            // Update booking play count (if booking exists, not pre-booked)
             const updatedBookings = slot.bookingId && !slot.bookingId.startsWith('pre-')
                 ? prev.bookings.map(b =>
                     b.id === slot.bookingId
@@ -335,10 +337,21 @@ export const useDemoState = () => {
                 )
                 : prev.bookings;
 
+            // Check if this is advertiser's campaign
+            const isAdvertiserCampaign = slot.campaignName === prev.campaign.name;
+
             return {
                 ...prev,
                 slots: updatedSlots,
                 bookings: updatedBookings,
+                screenOwnerStats: {
+                    ...prev.screenOwnerStats,
+                    totalRevenue: prev.screenOwnerStats.totalRevenue + pricePerPlay,
+                },
+                advertiserStats: isAdvertiserCampaign ? {
+                    ...prev.advertiserStats,
+                    totalSpent: prev.advertiserStats.totalSpent + pricePerPlay,
+                } : prev.advertiserStats,
             };
         });
     }, []);

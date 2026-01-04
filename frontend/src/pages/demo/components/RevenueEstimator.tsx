@@ -63,7 +63,7 @@ export const RevenueEstimator: React.FC<RevenueEstimatorProps> = ({
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.primary">
+                    <Typography variant="body2" fontWeight="medium" color="text.primary">
                         Potential:
                     </Typography>
                     <Typography variant="body2" fontWeight="bold" color="text.secondary">

@@ -13,6 +13,7 @@ export const DemoPage: React.FC = () => {
         createBooking,
         approveBooking,
         rejectBooking,
+        stopStream,
         addPlayLog,
         incrementPlayCount,
     } = useDemoState();

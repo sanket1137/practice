@@ -65,7 +65,7 @@ export const ScreenOwnerPanel: React.FC<ScreenOwnerPanelProps> = ({
             </Box>
 
             <Box>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                <Typography variant="h6" fontWeight="bold" color="text.primary" gutterBottom>
                     📋 Screen Play Logs
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
