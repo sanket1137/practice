@@ -7,6 +7,7 @@ public class BookingDto
     public string ScreenName { get; set; } = string.Empty;
     public Guid CampaignId { get; set; }
     public string CampaignName { get; set; } = string.Empty;
+    public Guid AdvertiserId { get; set; } // For authorization checks
     public Guid CreativeId { get; set; }
     public string CreativeName { get; set; } = string.Empty;
     public string? CreativeFileUrl { get; set; }
