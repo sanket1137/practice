@@ -63,7 +63,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
 
             <Divider sx={{ my: 2 }} />
 
-            <Box>
+            <Box className="create-booking-section">
                 <Typography variant="h6" gutterBottom>
                     🎯 Book a Screen
                 </Typography>
@@ -82,7 +82,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
                 </Box>
 
                 {selectedScreenId && (
-                    <Box sx={{ mb: 2 }}>
+                    <Box className="slot-selector" sx={{ mb: 2 }}>
                         <PricingCalculator
                             durationMinutes={5}
                             pricePerSlot={pricePerSlot}
@@ -122,7 +122,9 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
 
             <Divider sx={{ my: 2 }} />
 
-            <BookingCounter stats={advertiserStats} type="advertiser" />
+            <Box className="campaign-stats">
+                <BookingCounter stats={advertiserStats} type="advertiser" />
+            </Box>
         </Paper>
     );
 };

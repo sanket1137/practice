@@ -1,12 +1,25 @@
 // DemoPage - Main Interactive Demo Component (MUI Version - Simplified Layout)
 
-import React, { useCallback } from 'react';
-import { Box, Container, Typography, Chip, Paper } from '@mui/material';
+import React, { useCallback, useState, useEffect } from 'react';
+import { Box, Container, Typography, Chip, Paper, IconButton, Tooltip } from '@mui/material';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import { useDemoState } from './hooks/useDemoState';
 import { AdvertiserPanel } from './components/AdvertiserPanel';
 import { ScreenOwnerPanel } from './components/ScreenOwnerPanel';
+import { HelpModal } from './components/HelpModal';
+import { GuidedTour } from './components/GuidedTour';
+import { WelcomeTourModal } from './components/WelcomeTourModal';
+import { advertiserTourSteps, screenOwnerTourSteps } from './config/tourSteps';
 
 export const DemoPage: React.FC = () => {
+    const [helpOpen, setHelpOpen] = useState(false);
+    const [showWelcome, setShowWelcome] = useState(() => {
+        return !localStorage.getItem('demo-tour-completed');
+    });
+    const [tourType, setTourType] = useState<'advertiser' | 'screenOwner' | null>(null);
+    const [runTour, setRunTour] = useState(false);
+
     const {
         state,
         uploadCreative,
@@ -22,6 +35,41 @@ export const DemoPage: React.FC = () => {
         addPlayLog(screenId, 'ad_start', 'Ad playback started');
     }, [addPlayLog]);
 
+    // Tour handlers
+    const handleStartAdvertiserTour = () => {
+        console.log('🎬 Starting Advertiser Tour');
+        setTourType('advertiser');
+        setRunTour(true);
+    };
+
+    const handleStartScreenOwnerTour = () => {
+        console.log('📺 Starting Screen Owner Tour');
+        setTourType('screenOwner');
+        setRunTour(true);
+    };
+
+    const handleTourFinish = () => {
+        console.log('✅ Tour Finished');
+        setRunTour(false);
+        setTourType(null);
+    };
+
+    const handleWelcomeClose = () => {
+        setShowWelcome(false);
+        localStorage.setItem('demo-tour-completed', 'true');
+    };
+
+    const tourSteps = React.useMemo(() => {
+        if (tourType === 'advertiser') {
+            console.log('🎬 Using advertiser steps:', advertiserTourSteps.length);
+            return advertiserTourSteps;
+        } else if (tourType === 'screenOwner') {
+            console.log('📺 Using screen owner steps:', screenOwnerTourSteps.length);
+            return screenOwnerTourSteps;
+        }
+        return advertiserTourSteps; // fallback
+    }, [tourType]);
+
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
             {/* Header */}
@@ -34,25 +82,61 @@ export const DemoPage: React.FC = () => {
                 }}
             >
                 <Container maxWidth="xl">
-                    <Typography variant="h3" fontWeight="bold" gutterBottom>
-                        🎬 Experience CCMS - Interactive Demo
-                    </Typography>
-                    <Typography variant="h6" sx={{ opacity: 0.9, mb: 2 }}>
-                        See how advertisers and screen owners work together in real-time
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                        <Chip
-                            label="⏱️ Bookings expire in 5 minutes"
-                            sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
-                        />
-                        <Chip
-                            label="📺 Stream preview lasts 1 minute"
-                            sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
-                        />
-                        <Chip
-                            label="💾 Demo Mode - No data saved"
-                            sx={{ bgcolor: '#ffd54f', color: 'text.primary' }}
-                        />
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                        <Box sx={{ flex: 1 }}>
+                            <Typography variant="h3" fontWeight="bold" gutterBottom>
+                                🎬 Experience CCMS - Interactive Demo
+                            </Typography>
+                            <Typography variant="h6" sx={{ opacity: 0.9, mb: 2 }}>
+                                See how advertisers and screen owners work together in real-time
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                                <Chip
+                                    label="⏱️ Bookings expire in 5 minutes"
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+                                />
+                                <Chip
+                                    label="📺 Stream preview lasts 1 minute"
+                                    sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white' }}
+                                />
+                                <Chip
+                                    label="💾 Demo Mode - No data saved"
+                                    sx={{ bgcolor: '#ffd54f', color: 'text.primary' }}
+                                />
+                            </Box>
+                        </Box>
+
+
+                        {/* Tour Button */}
+                        <Tooltip title="Start Interactive Tour">
+                            <IconButton
+                                onClick={handleStartAdvertiserTour}
+                                sx={{
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                                    mr: 1
+                                }}
+                                size="large"
+                            >
+                                <PlayCircleIcon fontSize="large" />
+                            </IconButton>
+                        </Tooltip>
+
+                        {/* Help Button */}
+                        <Tooltip title="View Demo Instructions">
+                            <IconButton
+                                onClick={() => setHelpOpen(true)}
+                                sx={{
+                                    bgcolor: 'rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' }
+                                }}
+                                size="large"
+                            >
+                                <HelpOutlineIcon fontSize="large" />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </Container>
             </Box>
@@ -163,6 +247,26 @@ export const DemoPage: React.FC = () => {
                     </Box>
                 </Paper>
             </Container>
+
+            {/* Welcome Tour Modal */}
+            <WelcomeTourModal
+                open={showWelcome}
+                onClose={handleWelcomeClose}
+                onStartAdvertiserTour={handleStartAdvertiserTour}
+                onStartScreenOwnerTour={handleStartScreenOwnerTour}
+            />
+
+            {/* Guided Tour */}
+            {runTour && tourType && (
+                <GuidedTour
+                    steps={tourSteps}
+                    run={runTour}
+                    onFinish={handleTourFinish}
+                />
+            )}
+
+            {/* Help Modal */}
+            <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
         </Box>
     );
 };

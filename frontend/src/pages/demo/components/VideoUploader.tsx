@@ -41,7 +41,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ onUpload, currentV
     };
 
     return (
-        <Box>
+        <Box className="upload-video-section">
             <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
                 Upload Creative Video
             </Typography>
