@@ -64,11 +64,15 @@ public class MappingProfiles : Profile
         
         // Booking mappings
         CreateMap<Booking, BookingDto>()
-            .ForMember(dest => dest.ScreenName, opt => opt.MapFrom(src => src.Screen != null ? src.Screen.Name : ""))
-            .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Campaign != null ? src.Campaign.Name : ""))
-            .ForMember(dest => dest.CreativeName, opt => opt.MapFrom(src => src.Creative != null ? src.Creative.Name : ""))
-            .ForMember(dest => dest.CreativeFileUrl, opt => opt.MapFrom(src => src.Creative != null ? src.Creative.FileUrl : null))
-            .ForMember(dest => dest.CreativeMimeType, opt => opt.MapFrom(src => src.Creative != null ? src.Creative.MimeType : null))
+            .ForMember(dest => dest.ScreenName, opt => opt.MapFrom(src => src.Screen.Name))
+            .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Campaign.Name))
+            .ForMember(dest => dest.AdvertiserId, opt => opt.MapFrom(src => src.Campaign.AdvertiserId))
+            .ForMember(dest => dest.CreativeId, opt => opt.MapFrom(src => src.Creative.Id))
+            .ForMember(dest => dest.CreativeName, opt => opt.MapFrom(src => src.Creative.FileName))
+            .ForMember(dest => dest.CreativeFileUrl, opt => opt.MapFrom(src => src.Creative.FileUrl))
+            .ForMember(dest => dest.CreativeMimeType, opt => opt.MapFrom(src => src.Creative.MimeType))
+            .ForMember(dest => dest.ExpectedImpressions, opt => opt.Ignore())
+            .ForMember(dest => dest.DeliveredImpressions, opt => opt.Ignore())
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
         
         CreateMap<CreateBookingRequest, Booking>()

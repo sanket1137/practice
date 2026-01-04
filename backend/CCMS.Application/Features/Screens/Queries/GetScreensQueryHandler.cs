@@ -26,6 +26,13 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
     public async Task<IEnumerable<ScreenDto>> Handle(GetScreensQuery request, CancellationToken cancellationToken)
     {
         var screens = await _screenRepository.GetAllAsync();
+        
+        // Filter by owner if specified (for screen owners viewing their own screens)
+        if (request.OwnerId.HasValue)
+        {
+            screens = screens.Where(s => s.OwnerId == request.OwnerId.Value);
+        }
+        
         var screenDtos = _mapper.Map<IEnumerable<ScreenDto>>(screens).ToList();
         var allBookings = await _bookingRepository.GetAllAsync();
 

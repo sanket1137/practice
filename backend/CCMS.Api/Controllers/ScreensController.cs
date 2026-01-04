@@ -26,7 +26,22 @@ public class ScreensController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(ApiResponse<IEnumerable<ScreenDto>>.ErrorResponse("User not authenticated"));
+
+            var userGuid = Guid.Parse(userId);
+            var isScreenOwner = User.IsInRole("ScreenOwner");
+            
             var query = new GetScreensQuery();
+            
+            // Screen owners see ONLY their own screens
+            // Advertisers and Admins see ALL screens (for browsing/booking)
+            if (isScreenOwner)
+            {
+                query.OwnerId = userGuid;
+            }
+            
             var result = await _mediator.Send(query);
             return Ok(ApiResponse<IEnumerable<ScreenDto>>.SuccessResponse(result));
         }

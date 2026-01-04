@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CCMS.Application.Features.Bookings.Commands;
 using CCMS.Application.Features.Bookings.Queries;
+using CCMS.Application.Features.Screens.Queries;
 using CCMS.Application.Services;
 using CCMS.Shared.DTOs.Bookings;
 using System.Security.Claims;
@@ -72,12 +73,40 @@ public class BookingsController : ControllerBase
     {
         try
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var userGuid = Guid.Parse(userId);
+            var isScreenOwner = User.IsInRole("ScreenOwner");
+            var isAdvertiser = User.IsInRole("Advertiser");
+            var isAdmin = User.IsInRole("Admin");
+
             var query = new GetBookingsQuery { BookingId = id };
             var result = await _mediator.Send(query);
             var booking = result.FirstOrDefault();
             
             if (booking == null)
                 return NotFound(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("Booking not found"));
+            
+            // Authorization check - verify user has access to this booking
+            bool hasAccess = isAdmin;
+            
+            // Advertiser can view their own bookings
+            if (isAdvertiser && booking.AdvertiserId == userGuid)
+                hasAccess = true;
+            
+            // Screen owner can view bookings for their screens
+            if (isScreenOwner)
+            {
+                var screenQuery = new GetScreensQuery { OwnerId = userGuid };
+                var ownedScreens = await _mediator.Send(screenQuery);
+                if (ownedScreens.Any(s => s.Id == booking.ScreenId))
+                    hasAccess = true;
+            }
+            
+            if (!hasAccess)
+                return StatusCode(403, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("You don't have permission to view this booking"));
             
             return Ok(CCMS.Shared.Common.ApiResponse<BookingDto>.SuccessResponse(booking));
         }
@@ -128,25 +157,83 @@ public class BookingsController : ControllerBase
     [HttpPost("{id}/approve")]
     public async Task<IActionResult> ApproveBooking(Guid id)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
-        var command = new ApproveBookingCommand(id, Guid.Parse(userId));
-        var result = await _mediator.Send(command);
-        return Ok(result);
+            var userGuid = Guid.Parse(userId);
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Get booking to verify ownership
+            var bookingQuery = new GetBookingsQuery { BookingId = id };
+            var bookings = await _mediator.Send(bookingQuery);
+            var booking = bookings.FirstOrDefault();
+            
+            if (booking == null)
+                return NotFound(new { message = "Booking not found" });
+            
+            // Verify user owns the screen (unless admin)
+            if (!isAdmin)
+            {
+                var screenQuery = new GetScreensQuery { OwnerId = userGuid };
+                var ownedScreens = await _mediator.Send(screenQuery);
+                
+                if (!ownedScreens.Any(s => s.Id == booking.ScreenId))
+                    return StatusCode(403, new { message = "You can only approve bookings for screens you own" });
+            }
+            
+            var command = new ApproveBookingCommand(id, userGuid);
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving booking {BookingId}", id);
+            return StatusCode(500, new { message = ex.Message });
+        }
     }
 
     [HttpPost("{id}/reject")]
     public async Task<IActionResult> RejectBooking(Guid id, [FromBody] RejectBookingRequest request)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-            return Unauthorized();
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
-        var command = new RejectBookingCommand(id, Guid.Parse(userId), request.Reason);
-        var result = await _mediator.Send(command);
-        return Ok(result);
+            var userGuid = Guid.Parse(userId);
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Get booking to verify ownership
+            var bookingQuery = new GetBookingsQuery { BookingId = id };
+            var bookings = await _mediator.Send(bookingQuery);
+            var booking = bookings.FirstOrDefault();
+            
+            if (booking == null)
+                return NotFound(new { message = "Booking not found" });
+            
+            // Verify user owns the screen (unless admin)
+            if (!isAdmin)
+            {
+                var screenQuery = new GetScreensQuery { OwnerId = userGuid };
+                var ownedScreens = await _mediator.Send(screenQuery);
+                
+                if (!ownedScreens.Any(s => s.Id == booking.ScreenId))
+                    return StatusCode(403, new { message = "You can only reject bookings for screens you own" });
+            }
+            
+            var command = new RejectBookingCommand(id, userGuid, request.Reason);
+            var result = await _mediator.Send(command);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting booking {BookingId}", id);
+            return StatusCode(500, new { message = ex.Message });
+        }
     }
 
     [HttpGet("availability-check")]
