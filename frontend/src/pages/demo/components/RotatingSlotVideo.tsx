@@ -7,8 +7,8 @@ import type { SlotState } from '../types';
 interface RotatingSlotVideoProps {
     slots: SlotState[];
     isPlaying?: boolean;
-    syncKey?: string;  // Use same key to sync rotation across multiple instances
-    onPlayComplete?: (slotNumber: number) => void;  // Called when a slot completes playing
+    syncKey?: string;
+    onPlayComplete?: (slotNumber: number) => void;  // Optional - for future use
 }
 
 export const RotatingSlotVideo: React.FC<RotatingSlotVideoProps> = ({
@@ -30,28 +30,18 @@ export const RotatingSlotVideo: React.FC<RotatingSlotVideoProps> = ({
     useEffect(() => {
         if (!isPlaying || bookedSlots.length === 0) return;
 
-        // Add a deterministic random offset based on syncKey so screens don't rotate in perfect sync
-        const hashCode = syncKey.split('').reduce((acc, char) => {
-            return char.charCodeAt(0) + ((acc << 5) - acc);
-        }, 0);
-        const randomOffset = Math.abs(hashCode % 5000); // 0-5 second offset per screen
-
-        const startTime = Date.now() + randomOffset;
         const rotationDuration = 10000; // 10 seconds per slot
 
         const updateIndex = () => {
-            const elapsed = Date.now() - startTime;
+            // Use absolute current time with modulo for TRUE global sync
+            // All instances calculate based on current timestamp, not individual start times
+            const now = Date.now();
+            const cycleTime = now % (rotationDuration * bookedSlots.length);
+            const newIndex = Math.floor(cycleTime / rotationDuration);
 
-            // Still in offset period
-            if (elapsed < 0) {
-                return;
-            }
-
-            const newIndex = Math.floor(elapsed / rotationDuration) % bookedSlots.length;
-
-            // Only call onPlayComplete when we move to a different slot
+            // Track when slot completes and call callback
             if (newIndex !== lastReportedIndexRef.current) {
-                // Report completion of the PREVIOUS slot (not the current one)
+                // Report completion of PREVIOUS slot
                 if (lastReportedIndexRef.current !== -1 && onPlayComplete) {
                     const completedSlot = bookedSlots[lastReportedIndexRef.current];
                     if (completedSlot) {
@@ -73,7 +63,7 @@ export const RotatingSlotVideo: React.FC<RotatingSlotVideoProps> = ({
         return () => {
             clearInterval(interval);
         };
-    }, [isPlaying, bookedSlots, syncKey, onPlayComplete]);
+    }, [isPlaying, bookedSlots.length, syncKey, onPlayComplete]);
 
     if (bookedSlots.length === 0) {
         return (

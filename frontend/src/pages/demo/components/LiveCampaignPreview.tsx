@@ -75,8 +75,12 @@ export const LiveCampaignPreview: React.FC<LiveCampaignPreviewProps> = ({
                                 {screen.location}
                             </Typography>
 
-                            {/* Show same rotating videos as screen owner */}
-                            <RotatingSlotVideo slots={screenSlots} isPlaying={true} syncKey={`${screen.id}-live`} />
+                            {/* Show LIVE synchronized rotation (same as screen owner sees) */}
+                            <RotatingSlotVideo
+                                slots={screenSlots}
+                                isPlaying={true}
+                                syncKey={screen.id}  // Same syncKey as screen owner = synchronized!
+                            />
 
                             {campaignSlot && (
                                 <Typography variant="caption" color="success.main" sx={{ mt: 1, display: 'block' }}>

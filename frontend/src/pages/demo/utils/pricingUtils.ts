@@ -55,6 +55,50 @@ export const formatPercentage = (value: number): string => {
     return `${Math.round(value)}%`;
 };
 
+// Random advertiser names for demo pre-booked slots
+const advertiserNames = [
+    'Nike Sports',
+    'Coca-Cola',
+    'Samsung Electronics',
+    'Amazon Prime',
+    'McDonald\'s',
+    'Adidas Originals',
+    'Apple Store',
+    'Pepsi Max',
+];
+
+// Get consistent advertiser name based on slot number (deterministic)
+const getAdvertiserName = (slotNumber: number): string => {
+    return advertiserNames[(slotNumber - 1) % advertiserNames.length];
+};
+
+// Get specific video URL for each slot based on screen
+const getVideoForSlot = (screenId: string, slotNumber: number): string => {
+    const baseUrl = 'http://localhost:5257/demo-videos';
+
+    if (screenId === 'screen-1') {
+        // Bandra-Worli: video1, video2, video3, then Default_Vid
+        switch (slotNumber) {
+            case 1: return `${baseUrl}/video1.mp4`;
+            case 2: return `${baseUrl}/video2.mp4`;
+            case 3: return `${baseUrl}/video3.mp4`;
+            default: return `${baseUrl}/Default_Vid.mp4`;
+        }
+    } else if (screenId === 'screen-2') {
+        // MG Road: video7, video6, video5, video4, video3, then Default_Vid
+        switch (slotNumber) {
+            case 1: return `${baseUrl}/video7.mp4`;
+            case 2: return `${baseUrl}/video6.mp4`;
+            case 3: return `${baseUrl}/video5.mp4`;
+            case 4: return `${baseUrl}/video4.mp4`;
+            case 5: return `${baseUrl}/video3.mp4`;
+            default: return `${baseUrl}/Default_Vid.mp4`;
+        }
+    }
+
+    return `${baseUrl}/Default_Vid.mp4`;
+};
+
 export const DEFAULT_PRICING_CONFIG: PricingConfig = {
     pricePerSlot: 100,
     slotDuration: 10,
@@ -62,7 +106,7 @@ export const DEFAULT_PRICING_CONFIG: PricingConfig = {
     rotationDuration: 60,
 };
 
-export const createInitialSlots = (screenId: string, totalSlots: number): SlotState[] => {
+export const createInitialSlots = (screenId: string, totalSlots: number = 6): SlotState[] => {
     const slots: SlotState[] = [];
 
     // Pre-booked slots - SEQUENTIAL for clear availability
@@ -70,38 +114,21 @@ export const createInitialSlots = (screenId: string, totalSlots: number): SlotSt
     // Screen-2: First 5 slots booked → Last 1 available (6)
     const preBookedSlots = screenId === 'screen-1' ? [1, 2, 3] : [1, 2, 3, 4, 5];
 
-    // Simulated play counts for pre-booked slots
-    const playCountsScreen1 = [45, 38, 52]; // For slots 1, 2, 3
-    const playCountsScreen2 = [62, 58, 49, 55, 61]; // For slots 1, 2, 3, 4, 5
-
-    const playCounts = screenId === 'screen-1' ? playCountsScreen1 : playCountsScreen2;
-
-    // Local videos from backend - place your 5 videos (each 10 seconds) in:
-    // backend/CCMS.Api/wwwroot/demo-videos/ as video1.mp4, video2.mp4, etc.
-    const sampleVideos = [
-        'http://localhost:5257/demo-videos/video1.mp4',
-        'http://localhost:5257/demo-videos/video2.mp4',
-        'http://localhost:5257/demo-videos/video3.mp4',
-        'http://localhost:5257/demo-videos/video4.mp4',
-        'http://localhost:5257/demo-videos/video5.mp4',
-    ];
+    // Play counts start from 0
+    const playCounts = Array(preBookedSlots.length).fill(0);
 
     for (let i = 1; i <= totalSlots; i++) {
         const isBooked = preBookedSlots.includes(i);
         const playCountIndex = preBookedSlots.indexOf(i);
-        const videoIndex = (i - 1) % sampleVideos.length;
-
-        // Use video3.mp4 as default for empty slots (we know it exists)
-        const defaultVideo = 'http://localhost:5257/demo-videos/video3.mp4';
-        const videoUrl = isBooked ? sampleVideos[videoIndex] : defaultVideo;
+        const videoUrl = getVideoForSlot(screenId, i);
 
         slots.push({
             slotNumber: i,
             isBooked,
             bookingId: isBooked ? `pre-${screenId}-${i}` : null,
-            campaignName: isBooked ? `Previous Campaign ${String.fromCharCode(64 + i)}` : 'Default Content',
+            campaignName: isBooked ? getAdvertiserName(i) : 'Default Content',
             price: isBooked ? 100 : 0,
-            videoUrl: videoUrl, // All slots have videos
+            videoUrl: videoUrl,
             playCount: isBooked && playCountIndex >= 0 ? playCounts[playCountIndex] : 0,
         });
     }

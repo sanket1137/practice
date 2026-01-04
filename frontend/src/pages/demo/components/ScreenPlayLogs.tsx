@@ -26,7 +26,7 @@ export const ScreenPlayLogs: React.FC<ScreenPlayLogsProps> = ({ logs, screenName
 
     return (
         <Paper variant="outlined" sx={{ p: 2 }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+            <Typography variant="subtitle2" fontWeight="bold" color="text.primary" gutterBottom>
                 {screenName}
             </Typography>
 
@@ -47,10 +47,10 @@ export const ScreenPlayLogs: React.FC<ScreenPlayLogsProps> = ({ logs, screenName
                             >
                                 <Box>{getLogIcon(log.type)}</Box>
                                 <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Typography variant="caption" display="block">
+                                    <Typography variant="caption" color="text.primary" display="block">
                                         {log.message}
                                     </Typography>
-                                    <Typography variant="caption" color="text.secondary" display="block">
+                                    <Typography variant="caption" color="grey.700" display="block">
                                         {formatTimestamp(log.timestamp)}
                                     </Typography>
                                 </Box>
