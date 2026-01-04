@@ -72,12 +72,14 @@ export const ScreenCard: React.FC<ScreenCardProps> = ({
             </Box>
 
             {/* Rotating video display */}
-            <RotatingSlotVideo
-                slots={slots}
-                isPlaying={screen.streamActive || true}
-                syncKey={screen.id}
-                onPlayComplete={(slotNumber) => onIncrementPlayCount(screen.id, slotNumber)}
-            />
+            <Box className="screen-preview">
+                <RotatingSlotVideo
+                    slots={slots}
+                    isPlaying={screen.streamActive || true}
+                    syncKey={screen.id}
+                    onPlayComplete={(slotNumber) => onIncrementPlayCount(screen.id, slotNumber)}
+                />
+            </Box>
 
             <Box sx={{ mb: 2 }}>
                 <SlotGrid slots={slots} />
@@ -103,7 +105,7 @@ export const ScreenCard: React.FC<ScreenCardProps> = ({
                 />
             </Box>
 
-            <Box>
+            <Box className="booking-queue">
                 <Typography variant="subtitle2" fontWeight="bold" color="text.primary" gutterBottom>
                     Booking Queue ({pendingBookings.length})
                 </Typography>

@@ -22,7 +22,7 @@ export const RevenueEstimator: React.FC<RevenueEstimatorProps> = ({
     );
 
     return (
-        <Paper variant="outlined" sx={{ p: 2, bgcolor: 'success.lighter' }}>
+        <Paper className="revenue-section" variant="outlined" sx={{ p: 2, bgcolor: 'success.lighter' }}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
                 💰 Revenue
             </Typography>

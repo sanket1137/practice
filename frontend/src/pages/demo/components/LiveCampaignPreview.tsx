@@ -36,7 +36,7 @@ export const LiveCampaignPreview: React.FC<LiveCampaignPreviewProps> = ({
                 Your Campaign is Live!
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box className="live-preview" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {activeScreens.map((screen) => {
                     const screenSlots = slots[screen.id] || [];
                     const campaignSlot = screenSlots.find(slot =>

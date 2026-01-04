@@ -26,6 +26,7 @@
     "react-dom": "^19.2.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.67.0",
+    "react-joyride": "^2.9.3",
     "react-router-dom": "^7.10.0",
     "recharts": "^3.5.1",
     "zod": "^4.1.13",

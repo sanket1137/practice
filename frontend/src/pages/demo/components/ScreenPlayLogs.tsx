@@ -25,7 +25,7 @@ export const ScreenPlayLogs: React.FC<ScreenPlayLogsProps> = ({ logs, screenName
     };
 
     return (
-        <Paper variant="outlined" sx={{ p: 2 }}>
+        <Paper className="play-logs" variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle2" fontWeight="bold" color="text.primary" gutterBottom>
                 {screenName}
             </Typography>

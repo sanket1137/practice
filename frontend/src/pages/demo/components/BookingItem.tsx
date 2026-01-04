@@ -47,6 +47,7 @@ export const BookingItem: React.FC<BookingItemProps> = ({
 
             <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                 <Button
+                    className="approve-button"
                     variant="contained"
                     color="success"
                     fullWidth
