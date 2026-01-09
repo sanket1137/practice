@@ -175,15 +175,35 @@ builder.Services.AddScoped<SlotAvailabilityService>();
 builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
 
-// Set up FFmpeg - download if needed
+// Set up FFmpeg - download in background to avoid blocking
 var ffmpegPath = Path.Combine(Path.GetTempPath(), "ffmpeg");
 Directory.CreateDirectory(ffmpegPath);
-if (!File.Exists(Path.Combine(ffmpegPath, "ffmpeg.exe")))
+
+// Download FFmpeg in background, don't block startup
+_ = Task.Run(async () =>
 {
-    Console.WriteLine("Downloading FFmpeg binaries...");
-    Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(Xabe.FFmpeg.Downloader.FFmpegVersion.Official, ffmpegPath).Wait();
-    Console.WriteLine("FFmpeg downloaded successfully!");
-}
+    try
+    {
+        if (!File.Exists(Path.Combine(ffmpegPath, "ffmpeg.exe")))
+        {
+            Console.WriteLine("⏬ Downloading FFmpeg binaries in background (~100MB, may take 1-2 minutes)...");
+            await Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(
+                Xabe.FFmpeg.Downloader.FFmpegVersion.Official, 
+                ffmpegPath);
+            Console.WriteLine("✅ FFmpeg downloaded successfully!");
+        }
+        else
+        {
+            Console.WriteLine("✅ FFmpeg already available at: " + ffmpegPath);
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ FFmpeg download failed: {ex.Message}");
+        Console.WriteLine("Video uploads will fail until FFmpeg is available.");
+    }
+});
+
 Xabe.FFmpeg.FFmpeg.SetExecutablesPath(ffmpegPath);
 
 builder.Services.AddScoped<VideoMetadataService>();
