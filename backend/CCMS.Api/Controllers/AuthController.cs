@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using CCMS.Application.Interfaces;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Auth;
+using MediatR;
+using CCMS.Application.Features.Auth.Commands;
 
 namespace CCMS.Api.Controllers;
 
@@ -10,10 +12,12 @@ namespace CCMS.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IMediator _mediator;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IMediator mediator)
     {
         _authService = authService;
+        _mediator = mediator;
     }
 
     [HttpPost("register")]
@@ -81,6 +85,38 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, ApiResponse<object>.ErrorResponse($"Token revocation failed: {ex.Message}"));
+        }
+    }
+
+    [HttpPost("request-password-reset")]
+    public async Task<ActionResult<ApiResponse<object>>> RequestPasswordReset([FromBody] RequestPasswordResetCommand command)
+    {
+        try
+        {
+            await _mediator.Send(command);
+            return Ok(ApiResponse<object>.SuccessResponse(null, "If the email exists, a password reset link has been sent."));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Password reset request failed: {ex.Message}"));
+        }
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<ApiResponse<object>>> ResetPassword([FromBody] ResetPasswordCommand command)
+    {
+        try
+        {
+            await _mediator.Send(command);
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Password has been reset successfully. You can now log in with your new password."));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<object>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Password reset failed: {ex.Message}"));
         }
     }
 }

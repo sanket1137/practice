@@ -15,6 +15,7 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<Screen> Screens => Set<Screen>();
     public DbSet<SlotAvailability> SlotAvailabilities => Set<SlotAvailability>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
@@ -54,6 +55,19 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // PasswordResetToken configuration
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(100);
+            
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // Screen configuration
         modelBuilder.Entity<Screen>(entity =>
         {
@@ -61,6 +75,27 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.DeviceId);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.DeviceId).HasMaxLength(100);
+            
+            // Fix decimal precision warnings
+            entity.Property(e => e.PricePerSlot)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+                
+            entity.Property(e => e.Latitude)
+                .HasColumnType("decimal(9,6)")
+                .HasPrecision(9, 6);
+                
+            entity.Property(e => e.Longitude)
+                .HasColumnType("decimal(9,6)")
+                .HasPrecision(9, 6);
+                
+            entity.Property(e => e.PhysicalWidth)
+                .HasColumnType("decimal(8,2)")
+                .HasPrecision(8, 2);
+                
+            entity.Property(e => e.PhysicalHeight)
+                .HasColumnType("decimal(8,2)")
+                .HasPrecision(8, 2);
             
             // Complex type for Address
             entity.OwnsOne(e => e.Location, address =>
@@ -98,6 +133,11 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             
+            // Fix decimal precision warning
+            entity.Property(e => e.Budget)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+            
             entity.HasOne(e => e.Advertiser)
                 .WithMany(u => u.Campaigns)
                 .HasForeignKey(e => e.AdvertiserId)
@@ -126,6 +166,11 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Booking>(entity =>
         {
             entity.HasKey(e => e.Id);
+            
+            // Fix decimal precision warning
+            entity.Property(e => e.TotalPrice)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
             
             // Store SlotNumbers as JSON
             var slotNumbersConverter = new ValueConverter<List<int>, string>(

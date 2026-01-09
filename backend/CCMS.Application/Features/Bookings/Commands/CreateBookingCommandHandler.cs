@@ -47,6 +47,24 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
 
     public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
+        // Helper method for timezone conversion
+        DateTime ConvertToUtc(DateTime localDate, string? timezone)
+        {
+            if (string.IsNullOrEmpty(timezone))
+                return localDate.ToUniversalTime();
+            
+            try
+            {
+                var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezone);
+                return TimeZoneInfo.ConvertTimeToUtc(localDate, timeZoneInfo);
+            }
+            catch
+            {
+                // Fallback to simple UTC conversion if timezone invalid
+                return localDate.ToUniversalTime();
+            }
+        }
+
         // Validate entities exist
         var screen = await _screenRepository.GetByIdAsync(request.Request.ScreenId, cancellationToken);
         if (screen == null)
@@ -55,6 +73,19 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         var campaign = await _campaignRepository.GetByIdAsync(request.Request.CampaignId, cancellationToken);
         if (campaign == null)
             throw new KeyNotFoundException("Campaign not found");
+
+        // Campaign date range enforcement
+        if (request.Request.StartDate < campaign.StartDate)
+        {
+            throw new InvalidOperationException(
+                $"Booking start date ({request.Request.StartDate:yyyy-MM-dd}) must be on or after campaign start date ({campaign.StartDate:yyyy-MM-dd}).");
+        }
+
+        if (campaign.EndDate.HasValue && request.Request.EndDate > campaign.EndDate.Value)
+        {
+            throw new InvalidOperationException(
+                $"Booking end date ({request.Request.EndDate:yyyy-MM-dd}) must be on or before campaign end date ({campaign.EndDate.Value:yyyy-MM-dd}).");
+        }
 
         var creative = await _creativeRepository.GetByIdAsync(request.Request.CreativeId, cancellationToken);
         if (creative == null)
@@ -70,6 +101,14 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         {
             throw new InvalidOperationException(
                 $"Creative is not compatible with screen: {string.Join(", ", validation.Errors)}");
+        }
+
+        // Currency mismatch validation
+        if (campaign.Currency != screen.Currency)
+        {
+            throw new InvalidOperationException(
+                $"Currency mismatch: Campaign uses {campaign.Currency} but screen prices in {screen.Currency}. " +
+                $"Please select a screen with {campaign.Currency} pricing or update the campaign currency.");
         }
 
         // STEP 2: Determine slot number (auto-assign or use specified)
@@ -133,6 +172,20 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         // Cost = price_per_slot_per_minute × display_time_per_slot × total_frames
         var totalPrice = calculation.TotalCost;
 
+        // Budget enforcement - Prevent overspending
+        var existingBookings = await _bookingRepository.GetAllAsync(cancellationToken);
+        var existingBookingsTotal = existingBookings
+            .Where(b => b.CampaignId == request.Request.CampaignId && !b.IsDeleted)
+            .Sum(b => b.TotalPrice);
+            
+        var proposedTotal = existingBookingsTotal + totalPrice;
+        if (proposedTotal > campaign.Budget)
+        {
+            var remaining = campaign.Budget - existingBookingsTotal;
+            throw new InvalidOperationException(
+                $"Booking exceeds campaign budget. Budget: {campaign.Budget:F2} {campaign.Currency}, Already spent: {existingBookingsTotal:F2}, This booking: {totalPrice:F2}, Remaining: {remaining:F2}. Please (1) increase budget, (2) reduce date range, or (3) select a cheaper screen.");
+        }
+
         // Get list of dates that have available slots (for partial booking tracking)
         var bookedDates = calculation.DailyBreakdown
             .Where(d => d.IsAvailable && d.Frames > 0)
@@ -151,8 +204,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             ScreenId = request.Request.ScreenId,
             CampaignId = request.Request.CampaignId,
             CreativeId = request.Request.CreativeId,
-            StartDate = bookingStartDate,  // User's requested start
-            EndDate = bookingEndDate,      // User's requested end
+            StartDate = ConvertToUtc(bookingStartDate, request.Request.ClientTimezone),
+            EndDate = ConvertToUtc(bookingEndDate, request.Request.ClientTimezone),
             SlotNumbers = new List<int> { slotNumber },
             Status = Domain.Enums.BookingStatus.Pending,
             ExpectedImpressions = calculation.TotalExpectedImpressions,

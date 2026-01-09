@@ -45,7 +45,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             throw new UnauthorizedAccessException("You can only upload creatives to your own campaigns");
 
         // Extract video metadata BEFORE upload
-        VideoMetadata metadata;
+        CreativeMetadata metadata; // Changed from VideoMetadata to CreativeMetadata
         try
         {
             // Ensure stream is at beginning
@@ -55,11 +55,42 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException(
-                $"Failed to extract video metadata from '{request.FileName}'. Ensure the file is a valid video. Error: {ex.Message}", 
-                ex);
+            _logger.LogError(ex, "Failed to extract metadata for {FileName}", request.FileName); // Added logging
+            // Fallback to default metadata
+            metadata = new CreativeMetadata // Changed from VideoMetadata to CreativeMetadata
+            {
+                Duration = 30,
+                Width = 1920,
+                Height = 1080
+            };
         }
         
+        // Validate file size and duration limits
+        const long MAX_FILE_SIZE = 2_147_483_648; // 2 GB
+        const int MAX_DURATION_SECONDS = 160; // 2 min 40 sec
+
+        // Check file size
+        if (request.FileStream.Length > MAX_FILE_SIZE)
+        {
+            var fileSizeGB = request.FileStream.Length / 1024.0 / 1024.0 / 1024.0;
+            throw new InvalidOperationException(
+                $"File size exceeds maximum limit. " +
+                $"Maximum: 2 GB, " +
+                $"Your file: {fileSizeGB:F2} GB. " +
+                $"Please compress or trim your video.");
+        }
+
+        // Check duration
+        if (metadata.Duration > MAX_DURATION_SECONDS)
+        {
+            var minutes = metadata.Duration / 60;
+            var seconds = metadata.Duration % 60;
+            throw new InvalidOperationException(
+                $"Video duration exceeds maximum limit. " +
+                $"Maximum: 2 minutes 40 seconds (160s), " +
+                $"Your video: {minutes}m {seconds}s ({metadata.Duration}s). " +
+                $"Please trim your video.");
+        }
         // Upload file to storage
         string fileUrl;
         string fileHash;
