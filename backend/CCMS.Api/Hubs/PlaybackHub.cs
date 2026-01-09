@@ -127,6 +127,17 @@ public class PlaybackHub : Hub
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
     }
 
+    /// <summary>
+    /// Broadcast slot status change to all subscribers of a screen
+    /// Call this when booking status changes, owner content is added/removed, etc.
+    /// </summary>
+    public async Task BroadcastSlotStatusChanged(string screenId, SlotStatusChangedEvent eventData)
+    {
+        await Clients.Group($"screen_{screenId}")
+            .SendAsync("SlotStatusChanged", eventData);
+        _logger.LogInformation($"Broadcasted SlotStatusChanged for screen {screenId}: {eventData.Action} on slot {eventData.SlotNumber}");
+    }
+
     // Player events
     public async Task AdStarted(AdPlaybackEvent eventData)
     {
@@ -348,4 +359,19 @@ public class ImpressionUpdateEvent
     public Guid CampaignId { get; set; }
     public int PlayCount { get; set; }
     public DateTime Timestamp { get; set; }
+}
+
+/// <summary>
+/// Event broadcast when slot status changes (booking activated, owner content added/removed, etc.)
+/// </summary>
+public class SlotStatusChangedEvent
+{
+    public string ScreenId { get; set; } = string.Empty;
+    public int SlotNumber { get; set; }
+    public string Action { get; set; } = string.Empty; // "BookingActivated", "BookingCompleted", "OwnerContentAdded", "OwnerContentRemoved"
+    public string? NewStatus { get; set; } // "Empty", "Custom", "Booked"
+    public string? ContentName { get; set; }
+    public Guid? BookingId { get; set; }
+    public Guid? OwnerContentId { get; set; }
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

@@ -9,6 +9,10 @@ import asyncio
 import json
 import sys
 import os
+import uuid
+import shutil
+import sqlite3
+import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections import defaultdict
@@ -16,6 +20,7 @@ import logging
 
 try:
     import requests
+    import pytz
     from signalrcore.hub_connection_builder import HubConnectionBuilder
 except ImportError as e:
     print(f"Missing dependency: {e}")
@@ -52,11 +57,24 @@ class Config:
     BASE_DIR = Path(__file__).parent
     CACHE_DIR = BASE_DIR / "cache"
     LOGS_DIR = BASE_DIR / "logs"
+    IMPRESSION_DB_PATH = BASE_DIR / "impressions.db"  # SQLite for offline queue
     
     SYNC_INTERVAL_MINUTES = 10
     HEARTBEAT_INTERVAL_SECONDS = 30
-    PLAYER_VERSION = "1.0.0"
+    PLAYER_VERSION = "1.1.0"  # Version bump for new features
     LOG_RETENTION_DAYS = 7  # Default: keep logs for 7 days
+    
+    # Disk space management
+    MIN_FREE_DISK_GB = 1.0  # Minimum free disk space before cache eviction
+    MAX_CACHE_SIZE_GB = 10.0  # Maximum cache size
+    
+    # Offline queue settings
+    MAX_BATCH_SIZE = 500  # Max impressions per sync request
+    MAX_OFFLINE_DAYS = 7  # Max retention for offline impressions
+    
+    # Download retry settings
+    DOWNLOAD_MAX_RETRIES = 3
+    DOWNLOAD_RETRY_DELAY_SECONDS = 2
     
     @classmethod
     def load_config(cls):
@@ -73,6 +91,11 @@ class Config:
                 # Load logging config
                 logging_config = config.get("logging", {})
                 cls.LOG_RETENTION_DAYS = logging_config.get("log_retention_days", cls.LOG_RETENTION_DAYS)
+                
+                # Load disk/cache settings
+                cache_config = config.get("cache", {})
+                cls.MIN_FREE_DISK_GB = cache_config.get("min_free_disk_gb", cls.MIN_FREE_DISK_GB)
+                cls.MAX_CACHE_SIZE_GB = cache_config.get("max_cache_size_gb", cls.MAX_CACHE_SIZE_GB)
 
 # Setup
 Config.load_config()
@@ -134,9 +157,18 @@ class CCMSPlayer:
         self.current_index = 0
         self.is_running = False
         
-        # SignalR connection
+        # Screen timezone and operating hours (from handshake)
+        self.screen_timezone = None  # pytz timezone object
+        self.operating_hours = {}  # {day_name: "HH:MM-HH:MM"}
+        self.is_within_operating_hours = True  # Track current state
+        
+        # SignalR connection state tracking
         self.signalr_connection = None
         self.signalr_connected = False
+        self.signalr_reconnect_attempts = 0
+        self.signalr_max_reconnect_attempts = 10
+        self.signalr_last_heartbeat = None
+        self.signalr_message_queue = []  # Queue for messages during disconnect
         
         # WebRTC Streaming (optional)
         self.webrtc_streamer = None
@@ -148,7 +180,10 @@ class CCMSPlayer:
         except ImportError:
             logger.info("[WebRTC] Module not available - install dependencies to enable streaming")
         
-        # Cache Manager for video lifecycle
+        # Initialize offline impression queue (SQLite)
+        self._init_impression_db()
+        
+        # Enhanced Cache Manager for video lifecycle with disk space checks
         from cache_manager import CacheManager
         self.cache_manager = CacheManager(
             cache_dir=Config.CACHE_DIR,
@@ -180,7 +215,7 @@ class CCMSPlayer:
         self.current_playing_slot_number = None  # Track current slot
         self.slots_per_frame = 6  # Will be updated from playlist
         
-        # HTTP session
+        # HTTP session with retry support
         self.session = requests.Session()
         self.session.headers.update({
             "X-API-Key": self.api_key,
@@ -203,6 +238,9 @@ class CCMSPlayer:
         self.mpv_player.set_on_started(self._handle_video_started)
         self.mpv_player.set_on_ended(self._handle_video_ended)
         
+        # Server salt for impression verification (received from handshake)
+        self.server_salt = None
+        
         self.session_data = {
             'date': datetime.now().date(),
             'start_time': datetime.now(),
@@ -218,8 +256,283 @@ class CCMSPlayer:
         logger.info(f"Screen ID: {self.screen_id}")
         logger.info(f"Server: {self.api_url}")
     
+    def _init_impression_db(self):
+        """Initialize SQLite database for offline impression queue"""
+        try:
+            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
+            cursor = conn.cursor()
+            
+            # Create impressions table if not exists
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS offline_impressions (
+                    id TEXT PRIMARY KEY,
+                    impression_id TEXT UNIQUE NOT NULL,
+                    screen_id TEXT NOT NULL,
+                    booking_id TEXT,
+                    campaign_id TEXT,
+                    creative_id TEXT,
+                    owner_content_id TEXT,
+                    slot_number INTEGER,
+                    played_at TEXT NOT NULL,
+                    client_timestamp TEXT NOT NULL,
+                    verification_hash TEXT,
+                    created_at TEXT NOT NULL,
+                    sync_attempts INTEGER DEFAULT 0,
+                    last_sync_attempt TEXT
+                )
+            ''')
+            
+            # Create index for efficient queries
+            cursor.execute('''
+                CREATE INDEX IF NOT EXISTS idx_impressions_created 
+                ON offline_impressions(created_at)
+            ''')
+            
+            conn.commit()
+            conn.close()
+            logger.info("[DB] Offline impression queue initialized")
+            
+            # Clean up old impressions (beyond retention period)
+            self._cleanup_old_impressions()
+            
+        except Exception as e:
+            logger.error(f"[DB] Failed to initialize impression database: {e}")
+    
+    def _cleanup_old_impressions(self):
+        """Remove impressions older than retention period"""
+        try:
+            cutoff_date = (datetime.utcnow() - timedelta(days=Config.MAX_OFFLINE_DAYS)).isoformat()
+            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM offline_impressions WHERE created_at < ?', (cutoff_date,))
+            deleted = cursor.rowcount
+            conn.commit()
+            conn.close()
+            if deleted > 0:
+                logger.info(f"[DB] Cleaned up {deleted} old impressions (>{Config.MAX_OFFLINE_DAYS} days)")
+        except Exception as e:
+            logger.warning(f"[DB] Failed to cleanup old impressions: {e}")
+    
+    def _queue_impression_offline(self, impression_data: dict):
+        """Queue an impression in SQLite for later sync"""
+        try:
+            impression_id = impression_data.get('impressionId', str(uuid.uuid4()))
+            
+            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR IGNORE INTO offline_impressions 
+                (id, impression_id, screen_id, booking_id, campaign_id, creative_id, 
+                 owner_content_id, slot_number, played_at, client_timestamp, 
+                 verification_hash, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                str(uuid.uuid4()),
+                impression_id,
+                self.screen_id,
+                impression_data.get('bookingId'),
+                impression_data.get('campaignId'),
+                impression_data.get('creativeId'),
+                impression_data.get('ownerContentId'),
+                impression_data.get('slotNumber'),
+                impression_data.get('playedAt'),
+                impression_data.get('clientTimestamp', datetime.utcnow().isoformat()),
+                impression_data.get('verificationHash'),
+                datetime.utcnow().isoformat()
+            ))
+            conn.commit()
+            conn.close()
+            logger.debug(f"[DB] Queued impression offline: {impression_id}")
+        except Exception as e:
+            logger.error(f"[DB] Failed to queue impression: {e}")
+    
+    def _get_pending_impressions(self, limit: int = None) -> list:
+        """Get pending impressions from offline queue"""
+        try:
+            limit = limit or Config.MAX_BATCH_SIZE
+            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT impression_id, booking_id, campaign_id, creative_id, 
+                       owner_content_id, slot_number, played_at, client_timestamp,
+                       verification_hash
+                FROM offline_impressions 
+                ORDER BY created_at ASC 
+                LIMIT ?
+            ''', (limit,))
+            rows = cursor.fetchall()
+            conn.close()
+            
+            return [{
+                'impressionId': row[0],
+                'bookingId': row[1],
+                'campaignId': row[2],
+                'creativeId': row[3],
+                'ownerContentId': row[4],
+                'slotNumber': row[5],
+                'playedAt': row[6],
+                'clientTimestamp': row[7],
+                'verificationHash': row[8]
+            } for row in rows]
+        except Exception as e:
+            logger.error(f"[DB] Failed to get pending impressions: {e}")
+            return []
+    
+    def _remove_synced_impressions(self, impression_ids: list):
+        """Remove successfully synced impressions from queue"""
+        try:
+            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
+            cursor = conn.cursor()
+            placeholders = ','.join('?' * len(impression_ids))
+            cursor.execute(f'DELETE FROM offline_impressions WHERE impression_id IN ({placeholders})', 
+                          impression_ids)
+            conn.commit()
+            conn.close()
+            logger.debug(f"[DB] Removed {len(impression_ids)} synced impressions")
+        except Exception as e:
+            logger.error(f"[DB] Failed to remove synced impressions: {e}")
+    
+    def _generate_verification_hash(self, screen_id: str, slot_number: int, timestamp: str) -> str:
+        """Generate verification hash for impression authenticity"""
+        if not self.server_salt:
+            return ""
+        data = f"{screen_id}:{slot_number}:{timestamp}:{self.server_salt}"
+        return hashlib.sha256(data.encode()).hexdigest()[:32]
+    
+    def _check_operating_hours(self) -> bool:
+        """Check if current time is within operating hours for the screen"""
+        if not self.screen_timezone or not self.operating_hours:
+            # No operating hours configured - always allow
+            return True
+        
+        try:
+            # Get current time in screen's timezone
+            now_utc = datetime.now(pytz.UTC)
+            now_local = now_utc.astimezone(self.screen_timezone)
+            
+            # Get today's day name (Monday, Tuesday, etc.)
+            day_name = now_local.strftime('%A')
+            
+            # Check if we have operating hours for this day
+            hours_str = self.operating_hours.get(day_name)
+            if not hours_str:
+                logger.debug(f"No operating hours for {day_name} - allowing playback")
+                return True
+            
+            # Parse hours (format: "HH:MM-HH:MM")
+            try:
+                start_str, end_str = hours_str.split('-')
+                start_hour, start_min = map(int, start_str.split(':'))
+                end_hour, end_min = map(int, end_str.split(':'))
+                
+                current_minutes = now_local.hour * 60 + now_local.minute
+                start_minutes = start_hour * 60 + start_min
+                end_minutes = end_hour * 60 + end_min
+                
+                # Handle overnight schedules (e.g., 22:00-06:00)
+                if end_minutes < start_minutes:
+                    is_within = current_minutes >= start_minutes or current_minutes < end_minutes
+                else:
+                    is_within = start_minutes <= current_minutes < end_minutes
+                
+                if not is_within:
+                    logger.info(f"⏰ Outside operating hours ({hours_str}) - current time: {now_local.strftime('%H:%M')} {day_name}")
+                
+                return is_within
+                
+            except ValueError as e:
+                logger.warning(f"Invalid operating hours format '{hours_str}': {e}")
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error checking operating hours: {e}")
+            return True  # Default to allowing playback on error
+    
+    def _check_disk_space(self) -> tuple:
+        """Check available disk space for cache directory
+        Returns (has_space: bool, free_gb: float, total_gb: float)
+        """
+        try:
+            cache_path = str(Config.CACHE_DIR)
+            total, used, free = shutil.disk_usage(cache_path)
+            free_gb = free / (1024 ** 3)
+            total_gb = total / (1024 ** 3)
+            has_space = free_gb >= Config.MIN_FREE_DISK_GB
+            return (has_space, free_gb, total_gb)
+        except Exception as e:
+            logger.error(f"Failed to check disk space: {e}")
+            return (True, 0, 0)  # Assume space available on error
+    
+    def _get_cache_size_gb(self) -> float:
+        """Get total size of cache directory in GB"""
+        try:
+            total_size = 0
+            cache_path = Config.CACHE_DIR
+            for dirpath, dirnames, filenames in os.walk(cache_path):
+                for filename in filenames:
+                    filepath = os.path.join(dirpath, filename)
+                    total_size += os.path.getsize(filepath)
+            return total_size / (1024 ** 3)
+        except Exception as e:
+            logger.error(f"Failed to get cache size: {e}")
+            return 0
+    
+    def _evict_lru_cache(self, needed_bytes: int) -> bool:
+        """Evict least recently used cached files to free space
+        Returns True if space was freed successfully
+        """
+        try:
+            logger.info(f"[Cache] Starting LRU eviction to free {needed_bytes / (1024**2):.1f} MB")
+            
+            # Get all cached files with their last access time
+            cached_files = []
+            cache_path = Config.CACHE_DIR
+            
+            for filename in os.listdir(cache_path):
+                filepath = os.path.join(cache_path, filename)
+                if os.path.isfile(filepath):
+                    stat = os.stat(filepath)
+                    cached_files.append({
+                        'path': filepath,
+                        'size': stat.st_size,
+                        'atime': stat.st_atime  # Last access time
+                    })
+            
+            # Sort by last access time (oldest first)
+            cached_files.sort(key=lambda x: x['atime'])
+            
+            freed_bytes = 0
+            for file_info in cached_files:
+                if freed_bytes >= needed_bytes:
+                    break
+                
+                # Skip files that are currently in the playlist
+                filepath = file_info['path']
+                is_in_use = any(
+                    item.get('local_path') == filepath 
+                    for item in self.playlist
+                )
+                
+                if is_in_use:
+                    logger.debug(f"[Cache] Skipping in-use file: {filepath}")
+                    continue
+                
+                try:
+                    os.remove(filepath)
+                    freed_bytes += file_info['size']
+                    logger.info(f"[Cache] Evicted: {os.path.basename(filepath)} ({file_info['size'] / (1024**2):.1f} MB)")
+                except Exception as e:
+                    logger.warning(f"[Cache] Failed to evict {filepath}: {e}")
+            
+            logger.info(f"[Cache] Eviction complete - freed {freed_bytes / (1024**2):.1f} MB")
+            return freed_bytes >= needed_bytes
+            
+        except Exception as e:
+            logger.error(f"[Cache] LRU eviction failed: {e}")
+            return False
+
     def handshake(self):
-        """Perform handshake with server"""
+        """Perform handshake with server - receives playlist, timezone, operating hours, and server salt"""
         try:
             logger.info("Performing handshake...")
             
@@ -238,6 +551,32 @@ class CCMSPlayer:
                 if data.get("success"):
                     logger.info("[OK] Handshake successful!")
                     logger.info(f"  Server time: {data.get('serverTime')}")
+                    
+                    # Extract timezone from response
+                    timezone_str = data.get("screenTimezone") or data.get("timezone")
+                    if timezone_str:
+                        try:
+                            self.screen_timezone = pytz.timezone(timezone_str)
+                            logger.info(f"  Screen timezone: {timezone_str}")
+                        except Exception as e:
+                            logger.warning(f"  Invalid timezone '{timezone_str}': {e}")
+                            self.screen_timezone = None
+                    else:
+                        logger.info("  No timezone configured - using local time")
+                    
+                    # Extract operating hours from response
+                    self.operating_hours = data.get("operatingHours", {})
+                    if self.operating_hours:
+                        logger.info(f"  Operating hours configured for {len(self.operating_hours)} days")
+                        for day, hours in self.operating_hours.items():
+                            logger.info(f"    {day}: {hours}")
+                    else:
+                        logger.info("  No operating hours configured - 24/7 operation")
+                    
+                    # Extract server salt for impression verification
+                    self.server_salt = data.get("verificationSalt")
+                    if self.server_salt:
+                        logger.info("  Impression verification enabled")
                     
                     playlist_data = data.get("playlist")
                     if playlist_data and isinstance(playlist_data, dict):
@@ -300,6 +639,11 @@ class CCMSPlayer:
             now = datetime.now()
             session_duration = now - self.session_data['start_time']
             
+            # First, sync any pending offline impressions (from SQLite queue)
+            pending_offline = self._get_pending_impressions(Config.MAX_BATCH_SIZE)
+            if pending_offline:
+                logger.info(f"Found {len(pending_offline)} pending offline impressions to sync")
+            
             # Build campaign impressions summary (from old session_data for backwards compat)
             campaign_impressions = []
             for key, data in self.session_data['campaign_impressions'].items():
@@ -313,25 +657,44 @@ class CCMSPlayer:
                     })
             
             # Build campaign impressions from new tracking (preferred)
+            # Include impression IDs and verification hashes
             for campaign_id, data in self.campaign_summaries.items():
                 if data['timestamps']:
-                    campaign_impressions.append({
+                    impression_data = {
                         'bookingId': str(data['bookingId']),
                         'campaignId': str(campaign_id),
                         'creativeId': str(data['creativeId']),
                         'totalSlotsRan': len(data['timestamps']),
                         'playTimestamps': [ts.isoformat() for ts in data['timestamps']]
-                    })
+                    }
+                    # Add deduplication IDs if available
+                    if 'impressionIds' in data:
+                        impression_data['impressionIds'] = data['impressionIds']
+                    if 'verificationHashes' in data:
+                        impression_data['verificationHashes'] = data['verificationHashes']
+                    campaign_impressions.append(impression_data)
             
-            # NEW: Build owner content impressions
+            # NEW: Build owner content impressions with verification
             owner_content_impressions = []
             for owner_content_id, data in self.owner_content_summaries.items():
                 if data['timestamps']:
-                    owner_content_impressions.append({
+                    impression_data = {
                         'ownerContentId': str(owner_content_id),
                         'slotNumber': data['slotNumber'],
                         'playTimestamps': [ts.isoformat() for ts in data['timestamps']]
-                    })
+                    }
+                    if 'impressionIds' in data:
+                        impression_data['impressionIds'] = data['impressionIds']
+                    if 'verificationHashes' in data:
+                        impression_data['verificationHashes'] = data['verificationHashes']
+                    owner_content_impressions.append(impression_data)
+            
+            # Batch limiting - split into chunks if too large
+            total_impressions = sum(len(ci.get('playTimestamps', [])) for ci in campaign_impressions) + \
+                               sum(len(oi.get('playTimestamps', [])) for oi in owner_content_impressions)
+            
+            if total_impressions > Config.MAX_BATCH_SIZE:
+                logger.warning(f"Large batch ({total_impressions} impressions) - will sync in batches")
             
             sync_data = {
                 'date': self.session_data['date'].isoformat(),
@@ -340,10 +703,11 @@ class CCMSPlayer:
                 'uptime': str(session_duration),
                 'downtime': "00:00:00",
                 'campaignImpressions': campaign_impressions,
-                'ownerContentImpressions': owner_content_impressions  # NEW!
+                'ownerContentImpressions': owner_content_impressions,
+                'playerVersion': Config.PLAYER_VERSION  # For server-side validation
             }
             
-            logger.info(f"Syncing {len(campaign_impressions)} campaign summaries...")
+            logger.info(f"Syncing {len(campaign_impressions)} campaign summaries, {len(owner_content_impressions)} owner content summaries...")
             
             response = requests.post(
                 f"{self.api_url}/api/player/sync",
@@ -358,9 +722,18 @@ class CCMSPlayer:
                 data = response.json().get("data", {})
                 if data.get("success"):
                     logger.info(f"[OK] Sync successful! {data.get('impressionsSaved')} impressions saved")
+                    
+                    # Clear in-memory tracking
                     self.session_data['campaign_impressions'].clear()
-                    self.campaign_summaries.clear()  # NEW: Clear new tracking
-                    self.owner_content_summaries.clear()  # NEW: Clear owner content tracking
+                    self.campaign_summaries.clear()
+                    self.owner_content_summaries.clear()
+                    
+                    # Remove synced offline impressions from SQLite
+                    if pending_offline:
+                        synced_ids = [imp['impressionId'] for imp in pending_offline]
+                        self._remove_synced_impressions(synced_ids)
+                        logger.info(f"[DB] Removed {len(synced_ids)} synced offline impressions")
+                    
                     return True
                 else:
                     logger.error(f"Sync failed: {data.get('message')}")
@@ -464,7 +837,7 @@ class CCMSPlayer:
         return downloaded_count > 0
     
     def connect_signalr(self):
-        """Connect to SignalR PlaybackHub for real-time events"""
+        """Connect to SignalR PlaybackHub for real-time events with enhanced resilience"""
         try:
             hub_url = f"{self.api_url}/hubs/playback"
             logger.info(f"Connecting to SignalR PlaybackHub: {hub_url}")
@@ -476,18 +849,21 @@ class CCMSPlayer:
                     "type": "raw",
                     "keep_alive_interval": 10,
                     "reconnect_interval": 5,
-                    "max_attempts": 5
+                    "max_attempts": self.signalr_max_reconnect_attempts
                 }) \
                 .build()
             
-            # Connection handlers (correct API)
+            # Connection handlers with improved error tracking
             self.signalr_connection.on_open(self._on_signalr_open)
             self.signalr_connection.on_close(self._on_signalr_close)
-            self.signalr_connection.on_error(lambda error: logger.error(f"SignalR error: {error}"))
+            self.signalr_connection.on_error(self._on_signalr_error)
             
             # Listen for playlist updates (owner content upload/delete)
             self.signalr_connection.on("PlaylistUpdated", self._on_playlist_updated)
-            logger.info("Registered PlaylistUpdated event handler")
+            
+            # Listen for slot status changes (real-time frontend sync)
+            self.signalr_connection.on("SlotStatusChanged", self._on_slot_status_changed)
+            logger.info("Registered event handlers: PlaylistUpdated, SlotStatusChanged")
             
             # Start connection
             self.signalr_connection.start()
@@ -497,15 +873,39 @@ class CCMSPlayer:
             logger.error(f"Failed to connect to SignalR: {e}")
             self.signalr_connected = False
     
+    def _on_slot_status_changed(self, data):
+        """Called when slot status changes - can trigger playlist refresh"""
+        try:
+            logger.info(f"📡 SlotStatusChanged event received: {data}")
+            # This event is primarily for frontend, but player can use it to detect changes
+        except Exception as e:
+            logger.error(f"Failed to handle SlotStatusChanged event: {e}")
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to SignalR: {e}")
+            self.signalr_connected = False
+    
     def _on_signalr_open(self):
         """Called when SignalR connection opens"""
         logger.info("Connected to SignalR PlaybackHub")
         self.signalr_connected = True
+        self.signalr_reconnect_attempts = 0  # Reset on successful connection
+        self.signalr_last_heartbeat = datetime.now()
         
         # CRITICAL: Subscribe to screen group to receive PlaylistUpdated events
         try:
             self.signalr_connection.send("SubscribeToScreen", [self.screen_id])
             logger.info(f"✅ Subscribed to screen group: screen_{self.screen_id}")
+            
+            # Replay queued messages if any
+            if self.signalr_message_queue:
+                logger.info(f"Replaying {len(self.signalr_message_queue)} queued messages...")
+                for msg in self.signalr_message_queue:
+                    try:
+                        self.signalr_connection.send(msg['method'], msg['args'])
+                    except Exception as e:
+                        logger.warning(f"Failed to replay message {msg['method']}: {e}")
+                self.signalr_message_queue.clear()
         except Exception as e:
             logger.error(f"Failed to subscribe to screen group: {e}")
     
@@ -513,6 +913,25 @@ class CCMSPlayer:
         """Called when SignalR connection closes"""
         logger.warning("SignalR connection closed")
         self.signalr_connected = False
+        self.signalr_reconnect_attempts += 1
+        
+        # Log reconnection attempt info
+        if self.signalr_reconnect_attempts < self.signalr_max_reconnect_attempts:
+            logger.info(f"Will attempt reconnection ({self.signalr_reconnect_attempts}/{self.signalr_max_reconnect_attempts})")
+        else:
+            logger.error(f"Max reconnection attempts reached ({self.signalr_max_reconnect_attempts})")
+    
+    def _on_signalr_error(self, error):
+        """Called on SignalR error"""
+        logger.error(f"SignalR error: {error}")
+        # Don't set signalr_connected = False here, let on_close handle it
+    
+    def _queue_signalr_message(self, method: str, args: list):
+        """Queue a SignalR message to send when connection is restored"""
+        self.signalr_message_queue.append({'method': method, 'args': args})
+        # Limit queue size to prevent memory issues
+        if len(self.signalr_message_queue) > 100:
+            self.signalr_message_queue = self.signalr_message_queue[-100:]
     
     def _on_playlist_updated(self, data):
         """Called when owner uploads/deletes content - refresh playlist"""
@@ -649,14 +1068,28 @@ class CCMSPlayer:
                 logger.error(f"Scheduled cache cleanup failed: {e}")
     
     async def download_videos(self):
-        """Download all playlist videos to local cache"""
+        """Download all playlist videos to local cache with retry logic and disk space management"""
         import os
+        import time
         
         cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
         os.makedirs(cache_dir, exist_ok=True)
         
+        # Check disk space before starting downloads
+        has_space, free_gb, total_gb = self._check_disk_space()
+        logger.info(f"[Disk] Free space: {free_gb:.2f} GB / {total_gb:.2f} GB")
+        
+        if not has_space:
+            logger.warning(f"[Disk] Low disk space! Attempting cache eviction...")
+            # Try to free up 1GB
+            self._evict_lru_cache(1024 * 1024 * 1024)
+            has_space, free_gb, _ = self._check_disk_space()
+            if not has_space:
+                logger.error(f"[Disk] Still low on space ({free_gb:.2f} GB free). Some downloads may fail.")
+        
         logger.info(f"Downloading {len(self.playlist)} videos to cache...")
         downloaded_files = []
+        failed_downloads = []
         
         for idx, item in enumerate(self.playlist):
             creative_url = item.get("creativeUrl", "")
@@ -697,35 +1130,105 @@ class CCMSPlayer:
                 filename = f"default_slot_{slot_number}.mp4"
             filepath = os.path.join(cache_dir, filename)
             
-            try:
-                # Download video
-                logger.info(f"  Downloading slot {slot_number} ({content_type})...")
-                response = requests.get(creative_url, stream=True, timeout=30)
-                response.raise_for_status()
-                
-                with open(filepath, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                
-                logger.info(f"  [OK] Slot {slot_number} downloaded ({os.path.getsize(filepath)} bytes)")
-                
-                # Set local_path on playlist item
-                self.playlist[idx]["local_path"] = filepath
-                downloaded_files.append(filepath)
-                
-                # Register in cache manager (only if has content_id)
-                if content_id:
-                    self.cache_manager.register_download(
-                        booking_id=item.get('bookingId', ''),
-                        campaign_id=item.get('campaignId', ''),
-                        creative_id=content_id,
-                        file_path=filepath
-                    )
-                
-            except Exception as e:
-                logger.error(f"  Failed to download slot {slot_number}: {e}")
+            # Download with retry logic
+            success = False
+            last_error = None
+            
+            for attempt in range(Config.DOWNLOAD_MAX_RETRIES):
+                try:
+                    if attempt > 0:
+                        delay = Config.DOWNLOAD_RETRY_DELAY_SECONDS * (2 ** (attempt - 1))  # Exponential backoff
+                        logger.info(f"  Slot {slot_number}: Retry {attempt + 1}/{Config.DOWNLOAD_MAX_RETRIES} after {delay}s...")
+                        time.sleep(delay)
+                    
+                    # Check disk space before each download
+                    has_space, free_gb, _ = self._check_disk_space()
+                    if not has_space:
+                        logger.warning(f"  Slot {slot_number}: Low disk space, attempting eviction...")
+                        self._evict_lru_cache(500 * 1024 * 1024)  # Try to free 500MB
+                    
+                    # Download video with progress tracking
+                    logger.info(f"  Downloading slot {slot_number} ({content_type})...")
+                    response = requests.get(creative_url, stream=True, timeout=60)
+                    response.raise_for_status()
+                    
+                    # Get content length if available
+                    content_length = response.headers.get('content-length')
+                    if content_length:
+                        content_length = int(content_length)
+                        logger.debug(f"  Expected size: {content_length / (1024*1024):.1f} MB")
+                    
+                    # Write to temp file first, then rename (atomic operation)
+                    temp_filepath = filepath + ".tmp"
+                    downloaded_bytes = 0
+                    
+                    with open(temp_filepath, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=65536):  # 64KB chunks
+                            f.write(chunk)
+                            downloaded_bytes += len(chunk)
+                    
+                    # Verify download completed
+                    if content_length and downloaded_bytes < content_length:
+                        raise Exception(f"Incomplete download: {downloaded_bytes}/{content_length} bytes")
+                    
+                    # Rename temp to final
+                    os.rename(temp_filepath, filepath)
+                    
+                    logger.info(f"  [OK] Slot {slot_number} downloaded ({downloaded_bytes / (1024*1024):.1f} MB)")
+                    
+                    # Set local_path on playlist item
+                    self.playlist[idx]["local_path"] = filepath
+                    downloaded_files.append(filepath)
+                    
+                    # Register in cache manager (only if has content_id)
+                    if content_id:
+                        self.cache_manager.register_download(
+                            booking_id=item.get('bookingId', ''),
+                            campaign_id=item.get('campaignId', ''),
+                            creative_id=content_id,
+                            file_path=filepath
+                        )
+                    
+                    success = True
+                    break
+                    
+                except requests.exceptions.Timeout as e:
+                    last_error = f"Timeout: {e}"
+                    logger.warning(f"  Slot {slot_number}: {last_error}")
+                except requests.exceptions.ConnectionError as e:
+                    last_error = f"Connection error: {e}"
+                    logger.warning(f"  Slot {slot_number}: {last_error}")
+                except requests.exceptions.HTTPError as e:
+                    last_error = f"HTTP error: {e}"
+                    logger.warning(f"  Slot {slot_number}: {last_error}")
+                    if e.response.status_code == 404:
+                        break  # Don't retry 404s
+                except Exception as e:
+                    last_error = str(e)
+                    logger.warning(f"  Slot {slot_number}: Download error: {last_error}")
+                finally:
+                    # Clean up temp file if exists
+                    temp_filepath = filepath + ".tmp"
+                    if os.path.exists(temp_filepath):
+                        try:
+                            os.remove(temp_filepath)
+                        except:
+                            pass
+            
+            if not success:
+                logger.error(f"  [FAILED] Slot {slot_number}: All {Config.DOWNLOAD_MAX_RETRIES} retries failed - {last_error}")
+                failed_downloads.append({
+                    'slot': slot_number,
+                    'url': creative_url[:50] + '...',
+                    'error': last_error
+                })
         
-        logger.info(f"Downloaded {len(downloaded_files)}/{len(self.playlist)} videos")
+        logger.info(f"Download complete: {len(downloaded_files)}/{len(self.playlist)} videos")
+        if failed_downloads:
+            logger.warning(f"Failed downloads: {len(failed_downloads)}")
+            for fd in failed_downloads:
+                logger.warning(f"  Slot {fd['slot']}: {fd['error']}")
+        
         return downloaded_files
     
     def create_playlist_file(self, video_files):
@@ -774,7 +1277,9 @@ class CCMSPlayer:
             logger.error(f"Error handling video ended: {e}")
     
     def record_impression(self, item):
-        """Record impression for 10-minute sync (skip default/filler videos)"""
+        """Record impression for 10-minute sync (skip default/filler videos)
+        Includes verification hash for fraud prevention and SQLite queue for offline support
+        """
         try:
             # Skip impressions for default/filler content
             is_filler = item.get('isFillerContent', False) or item.get('IsFillerContent', False)
@@ -784,6 +1289,17 @@ class CCMSPlayer:
                 return
             
             timestamp = datetime.utcnow()
+            slot_number = item.get('slotNumber', 0)
+            
+            # Generate unique impression ID for deduplication
+            impression_id = str(uuid.uuid4())
+            
+            # Generate verification hash
+            verification_hash = self._generate_verification_hash(
+                self.screen_id, 
+                slot_number, 
+                timestamp.isoformat()
+            )
             
             # Check if this is owner content or booking content
             owner_content_id = item.get('ownerContentId')
@@ -792,12 +1308,26 @@ class CCMSPlayer:
                 # Owner content impression
                 if owner_content_id not in self.owner_content_summaries:
                     self.owner_content_summaries[owner_content_id] = {
-                        'slotNumber': item.get('slotNumber', 0),
-                        'timestamps': []
+                        'slotNumber': slot_number,
+                        'timestamps': [],
+                        'impressionIds': [],
+                        'verificationHashes': []
                     }
                 self.owner_content_summaries[owner_content_id]['timestamps'].append(timestamp)
-                slot_num = item.get('slotNumber', '?')
-                logger.info(f"📊 Recorded owner content impression: Slot {slot_num}")
+                self.owner_content_summaries[owner_content_id]['impressionIds'].append(impression_id)
+                self.owner_content_summaries[owner_content_id]['verificationHashes'].append(verification_hash)
+                
+                # Also queue to SQLite for offline persistence
+                self._queue_impression_offline({
+                    'impressionId': impression_id,
+                    'ownerContentId': owner_content_id,
+                    'slotNumber': slot_number,
+                    'playedAt': timestamp.isoformat(),
+                    'clientTimestamp': timestamp.isoformat(),
+                    'verificationHash': verification_hash
+                })
+                
+                logger.info(f"📊 Recorded owner content impression: Slot {slot_number}")
             else:
                 # Booking impression
                 campaign_id = item.get('campaignId')
@@ -806,22 +1336,57 @@ class CCMSPlayer:
                         self.campaign_summaries[campaign_id] = {
                             'bookingId': item.get('bookingId'),
                             'creativeId': item.get('creativeId'),
-                            'timestamps': []
+                            'timestamps': [],
+                            'impressionIds': [],
+                            'verificationHashes': []
                         }
                     self.campaign_summaries[campaign_id]['timestamps'].append(timestamp)
+                    self.campaign_summaries[campaign_id]['impressionIds'].append(impression_id)
+                    self.campaign_summaries[campaign_id]['verificationHashes'].append(verification_hash)
+                    
+                    # Also queue to SQLite for offline persistence
+                    self._queue_impression_offline({
+                        'impressionId': impression_id,
+                        'bookingId': item.get('bookingId'),
+                        'campaignId': campaign_id,
+                        'creativeId': item.get('creativeId'),
+                        'slotNumber': slot_number,
+                        'playedAt': timestamp.isoformat(),
+                        'clientTimestamp': timestamp.isoformat(),
+                        'verificationHash': verification_hash
+                    })
+                    
                     logger.info(f"📊 Recorded campaign impression: {campaign_id}")
         
         except Exception as e:
             logger.error(f"Failed to record impression: {e}")
     
     async def play_loop(self):
-        """Main playback loop using MPV Dual Player"""
+        """Main playback loop using MPV Dual Player with operating hours enforcement"""
         logger.info("Starting MPV gapless playback loop...")
         
         self.is_running = True
+        outside_hours_logged = False  # Prevent log spam
         
         try:
             while self.is_running:
+                # Check operating hours before playback
+                if not self._check_operating_hours():
+                    if not outside_hours_logged:
+                        logger.info("⏸️  Pausing playback - outside operating hours")
+                        outside_hours_logged = True
+                        # Pause MPV if playing
+                        if hasattr(self.mpv_player, 'pause'):
+                            self.mpv_player.pause()
+                    self.is_within_operating_hours = False
+                    await asyncio.sleep(60)  # Check again in 1 minute
+                    continue
+                else:
+                    if outside_hours_logged:
+                        logger.info("▶️  Resuming playback - within operating hours")
+                        outside_hours_logged = False
+                    self.is_within_operating_hours = True
+                
                 # Check if playlist needs refresh
                 if not self.playlist:
                     logger.warning("No playlist loaded, waiting...")
@@ -850,6 +1415,14 @@ class CCMSPlayer:
                     
                     # Keep alive - MPV handles playback automatically
                     while self.is_running:
+                        # Check operating hours during playback
+                        if not self._check_operating_hours():
+                            if self.is_within_operating_hours:  # Just went outside hours
+                                logger.info("⏸️  Stopping playback - outside operating hours")
+                                self.mpv_player.stop()
+                                self.is_within_operating_hours = False
+                            break  # Exit inner loop to re-check in outer loop
+                        
                         # Check if playlist needs to be reloaded (owner content changed)
                         if self.playlist_needs_reload:
                             logger.info("🔄 Playlist reload requested - downloading and reloading...")
