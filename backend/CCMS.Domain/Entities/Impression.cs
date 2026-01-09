@@ -19,6 +19,12 @@ public class Impression : BaseEntity
     public int? SlotPosition { get; set; }
     public bool IsVerified { get; set; } = true;
     
+    // Deduplication and fraud prevention
+    public string? ImpressionId { get; set; } // UUID from player for deduplication
+    public DateTime? ClientTimestamp { get; set; } // Timestamp from player device
+    public string? VerificationHash { get; set; } // Hash for authenticity verification
+    public string? PlayerVersion { get; set; } // Player version for tracking
+    
     // Navigation properties
     public virtual Booking? Booking { get; set; }
     public virtual Campaign? Campaign { get; set; }

@@ -85,6 +85,23 @@ public class PlayerController : ControllerBase
             _logger.LogInformation($"Generating playlist for {_timeZoneService.TimeZone.Id}: {currentDate:yyyy-MM-dd}");
             var playlist = await _playlistService.GeneratePlaylistAsync(screenGuid, currentDate);
 
+            // Parse operating hours for the player
+            var operatingHours = new Dictionary<string, string>();
+            if (!string.IsNullOrEmpty(screen.OperatingHoursJson))
+            {
+                try
+                {
+                    operatingHours = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(screen.OperatingHoursJson) 
+                                    ?? new Dictionary<string, string>();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse operating hours JSON");
+                }
+            }
+            
+            // Generate verification salt for this session (or use a stored one)
+            var verificationSalt = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
 
             _logger.LogInformation($"Handshake successful for screen {request.ScreenId}");
 
@@ -94,7 +111,10 @@ public class PlayerController : ControllerBase
                 ServerTime = DateTime.UtcNow,
                 Playlist = playlist,
                 SyncIntervalMinutes = 10,
-                Message = "Handshake successful"
+                Message = "Handshake successful",
+                ScreenTimezone = screen.Timezone,
+                OperatingHours = operatingHours,
+                VerificationSalt = verificationSalt
             };
 
             return Ok(ApiResponse<HandshakeResponse>.SuccessResponse(response));
@@ -132,12 +152,44 @@ public class PlayerController : ControllerBase
             screen.IsOnline = true;
             await _screenRepository.UpdateAsync(screen);
 
-            // Save impressions
+            // Save impressions with deduplication
             int savedCount = 0;
+            int duplicateCount = 0;
+            var playerVersion = request.SyncData.PlayerVersion ?? "unknown";
+            
             foreach (var campaign in request.SyncData.CampaignImpressions)
             {
-                foreach (var timestamp in campaign.PlayTimestamps)
+                // Get impression IDs for deduplication if provided
+                var impressionIds = campaign.ImpressionIds ?? new List<string>();
+                var verificationHashes = campaign.VerificationHashes ?? new List<string>();
+                
+                for (int i = 0; i < campaign.PlayTimestamps.Count; i++)
                 {
+                    var timestamp = campaign.PlayTimestamps[i];
+                    var impressionId = i < impressionIds.Count ? impressionIds[i] : null;
+                    var verificationHash = i < verificationHashes.Count ? verificationHashes[i] : null;
+                    
+                    // Check for duplicate impression (if impressionId provided)
+                    if (!string.IsNullOrEmpty(impressionId))
+                    {
+                        var existing = await _impressionRepository.FindAsync(imp => imp.ImpressionId == impressionId);
+                        if (existing.Any())
+                        {
+                            duplicateCount++;
+                            _logger.LogDebug($"Skipping duplicate impression: {impressionId}");
+                            continue;
+                        }
+                    }
+                    
+                    // Basic fraud detection: check if timestamp is reasonable
+                    var timeDiff = (DateTime.UtcNow - timestamp).TotalHours;
+                    var isVerified = timeDiff <= 24 && timeDiff >= -1; // Allow 1 hour future for clock drift
+                    
+                    if (!isVerified)
+                    {
+                        _logger.LogWarning($"Suspicious impression timestamp: {timestamp} (diff: {timeDiff:F1}h) from screen {request.ScreenId}");
+                    }
+                    
                     var impression = new Impression
                     {
                         Id = Guid.NewGuid(),
@@ -148,7 +200,13 @@ public class PlayerController : ControllerBase
                         PlayedAt = timestamp,
                         SessionDate = timestamp.Date,
                         DeviceId = request.ScreenId,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        // New deduplication fields
+                        ImpressionId = impressionId,
+                        ClientTimestamp = timestamp,
+                        VerificationHash = verificationHash,
+                        PlayerVersion = playerVersion,
+                        IsVerified = isVerified
                     };
 
                     await _impressionRepository.AddAsync(impression);
@@ -156,17 +214,34 @@ public class PlayerController : ControllerBase
                 }
             }
 
-            // Save owner content impressions (NEW)
+            // Save owner content impressions with deduplication
             foreach (var ownerContent in request.SyncData.OwnerContentImpressions)
             {
-                foreach (var timestamp in ownerContent.PlayTimestamps)
+                var impressionIds = ownerContent.ImpressionIds ?? new List<string>();
+                var verificationHashes = ownerContent.VerificationHashes ?? new List<string>();
+                
+                for (int i = 0; i < ownerContent.PlayTimestamps.Count; i++)
                 {
+                    var timestamp = ownerContent.PlayTimestamps[i];
+                    var impressionId = i < impressionIds.Count ? impressionIds[i] : null;
+                    var verificationHash = i < verificationHashes.Count ? verificationHashes[i] : null;
+                    
+                    // Check for duplicate
+                    if (!string.IsNullOrEmpty(impressionId))
+                    {
+                        var existing = await _impressionRepository.FindAsync(imp => imp.ImpressionId == impressionId);
+                        if (existing.Any())
+                        {
+                            duplicateCount++;
+                            continue;
+                        }
+                    }
+                    
                     var impression = new Impression
                     {
                         Id = Guid.NewGuid(),
                         ScreenId = screenGuid,
                         OwnerContentId = ownerContent.OwnerContentId,
-                        // For owner content, these are NULL since no booking involved
                         BookingId = null,
                         CampaignId = null,
                         CreativeId = null,
@@ -174,7 +249,12 @@ public class PlayerController : ControllerBase
                         SessionDate = timestamp.Date,
                         DeviceId = request.ScreenId,
                         SlotPosition = ownerContent.SlotNumber,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        ImpressionId = impressionId,
+                        ClientTimestamp = timestamp,
+                        VerificationHash = verificationHash,
+                        PlayerVersion = playerVersion,
+                        IsVerified = true
                     };
 
                     await _impressionRepository.AddAsync(impression);
@@ -202,13 +282,14 @@ public class PlayerController : ControllerBase
                     timestamp = DateTime.UtcNow
                 });
 
-            _logger.LogInformation($"Sync successful for screen {request.ScreenId}: {savedCount} impressions saved");
+            _logger.LogInformation($"Sync successful for screen {request.ScreenId}: {savedCount} impressions saved, {duplicateCount} duplicates skipped");
 
             var response = new SyncResponse
             {
                 Success = true,
                 Message = "Sync successful",
-                ImpressionsSaved = savedCount
+                ImpressionsSaved = savedCount,
+                DuplicatesSkipped = duplicateCount
             };
 
             return Ok(ApiResponse<SyncResponse>.SuccessResponse(response));

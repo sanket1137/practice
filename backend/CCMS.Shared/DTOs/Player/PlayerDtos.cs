@@ -15,6 +15,13 @@ public class HandshakeResponse
     public DateTime ServerTime { get; set; }
     public object? Playlist { get; set; }
     public int SyncIntervalMinutes { get; set; }
+    
+    // Screen timezone and operating hours for player enforcement
+    public string? ScreenTimezone { get; set; }
+    public Dictionary<string, string>? OperatingHours { get; set; } // {DayName: "HH:MM-HH:MM"}
+    
+    // Verification salt for impression authenticity
+    public string? VerificationSalt { get; set; }
 }
 
 public class PlaylistDto

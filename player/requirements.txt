@@ -2,6 +2,7 @@ requests==2.31.0
 python-socketio[client]==5.10.0
 signalrcore==0.9.5
 python-mpv>=1.0.0
+pytz>=2024.1
 
 # WebRTC Live Streaming Dependencies
 aiortc>=1.6.0

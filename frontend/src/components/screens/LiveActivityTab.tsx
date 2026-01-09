@@ -164,10 +164,11 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
     const { data: slotsData, isLoading } = useQuery({
         queryKey: ['slot-status', screenId],
         queryFn: () => api.get<{ data: SlotStatus[] }>(`/screens/${screenId}/slots/status`),
-        refetchInterval: 10000 // Refresh every 10 seconds
+        // Removed refetchInterval - using SignalR for real-time updates instead
+        staleTime: 30000 // Consider data fresh for 30 seconds
     });
 
-    // Real-time SignalR subscription for impression updates
+    // Real-time SignalR subscription for impression updates AND slot status changes
     useEffect(() => {
         const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5257';
 
@@ -176,10 +177,17 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
             .withAutomaticReconnect()
             .build();
 
+        // Listen for impression updates
         connection.on('ImpressionRecorded', (data: { screenId: string; slotNumber: number; ownerContentId: string; timestamp: string }) => {
             console.log('📊 Impression recorded:', data);
-
             // Invalidate and refetch slot status to get updated play counts
+            queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
+        });
+
+        // Listen for slot status changes (booking activated, owner content added/removed)
+        connection.on('SlotStatusChanged', (data: { screenId: string; slotNumber: number; action: string; newStatus: string; contentName?: string }) => {
+            console.log('🔄 Slot status changed:', data);
+            // Invalidate to refetch slot status immediately
             queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
         });
 

@@ -8,7 +8,8 @@ public class DailySyncData
     public string Uptime { get; set; } = string.Empty; // HH:mm:ss format
     public string Downtime { get; set; } = string.Empty;
     public List<CampaignImpressionSummary> CampaignImpressions { get; set; } = new();
-    public List<OwnerContentImpressionSummary> OwnerContentImpressions { get; set; } = new(); // NEW: Track owner content plays
+    public List<OwnerContentImpressionSummary> OwnerContentImpressions { get; set; } = new();
+    public string? PlayerVersion { get; set; } // Player version for tracking
 }
 
 public class CampaignImpressionSummary
@@ -18,6 +19,10 @@ public class CampaignImpressionSummary
     public Guid CreativeId { get; set; }
     public int TotalSlotsRan { get; set; }
     public List<DateTime> PlayTimestamps { get; set; } = new();
+    
+    // Deduplication fields
+    public List<string>? ImpressionIds { get; set; } // UUID for each impression
+    public List<string>? VerificationHashes { get; set; } // Hash for verification
 }
 
 public class OwnerContentImpressionSummary
@@ -25,6 +30,10 @@ public class OwnerContentImpressionSummary
     public Guid OwnerContentId { get; set; }
     public int SlotNumber { get; set; }
     public List<DateTime> PlayTimestamps { get; set; } = new();
+    
+    // Deduplication fields
+    public List<string>? ImpressionIds { get; set; }
+    public List<string>? VerificationHashes { get; set; }
 }
 
 public class SyncResponse
@@ -32,4 +41,5 @@ public class SyncResponse
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
     public int ImpressionsSaved { get; set; }
+    public int DuplicatesSkipped { get; set; } // Count of skipped duplicates
 }
