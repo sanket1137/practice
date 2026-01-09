@@ -34,12 +34,20 @@ public class PlaylistService : IPlaylistService
                 && b.EndDate >= date)
             .ToListAsync(cancellationToken);
 
-        // Generate playlist items
+        // Get active owner content
+        var ownerContents = await _context.OwnerContents
+            .Where(oc => oc.ScreenId == screenId && oc.IsActive)
+            .ToListAsync(cancellationToken);
+
+        // Generate playlist with priority: Booking > Owner Content > Default
         var playlistItems = new List<PlaylistItemDto>();
 
-        foreach (var booking in bookings)
+        for (int slot = 1; slot <= screen.SlotsPerFrame; slot++)
         {
-            foreach (var slotNumber in booking.SlotNumbers)
+            // Priority 1: Check for advertiser booking
+            var booking = bookings.FirstOrDefault(b => b.SlotNumbers.Contains(slot));
+            
+            if (booking != null)
             {
                 playlistItems.Add(new PlaylistItemDto
                 {
@@ -48,22 +56,41 @@ public class PlaylistService : IPlaylistService
                     FileUrl = booking.Creative.FileUrl,
                     FileHash = booking.Creative.FileHash,
                     Duration = booking.Creative.Duration,
-                    SlotPosition = slotNumber,
+                    SlotPosition = slot,
                     RepeatCount = 1
                 });
             }
+            else
+            {
+                // Priority 2: Check for owner custom content
+                var ownerContent = ownerContents.FirstOrDefault(oc => oc.SlotNumber == slot);
+                
+                if (ownerContent != null)
+                {
+                    playlistItems.Add(new PlaylistItemDto
+                    {
+                        CreativeId = Guid.Empty, // No creative ID for owner content
+                        BookingId = null,
+                        OwnerContentId = ownerContent.Id,
+                        FileUrl = ownerContent.FileUrl,
+                        FileHash = ownerContent.FileHash,
+                        Duration = ownerContent.Duration,
+                        SlotPosition = slot,
+                        RepeatCount = 1
+                    });
+                }
+                // Priority 3: Default video (player will handle if nothing else)
+            }
         }
-
-        // Sort by slot position
-        playlistItems = playlistItems.OrderBy(p => p.SlotPosition).ToList();
 
         return new PlaylistDto
         {
             ScreenId = screenId,
-            Date = date.Date,
+            Date = date,
             Items = playlistItems
         };
     }
+
 
     public async Task<PlaylistDto> GetTodayPlaylistAsync(string deviceId, CancellationToken cancellationToken = default)
     {
@@ -74,10 +101,6 @@ public class PlaylistService : IPlaylistService
         {
             throw new ArgumentException($"Screen with device ID {deviceId} not found");
         }
-
-        // Update last sync time
-        screen.LastSyncAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync(cancellationToken);
 
         return await GeneratePlaylistForScreenAsync(screen.Id, DateTime.UtcNow.Date, cancellationToken);
     }

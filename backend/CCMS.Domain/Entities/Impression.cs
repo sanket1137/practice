@@ -2,10 +2,11 @@ namespace CCMS.Domain.Entities;
 
 public class Impression : BaseEntity
 {
-    public Guid BookingId { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? BookingId { get; set; } // Nullable because owner content has no booking
+    public Guid? CampaignId { get; set; } // Nullable because owner content has no campaign
     public Guid ScreenId { get; set; }
-    public Guid CreativeId { get; set; }
+    public Guid? CreativeId { get; set; } // Nullable because owner content has no creative
+    public Guid? OwnerContentId { get; set; } // Link to owner custom content
     
     // Playback information
     public DateTime PlayedAt { get; set; } // When ad was actually played
@@ -19,9 +20,10 @@ public class Impression : BaseEntity
     public bool IsVerified { get; set; } = true;
     
     // Navigation properties
-    public virtual Booking Booking { get; set; } = null!;
-    public virtual Campaign Campaign { get; set; } = null!;
+    public virtual Booking? Booking { get; set; }
+    public virtual Campaign? Campaign { get; set; }
     public virtual Screen Screen { get; set; } = null!;
-    public virtual Creative Creative { get; set; } = null!;
+    public virtual Creative? Creative { get; set; }
+    public virtual OwnerContent? OwnerContent { get; set; }
 }
 

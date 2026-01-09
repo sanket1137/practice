@@ -23,6 +23,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Impression> Impressions => Set<Impression>();
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Membership> Memberships => Set<Membership>();
+    public DbSet<OwnerContent> OwnerContents => Set<OwnerContent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -189,6 +190,33 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.CreativeId)
                 .OnDelete(DeleteBehavior.Restrict);
+                
+            entity.HasOne(e => e.OwnerContent)
+                .WithMany(oc => oc.Impressions)
+                .HasForeignKey(e => e.OwnerContentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+        
+        // OwnerContent configuration
+        modelBuilder.Entity<OwnerContent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Unique constraint: one owner content per screen per slot (excluding soft-deleted)
+            entity.HasIndex(e => new { e.ScreenId, e.SlotNumber })
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0"); // Only enforce uniqueness for non-deleted records
+            
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.FileUrl).IsRequired();
+            entity.Property(e => e.PricePerPlay).HasColumnType("decimal(10,2)");
+            
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasQueryFilter(e => e.IsActive);
         });
 
         // Organization configuration

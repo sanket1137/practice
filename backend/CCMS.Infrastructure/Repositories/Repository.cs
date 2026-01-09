@@ -67,6 +67,16 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         }
    }
 
+    public virtual async Task HardDeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var entity = await _dbSet.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        if (entity != null)
+        {
+            _dbSet.Remove(entity); // Physical removal
+            // SaveChanges will be called by the caller
+        }
+    }
+
     public virtual async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbSet.AnyAsync(e => e.Id == id, cancellationToken);
@@ -77,5 +87,16 @@ public class Repository<T> : IRepository<T> where T : BaseEntity
         return predicate == null
             ? await _dbSet.CountAsync(cancellationToken)
             : await _dbSet.CountAsync(predicate, cancellationToken);
+    }
+
+    public virtual async Task<T?> FindOneIncludingDeletedAsync(System.Linq.Expressions.Expression<Func<T, bool>> predicate, CancellationToken cancellationToken = default)
+    {
+        // IgnoreQueryFilters to include soft-deleted records
+        return await _dbSet.IgnoreQueryFilters().FirstOrDefaultAsync(predicate, cancellationToken);
+    }
+
+    public virtual async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.SaveChangesAsync(cancellationToken);
     }
 }

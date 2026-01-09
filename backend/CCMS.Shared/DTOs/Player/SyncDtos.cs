@@ -8,6 +8,7 @@ public class DailySyncData
     public string Uptime { get; set; } = string.Empty; // HH:mm:ss format
     public string Downtime { get; set; } = string.Empty;
     public List<CampaignImpressionSummary> CampaignImpressions { get; set; } = new();
+    public List<OwnerContentImpressionSummary> OwnerContentImpressions { get; set; } = new(); // NEW: Track owner content plays
 }
 
 public class CampaignImpressionSummary
@@ -16,6 +17,13 @@ public class CampaignImpressionSummary
     public Guid CampaignId { get; set; }
     public Guid CreativeId { get; set; }
     public int TotalSlotsRan { get; set; }
+    public List<DateTime> PlayTimestamps { get; set; } = new();
+}
+
+public class OwnerContentImpressionSummary
+{
+    public Guid OwnerContentId { get; set; }
+    public int SlotNumber { get; set; }
     public List<DateTime> PlayTimestamps { get; set; } = new();
 }
 

@@ -174,10 +174,24 @@ builder.Services.AddScoped<IRevenueCalculationService, RevenueCalculationService
 builder.Services.AddScoped<SlotAvailabilityService>();
 builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
+
+// Set up FFmpeg - download if needed
+var ffmpegPath = Path.Combine(Path.GetTempPath(), "ffmpeg");
+Directory.CreateDirectory(ffmpegPath);
+if (!File.Exists(Path.Combine(ffmpegPath, "ffmpeg.exe")))
+{
+    Console.WriteLine("Downloading FFmpeg binaries...");
+    Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(Xabe.FFmpeg.Downloader.FFmpegVersion.Official, ffmpegPath).Wait();
+    Console.WriteLine("FFmpeg downloaded successfully!");
+}
+Xabe.FFmpeg.FFmpeg.SetExecutablesPath(ffmpegPath);
+
+builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
 
 // Real-time notification services
+builder.Services.AddScoped<CCMS.Application.Interfaces.IPlaylistNotificationService, CCMS.Api.Services.PlaylistNotificationService>();
 builder.Services.AddScoped<CCMS.Application.Interfaces.IBookingNotificationService, CCMS.Api.Services.BookingNotificationService>();
 
 // TimeZone Service (Singleton for performance)
