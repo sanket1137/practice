@@ -48,6 +48,9 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         VideoMetadata metadata;
         try
         {
+            // Ensure stream is at beginning
+            request.FileStream.Position = 0;
+            
             metadata = await _videoMetadataService.ExtractMetadataAsync(request.FileStream, request.FileName);
         }
         catch (Exception ex)
@@ -63,7 +66,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         
         using (var stream = request.FileStream)
         {
-            // Reset stream position after metadata extraction
+            // ✅ CRITICAL: Reset stream position after metadata extraction
             stream.Position = 0;
             
             fileUrl = await _fileStorageService.UploadFileAsync(
