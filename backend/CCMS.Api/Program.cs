@@ -226,6 +226,12 @@ builder.Services.AddHostedService<CCMS.Api.Services.ImpressionFlushService>();
 // Add stream expiry service (auto-cleanup stale streams)
 builder.Services.AddHostedService<CCMS.Api.Services.StreamExpiryService>();
 
+// Add refresh token cleanup service (security - removes expired tokens daily)
+builder.Services.AddHostedService<CCMS.Api.Services.RefreshTokenCleanupService>();
+
+// Add orphaned blob cleanup service (storage - removes old files after 160 days)
+builder.Services.AddHostedService<CCMS.Api.Services.OrphanedBlobCleanupService>();
+
 // Add Booking status monitor (in development only)
 if (builder.Environment.IsDevelopment())
 {

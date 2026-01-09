@@ -5,12 +5,12 @@ namespace CCMS.Domain.Entities;
 public class Campaign : BaseEntity
 {
     public Guid AdvertiserId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public decimal Budget { get; set; }
-    public string Currency { get; set; } = "USD";
+    public required string Name { get; set; }
+    public string? Description { get; set; }
     public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public DateTime? EndDate { get; set; } // Optional - null means indefinite campaign
+    public decimal Budget { get; set; }
+    public required string Currency { get; set; } = "USD";
     public CampaignStatus Status { get; set; } = CampaignStatus.Draft;
     
     // Navigation properties

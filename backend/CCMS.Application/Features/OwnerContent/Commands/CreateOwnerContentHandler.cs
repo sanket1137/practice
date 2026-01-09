@@ -64,6 +64,25 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
             "owner-content",
             cancellationToken);
 
+        // Validate owner content doesn't conflict with approved/active bookings
+        if (request.SlotNumber.HasValue)
+        {
+            var hasConflictingBooking = allBookings
+                .Any(b =>
+                    b.ScreenId == request.ScreenId &&
+                    b.SlotNumbers.Contains(request.SlotNumber.Value) &&
+                    (b.Status == Domain.Enums.BookingStatus.Approved || b.Status == Domain.Enums.BookingStatus.Active) &&
+                    !b.IsDeleted);
+
+            if (hasConflictingBooking)
+            {
+                throw new InvalidOperationException(
+                    $"Slot {request.SlotNumber.Value} has active or approved bookings. " +
+                    $"Owner content cannot be assigned to booked slots. " +
+                    $"Please choose a different slot or wait for booking to complete.");
+            }
+        }
+
         // 4. Create or update owner content
         // Try to create new content first
         var content = new Domain.Entities.OwnerContent

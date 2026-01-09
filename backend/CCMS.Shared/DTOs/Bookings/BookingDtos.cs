@@ -54,6 +54,7 @@ public class CreateBookingRequest
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public int? SlotNumber { get; set; } // null = auto-assign, 1-6 = specific slot
+    public string? ClientTimezone { get; set; } // e.g., "America/New_York", "Asia/Kolkata"
 }
 
 public class ApproveBookingRequest
