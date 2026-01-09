@@ -174,44 +174,10 @@ builder.Services.AddScoped<IRevenueCalculationService, RevenueCalculationService
 builder.Services.AddScoped<SlotAvailabilityService>();
 builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
-
-// Set up FFmpeg - download in background to avoid blocking
-var ffmpegPath = Path.Combine(Path.GetTempPath(), "ffmpeg");
-Directory.CreateDirectory(ffmpegPath);
-
-// Download FFmpeg in background, don't block startup
-_ = Task.Run(async () =>
-{
-    try
-    {
-        if (!File.Exists(Path.Combine(ffmpegPath, "ffmpeg.exe")))
-        {
-            Console.WriteLine("⏬ Downloading FFmpeg binaries in background (~100MB, may take 1-2 minutes)...");
-            await Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(
-                Xabe.FFmpeg.Downloader.FFmpegVersion.Official, 
-                ffmpegPath);
-            Console.WriteLine("✅ FFmpeg downloaded successfully!");
-        }
-        else
-        {
-            Console.WriteLine("✅ FFmpeg already available at: " + ffmpegPath);
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ FFmpeg download failed: {ex.Message}");
-        Console.WriteLine("Video uploads will fail until FFmpeg is available.");
-    }
-});
-
-Xabe.FFmpeg.FFmpeg.SetExecutablesPath(ffmpegPath);
-
-builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
 
 // Real-time notification services
-builder.Services.AddScoped<CCMS.Application.Interfaces.IPlaylistNotificationService, CCMS.Api.Services.PlaylistNotificationService>();
 builder.Services.AddScoped<CCMS.Application.Interfaces.IBookingNotificationService, CCMS.Api.Services.BookingNotificationService>();
 
 // TimeZone Service (Singleton for performance)
@@ -225,12 +191,6 @@ builder.Services.AddHostedService<CCMS.Api.Services.ImpressionFlushService>();
 
 // Add stream expiry service (auto-cleanup stale streams)
 builder.Services.AddHostedService<CCMS.Api.Services.StreamExpiryService>();
-
-// Add refresh token cleanup service (security - removes expired tokens daily)
-builder.Services.AddHostedService<CCMS.Api.Services.RefreshTokenCleanupService>();
-
-// Add orphaned blob cleanup service (storage - removes old files after 160 days)
-builder.Services.AddHostedService<CCMS.Api.Services.OrphanedBlobCleanupService>();
 
 // Add Booking status monitor (in development only)
 if (builder.Environment.IsDevelopment())
@@ -277,21 +237,6 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads"
-});
-
-// Static files for demo videos
-var demoVideosPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "demo-videos");
-if (!Directory.Exists(demoVideosPath))
-{
-    Directory.CreateDirectory(demoVideosPath);
-}
-
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(demoVideosPath),
-    RequestPath = "/demo-videos",
-    ServeUnknownFileTypes = true,
-    DefaultContentType = "video/mp4"
 });
 
 // SignalR Hub - Map BEFORE authentication to allow negotiate endpoint

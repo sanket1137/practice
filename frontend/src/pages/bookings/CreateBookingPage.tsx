@@ -71,9 +71,6 @@ interface Campaign {
 interface Creative {
     id: string;
     name: string;
-    duration: number;  // in seconds
-    width: number;
-    height: number;
 }
 
 interface Screen {
@@ -82,9 +79,6 @@ interface Screen {
     pricePerSlot: number;
     currency: string;
     timeFrameMinutes: number;
-    slotsPerFrame: number;
-    resolutionWidth: number;
-    resolutionHeight: number;
     schedule: {
         monday: DaySchedule;
         tuesday: DaySchedule;
@@ -127,12 +121,9 @@ export default function CreateBookingPage() {
     });
 
     const selectedCampaignId = watch('campaignId');
-    const selectedCreativeId = watch('creativeId');
     const selectedScreenId = watch('screenId');
     const startDate = watch('startDate');
     const endDate = watch('endDate');
-
-    const [validationError, setValidationError] = useState<string | null>(null);
 
     // Fetch campaigns
     const { data: campaigns, error: campaignsError, isLoading: campaignsLoading } = useQuery<Campaign[]>({
@@ -179,41 +170,6 @@ export default function CreateBookingPage() {
         },
         enabled: !!selectedScreenId,
     });
-
-    // Validate creative compatibility with screen
-    const selectedCreative = useMemo(() => {
-        if (!selectedCreativeId || !creatives) return null;
-        return creatives.find(c => c.id === selectedCreativeId);
-    }, [selectedCreativeId, creatives]);
-
-    // Validation effect
-    useMemo(() => {
-        if (!selectedCreative || !selectedScreenDetails) {
-            setValidationError(null);
-            return;
-        }
-
-        const errors: string[] = [];
-
-        // Check duration
-        const maxDuration = (selectedScreenDetails.timeFrameMinutes * 60) / selectedScreenDetails.slotsPerFrame;
-        if (selectedCreative.duration > maxDuration) {
-            errors.push(
-                `Creative duration (${selectedCreative.duration}s) exceeds maximum allowed (${maxDuration}s per slot)`
-            );
-        }
-
-        // Check dimensions
-        if (selectedCreative.width !== selectedScreenDetails.resolutionWidth ||
-            selectedCreative.height !== selectedScreenDetails.resolutionHeight) {
-            errors.push(
-                `Creative dimensions (${selectedCreative.width}×${selectedCreative.height}) ` +
-                `do not match screen resolution (${selectedScreenDetails.resolutionWidth}×${selectedScreenDetails.resolutionHeight})`
-            );
-        }
-
-        setValidationError(errors.length > 0 ? errors.join('. ') : null);
-    }, [selectedCreative, selectedScreenDetails]);
 
     // Fetch availability data for accurate calculation
     const { data: availabilityData } = useQuery({
@@ -434,7 +390,7 @@ export default function CreateBookingPage() {
                                                 fullWidth
                                                 select
                                                 label="Creative"
-                                                error={!!errors.creativeId || !!validationError}
+                                                error={!!errors.creativeId}
                                                 helperText={errors.creativeId?.message}
                                                 disabled={!selectedCampaignId}
                                                 required
@@ -446,20 +402,13 @@ export default function CreateBookingPage() {
                                                 ) : (
                                                     creatives.map((creative) => (
                                                         <MenuItem key={creative.id} value={creative.id}>
-                                                            {creative.name} ({creative.duration}s, {creative.width}×{creative.height})
+                                                            {creative.name}
                                                         </MenuItem>
                                                     ))
                                                 )}
                                             </TextField>
                                         )}
                                     />
-                                    {validationError && (
-                                        <Box mt={1} p={2} bgcolor="error.light" borderRadius={1}>
-                                            <Typography variant="body2" color="error.dark">
-                                                ⚠️ {validationError}
-                                            </Typography>
-                                        </Box>
-                                    )}
                                 </Grid>
 
                                 {/* Screen */}
@@ -568,7 +517,7 @@ export default function CreateBookingPage() {
                                         <Button
                                             type="submit"
                                             variant="contained"
-                                            disabled={createMutation.isPending || !!validationError}
+                                            disabled={createMutation.isPending}
                                         >
                                             Create Booking
                                         </Button>

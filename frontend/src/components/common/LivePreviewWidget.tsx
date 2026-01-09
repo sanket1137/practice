@@ -158,18 +158,6 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
             }
         };
 
-        // NEW: Handle individual impression recorded events from PlayerController
-        const handleImpressionRecorded = (eventData: { screenId: string; slotNumber: number; ownerContentId: string; timestamp: string }) => {
-            if (!isSubscribed) return;
-
-            console.log('📊 ImpressionRecorded event:', eventData);
-
-            if (mode === 'screen' && eventData.screenId === screenId) {
-                setRealtimeCount(prev => prev + 1);  // Increment by 1 for each impression
-                setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
-            }
-        };
-
         const connectAndSubscribe = async () => {
             try {
                 console.log('[LivePreview] Connecting to WebSocket...');
@@ -205,7 +193,6 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                     websocketService.on('AdStarted', handleAdStarted);
                     websocketService.on('AdCompleted', handleAdCompleted);
                     websocketService.on('ImpressionUpdate', handleImpressionUpdate);
-                    websocketService.on('ImpressionRecorded', handleImpressionRecorded);  // NEW: Owner content impressions
                     handlersRegistered = true;
                     console.log('[LivePreview] Event handlers registered');
                 }
@@ -229,7 +216,6 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 websocketService.off('AdStarted', handleAdStarted);
                 websocketService.off('AdCompleted', handleAdCompleted);
                 websocketService.off('ImpressionUpdate', handleImpressionUpdate);
-                websocketService.off('ImpressionRecorded', handleImpressionRecorded);  // NEW
                 console.log('[LivePreview] Event handlers removed');
             }
 

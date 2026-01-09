@@ -79,7 +79,6 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("TotalPrice")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -106,7 +105,6 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Budget")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("CreatedAt")
@@ -221,16 +219,16 @@ namespace CCMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("BookingId")
+                    b.Property<Guid>("BookingId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid?>("CampaignId")
+                    b.Property<Guid>("CampaignId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("CreativeId")
+                    b.Property<Guid>("CreativeId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("DeviceId")
@@ -242,9 +240,6 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<bool>("IsVerified")
                         .HasColumnType("bit");
-
-                    b.Property<Guid?>("OwnerContentId")
-                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("PlayedAt")
                         .HasColumnType("datetime2");
@@ -264,8 +259,6 @@ namespace CCMS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CreativeId");
-
-                    b.HasIndex("OwnerContentId");
 
                     b.HasIndex("BookingId", "SessionDate")
                         .HasDatabaseName("IX_Impressions_Booking_SessionDate");
@@ -352,66 +345,6 @@ namespace CCMS.Infrastructure.Migrations
                     b.HasIndex("OwnerId");
 
                     b.ToTable("Organizations");
-                });
-
-            modelBuilder.Entity("CCMS.Domain.Entities.OwnerContent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Duration")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FileHash")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("FileUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("MimeType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<decimal>("PricePerPlay")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<Guid>("ScreenId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("SlotNumber")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ScreenId", "SlotNumber")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted] = 0");
-
-                    b.ToTable("OwnerContents");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.RefreshToken", b =>
@@ -518,12 +451,10 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("Latitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("decimal(9,6)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Longitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("decimal(9,6)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("MaxViewers")
                         .HasColumnType("int");
@@ -537,15 +468,12 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("PhysicalHeight")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PhysicalWidth")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PricePerSlot")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("ResolutionHeight")
@@ -562,10 +490,6 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<int>("TimeFrameMinutes")
                         .HasColumnType("int");
-
-                    b.Property<string>("Timezone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -734,22 +658,20 @@ namespace CCMS.Infrastructure.Migrations
                     b.HasOne("CCMS.Domain.Entities.Booking", "Booking")
                         .WithMany("Impressions")
                         .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("CCMS.Domain.Entities.Campaign", "Campaign")
                         .WithMany()
                         .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("CCMS.Domain.Entities.Creative", "Creative")
                         .WithMany()
                         .HasForeignKey("CreativeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("CCMS.Domain.Entities.OwnerContent", "OwnerContent")
-                        .WithMany("Impressions")
-                        .HasForeignKey("OwnerContentId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
                         .WithMany("Impressions")
@@ -762,8 +684,6 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Campaign");
 
                     b.Navigation("Creative");
-
-                    b.Navigation("OwnerContent");
 
                     b.Navigation("Screen");
                 });
@@ -796,17 +716,6 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("CCMS.Domain.Entities.OwnerContent", b =>
-                {
-                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
-                        .WithMany()
-                        .HasForeignKey("ScreenId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Screen");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.RefreshToken", b =>
@@ -1094,11 +1003,6 @@ namespace CCMS.Infrastructure.Migrations
             modelBuilder.Entity("CCMS.Domain.Entities.Organization", b =>
                 {
                     b.Navigation("Memberships");
-                });
-
-            modelBuilder.Entity("CCMS.Domain.Entities.OwnerContent", b =>
-                {
-                    b.Navigation("Impressions");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.Screen", b =>
