@@ -23,6 +23,10 @@ public class Screen : BaseEntity
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     
+    // Timezone for operating hours (IANA timezone identifier)
+    // Examples: "Asia/Kolkata", "America/Los_Angeles", "Europe/London"
+    public string Timezone { get; set; } = "UTC";
+    
     // Operating schedule (stored as JSON)
     public OperatingSchedule Schedule { get; set; } = new();
     

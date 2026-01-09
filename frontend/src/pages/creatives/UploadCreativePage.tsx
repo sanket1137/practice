@@ -23,9 +23,6 @@ import { api } from '../../services/api';
 const creativeSchema = z.object({
     name: z.string().min(3, 'Name must be at least 3 characters'),
     type: z.enum(['Image', 'Video']),
-    durationSeconds: z.number().min(1, 'Duration must be at least 1 second'),
-    width: z.number().min(1, 'Width must be at least 1'),
-    height: z.number().min(1, 'Height must be at least 1'),
     file: z.instanceof(File).optional(),
 });
 
@@ -49,9 +46,6 @@ export default function UploadCreativePage() {
         defaultValues: {
             name: '',
             type: 'Video',
-            durationSeconds: 10,
-            width: 1920,
-            height: 1080,
         },
     });
 
@@ -62,9 +56,7 @@ export default function UploadCreativePage() {
             const formData = new FormData();
             formData.append('name', data.name);
             formData.append('campaignId', id!);
-            formData.append('duration', data.durationSeconds.toString());
-            formData.append('width', data.width.toString());
-            formData.append('height', data.height.toString());
+            // Duration, width, height are auto-extracted by backend from video file!
             if (selectedFile) {
                 formData.append('file', selectedFile);
             }
@@ -172,29 +164,8 @@ export default function UploadCreativePage() {
                                     />
                                 </Grid>
 
-                                {/* Duration */}
-                                <Grid item xs={12} sm={6}>
-                                    <Controller
-                                        name="durationSeconds"
-                                        control={control}
-                                        render={({ field: { onChange, value, ...field } }) => (
-                                            <TextField
-                                                {...field}
-                                                fullWidth
-                                                label="Duration (seconds)"
-                                                type="number"
-                                                value={value}
-                                                onChange={(e) => onChange(parseInt(e.target.value))}
-                                                error={!!errors.durationSeconds}
-                                                helperText={errors.durationSeconds?.message}
-                                                required
-                                            />
-                                        )}
-                                    />
-                                </Grid>
-
-                                {/* Width */}
-                                <Grid item xs={12} sm={6}>
+                                {/* File Upload - Duration auto-detected! */}
+                                <Grid item xs={12}>
                                     <Controller
                                         name="width"
                                         control={control}

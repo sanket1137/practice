@@ -4,8 +4,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CCMS.Application.Features.Screens.Commands;
 using CCMS.Application.Features.Screens.Queries;
+using CCMS.Application.Features.OwnerContent.Commands;
+using CCMS.Application.Features.OwnerContent.Queries;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Screens;
+using CCMS.Shared.DTOs.OwnerContent;
 
 namespace CCMS.Api.Controllers;
 
@@ -215,5 +218,70 @@ public class ScreensController : ControllerBase
         {
             return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error deleting screen: {ex.Message}"));
         }
+    }
+    
+    // Owner Slot Management Endpoints
+    
+    [HttpGet("{id}/slots/status")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<List<SlotStatusDto>>>> GetSlotStatus(Guid id)
+    {
+        try
+        {
+            var query = new GetSlotStatusQuery { ScreenId = id };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<List<SlotStatusDto>>.SuccessResponse(result));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<List<SlotStatusDto>>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<List<SlotStatusDto>>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    [HttpPost("{id}/slots/{slotNumber}/content")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<OwnerContentDto>>> UploadSlotContent(
+        Guid id, int slotNumber, [FromForm] string name, 
+        [FromForm] decimal pricePerPlay, [FromForm] string currency, [FromForm] IFormFile file)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var command = new CreateOwnerContentCommand
+            {
+                ScreenId = id, OwnerId = userId, SlotNumber = slotNumber, Name = name,
+                FileStream = file.OpenReadStream(), FileName = file.FileName,
+                ContentType = file.ContentType, PricePerPlay = pricePerPlay,
+                Currency = currency ?? "INR" // Default to INR
+            };
+            var result = await _mediator.Send(command);
+            return Ok(ApiResponse<OwnerContentDto>.SuccessResponse(result, "Content uploaded"));
+        }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, ApiResponse<OwnerContentDto>.ErrorResponse(ex.Message)); }
+        catch (KeyNotFoundException ex) { return NotFound(ApiResponse<OwnerContentDto>.ErrorResponse(ex.Message)); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<OwnerContentDto>.ErrorResponse(ex.Message)); }
+        catch (Exception ex) { return StatusCode(500, ApiResponse<OwnerContentDto>.ErrorResponse($"Error: {ex.Message}")); }
+    }
+    
+    [HttpDelete("{id}/slots/{slotNumber}/content")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteSlotContent(Guid id, int slotNumber)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var command = new DeleteOwnerContentCommand { ScreenId = id, OwnerId = userId, SlotNumber = slotNumber };
+            await _mediator.Send(command);
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Content removed"));
+        }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, ApiResponse<object>.ErrorResponse(ex.Message)); }
+        catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.ErrorResponse(ex.Message)); }
+        catch (Exception ex) { return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}")); }
     }
 }

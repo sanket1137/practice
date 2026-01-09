@@ -27,7 +27,8 @@ public class PlaylistDto
 public class PlaylistItemDto
 {
     public Guid CreativeId { get; set; }
-    public Guid BookingId { get; set; }
+    public Guid? BookingId { get; set; } // Nullable for owner content
+    public Guid? OwnerContentId { get; set; } // For owner custom content
     public string FileUrl { get; set; } = string.Empty;
     public string FileHash { get; set; } = string.Empty;
     public int Duration { get; set; } // in seconds

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using AutoMapper;
 using CCMS.Application.Interfaces;
+using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Creatives;
@@ -15,19 +16,22 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
     private readonly IFileStorageService _fileStorageService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly VideoMetadataService _videoMetadataService;
 
     public UploadCreativeCommandHandler(
         IRepository<Creative> creativeRepository,
         IRepository<Campaign> campaignRepository,
         IFileStorageService fileStorageService,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        VideoMetadataService videoMetadataService)
     {
         _creativeRepository = creativeRepository;
         _campaignRepository = campaignRepository;
         _fileStorageService = fileStorageService;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _videoMetadataService = videoMetadataService;
     }
 
     public async Task<CreativeDto> Handle(UploadCreativeCommand request, CancellationToken cancellationToken)
@@ -40,12 +44,28 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         if (campaign.AdvertiserId != request.UserId)
             throw new UnauthorizedAccessException("You can only upload creatives to your own campaigns");
 
+        // Extract video metadata BEFORE upload
+        VideoMetadata metadata;
+        try
+        {
+            metadata = await _videoMetadataService.ExtractMetadataAsync(request.FileStream, request.FileName);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                $"Failed to extract video metadata from '{request.FileName}'. Ensure the file is a valid video. Error: {ex.Message}", 
+                ex);
+        }
+        
         // Upload file to storage
         string fileUrl;
         string fileHash;
         
         using (var stream = request.FileStream)
         {
+            // Reset stream position after metadata extraction
+            stream.Position = 0;
+            
             fileUrl = await _fileStorageService.UploadFileAsync(
                 stream,
                 request.FileName,
@@ -68,9 +88,9 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             MimeType = request.ContentType,
             FileSize = request.FileSize,
             FileHash = fileHash,
-            Duration = request.Duration,
-            Width = request.Width,
-            Height = request.Height,
+            Duration = metadata.Duration,  // ✅ From video file, not user!
+            Width = metadata.Width,        // ✅ From video file, not user!
+            Height = metadata.Height,      // ✅ From video file, not user!
             CreatedAt = DateTime.UtcNow
         };
 

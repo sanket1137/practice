@@ -15,6 +15,7 @@ public class PlaylistItemResponse
     public int DurationSeconds { get; set; }
     public Guid ImpressionId { get; set; } // Pre-generated for tracking
     public bool IsFillerContent { get; set; } // True if no booking exists
+    public Guid? OwnerContentId { get; set; } // Null unless this is owner content
 }
 
 public class PlaylistResponse

@@ -156,6 +156,42 @@ public class PlayerController : ControllerBase
                 }
             }
 
+            // Save owner content impressions (NEW)
+            foreach (var ownerContent in request.SyncData.OwnerContentImpressions)
+            {
+                foreach (var timestamp in ownerContent.PlayTimestamps)
+                {
+                    var impression = new Impression
+                    {
+                        Id = Guid.NewGuid(),
+                        ScreenId = screenGuid,
+                        OwnerContentId = ownerContent.OwnerContentId,
+                        // For owner content, these are NULL since no booking involved
+                        BookingId = null,
+                        CampaignId = null,
+                        CreativeId = null,
+                        PlayedAt = timestamp,
+                        SessionDate = timestamp.Date,
+                        DeviceId = request.ScreenId,
+                        SlotPosition = ownerContent.SlotNumber,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    await _impressionRepository.AddAsync(impression);
+                    savedCount++;
+                    
+                    // Broadcast impression event for real-time updates
+                    await _hubContext.Clients.Group($"screen-{request.ScreenId}")
+                        .SendAsync("ImpressionRecorded", new
+                        {
+                            screenId = request.ScreenId,
+                            slotNumber = ownerContent.SlotNumber,
+                            ownerContentId = ownerContent.OwnerContentId,
+                            timestamp = timestamp
+                        });
+                }
+            }
+
             // Broadcast sync event to dashboard
             await _hubContext.Clients.Group($"screen-{request.ScreenId}")
                 .SendAsync("OnPlayerSync", new

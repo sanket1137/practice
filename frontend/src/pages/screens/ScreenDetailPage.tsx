@@ -42,6 +42,7 @@ import SlotCalendarView from '../../components/screens/SlotCalendarView';
 import LivePreviewWidget from '../../components/common/LivePreviewWidget';
 import { WebRTCPlayer } from '../../components/streaming/WebRTCPlayer';
 import DefaultVideoSettings from '../../components/screens/DefaultVideoSettings';
+import LiveActivityTab from '../../components/screens/LiveActivityTab';
 import { useState } from 'react';
 
 interface Screen {
@@ -198,14 +199,11 @@ export default function ScreenDetailPage() {
             {/* Tabs */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
-                    <Tab label="Details" />
-                    <Tab label="Calendar" />
-                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Bookings" />}
-                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && <Tab label="Default Video" />}
-                    {/* Show Live Activity tab if user is owner/admin OR advertiser with access */}
-                    {((user?.role === 'ScreenOwner' || user?.role === 'Admin') ||
-                        (user?.role === 'Advertiser' && streamAccess?.hasAccess)) &&
-                        <Tab label="Live Activity" />}
+                    <Tab label="Overview" />
+                    <Tab label="Bookings" />
+                    <Tab label="Live Activity" />
+                    <Tab label="Default Video" />
+                    <Tab label="Live Stream" />
                 </Tabs>
             </Box>
 
@@ -355,24 +353,25 @@ export default function ScreenDetailPage() {
             )}
 
             {/* Calendar Tab */}
+            {/* Bookings Tab */}
             {activeTab === 1 && (
                 <SlotCalendarView screenId={id!} />
             )}
 
-            {/* Bookings Tab - Only for Screen Owners and Admins */}
-            {activeTab === 2 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
-                <SlotBookingsCard screenId={id!} />
+            {/* Live Activity Tab */}
+            {activeTab === 2 && (
+                <LiveActivityTab screenId={id as string} />
             )}
 
-            {/* Default Video Tab - Only for Screen Owners and Admins */}
+            {/* Default Video Tab */}
             {activeTab === 3 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
                 <DefaultVideoSettings screenId={id!} />
             )}
 
-            {/* Live Activity Tab - For Screen Owners/Admins (tab 4) or Advertisers with access (tab 2) */}
+            {/* Live Stream Tab */}
             {(
                 (activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin')) ||
-                (activeTab === 2 && user?.role === 'Advertiser' && streamAccess?.hasAccess)
+                (activeTab === 4 && user?.role === 'Advertiser' && streamAccess?.hasAccess)
             ) && (
                     <Box>
                         <Typography variant="h6" gutterBottom>
