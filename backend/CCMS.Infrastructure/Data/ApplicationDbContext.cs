@@ -16,6 +16,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
+    public DbSet<PhoneVerificationOtp> PhoneVerificationOtps => Set<PhoneVerificationOtp>();
     public DbSet<Screen> Screens => Set<Screen>();
     public DbSet<SlotAvailability> SlotAvailabilities => Set<SlotAvailability>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
@@ -64,6 +66,33 @@ public class ApplicationDbContext : DbContext
             
             entity.HasOne(e => e.User)
                 .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // EmailVerificationToken configuration
+        modelBuilder.Entity<EmailVerificationToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(100);
+            
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.EmailVerificationTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // PhoneVerificationOtp configuration
+        modelBuilder.Entity<PhoneVerificationOtp>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.PhoneNumber, e.CreatedAt }); // For rate limiting queries
+            entity.Property(e => e.PhoneNumber).IsRequired().HasMaxLength(15);
+            entity.Property(e => e.OtpCode).IsRequired().HasMaxLength(6);
+            
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.PhoneVerificationOtps)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

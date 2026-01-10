@@ -152,6 +152,11 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Email & SMS Services for verification
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddHttpClient("ComBirds"); // HttpClient for SMS API
+
 // File Storage Service - configurable via appsettings
 var fileStorageProvider = builder.Configuration["FileStorage:Provider"] ?? "Local";
 Console.WriteLine($"[CONFIG] FileStorage:Provider value read from config: '{fileStorageProvider}'");

@@ -44,6 +44,13 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.LoginAsync(request);
+            
+            // Check if verification is required
+            if (result.RequiresVerification)
+            {
+                return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, result.VerificationMessage));
+            }
+            
             return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Login successful"));
         }
         catch (UnauthorizedAccessException ex)
@@ -119,4 +126,178 @@ public class AuthController : ControllerBase
             return StatusCode(500, ApiResponse<object>.ErrorResponse($"Password reset failed: {ex.Message}"));
         }
     }
+
+    #region Email Verification
+
+    /// <summary>
+    /// Send email verification link to user
+    /// </summary>
+    [HttpPost("send-email-verification")]
+    public async Task<ActionResult<ApiResponse<SendEmailVerificationResult>>> SendEmailVerification(
+        [FromBody] SendEmailVerificationRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new SendEmailVerificationCommand(request.Email));
+            
+            if (!result.Success)
+                return BadRequest(ApiResponse<SendEmailVerificationResult>.ErrorResponse(result.Message!));
+            
+            return Ok(ApiResponse<SendEmailVerificationResult>.SuccessResponse(
+                result, "Verification email sent. Please check your inbox."));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<SendEmailVerificationResult>.ErrorResponse(
+                $"Failed to send verification email: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// Verify email using token from verification link
+    /// </summary>
+    [HttpPost("verify-email")]
+    public async Task<ActionResult<ApiResponse<VerifyEmailResult>>> VerifyEmail(
+        [FromBody] VerifyEmailRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new VerifyEmailCommand(request.Token));
+            
+            if (!result.Success)
+                return BadRequest(ApiResponse<VerifyEmailResult>.ErrorResponse(result.Message!));
+            
+            string message;
+            if (result.IsFullyVerified)
+            {
+                message = "Email verified! Your account is now fully verified. You can now login.";
+            }
+            else
+            {
+                message = "Email verified successfully. Please also verify your phone number to complete registration.";
+            }
+            
+            return Ok(ApiResponse<VerifyEmailResult>.SuccessResponse(result, message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<VerifyEmailResult>.ErrorResponse(
+                $"Email verification failed: {ex.Message}"));
+        }
+    }
+
+    #endregion
+
+    #region Phone Verification
+
+    /// <summary>
+    /// Send OTP to user's phone number
+    /// Rate limited: max 5 OTPs per phone per hour
+    /// </summary>
+    [HttpPost("send-phone-otp")]
+    public async Task<ActionResult<ApiResponse<SendPhoneOtpResult>>> SendPhoneOtp(
+        [FromBody] SendPhoneOtpRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new SendPhoneOtpCommand(request.Email, request.PhoneNumber));
+            
+            if (!result.Success)
+                return BadRequest(ApiResponse<SendPhoneOtpResult>.ErrorResponse(result.Message!));
+            
+            return Ok(ApiResponse<SendPhoneOtpResult>.SuccessResponse(
+                result, "OTP sent to your phone."));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<SendPhoneOtpResult>.ErrorResponse(
+                $"Failed to send OTP: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// Resend OTP to user's phone number using email to lookup phone
+    /// Rate limited: max 5 OTPs per phone per hour
+    /// </summary>
+    [HttpPost("resend-phone-otp")]
+    public async Task<ActionResult<ApiResponse<SendPhoneOtpResult>>> ResendPhoneOtp(
+        [FromBody] ResendPhoneOtpRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new ResendPhoneOtpCommand(request.Email));
+            
+            if (!result.Success)
+                return BadRequest(ApiResponse<SendPhoneOtpResult>.ErrorResponse(result.Message!));
+            
+            return Ok(ApiResponse<SendPhoneOtpResult>.SuccessResponse(
+                result, "OTP resent to your phone."));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<SendPhoneOtpResult>.ErrorResponse(
+                $"Failed to resend OTP: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// Verify phone using OTP
+    /// Max 3 attempts per OTP
+    /// </summary>
+    [HttpPost("verify-phone")]
+    public async Task<ActionResult<ApiResponse<VerifyPhoneOtpResult>>> VerifyPhone(
+        [FromBody] VerifyPhoneOtpRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new VerifyPhoneOtpCommand(request.Email, request.Otp));
+            
+            if (!result.Success)
+                return BadRequest(ApiResponse<VerifyPhoneOtpResult>.ErrorResponse(result.Message!));
+            
+            string message;
+            if (result.IsFullyVerified)
+            {
+                message = "Phone verified! Your account is now fully verified. You can now login.";
+            }
+            else
+            {
+                message = "Phone verified successfully. Please also verify your email to complete registration. Check your inbox for the verification link.";
+            }
+            
+            return Ok(ApiResponse<VerifyPhoneOtpResult>.SuccessResponse(result, message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<VerifyPhoneOtpResult>.ErrorResponse(
+                $"Phone verification failed: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// Check verification status for a user
+    /// </summary>
+    [HttpGet("verification-status/{email}")]
+    public async Task<ActionResult<ApiResponse<VerificationStatusResponse>>> GetVerificationStatus(string email)
+    {
+        try
+        {
+            var status = await _authService.GetVerificationStatusAsync(email);
+            return Ok(ApiResponse<VerificationStatusResponse>.SuccessResponse(status));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<VerificationStatusResponse>.ErrorResponse(
+                $"Failed to get verification status: {ex.Message}"));
+        }
+    }
+
+    #endregion
 }
+
+// Request DTOs for verification endpoints
+public record SendEmailVerificationRequest(string Email);
+public record VerifyEmailRequest(string Token);
+public record SendPhoneOtpRequest(string Email, string PhoneNumber);
+public record ResendPhoneOtpRequest(string Email);
+public record VerifyPhoneOtpRequest(string Email, string Otp);

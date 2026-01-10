@@ -136,7 +136,7 @@ public class StreamingHub : Hub
             // For broadcasting, require ownership
             if (requireOwnership)
             {
-                var screenOwnerId = screen.OwnerId?.ToString();
+                var screenOwnerId = screen.OwnerId.ToString();
                 if (screenOwnerId != userId)
                 {
                     _logger.LogWarning("User {UserId} is not owner of screen {ScreenId}", userId, screenId);
@@ -146,7 +146,7 @@ public class StreamingHub : Hub
             else
             {
                 // For viewing, check if user is owner OR has ScreenOwner/Advertiser role
-                var screenOwnerId = screen.OwnerId?.ToString();
+                var screenOwnerId = screen.OwnerId.ToString();
                 var isOwner = screenOwnerId == userId;
                 var isScreenOwnerRole = Context.User?.IsInRole("ScreenOwner") ?? false;
                 var isAdvertiser = Context.User?.IsInRole("Advertiser") ?? false;

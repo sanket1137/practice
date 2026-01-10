@@ -28,8 +28,33 @@ const LoginPage = () => {
 
         try {
             const response = await api.post('/auth/login', { email, password });
-            const { user, accessToken, refreshToken } = response.data.data;
+            const data = response.data.data;
+            
+            // Check if user needs verification
+            if (data.requiresVerification) {
+                // Phone not verified - redirect to phone verification
+                if (!data.isPhoneVerified) {
+                    navigate('/verify-phone', { 
+                        state: { 
+                            email: data.email,
+                            phoneNumber: data.phoneNumber,
+                            otpSent: false // Will need to send OTP
+                        } 
+                    });
+                    setError('Please verify your phone number to continue.');
+                    return;
+                }
+                // Email not verified - redirect to email verification info
+                if (!data.isEmailVerified) {
+                    navigate('/resend-verification', { 
+                        state: { email: data.email } 
+                    });
+                    setError('Please verify your email address to continue.');
+                    return;
+                }
+            }
 
+            const { user, accessToken, refreshToken } = data;
             setAuth(user, accessToken, refreshToken);
             navigate('/dashboard');
         } catch (err: any) {
