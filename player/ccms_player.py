@@ -1171,8 +1171,8 @@ class CCMSPlayer:
                     if content_length and downloaded_bytes < content_length:
                         raise Exception(f"Incomplete download: {downloaded_bytes}/{content_length} bytes")
                     
-                    # Rename temp to final
-                    os.rename(temp_filepath, filepath)
+                    # Replace temp to final (os.replace works on Windows even if target exists)
+                    os.replace(temp_filepath, filepath)
                     
                     logger.info(f"  [OK] Slot {slot_number} downloaded ({downloaded_bytes / (1024*1024):.1f} MB)")
                     

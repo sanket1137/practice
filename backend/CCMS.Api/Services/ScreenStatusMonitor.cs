@@ -66,7 +66,8 @@ public class ScreenStatusMonitor : BackgroundService
                 await screenRepository.UpdateAsync(screen);
 
                 // Broadcast status change to dashboard
-                await _hubContext.Clients.Group($"screen-{screen.Id}")
+                // Note: Use underscore to match PlaybackHub group naming convention
+                await _hubContext.Clients.Group($"screen_{screen.Id}")
                     .SendAsync("OnScreenStatusChanged", new
                     {
                         screenId = screen.Id.ToString(),

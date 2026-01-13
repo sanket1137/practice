@@ -75,15 +75,15 @@ public class OrphanedBlobCleanupService : BackgroundService
                 {
                     shouldDelete = true;
                 }
-                else if (!creative.Campaign.EndDate.HasValue && creative.DeletedAt.HasValue && creative.DeletedAt.Value < cutoffDate)
+                else if (!creative.Campaign.EndDate.HasValue && creative.IsDeleted && creative.UpdatedAt.HasValue && creative.UpdatedAt.Value < cutoffDate)
                 {
-                    // If campaign has no end date, use creative deletion date
+                    // If campaign has no end date, use creative deletion date (UpdatedAt when IsDeleted)
                     shouldDelete = true;
                 }
             }
-            else if (creative.DeletedAt.HasValue && creative.DeletedAt.Value < cutoffDate)
+            else if (creative.IsDeleted && creative.UpdatedAt.HasValue && creative.UpdatedAt.Value < cutoffDate)
             {
-                // If no campaign association, use deletion date
+                // If no campaign association, use deletion date (UpdatedAt when IsDeleted)
                 shouldDelete = true;
             }
 

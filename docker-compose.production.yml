@@ -1,0 +1,132 @@
+# CCMS Production Docker Compose
+# Deploy to Hetzner VPS with PostgreSQL (Neon) + R2 Storage
+
+version: '3.8'
+
+services:
+  # ===========================================
+  # BACKEND API (.NET 8)
+  # ===========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ccms-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      # Database (Neon PostgreSQL)
+      - Database__Provider=PostgreSQL
+      - ConnectionStrings__PostgresConnection=${POSTGRES_CONNECTION_STRING}
+      # Storage (Cloudflare R2)
+      - FileStorage__Provider=R2
+      - R2__AccountId=${R2_ACCOUNT_ID}
+      - R2__AccessKeyId=${R2_ACCESS_KEY_ID}
+      - R2__SecretAccessKey=${R2_SECRET_ACCESS_KEY}
+      - R2__BucketName=${R2_BUCKET_NAME:-prod-ccms}
+      - R2__PublicUrlBase=${R2_PUBLIC_URL}
+      # JWT
+      - Jwt__SecretKey=${JWT_SECRET_KEY}
+      - Jwt__Issuer=PixelCCMS
+      - Jwt__Audience=PixelCCMSUsers
+      # CORS
+      - Cors__AllowedOrigins__0=${FRONTEND_URL:-https://ccms.yourdomain.com}
+      # Email (AWS SES)
+      - AWS__SES__AccessKeyId=${AWS_SES_ACCESS_KEY_ID:-}
+      - AWS__SES__SecretAccessKey=${AWS_SES_SECRET_ACCESS_KEY:-}
+      - AWS__SES__Region=${AWS_SES_REGION:-ap-south-1}
+      - AWS__SES__FromEmail=${AWS_SES_FROM_EMAIL:-noreply@yourdomain.com}
+      # SMS (ComBirds)
+      - ComBirds__ApiKey=${COMBIRDS_API_KEY:-}
+      - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-}
+      - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-}
+      # App Settings
+      - App__BaseUrl=${FRONTEND_URL:-https://ccms.yourdomain.com}
+      - TimeZone__Id=Asia/Kolkata
+    ports:
+      - "5257:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ccms-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================
+  # FRONTEND (React + Nginx)
+  # ===========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${BACKEND_URL:-https://api.ccms.yourdomain.com}
+        - VITE_SIGNALR_URL=${BACKEND_URL:-https://api.ccms.yourdomain.com}
+    container_name: ccms-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - ccms-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================
+  # NGINX REVERSE PROXY + SSL
+  # ===========================================
+  nginx:
+    image: nginx:alpine
+    container_name: ccms-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.production.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - ccms-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================
+  # CERTBOT (SSL Certificate Auto-Renewal)
+  # ===========================================
+  certbot:
+    image: certbot/certbot
+    container_name: ccms-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - ccms-network
+
+networks:
+  ccms-network:
+    driver: bridge
+
+volumes:
+  certbot-conf:
+  certbot-www:
