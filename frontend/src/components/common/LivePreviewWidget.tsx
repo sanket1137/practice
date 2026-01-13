@@ -76,9 +76,9 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 let endpoint = '';
 
                 if (mode === 'screen' && screenId) {
-                    endpoint = `/api/stats/screen/${screenId}/today`;
+                    endpoint = `/stats/screen/${screenId}/today`;
                 } else if (mode === 'campaign' && campaignId) {
-                    endpoint = `/api/stats/campaign/${campaignId}/today`;
+                    endpoint = `/stats/campaign/${campaignId}/today`;
                 } else {
                     setLoading(false);
                     return;

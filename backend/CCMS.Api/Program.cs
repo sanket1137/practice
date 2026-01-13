@@ -12,6 +12,7 @@ using CCMS.Infrastructure.Data;
 using CCMS.Infrastructure.Repositories;
 using CCMS.Infrastructure.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -61,16 +62,36 @@ builder.Services.AddSwaggerGen(c =>
     // c.OperationFilter<FileUploadOperationFilter>();
 });
 
-// Database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null
-        )
-    ));
+// Database - Support both SQL Server and PostgreSQL
+var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
+Console.WriteLine($"[CONFIG] Database:Provider = '{databaseProvider}'");
+
+if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(
+            builder.Configuration.GetConnectionString("PostgresConnection"),
+            npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorCodesToAdd: null
+            )
+        ));
+    Console.WriteLine("Using PostgreSQL database");
+}
+else
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions => sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null
+            )
+        ));
+    Console.WriteLine("Using SQL Server database");
+}
 
 
 
@@ -152,15 +173,25 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+// Email & SMS Services for verification
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddHttpClient("ComBirds"); // HttpClient for SMS API
+
 // File Storage Service - configurable via appsettings
+// Supports: "Local", "AzureBlob", "R2" (Cloudflare)
 var fileStorageProvider = builder.Configuration["FileStorage:Provider"] ?? "Local";
 Console.WriteLine($"[CONFIG] FileStorage:Provider value read from config: '{fileStorageProvider}'");
-Console.WriteLine($"[CONFIG] Checking if equals 'AzureBlob': {fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase)}");
 
 if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddScoped<IFileStorageService, AzureBlobStorageService>();
     Console.WriteLine("Using Azure Blob Storage for file uploads");
+}
+else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddScoped<IFileStorageService, R2StorageService>();
+    Console.WriteLine("Using Cloudflare R2 Storage for file uploads (S3-compatible, zero egress)");
 }
 else
 {

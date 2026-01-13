@@ -19,8 +19,9 @@ import {
     SignalWifi4Bar,
     SignalWifiOff,
 } from '@mui/icons-material';
-import * as signalR from '@microsoft/signalR';
+import * as signalR from '@microsoft/signalr';
 import { api } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 
 const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
@@ -389,9 +390,13 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
         let isMounted = true;
 
         const initStreamingHub = async () => {
+            // Get access token for authentication
+            const accessToken = useAuthStore.getState().accessToken;
+            
             const connection = new signalR.HubConnectionBuilder()
                 .withUrl(`${BASE_URL}/hubs/streaming`, {
                     transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
+                    accessTokenFactory: () => accessToken || '',
                 })
                 .withAutomaticReconnect()
                 .configureLogging(signalR.LogLevel.Information)

@@ -65,7 +65,18 @@
           "last_accessed": "2026-01-09T14:56:03.052236"
         }
       ]
+    },
+    "27804071-b27f-4213-819b-ba0f7a4e73db": {
+      "campaign_id": "31c61231-92ce-4335-b60e-58139a319792",
+      "videos": [
+        {
+          "creative_id": "7c64d6fd-85a8-40ed-be93-90ffe5422ed0",
+          "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\7c64d6fd-85a8-40ed-be93-90ffe5422ed0.mp4",
+          "downloaded_at": "2026-01-12T18:10:28.638764",
+          "last_accessed": "2026-01-12T19:13:07.805841"
+        }
+      ]
     }
   },
-  "last_cleanup": "2026-01-09T14:03:45.414030"
+  "last_cleanup": "2026-01-12T19:13:07.792775"
 }

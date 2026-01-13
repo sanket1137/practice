@@ -20,6 +20,14 @@ public class SlotAvailabilityService
     }
 
     /// <summary>
+    /// Ensures DateTime is specified as UTC for PostgreSQL compatibility
+    /// </summary>
+    private static DateTime EnsureUtc(DateTime date)
+    {
+        return DateTime.SpecifyKind(date.Date, DateTimeKind.Utc);
+    }
+
+    /// <summary>
     /// Initialize slot availability records for a date range
     /// </summary>
     public async Task InitializeSlotAvailability(Guid screenId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
@@ -28,8 +36,8 @@ public class SlotAvailabilityService
         if (screen == null)
             throw new KeyNotFoundException("Screen not found");
 
-        var currentDate = startDate.Date;
-        var end = endDate.Date;
+        var currentDate = EnsureUtc(startDate);
+        var end = EnsureUtc(endDate);
 
         while (currentDate <= end)
         {
@@ -67,8 +75,8 @@ public class SlotAvailabilityService
         // Ensure records exist for the date range
         await InitializeSlotAvailability(screenId, startDate, endDate, cancellationToken);
 
-        var currentDate = startDate.Date;
-        var end = endDate.Date;
+        var currentDate = EnsureUtc(startDate);
+        var end = EnsureUtc(endDate);
 
         while (currentDate <= end)
         {
@@ -96,10 +104,11 @@ public class SlotAvailabilityService
     /// </summary>
     public async Task<List<int>> GetDayAvailableSlots(Guid screenId, DateTime date, CancellationToken cancellationToken = default)
     {
-        await InitializeSlotAvailability(screenId, date, date, cancellationToken);
+        var utcDate = EnsureUtc(date);
+        await InitializeSlotAvailability(screenId, utcDate, utcDate, cancellationToken);
         
         var availability = await _slotAvailabilityRepo
-            .FindAsync(sa => sa.ScreenId == screenId && sa.Date == date.Date, cancellationToken);
+            .FindAsync(sa => sa.ScreenId == screenId && sa.Date == utcDate, cancellationToken);
         
         var dayAvailability = availability.FirstOrDefault();
         if (dayAvailability == null)
@@ -161,8 +170,8 @@ public class SlotAvailabilityService
         for (int slotNum = 1; slotNum <= screen.SlotsPerFrame; slotNum++)
         {
             // Check if this slot is available on AT LEAST ONE day
-            var currentDate = startDate.Date;
-            var end = endDate.Date;
+            var currentDate = EnsureUtc(startDate);
+            var end = EnsureUtc(endDate);
             
             while (currentDate <= end)
             {
@@ -187,8 +196,8 @@ public class SlotAvailabilityService
         // Ensure records exist
         await InitializeSlotAvailability(screenId, startDate, endDate, cancellationToken);
 
-        var currentDate = startDate.Date;
-        var end = endDate.Date;
+        var currentDate = EnsureUtc(startDate);
+        var end = EnsureUtc(endDate);
         int daysBooked = 0;
         var bookedDates = new List<DateTime>();  // Track booked dates for logging
 
@@ -245,8 +254,8 @@ public class SlotAvailabilityService
         await InitializeSlotAvailability(screenId, startDate, endDate, cancellationToken);
 
         var dailyAssignments = new Dictionary<DateTime, int>();
-        var currentDate = startDate.Date;
-        var end = endDate.Date;
+        var currentDate = EnsureUtc(startDate);
+        var end = EnsureUtc(endDate);
 
         while (currentDate <= end)
         {
@@ -257,6 +266,7 @@ public class SlotAvailabilityService
             {
                 // No slots available on this date – skip it for partial booking
                 // Continue to next date (increment handled at loop end)
+                currentDate = currentDate.AddDays(1);
                 continue;
             }
 
@@ -301,8 +311,8 @@ public class SlotAvailabilityService
     /// </summary>
     public async Task ReleaseSlot(Guid screenId, int slotNumber, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
     {
-        var currentDate = startDate.Date;
-        var end = endDate.Date;
+        var currentDate = EnsureUtc(startDate);
+        var end = EnsureUtc(endDate);
 
         while (currentDate <= end)
         {
@@ -364,8 +374,8 @@ public class SlotAvailabilityService
         await InitializeSlotAvailability(screenId, startDate, endDate, cancellationToken);
 
         var result = new List<DailyAvailability>();
-        var currentDate = startDate.Date;
-        var end = endDate.Date;
+        var currentDate = EnsureUtc(startDate);
+        var end = EnsureUtc(endDate);
 
         while (currentDate <= end)
         {

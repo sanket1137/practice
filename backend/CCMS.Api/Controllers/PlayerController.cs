@@ -71,7 +71,8 @@ public class PlayerController : ControllerBase
             await _screenRepository.UpdateAsync(screen);
 
             // Broadcast status change to dashboard
-            await _hubContext.Clients.Group($"screen-{request.ScreenId}")
+            // Note: Use underscore to match PlaybackHub group naming convention
+            await _hubContext.Clients.Group($"screen_{request.ScreenId}")
                 .SendAsync("OnScreenStatusChanged", new
                 {
                     screenId = request.ScreenId,
@@ -85,18 +86,25 @@ public class PlayerController : ControllerBase
             _logger.LogInformation($"Generating playlist for {_timeZoneService.TimeZone.Id}: {currentDate:yyyy-MM-dd}");
             var playlist = await _playlistService.GeneratePlaylistAsync(screenGuid, currentDate);
 
-            // Parse operating hours for the player
+            // Serialize operating schedule for the player
             var operatingHours = new Dictionary<string, string>();
-            if (!string.IsNullOrEmpty(screen.OperatingHoursJson))
+            if (screen.Schedule != null)
             {
                 try
                 {
-                    operatingHours = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(screen.OperatingHoursJson) 
-                                    ?? new Dictionary<string, string>();
+                    // Convert the Schedule object to a dictionary format for the player
+                    var schedule = screen.Schedule;
+                    operatingHours["Monday"] = schedule.Monday.IsOperating ? $"{schedule.Monday.StartTime:hh\\:mm}-{schedule.Monday.EndTime:hh\\:mm}" : "closed";
+                    operatingHours["Tuesday"] = schedule.Tuesday.IsOperating ? $"{schedule.Tuesday.StartTime:hh\\:mm}-{schedule.Tuesday.EndTime:hh\\:mm}" : "closed";
+                    operatingHours["Wednesday"] = schedule.Wednesday.IsOperating ? $"{schedule.Wednesday.StartTime:hh\\:mm}-{schedule.Wednesday.EndTime:hh\\:mm}" : "closed";
+                    operatingHours["Thursday"] = schedule.Thursday.IsOperating ? $"{schedule.Thursday.StartTime:hh\\:mm}-{schedule.Thursday.EndTime:hh\\:mm}" : "closed";
+                    operatingHours["Friday"] = schedule.Friday.IsOperating ? $"{schedule.Friday.StartTime:hh\\:mm}-{schedule.Friday.EndTime:hh\\:mm}" : "closed";
+                    operatingHours["Saturday"] = schedule.Saturday.IsOperating ? $"{schedule.Saturday.StartTime:hh\\:mm}-{schedule.Saturday.EndTime:hh\\:mm}" : "closed";
+                    operatingHours["Sunday"] = schedule.Sunday.IsOperating ? $"{schedule.Sunday.StartTime:hh\\:mm}-{schedule.Sunday.EndTime:hh\\:mm}" : "closed";
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to parse operating hours JSON");
+                    _logger.LogWarning(ex, "Failed to serialize operating schedule");
                 }
             }
             
@@ -261,7 +269,8 @@ public class PlayerController : ControllerBase
                     savedCount++;
                     
                     // Broadcast impression event for real-time updates
-                    await _hubContext.Clients.Group($"screen-{request.ScreenId}")
+                    // Note: Use underscore to match PlaybackHub group naming convention
+                    await _hubContext.Clients.Group($"screen_{request.ScreenId}")
                         .SendAsync("ImpressionRecorded", new
                         {
                             screenId = request.ScreenId,
@@ -273,7 +282,8 @@ public class PlayerController : ControllerBase
             }
 
             // Broadcast sync event to dashboard
-            await _hubContext.Clients.Group($"screen-{request.ScreenId}")
+            // Note: Use underscore to match PlaybackHub group naming convention
+            await _hubContext.Clients.Group($"screen_{request.ScreenId}")
                 .SendAsync("OnPlayerSync", new
                 {
                     screenId = request.ScreenId,
@@ -330,7 +340,8 @@ public class PlayerController : ControllerBase
             if (wasOffline)
             {
                 _logger.LogInformation($"Screen {request.ScreenId} came online");
-                await _hubContext.Clients.Group($"screen-{request.ScreenId}")
+                // Note: Use underscore to match PlaybackHub group naming convention
+                await _hubContext.Clients.Group($"screen_{request.ScreenId}")
                     .SendAsync("OnScreenStatusChanged", new
                     {
                         screenId = request.ScreenId,

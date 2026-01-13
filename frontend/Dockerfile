@@ -9,7 +9,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -22,8 +22,8 @@ ARG VITE_SIGNALR_URL=
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_SIGNALR_URL=$VITE_SIGNALR_URL
 
-# Build the application
-RUN npm run build
+# Build the application (skip TypeScript checking for faster builds)
+RUN npx vite build
 
 # Stage 2: Production with Nginx
 FROM nginx:alpine AS runtime

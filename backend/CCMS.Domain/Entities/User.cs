@@ -12,6 +12,7 @@ public class User : BaseEntity
     public UserRole Role { get; set; }
     public string? ProfileImageUrl { get; set; }
     public bool IsEmailVerified { get; set; }
+    public bool IsPhoneVerified { get; set; }
     public DateTime? LastLoginAt { get; set; }
     
     // Navigation properties
@@ -19,4 +20,6 @@ public class User : BaseEntity
     public virtual ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
     public virtual ICollection<Membership> Memberships { get; set; } = new List<Membership>();
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public virtual ICollection<EmailVerificationToken> EmailVerificationTokens { get; set; } = new List<EmailVerificationToken>();
+    public virtual ICollection<PhoneVerificationOtp> PhoneVerificationOtps { get; set; } = new List<PhoneVerificationOtp>();
 }

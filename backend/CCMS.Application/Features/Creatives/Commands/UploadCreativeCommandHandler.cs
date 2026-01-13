@@ -6,6 +6,7 @@ using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Creatives;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace CCMS.Application.Features.Creatives.Commands;
 
@@ -17,6 +18,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly VideoMetadataService _videoMetadataService;
+    private readonly ILogger<UploadCreativeCommandHandler> _logger;
 
     public UploadCreativeCommandHandler(
         IRepository<Creative> creativeRepository,
@@ -24,7 +26,8 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         IFileStorageService fileStorageService,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        VideoMetadataService videoMetadataService)
+        VideoMetadataService videoMetadataService,
+        ILogger<UploadCreativeCommandHandler> logger)
     {
         _creativeRepository = creativeRepository;
         _campaignRepository = campaignRepository;
@@ -32,6 +35,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _videoMetadataService = videoMetadataService;
+        _logger = logger;
     }
 
     public async Task<CreativeDto> Handle(UploadCreativeCommand request, CancellationToken cancellationToken)
@@ -45,7 +49,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             throw new UnauthorizedAccessException("You can only upload creatives to your own campaigns");
 
         // Extract video metadata BEFORE upload
-        CreativeMetadata metadata; // Changed from VideoMetadata to CreativeMetadata
+        VideoMetadata metadata;
         try
         {
             // Ensure stream is at beginning
@@ -55,9 +59,9 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to extract metadata for {FileName}", request.FileName); // Added logging
+            _logger.LogError(ex, "Failed to extract metadata for {FileName}", request.FileName);
             // Fallback to default metadata
-            metadata = new CreativeMetadata // Changed from VideoMetadata to CreativeMetadata
+            metadata = new VideoMetadata
             {
                 Duration = 30,
                 Width = 1920,

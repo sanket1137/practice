@@ -7,6 +7,9 @@ import theme from './theme';
 import { useAuthStore } from './store/authStore';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
+import VerifyEmailPage from './pages/auth/VerifyEmailPage';
+import VerifyPhonePage from './pages/auth/VerifyPhonePage';
+import ResendVerificationPage from './pages/auth/ResendVerificationPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import CampaignsPage from './pages/campaigns/CampaignsPage';
 import CreateCampaignPage from './pages/campaigns/CreateCampaignPage';
@@ -42,6 +45,9 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/verify-phone" element={<VerifyPhonePage />} />
+              <Route path="/resend-verification" element={<ResendVerificationPage />} />
               <Route path="/demo" element={<DemoPage />} />
               <Route
                 path="/"

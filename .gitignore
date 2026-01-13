@@ -5,6 +5,17 @@
 
 # dotenv files
 .env
+.env.local
+.env.production
+.env.*.local
+
+# Local credentials file
+creds.local.json
+
+# Deployment
+backups/
+certbot/
+.rsync-exclude
 
 # User-specific files
 *.rsuser

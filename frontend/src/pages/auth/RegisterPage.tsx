@@ -11,7 +11,11 @@ import {
     Link,
     MenuItem,
     Grid,
+    Alert,
+    InputAdornment,
+    Chip,
 } from '@mui/material';
+import PhoneIcon from '@mui/icons-material/Phone';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -23,6 +27,10 @@ const registerSchema = z.object({
     confirmPassword: z.string(),
     firstName: z.string().min(2, 'First name must be at least 2 characters'),
     lastName: z.string().min(2, 'Last name must be at least 2 characters'),
+    phoneNumber: z.string()
+        .min(10, 'Phone number must be 10 digits')
+        .max(10, 'Phone number must be 10 digits')
+        .regex(/^[6-9]\d{9}$/, 'Enter a valid Indian mobile number'),
     role: z.enum(['Admin', 'ScreenOwner', 'Advertiser']),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -38,6 +46,7 @@ export default function RegisterPage() {
     const {
         control,
         handleSubmit,
+        getValues,
         formState: { errors },
     } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
@@ -47,18 +56,40 @@ export default function RegisterPage() {
             confirmPassword: '',
             firstName: '',
             lastName: '',
+            phoneNumber: '',
             role: 'Advertiser',
         },
     });
 
     const registerMutation = useMutation({
         mutationFn: async (data: Omit<RegisterFormData, 'confirmPassword'>) => {
-            const response = await api.post('/auth/register', data);
+            // Send phone with country code prefix (E.164 format)
+            const registerData = {
+                ...data,
+                phoneNumber: `+91${data.phoneNumber}` // India country code
+            };
+            const response = await api.post('/auth/register', registerData);
             return response.data;
         },
-        onSuccess: () => {
-            enqueueSnackbar('Registration successful! Please login.', { variant: 'success' });
-            navigate('/login');
+        onSuccess: (response) => {
+            // API Response structure: { success: true, data: { requiresVerification, phoneNumber, email, ... } }
+            const data = response.data;
+            if (data?.requiresVerification) {
+                enqueueSnackbar('Registration successful! Please verify your phone number.', { variant: 'success' });
+                // Navigate to verification page with email, phone number, and otpSent flag
+                // Backend auto-sends OTP during registration, so start at OTP step directly
+                navigate('/verify-phone', { 
+                    state: { 
+                        email: getValues('email'),
+                        phoneNumber: `+91${getValues('phoneNumber')}`, // Full phone for resend
+                        maskedPhone: data.phoneNumber, // Masked phone from backend for display
+                        otpSent: true // OTP was already sent during registration
+                    } 
+                });
+            } else {
+                enqueueSnackbar('Registration successful!', { variant: 'success' });
+                navigate('/login');
+            }
         },
         onError: (error: any) => {
             enqueueSnackbar(
@@ -138,6 +169,48 @@ export default function RegisterPage() {
                                             error={!!errors.email}
                                             helperText={errors.email?.message}
                                             required
+                                        />
+                                    )}
+                                />
+                            </Grid>
+                            <Grid item xs={12}>
+                                <Controller
+                                    name="phoneNumber"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <TextField
+                                            {...field}
+                                            fullWidth
+                                            label="Mobile Number"
+                                            type="tel"
+                                            placeholder="9876543210"
+                                            error={!!errors.phoneNumber}
+                                            helperText={errors.phoneNumber?.message || 'Enter 10-digit Indian mobile number'}
+                                            required
+                                            InputProps={{
+                                                startAdornment: (
+                                                    <InputAdornment position="start">
+                                                        <Chip
+                                                            icon={<PhoneIcon sx={{ fontSize: 16 }} />}
+                                                            label="🇮🇳 +91"
+                                                            size="small"
+                                                            variant="outlined"
+                                                            sx={{ 
+                                                                mr: 0.5,
+                                                                '& .MuiChip-label': { px: 1 }
+                                                            }}
+                                                        />
+                                                    </InputAdornment>
+                                                ),
+                                            }}
+                                            inputProps={{
+                                                maxLength: 10,
+                                            }}
+                                            onChange={(e) => {
+                                                // Only allow digits
+                                                const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                                field.onChange(value);
+                                            }}
                                         />
                                     )}
                                 />

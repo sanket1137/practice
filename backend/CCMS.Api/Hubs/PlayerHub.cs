@@ -233,7 +233,8 @@ public class PlayerHub : Hub
             await _context.SaveChangesAsync();
             
             // Broadcast to subscribed dashboards
-            await Clients.Group($"screen-{screenId}").SendAsync("OnPlayerSync", new
+            // Note: Use underscore to match PlaybackHub group naming convention
+            await Clients.Group($"screen_{screenId}").SendAsync("OnPlayerSync", new
             {
                 screenId,
                 uptime = syncData.Uptime,
@@ -280,7 +281,7 @@ public class PlayerHub : Hub
             throw new HubException("Unauthorized: You don't own this screen");
         }
         
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"screen-{screenId}");
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"screen_{screenId}");
         _logger.LogInformation($"Dashboard subscribed to screen {screenId}");
         
         // Send current screen status immediately
@@ -298,7 +299,7 @@ public class PlayerHub : Hub
     {
         if (!IsDashboard()) return;
         
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"screen-{screenId}");
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"screen_{screenId}");
         _logger.LogInformation($"Dashboard unsubscribed from screen {screenId}");
     }
     
@@ -312,7 +313,7 @@ public class PlayerHub : Hub
         
         // TODO: Check if user owns this campaign
         
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"campaign-{campaignId}");
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"campaign_{campaignId}");
         _logger.LogInformation($"Dashboard subscribed to campaign {campaignId}");
     }
     
@@ -321,7 +322,7 @@ public class PlayerHub : Hub
     {
         if (!IsDashboard()) return;
         
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"campaign-{campaignId}");
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"campaign_{campaignId}");
         _logger.LogInformation($"Dashboard unsubscribed from campaign {campaignId}");
     }
 }
