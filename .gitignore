@@ -9,8 +9,17 @@
 .env.production
 .env.*.local
 
-# Local credentials file
+# Local credentials files
 creds.local.json
+creds.local.md
+
+# Utility scripts with credentials (use templates instead)
+*.csx
+TempDbFix/
+TempDbCreate/
+backend/TempDbCreate/
+backend/TempClean/
+backend/TempClean.csx
 
 # Deployment
 backups/
