@@ -21,6 +21,7 @@ public class Impression : BaseEntity
     
     // Deduplication and fraud prevention
     public string? ImpressionId { get; set; } // UUID from player for deduplication
+    public string? SlotPlayKey { get; set; } // SHA256(screenId + date + slot + second) - UNIQUE constraint for deduplication
     public DateTime? ClientTimestamp { get; set; } // Timestamp from player device
     public string? VerificationHash { get; set; } // Hash for authenticity verification
     public string? PlayerVersion { get; set; } // Player version for tracking
@@ -32,4 +33,3 @@ public class Impression : BaseEntity
     public virtual Creative? Creative { get; set; }
     public virtual OwnerContent? OwnerContent { get; set; }
 }
-

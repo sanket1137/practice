@@ -16,6 +16,7 @@ import { api } from '../../services/api';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import { useRevenueCalculation } from '../../hooks/useRevenueCalculation';
+import TimezoneSelector, { getBrowserTimezone } from '../../components/common/TimezoneSelector';
 
 export default function CreateScreenPage() {
     const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function CreateScreenPage() {
         deviceId: '',
         pricePerSlot: '',
         currency: 'INR',
+        timezone: getBrowserTimezone(), // Default to browser timezone
     });
 
     const [schedule, setSchedule] = useState({
@@ -89,6 +91,7 @@ export default function CreateScreenPage() {
                 deviceId: data.deviceId,
                 pricePerSlot: parseFloat(data.pricePerSlot),
                 currency: data.currency,
+                timezone: data.timezone,
             });
             return response.data;
         },
@@ -348,6 +351,21 @@ export default function CreateScreenPage() {
                                 <MenuItem value="GBP">GBP</MenuItem>
                                 <MenuItem value="INR">INR</MenuItem>
                             </TextField>
+                        </Grid>
+
+                        {/* Timezone Selection */}
+                        <Grid item xs={12}>
+                            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                                Timezone
+                            </Typography>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TimezoneSelector
+                                value={formData.timezone}
+                                onChange={(timezone) => setFormData({ ...formData, timezone })}
+                                required
+                                helperText="Operating hours will be interpreted in this timezone"
+                            />
                         </Grid>
 
                         {/* Operating Schedule */}

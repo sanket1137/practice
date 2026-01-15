@@ -2,10 +2,22 @@ namespace CCMS.Shared.DTOs.Player;
 
 public class HandshakeRequest
 {
+    // Screen identification
+    public string ScreenId { get; set; } = string.Empty;
+    public string ApiKey { get; set; } = string.Empty;
+    
+    // Device identification
     public string DeviceId { get; set; } = string.Empty;
     public string DeviceToken { get; set; } = string.Empty;
     public string PlayerVersion { get; set; } = "1.0.0";
     public string OsVersion { get; set; } = string.Empty;
+    
+    // Device binding for security
+    public string? DeviceFingerprint { get; set; }
+    
+    // Security fields for secure handshake
+    public string? Nonce { get; set; }
+    public long? Timestamp { get; set; }
 }
 
 public class HandshakeResponse
@@ -22,6 +34,14 @@ public class HandshakeResponse
     
     // Verification salt for impression authenticity
     public string? VerificationSalt { get; set; }
+    
+    // Secure session tokens for HMAC signing
+    public string? SessionToken { get; set; }
+    public string? ServerSalt { get; set; }
+    public DateTime? SessionExpiresAt { get; set; }
+    
+    // Device binding status
+    public string? DeviceBindingStatus { get; set; } // "bound", "new_binding", "override", "not_provided"
 }
 
 public class PlaylistDto

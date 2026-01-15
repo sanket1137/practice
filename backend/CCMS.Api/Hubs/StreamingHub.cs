@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using CCMS.Application.Features.Streaming.Queries;
 using CCMS.Domain.Interfaces;
 using CCMS.Domain.Entities;
+using CCMS.Api.Services;
 using MediatR;
 using System.Collections.Concurrent;
 
@@ -19,6 +20,8 @@ public class StreamingHub : Hub
     private readonly ILogger<StreamingHub> _logger;
     private readonly IRepository<Screen> _screenRepository;
     private readonly IConfiguration _configuration;
+    private readonly AdvertiserScreenAccessService _accessService;
+    private readonly ScreenViewerManager _viewerManager;
     
     // Track active streams: screenId -> connectionId of player (case-insensitive)
     private static readonly ConcurrentDictionary<string, string> _activeStreams = new(StringComparer.OrdinalIgnoreCase);
@@ -68,12 +71,16 @@ public class StreamingHub : Hub
         IMediator mediator, 
         ILogger<StreamingHub> logger,
         IRepository<Screen> screenRepository,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        AdvertiserScreenAccessService accessService,
+        ScreenViewerManager viewerManager)
     {
         _mediator = mediator;
         _logger = logger;
         _screenRepository = screenRepository;
         _configuration = configuration;
+        _accessService = accessService;
+        _viewerManager = viewerManager;
     }
     
     /// <summary>
@@ -95,8 +102,9 @@ public class StreamingHub : Hub
     
     /// <summary>
     /// Validate user has access to the screen (owner or admin)
+    /// Enhanced with AdvertiserScreenAccessService for 24h preview access
     /// </summary>
-    private async Task<bool> ValidateScreenAccess(string screenId, bool requireOwnership = false)
+    private async Task<(bool hasAccess, bool isOwner, bool isPreviewAccess, ViewerType viewerType)> ValidateScreenAccessEnhanced(string screenId, bool requireOwnership = false)
     {
         var userId = Context.User?.FindFirst("sub")?.Value 
                   ?? Context.User?.FindFirst("id")?.Value
@@ -107,61 +115,87 @@ public class StreamingHub : Hub
         if (testingMode)
         {
             _logger.LogWarning("WebRTC testing mode enabled - skipping authentication");
-            return true;
+            return (true, false, false, ViewerType.Unknown);
         }
         
-        if (string.IsNullOrEmpty(userId))
+        if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
         {
-            _logger.LogWarning("No user identity found in StreamingHub context");
-            return false;
+            _logger.LogWarning("No valid user identity found in StreamingHub context");
+            return (false, false, false, ViewerType.Unknown);
         }
         
+        if (!Guid.TryParse(screenId, out var screenGuid))
+        {
+            _logger.LogWarning("Invalid screen ID format: {ScreenId}", screenId);
+            return (false, false, false, ViewerType.Unknown);
+        }
+
         // Check if user is admin (admins can access all screens)
         var isAdmin = Context.User?.IsInRole("Admin") ?? false;
         if (isAdmin)
         {
-            return true;
+            return (true, false, false, ViewerType.Admin);
         }
         
         // Validate screen exists and check ownership
-        if (Guid.TryParse(screenId, out var screenGuid))
+        var screen = await _screenRepository.GetByIdAsync(screenGuid);
+        if (screen == null)
         {
-            var screen = await _screenRepository.GetByIdAsync(screenGuid);
-            if (screen == null)
-            {
-                _logger.LogWarning("Screen {ScreenId} not found", screenId);
-                return false;
-            }
-            
-            // For broadcasting, require ownership
-            if (requireOwnership)
-            {
-                var screenOwnerId = screen.OwnerId.ToString();
-                if (screenOwnerId != userId)
-                {
-                    _logger.LogWarning("User {UserId} is not owner of screen {ScreenId}", userId, screenId);
-                    return false;
-                }
-            }
-            else
-            {
-                // For viewing, check if user is owner OR has ScreenOwner/Advertiser role
-                var screenOwnerId = screen.OwnerId.ToString();
-                var isOwner = screenOwnerId == userId;
-                var isScreenOwnerRole = Context.User?.IsInRole("ScreenOwner") ?? false;
-                var isAdvertiser = Context.User?.IsInRole("Advertiser") ?? false;
-                
-                if (!isOwner && !isScreenOwnerRole && !isAdvertiser)
-                {
-                    _logger.LogWarning("User {UserId} does not have access to view screen {ScreenId}", userId, screenId);
-                    return false;
-                }
-            }
-            
-            return true;
+            _logger.LogWarning("Screen {ScreenId} not found", screenId);
+            return (false, false, false, ViewerType.Unknown);
         }
         
-        return false;
+        // Check ownership
+        var isOwner = screen.OwnerId == userGuid;
+        
+        // For broadcasting, require ownership
+        if (requireOwnership)
+        {
+            if (!isOwner)
+            {
+                _logger.LogWarning("User {UserId} is not owner of screen {ScreenId}", userId, screenId);
+                return (false, false, false, ViewerType.Unknown);
+            }
+            return (true, true, false, ViewerType.Owner);
+        }
+        
+        // Owner always has access
+        if (isOwner)
+        {
+            return (true, true, false, ViewerType.Owner);
+        }
+        
+        // Check if advertiser has access via booking (includes 24h preview)
+        var isAdvertiser = Context.User?.IsInRole("Advertiser") ?? false;
+        if (isAdvertiser)
+        {
+            var accessResult = await _accessService.CheckAdvertiserAccessAsync(userGuid, screenGuid);
+            if (accessResult.HasAccess)
+            {
+                var viewerType = accessResult.IsPreviewAccess 
+                    ? ViewerType.AdvertiserPreview 
+                    : ViewerType.AdvertiserActive;
+                return (true, false, accessResult.IsPreviewAccess, viewerType);
+            }
+            
+            _logger.LogWarning(
+                "Advertiser {UserId} denied access to screen {ScreenId}: {Reason}", 
+                userId, screenId, accessResult.Reason);
+            return (false, false, false, ViewerType.Unknown);
+        }
+        
+        // Other screen owners cannot view other owners' screens
+        _logger.LogWarning("User {UserId} does not have access to view screen {ScreenId}", userId, screenId);
+        return (false, false, false, ViewerType.Unknown);
+    }
+    
+    /// <summary>
+    /// Legacy method for backward compatibility
+    /// </summary>
+    private async Task<bool> ValidateScreenAccess(string screenId, bool requireOwnership = false)
+    {
+        var (hasAccess, _, _, _) = await ValidateScreenAccessEnhanced(screenId, requireOwnership);
+        return hasAccess;
     }
 
     #region HTTP Registration Methods (for Python player)
@@ -431,6 +465,7 @@ public class StreamingHub : Hub
     /// <summary>
     /// Viewer requests to watch a screen's live stream
     /// Requires viewer access (ScreenOwner, Advertiser, or Admin role)
+    /// Enhanced with ScreenViewerManager for concurrent viewer limits and owner priority
     /// </summary>
     public async Task RequestStream(string screenId)
     {
@@ -454,39 +489,60 @@ public class StreamingHub : Hub
                 "Viewer requesting stream. ScreenId: {ScreenId}, ViewerId: {ViewerId}, UserId: {UserId}",
                 screenId, Context.ConnectionId, userId);
 
-            // Validate stream access (viewer access - doesn't require ownership)
-            var hasAccess = await ValidateScreenAccess(screenId, requireOwnership: false);
+            // Validate stream access using enhanced method (includes 24h preview access)
+            var (hasAccess, isOwner, isPreviewAccess, viewerType) = await ValidateScreenAccessEnhanced(screenId, requireOwnership: false);
             if (!hasAccess)
             {
                 _logger.LogWarning(
                     "Access denied for user {UserId} to view stream for screen {ScreenId}",
                     userId, screenId);
                     
-                await Clients.Caller.SendAsync("OnStreamError", "Access denied to this stream");
+                await Clients.Caller.SendAsync("OnStreamError", "Access denied to this stream. You need an active or upcoming booking.");
                 return;
             }
 
-            // Check max viewers limit before allowing connection
-            var currentViewers = GetViewerCount(screenId);
-            var maxViewers = 5; // TODO: Get from screen.MaxViewers in database when available
-            
-            if (currentViewers >= maxViewers)
+            // Try to add viewer using ScreenViewerManager (handles owner priority and limits)
+            if (!Guid.TryParse(userId, out var userGuid))
+            {
+                await Clients.Caller.SendAsync("OnStreamError", "Invalid user session");
+                return;
+            }
+
+            var viewerResult = _viewerManager.TryAddViewer(
+                screenId,
+                Context.ConnectionId,
+                userGuid,
+                viewerType,
+                isOwner);
+
+            if (!viewerResult.Success)
             {
                 _logger.LogWarning(
-                    "Stream at capacity for screen {ScreenId}: {CurrentViewers}/{MaxViewers} viewers",
-                    screenId, currentViewers, maxViewers);
+                    "Viewer limit reached for screen {ScreenId}: {Message}",
+                    screenId, viewerResult.Message);
                     
-                await Clients.Caller.SendAsync("OnStreamError", 
-                    $"Stream is at capacity ({maxViewers} viewers). Please try again later.");
+                await Clients.Caller.SendAsync("OnStreamError", viewerResult.Message);
                 return;
             }
 
-            _logger.LogInformation("Access granted for viewer {UserId} on screen {ScreenId}", userId, screenId);
+            // If a viewer was evicted to make room, notify them
+            if (!string.IsNullOrEmpty(viewerResult.EvictedConnectionId))
+            {
+                await Clients.Client(viewerResult.EvictedConnectionId).SendAsync(
+                    "OnStreamError", 
+                    "You have been disconnected to make room for a higher priority viewer.");
+                    
+                await Groups.RemoveFromGroupAsync(viewerResult.EvictedConnectionId, $"screen_{screenId}_viewers");
+            }
+
+            _logger.LogInformation(
+                "Access granted for {ViewerType} {UserId} on screen {ScreenId} (viewers: {Count})",
+                viewerType, userId, screenId, viewerResult.NonOwnerViewerCount);
 
             // Add viewer to screen's viewer group
             await Groups.AddToGroupAsync(Context.ConnectionId, $"screen_{screenId}_viewers");
             
-            // Track viewer
+            // Track viewer in legacy tracker as well (for compatibility)
             if (_streamViewers.TryGetValue(screenId, out var viewers))
             {
                 viewers.Add(Context.ConnectionId);
@@ -622,6 +678,9 @@ public class StreamingHub : Hub
             // Clean up connection state tracking
             _connectionStates.TryRemove(Context.ConnectionId, out _);
             _iceCandidateBuffer.TryRemove(Context.ConnectionId, out _);
+            
+            // Clean up from ScreenViewerManager
+            _viewerManager.RemoveViewer(Context.ConnectionId);
             
             if (_connectionToScreen.TryRemove(Context.ConnectionId, out var screenId))
             {

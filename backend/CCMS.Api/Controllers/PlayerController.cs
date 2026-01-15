@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
+using CCMS.Api.Extensions;
 using CCMS.Api.Hubs;
+using CCMS.Api.Services;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
@@ -11,6 +14,7 @@ namespace CCMS.Api.Controllers;
 
 [ApiController]
 [Route("api/player")]
+[EnableRateLimiting(RateLimitingExtensions.PlayerPolicy)]
 public class PlayerController : ControllerBase
 {
     private readonly IRepository<Screen> _screenRepository;
@@ -19,6 +23,7 @@ public class PlayerController : ControllerBase
     private readonly IHubContext<PlayerHub> _hubContext;
     private readonly ILogger<PlayerController> _logger;
     private readonly ITimeZoneService _timeZoneService;
+    private readonly PlayerDeviceManager _deviceManager;
 
     public PlayerController(
         IRepository<Screen> screenRepository,
@@ -26,7 +31,8 @@ public class PlayerController : ControllerBase
         IRepository<Impression> impressionRepository,
         IHubContext<PlayerHub> hubContext,
         ILogger<PlayerController> logger,
-        ITimeZoneService timeZoneService)
+        ITimeZoneService timeZoneService,
+        PlayerDeviceManager deviceManager)
     {
         _screenRepository = screenRepository;
         _playlistService = playlistService;
@@ -34,6 +40,7 @@ public class PlayerController : ControllerBase
         _hubContext = hubContext;
         _logger = logger;
         _timeZoneService = timeZoneService;
+        _deviceManager = deviceManager;
     }
 
     /// <summary>
@@ -58,11 +65,41 @@ public class PlayerController : ControllerBase
                 return NotFound(ApiResponse<HandshakeResponse>.ErrorResponse("Screen not found"));
             }
 
-            // TODO: Implement API key verification with BCrypt
-            // For now, accept any API key
-            if (string.IsNullOrEmpty(screen.ApiKeyHash))
+            // Verify API key using BCrypt
+            if (!string.IsNullOrEmpty(screen.ApiKeyHash))
             {
-                _logger.LogWarning($"Screen {request.ScreenId} has no API key configured");
+                // Verify the raw API key against stored BCrypt hash
+                if (string.IsNullOrEmpty(request.ApiKey) || 
+                    !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
+                {
+                    _logger.LogWarning($"Handshake failed: Invalid API key for screen {request.ScreenId}");
+                    return Unauthorized(ApiResponse<HandshakeResponse>.ErrorResponse("Invalid API key"));
+                }
+                _logger.LogDebug($"API key verified for screen {request.ScreenId}");
+            }
+            else
+            {
+                _logger.LogWarning($"Screen {request.ScreenId} has no API key configured - allowing access");
+            }
+
+            // Validate device fingerprint if provided
+            string deviceBindingStatus = "not_provided";
+            if (!string.IsNullOrEmpty(request.DeviceFingerprint))
+            {
+                var deviceResult = await _deviceManager.ValidateDeviceFingerprintAsync(
+                    screenGuid, request.DeviceFingerprint);
+                
+                if (!deviceResult.IsValid)
+                {
+                    _logger.LogWarning(
+                        $"Device fingerprint mismatch for screen {request.ScreenId}: {deviceResult.Reason}");
+                    return Unauthorized(ApiResponse<HandshakeResponse>.ErrorResponse(
+                        $"Device verification failed: {deviceResult.Reason}"));
+                }
+                
+                deviceBindingStatus = deviceResult.IsNewBinding ? "new_binding" 
+                    : deviceResult.IsOverride ? "override" 
+                    : "bound";
             }
 
             // Update screen status
@@ -110,8 +147,13 @@ public class PlayerController : ControllerBase
             
             // Generate verification salt for this session (or use a stored one)
             var verificationSalt = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+            
+            // Generate session token for secure communication
+            var sessionToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+            var serverSalt = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+            var sessionExpiresAt = DateTime.UtcNow.AddHours(24);
 
-            _logger.LogInformation($"Handshake successful for screen {request.ScreenId}");
+            _logger.LogInformation($"Handshake successful for screen {request.ScreenId} (device: {deviceBindingStatus})");
 
             var response = new HandshakeResponse
             {
@@ -122,7 +164,11 @@ public class PlayerController : ControllerBase
                 Message = "Handshake successful",
                 ScreenTimezone = screen.Timezone,
                 OperatingHours = operatingHours,
-                VerificationSalt = verificationSalt
+                VerificationSalt = verificationSalt,
+                SessionToken = sessionToken,
+                ServerSalt = serverSalt,
+                SessionExpiresAt = sessionExpiresAt,
+                DeviceBindingStatus = deviceBindingStatus
             };
 
             return Ok(ApiResponse<HandshakeResponse>.SuccessResponse(response));
@@ -136,6 +182,8 @@ public class PlayerController : ControllerBase
 
     /// <summary>
     /// Player sync - called every 10 minutes to send accumulated data
+    /// Supports both legacy format (CampaignImpressions/OwnerContentImpressions) and 
+    /// new flat Impressions array with UPSERT deduplication via SlotPlayKey
     /// </summary>
     [HttpPost("sync")]
     public async Task<ActionResult<ApiResponse<SyncResponse>>> Sync([FromBody] SyncRequest request)
@@ -165,6 +213,86 @@ public class PlayerController : ControllerBase
             int duplicateCount = 0;
             var playerVersion = request.SyncData.PlayerVersion ?? "unknown";
             
+            // NEW: Handle flat impressions array with SlotPlayKey UPSERT (preferred)
+            if (request.SyncData.Impressions != null && request.SyncData.Impressions.Count > 0)
+            {
+                _logger.LogInformation($"Processing {request.SyncData.Impressions.Count} flat impressions with UPSERT deduplication");
+                
+                foreach (var imp in request.SyncData.Impressions)
+                {
+                    // Check for duplicate using SlotPlayKey (most reliable deduplication)
+                    if (!string.IsNullOrEmpty(imp.SlotPlayKey))
+                    {
+                        var existingByKey = await _impressionRepository.FindAsync(x => x.SlotPlayKey == imp.SlotPlayKey);
+                        if (existingByKey.Any())
+                        {
+                            duplicateCount++;
+                            _logger.LogDebug($"Skipping duplicate impression (SlotPlayKey: {imp.SlotPlayKey[..16]}...)");
+                            continue;
+                        }
+                    }
+                    // Fallback: Check by ImpressionId
+                    else if (!string.IsNullOrEmpty(imp.ImpressionId))
+                    {
+                        var existingById = await _impressionRepository.FindAsync(x => x.ImpressionId == imp.ImpressionId);
+                        if (existingById.Any())
+                        {
+                            duplicateCount++;
+                            continue;
+                        }
+                    }
+                    
+                    // Basic fraud detection: check if timestamp is reasonable
+                    var timeDiff = (DateTime.UtcNow - imp.PlayedAt).TotalHours;
+                    var isVerified = timeDiff <= 24 && timeDiff >= -1;
+                    
+                    if (!isVerified)
+                    {
+                        _logger.LogWarning($"Suspicious impression timestamp: {imp.PlayedAt} (diff: {timeDiff:F1}h)");
+                    }
+                    
+                    var impression = new Impression
+                    {
+                        Id = Guid.NewGuid(),
+                        ScreenId = screenGuid,
+                        BookingId = imp.BookingId,
+                        CampaignId = imp.CampaignId,
+                        CreativeId = imp.CreativeId,
+                        OwnerContentId = imp.OwnerContentId,
+                        SlotPosition = imp.SlotNumber,
+                        PlayedAt = imp.PlayedAt,
+                        SessionDate = imp.PlayedAt.Date,
+                        DeviceId = request.ScreenId,
+                        CreatedAt = DateTime.UtcNow,
+                        // Deduplication fields
+                        ImpressionId = imp.ImpressionId,
+                        SlotPlayKey = imp.SlotPlayKey,
+                        ClientTimestamp = imp.PlayedAt,
+                        VerificationHash = imp.VerificationHash,
+                        PlayerVersion = playerVersion,
+                        IsVerified = isVerified
+                    };
+
+                    await _impressionRepository.AddAsync(impression);
+                    savedCount++;
+                    
+                    // Broadcast for real-time updates (dashboard only, no DB write)
+                    if (imp.OwnerContentId.HasValue)
+                    {
+                        await _hubContext.Clients.Group($"screen_{request.ScreenId}")
+                            .SendAsync("ImpressionRecorded", new
+                            {
+                                screenId = request.ScreenId,
+                                slotNumber = imp.SlotNumber,
+                                ownerContentId = imp.OwnerContentId,
+                                timestamp = imp.PlayedAt
+                            });
+                    }
+                }
+            }
+            // LEGACY: Handle old format (backwards compatibility)
+            else
+            {
             foreach (var campaign in request.SyncData.CampaignImpressions)
             {
                 // Get impression IDs for deduplication if provided
@@ -280,6 +408,7 @@ public class PlayerController : ControllerBase
                         });
                 }
             }
+            } // End of legacy format else block
 
             // Broadcast sync event to dashboard
             // Note: Use underscore to match PlaybackHub group naming convention
@@ -299,7 +428,8 @@ public class PlayerController : ControllerBase
                 Success = true,
                 Message = "Sync successful",
                 ImpressionsSaved = savedCount,
-                DuplicatesSkipped = duplicateCount
+                DuplicatesSkipped = duplicateCount,
+                DuplicatesIgnored = duplicateCount  // Alias for player compatibility
             };
 
             return Ok(ApiResponse<SyncResponse>.SuccessResponse(response));
@@ -372,6 +502,10 @@ public class HandshakeRequest
 {
     public string ScreenId { get; set; } = string.Empty;
     public string ApiKey { get; set; } = string.Empty;
+    public string? ApiKeyHash { get; set; }  // SHA256 hash for secure verification
+    public string? DeviceFingerprint { get; set; }  // Device binding
+    public string? Nonce { get; set; }  // For replay protection
+    public long? Timestamp { get; set; }  // Unix timestamp
     public string PlayerVersion { get; set; } = string.Empty;
 }
 
