@@ -22,6 +22,7 @@ try:
     import requests
     import pytz
     from signalrcore.hub_connection_builder import HubConnectionBuilder
+    from security_manager import PlayerSecurityManager, SecurePlayerConfig
 except ImportError as e:
     print(f"Missing dependency: {e}")
     print("Install with: pip install -r requirements.txt")
@@ -180,8 +181,13 @@ class CCMSPlayer:
         except ImportError:
             logger.info("[WebRTC] Module not available - install dependencies to enable streaming")
         
-        # Initialize offline impression queue (SQLite)
-        self._init_impression_db()
+        # Initialize ImpressionStore - Single Source of Truth for accurate counting
+        from impression_store import ImpressionStore
+        self.impression_store = ImpressionStore(
+            db_path=Config.BASE_DIR / "data" / "impressions.db",
+            screen_id=self.screen_id
+        )
+        logger.info(f"[ImpressionStore] Initialized - Pending: {self.impression_store.get_pending_count()}")
         
         # Enhanced Cache Manager for video lifecycle with disk space checks
         from cache_manager import CacheManager
@@ -202,12 +208,9 @@ class CCMSPlayer:
             screen_id=self.screen_id
         )
         
-        # Track impressions for sync
-        self.impressions = defaultdict(lambda: {'playCount': 0, 'lastPlayed': None})
-        
-        # NEW: Track detailed impressions for 10-minute sync
-        self.campaign_summaries = {}  # {campaignId: {bookingId, creativeId, timestamps[]}}
-        self.owner_content_summaries = {}  # {ownerContentId: {slotNumber, timestamps[]}}
+        # NOTE: Impressions are now tracked ONLY in ImpressionStore (SQLite)
+        # This ensures single source of truth and prevents duplicates
+        # Old in-memory dicts (impressions, campaign_summaries, owner_content_summaries) REMOVED
         
         # Flag to trigger playlist reload when owner content changes
         self.playlist_needs_reload = False
@@ -221,6 +224,14 @@ class CCMSPlayer:
             "X-API-Key": self.api_key,
             "Content-Type": "application/json"
         })
+        
+        # Security Manager for secure communication
+        self.security_manager = PlayerSecurityManager(
+            api_key=self.api_key,
+            screen_id=self.screen_id
+        )
+        self.device_fingerprint = SecurePlayerConfig.generate_device_fingerprint()
+        logger.info(f"Device fingerprint generated: {self.device_fingerprint[:16]}...")
         
         # MPV Player for gapless playback
         from mpv_dual_player import MPVDualPlayer
@@ -256,141 +267,39 @@ class CCMSPlayer:
         logger.info(f"Screen ID: {self.screen_id}")
         logger.info(f"Server: {self.api_url}")
     
+    # ============================================================
+    # LEGACY SQLite methods (DEPRECATED - use ImpressionStore instead)
+    # Kept for backwards compatibility during transition
+    # ============================================================
+    
     def _init_impression_db(self):
-        """Initialize SQLite database for offline impression queue"""
-        try:
-            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
-            cursor = conn.cursor()
-            
-            # Create impressions table if not exists
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS offline_impressions (
-                    id TEXT PRIMARY KEY,
-                    impression_id TEXT UNIQUE NOT NULL,
-                    screen_id TEXT NOT NULL,
-                    booking_id TEXT,
-                    campaign_id TEXT,
-                    creative_id TEXT,
-                    owner_content_id TEXT,
-                    slot_number INTEGER,
-                    played_at TEXT NOT NULL,
-                    client_timestamp TEXT NOT NULL,
-                    verification_hash TEXT,
-                    created_at TEXT NOT NULL,
-                    sync_attempts INTEGER DEFAULT 0,
-                    last_sync_attempt TEXT
-                )
-            ''')
-            
-            # Create index for efficient queries
-            cursor.execute('''
-                CREATE INDEX IF NOT EXISTS idx_impressions_created 
-                ON offline_impressions(created_at)
-            ''')
-            
-            conn.commit()
-            conn.close()
-            logger.info("[DB] Offline impression queue initialized")
-            
-            # Clean up old impressions (beyond retention period)
-            self._cleanup_old_impressions()
-            
-        except Exception as e:
-            logger.error(f"[DB] Failed to initialize impression database: {e}")
+        """DEPRECATED: Use ImpressionStore instead. Kept for backwards compatibility."""
+        logger.warning("[DEPRECATED] _init_impression_db called - use ImpressionStore instead")
+        pass  # No-op, ImpressionStore handles initialization
     
     def _cleanup_old_impressions(self):
-        """Remove impressions older than retention period"""
-        try:
-            cutoff_date = (datetime.utcnow() - timedelta(days=Config.MAX_OFFLINE_DAYS)).isoformat()
-            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
-            cursor = conn.cursor()
-            cursor.execute('DELETE FROM offline_impressions WHERE created_at < ?', (cutoff_date,))
-            deleted = cursor.rowcount
-            conn.commit()
-            conn.close()
-            if deleted > 0:
-                logger.info(f"[DB] Cleaned up {deleted} old impressions (>{Config.MAX_OFFLINE_DAYS} days)")
-        except Exception as e:
-            logger.warning(f"[DB] Failed to cleanup old impressions: {e}")
+        """DEPRECATED: ImpressionStore handles cleanup automatically."""
+        logger.warning("[DEPRECATED] _cleanup_old_impressions called - ImpressionStore handles this")
+        pass
     
     def _queue_impression_offline(self, impression_data: dict):
-        """Queue an impression in SQLite for later sync"""
-        try:
-            impression_id = impression_data.get('impressionId', str(uuid.uuid4()))
-            
-            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT OR IGNORE INTO offline_impressions 
-                (id, impression_id, screen_id, booking_id, campaign_id, creative_id, 
-                 owner_content_id, slot_number, played_at, client_timestamp, 
-                 verification_hash, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                str(uuid.uuid4()),
-                impression_id,
-                self.screen_id,
-                impression_data.get('bookingId'),
-                impression_data.get('campaignId'),
-                impression_data.get('creativeId'),
-                impression_data.get('ownerContentId'),
-                impression_data.get('slotNumber'),
-                impression_data.get('playedAt'),
-                impression_data.get('clientTimestamp', datetime.utcnow().isoformat()),
-                impression_data.get('verificationHash'),
-                datetime.utcnow().isoformat()
-            ))
-            conn.commit()
-            conn.close()
-            logger.debug(f"[DB] Queued impression offline: {impression_id}")
-        except Exception as e:
-            logger.error(f"[DB] Failed to queue impression: {e}")
+        """DEPRECATED: Use ImpressionStore.record_impression() instead."""
+        logger.warning("[DEPRECATED] _queue_impression_offline called - use ImpressionStore")
+        pass
     
     def _get_pending_impressions(self, limit: int = None) -> list:
-        """Get pending impressions from offline queue"""
-        try:
-            limit = limit or Config.MAX_BATCH_SIZE
-            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT impression_id, booking_id, campaign_id, creative_id, 
-                       owner_content_id, slot_number, played_at, client_timestamp,
-                       verification_hash
-                FROM offline_impressions 
-                ORDER BY created_at ASC 
-                LIMIT ?
-            ''', (limit,))
-            rows = cursor.fetchall()
-            conn.close()
-            
-            return [{
-                'impressionId': row[0],
-                'bookingId': row[1],
-                'campaignId': row[2],
-                'creativeId': row[3],
-                'ownerContentId': row[4],
-                'slotNumber': row[5],
-                'playedAt': row[6],
-                'clientTimestamp': row[7],
-                'verificationHash': row[8]
-            } for row in rows]
-        except Exception as e:
-            logger.error(f"[DB] Failed to get pending impressions: {e}")
-            return []
+        """DEPRECATED: Use ImpressionStore.get_pending_impressions() instead."""
+        logger.warning("[DEPRECATED] _get_pending_impressions called - use ImpressionStore")
+        return []
     
     def _remove_synced_impressions(self, impression_ids: list):
-        """Remove successfully synced impressions from queue"""
-        try:
-            conn = sqlite3.connect(str(Config.IMPRESSION_DB_PATH))
-            cursor = conn.cursor()
-            placeholders = ','.join('?' * len(impression_ids))
-            cursor.execute(f'DELETE FROM offline_impressions WHERE impression_id IN ({placeholders})', 
-                          impression_ids)
-            conn.commit()
-            conn.close()
-            logger.debug(f"[DB] Removed {len(impression_ids)} synced impressions")
-        except Exception as e:
-            logger.error(f"[DB] Failed to remove synced impressions: {e}")
+        """DEPRECATED: Use ImpressionStore.mark_synced() instead."""
+        logger.warning("[DEPRECATED] _remove_synced_impressions called - use ImpressionStore")
+        pass
+    
+    # ============================================================
+    # END LEGACY METHODS
+    # ============================================================
     
     def _generate_verification_hash(self, screen_id: str, slot_number: int, timestamp: str) -> str:
         """Generate verification hash for impression authenticity"""
@@ -534,15 +443,27 @@ class CCMSPlayer:
     def handshake(self):
         """Perform handshake with server - receives playlist, timezone, operating hours, and server salt"""
         try:
-            logger.info("Performing handshake...")
+            logger.info("Performing secure handshake...")
+            
+            # Generate nonce for this handshake
+            import time
+            nonce = self.security_manager.generate_nonce()
+            timestamp = int(time.time())
+            
+            # Send secure handshake with device fingerprint and hashed API key
+            handshake_payload = {
+                "screenId": self.screen_id,
+                "apiKey": self.api_key,  # Still send API key for backward compat
+                "apiKeyHash": self.security_manager.hash_api_key(),  # SHA256 hash
+                "deviceFingerprint": self.device_fingerprint,  # Device binding
+                "nonce": nonce,
+                "timestamp": timestamp,
+                "playerVersion": Config.PLAYER_VERSION
+            }
             
             response = requests.post(
                 f"{self.api_url}/api/player/handshake",
-                json={
-                    "screenId": self.screen_id,
-                    "apiKey": self.api_key,
-                    "playerVersion": Config.PLAYER_VERSION
-                },
+                json=handshake_payload,
                 timeout=10
             )
             
@@ -577,6 +498,27 @@ class CCMSPlayer:
                     self.server_salt = data.get("verificationSalt")
                     if self.server_salt:
                         logger.info("  Impression verification enabled")
+                    
+                    # Process session token for secure communication
+                    session_token = data.get("sessionToken")
+                    server_salt = data.get("serverSalt")
+                    if session_token and server_salt:
+                        self.security_manager.process_handshake_response({
+                            "sessionToken": session_token,
+                            "serverSalt": server_salt,
+                            "expiresAt": data.get("sessionExpiresAt")
+                        })
+                        logger.info("  Secure session established")
+                    
+                    # Check device binding status
+                    device_status = data.get("deviceBindingStatus")
+                    if device_status:
+                        if device_status == "bound":
+                            logger.info("  Device verified (bound to this screen)")
+                        elif device_status == "new_binding":
+                            logger.info("  Device newly bound to this screen")
+                        elif device_status == "override":
+                            logger.warning("  Device override applied - new device bound")
                     
                     playlist_data = data.get("playlist")
                     if playlist_data and isinstance(playlist_data, dict):
@@ -632,69 +574,40 @@ class CCMSPlayer:
             return False
     
     def sync_daily_data(self):
-        """Sync accumulated data to server"""
+        """Sync accumulated impressions to server using ImpressionStore (Single Source of Truth)
+        Uses UPSERT semantics on server for idempotent deduplication
+        """
         try:
-            logger.info("Syncing daily data to server...")
+            logger.info("Syncing impressions to server...")
             
             now = datetime.now()
             session_duration = now - self.session_data['start_time']
             
-            # First, sync any pending offline impressions (from SQLite queue)
-            pending_offline = self._get_pending_impressions(Config.MAX_BATCH_SIZE)
-            if pending_offline:
-                logger.info(f"Found {len(pending_offline)} pending offline impressions to sync")
+            # Get pending impressions from ImpressionStore (Single Source of Truth)
+            pending_impressions = self.impression_store.get_pending_impressions()
             
-            # Build campaign impressions summary (from old session_data for backwards compat)
-            campaign_impressions = []
-            for key, data in self.session_data['campaign_impressions'].items():
-                if data['play_timestamps']:
-                    campaign_impressions.append({
-                        'bookingId': str(data['booking_id']),
-                        'campaignId': str(data['campaign_id']),
-                        'creativeId': str(data['creative_id']),
-                        'totalSlotsRan': len(data['play_timestamps']),
-                        'playTimestamps': [ts.isoformat() for ts in data['play_timestamps']]
-                    })
+            if not pending_impressions:
+                logger.info("No pending impressions to sync")
+                return True
             
-            # Build campaign impressions from new tracking (preferred)
-            # Include impression IDs and verification hashes
-            for campaign_id, data in self.campaign_summaries.items():
-                if data['timestamps']:
-                    impression_data = {
-                        'bookingId': str(data['bookingId']),
-                        'campaignId': str(campaign_id),
-                        'creativeId': str(data['creativeId']),
-                        'totalSlotsRan': len(data['timestamps']),
-                        'playTimestamps': [ts.isoformat() for ts in data['timestamps']]
-                    }
-                    # Add deduplication IDs if available
-                    if 'impressionIds' in data:
-                        impression_data['impressionIds'] = data['impressionIds']
-                    if 'verificationHashes' in data:
-                        impression_data['verificationHashes'] = data['verificationHashes']
-                    campaign_impressions.append(impression_data)
+            logger.info(f"Found {len(pending_impressions)} pending impressions to sync")
             
-            # NEW: Build owner content impressions with verification
-            owner_content_impressions = []
-            for owner_content_id, data in self.owner_content_summaries.items():
-                if data['timestamps']:
-                    impression_data = {
-                        'ownerContentId': str(owner_content_id),
-                        'slotNumber': data['slotNumber'],
-                        'playTimestamps': [ts.isoformat() for ts in data['timestamps']]
-                    }
-                    if 'impressionIds' in data:
-                        impression_data['impressionIds'] = data['impressionIds']
-                    if 'verificationHashes' in data:
-                        impression_data['verificationHashes'] = data['verificationHashes']
-                    owner_content_impressions.append(impression_data)
-            
-            # Batch limiting - split into chunks if too large
-            total_impressions = sum(len(ci.get('playTimestamps', [])) for ci in campaign_impressions) + \
-                               sum(len(oi.get('playTimestamps', [])) for oi in owner_content_impressions)
-            
-            if total_impressions > Config.MAX_BATCH_SIZE:
-                logger.warning(f"Large batch ({total_impressions} impressions) - will sync in batches")
+            # Format impressions for server sync
+            # Server expects flat array of impressions with UPSERT handling
+            impressions_to_sync = []
+            for imp in pending_impressions:
+                impressions_to_sync.append({
+                    'impressionId': imp['impression_id'],
+                    'slotPlayKey': imp['slot_play_key'],  # Server uses for UPSERT
+                    'bookingId': imp['booking_id'],
+                    'campaignId': imp['campaign_id'],
+                    'creativeId': imp['creative_id'],
+                    'ownerContentId': imp['owner_content_id'],
+                    'slotNumber': imp['slot_number'],
+                    'playedAt': imp['played_at'],
+                    'verificationHash': imp['verification_hash'],
+                    'screenId': self.screen_id
+                })
             
             sync_data = {
                 'date': self.session_data['date'].isoformat(),
@@ -702,12 +615,11 @@ class CCMSPlayer:
                 'endTime': now.strftime("%H:%M:%S"),
                 'uptime': str(session_duration),
                 'downtime': "00:00:00",
-                'campaignImpressions': campaign_impressions,
-                'ownerContentImpressions': owner_content_impressions,
-                'playerVersion': Config.PLAYER_VERSION  # For server-side validation
+                'impressions': impressions_to_sync,  # Flat array for UPSERT
+                'playerVersion': Config.PLAYER_VERSION
             }
             
-            logger.info(f"Syncing {len(campaign_impressions)} campaign summaries, {len(owner_content_impressions)} owner content summaries...")
+            logger.info(f"Syncing {len(impressions_to_sync)} impressions...")
             
             response = requests.post(
                 f"{self.api_url}/api/player/sync",
@@ -721,18 +633,14 @@ class CCMSPlayer:
             if response.status_code == 200:
                 data = response.json().get("data", {})
                 if data.get("success"):
-                    logger.info(f"[OK] Sync successful! {data.get('impressionsSaved')} impressions saved")
+                    saved_count = data.get('impressionsSaved', 0)
+                    duplicates_ignored = data.get('duplicatesIgnored', 0)
+                    logger.info(f"[OK] Sync successful! {saved_count} new, {duplicates_ignored} duplicates ignored")
                     
-                    # Clear in-memory tracking
-                    self.session_data['campaign_impressions'].clear()
-                    self.campaign_summaries.clear()
-                    self.owner_content_summaries.clear()
-                    
-                    # Remove synced offline impressions from SQLite
-                    if pending_offline:
-                        synced_ids = [imp['impressionId'] for imp in pending_offline]
-                        self._remove_synced_impressions(synced_ids)
-                        logger.info(f"[DB] Removed {len(synced_ids)} synced offline impressions")
+                    # Mark impressions as synced in ImpressionStore
+                    impression_ids = [imp['impressionId'] for imp in impressions_to_sync]
+                    self.impression_store.mark_synced(impression_ids)
+                    logger.info(f"[ImpressionStore] Marked {len(impression_ids)} impressions as synced")
                     
                     return True
                 else:
@@ -1277,8 +1185,8 @@ class CCMSPlayer:
             logger.error(f"Error handling video ended: {e}")
     
     def record_impression(self, item):
-        """Record impression for 10-minute sync (skip default/filler videos)
-        Includes verification hash for fraud prevention and SQLite queue for offline support
+        """Record impression using ImpressionStore - Single Source of Truth
+        Uses SQLite with unique slot_play_key to prevent duplicates
         """
         try:
             # Skip impressions for default/filler content
@@ -1288,75 +1196,28 @@ class CCMSPlayer:
                 logger.info(f"⏭️  Skipping impression for default video (slot {slot})")
                 return
             
-            timestamp = datetime.utcnow()
+            # Extract impression data from item
             slot_number = item.get('slotNumber', 0)
-            
-            # Generate unique impression ID for deduplication
-            impression_id = str(uuid.uuid4())
-            
-            # Generate verification hash
-            verification_hash = self._generate_verification_hash(
-                self.screen_id, 
-                slot_number, 
-                timestamp.isoformat()
-            )
-            
-            # Check if this is owner content or booking content
             owner_content_id = item.get('ownerContentId')
             
-            if owner_content_id:
-                # Owner content impression
-                if owner_content_id not in self.owner_content_summaries:
-                    self.owner_content_summaries[owner_content_id] = {
-                        'slotNumber': slot_number,
-                        'timestamps': [],
-                        'impressionIds': [],
-                        'verificationHashes': []
-                    }
-                self.owner_content_summaries[owner_content_id]['timestamps'].append(timestamp)
-                self.owner_content_summaries[owner_content_id]['impressionIds'].append(impression_id)
-                self.owner_content_summaries[owner_content_id]['verificationHashes'].append(verification_hash)
-                
-                # Also queue to SQLite for offline persistence
-                self._queue_impression_offline({
-                    'impressionId': impression_id,
-                    'ownerContentId': owner_content_id,
-                    'slotNumber': slot_number,
-                    'playedAt': timestamp.isoformat(),
-                    'clientTimestamp': timestamp.isoformat(),
-                    'verificationHash': verification_hash
-                })
-                
-                logger.info(f"📊 Recorded owner content impression: Slot {slot_number}")
+            # Use ImpressionStore - the single source of truth
+            success, impression_id, is_new = self.impression_store.record_impression(
+                booking_id=item.get('bookingId'),
+                campaign_id=item.get('campaignId'),
+                creative_id=item.get('creativeId'),
+                owner_content_id=owner_content_id,
+                slot_number=slot_number
+            )
+            
+            if success:
+                if is_new:
+                    content_type = "owner content" if owner_content_id else "campaign"
+                    content_id = owner_content_id or item.get('campaignId', 'unknown')
+                    logger.info(f"📊 Recorded {content_type} impression: {content_id} (Slot {slot_number})")
+                else:
+                    logger.debug(f"⏭️  Duplicate impression prevented for slot {slot_number}")
             else:
-                # Booking impression
-                campaign_id = item.get('campaignId')
-                if campaign_id:
-                    if campaign_id not in self.campaign_summaries:
-                        self.campaign_summaries[campaign_id] = {
-                            'bookingId': item.get('bookingId'),
-                            'creativeId': item.get('creativeId'),
-                            'timestamps': [],
-                            'impressionIds': [],
-                            'verificationHashes': []
-                        }
-                    self.campaign_summaries[campaign_id]['timestamps'].append(timestamp)
-                    self.campaign_summaries[campaign_id]['impressionIds'].append(impression_id)
-                    self.campaign_summaries[campaign_id]['verificationHashes'].append(verification_hash)
-                    
-                    # Also queue to SQLite for offline persistence
-                    self._queue_impression_offline({
-                        'impressionId': impression_id,
-                        'bookingId': item.get('bookingId'),
-                        'campaignId': campaign_id,
-                        'creativeId': item.get('creativeId'),
-                        'slotNumber': slot_number,
-                        'playedAt': timestamp.isoformat(),
-                        'clientTimestamp': timestamp.isoformat(),
-                        'verificationHash': verification_hash
-                    })
-                    
-                    logger.info(f"📊 Recorded campaign impression: {campaign_id}")
+                logger.warning(f"Failed to record impression for slot {slot_number}")
         
         except Exception as e:
             logger.error(f"Failed to record impression: {e}")
@@ -1487,12 +1348,19 @@ class CCMSPlayer:
             default_path = await self.default_video_manager.sync_default_video({'playlist': self.playlist})
             if default_path:
                 logger.info(f"Default video ready: {default_path}")
-                # Set local_path for filler content slots
+                # Set local_path for filler content slots AND any slots with failed downloads
                 for idx, item in enumerate(self.playlist):
                     is_filler = item.get('isFillerContent', False) or item.get('IsFillerContent', False)
+                    has_local_path = item.get('local_path') is not None
+                    slot_number = item.get('slotNumber', 0)
+                    
                     if is_filler:
                         self.playlist[idx]['local_path'] = default_path
-                        logger.info(f"  Set default video for slot {item.get('slotNumber', 0)}")
+                        logger.info(f"  Set default video for slot {slot_number}")
+                    elif not has_local_path:
+                        # Fallback to default video for failed downloads
+                        self.playlist[idx]['local_path'] = default_path
+                        logger.info(f"  Set default video as fallback for slot {slot_number} (download failed)")
             else:
                 logger.warning("No default video configured")
         except Exception as e:

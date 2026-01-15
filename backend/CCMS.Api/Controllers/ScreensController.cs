@@ -2,6 +2,8 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using CCMS.Api.Extensions;
 using CCMS.Application.Features.Screens.Commands;
 using CCMS.Application.Features.Screens.Queries;
 using CCMS.Application.Features.OwnerContent.Commands;
@@ -15,6 +17,7 @@ namespace CCMS.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting(RateLimitingExtensions.ApiPolicy)]
 public class ScreensController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -284,4 +287,184 @@ public class ScreensController : ControllerBase
         catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.ErrorResponse(ex.Message)); }
         catch (Exception ex) { return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}")); }
     }
+    
+    /// <summary>
+    /// Generate or regenerate API key for player authentication
+    /// Only screen owner or admin can generate keys
+    /// </summary>
+    [HttpPost("{id}/generate-api-key")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<GenerateApiKeyResponse>>> GenerateApiKey(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<GenerateApiKeyResponse>.ErrorResponse("Screen not found"));
+            }
+            
+            // Only owner or admin can generate API key
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<GenerateApiKeyResponse>.ErrorResponse(
+                    "Only the screen owner can generate API keys"));
+            }
+            
+            // Generate a secure random API key
+            var apiKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+            
+            // Hash it with BCrypt for storage
+            var apiKeyHash = BCrypt.Net.BCrypt.HashPassword(apiKey, workFactor: 12);
+            
+            // Update the screen with the new hash
+            var updateCommand = new UpdateScreenApiKeyCommand
+            {
+                ScreenId = id,
+                ApiKeyHash = apiKeyHash
+            };
+            await _mediator.Send(updateCommand);
+            
+            return Ok(ApiResponse<GenerateApiKeyResponse>.SuccessResponse(
+                new GenerateApiKeyResponse
+                {
+                    ScreenId = id,
+                    ApiKey = apiKey,
+                    Message = "API key generated. Store this securely - it cannot be retrieved again!"
+                },
+                "API key generated successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<GenerateApiKeyResponse>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Request device override to allow a new player device to connect
+    /// Creates a 30-minute window for the new device to connect
+    /// </summary>
+    [HttpPost("{id}/request-device-override")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<DeviceOverrideResponse>>> RequestDeviceOverride(
+        Guid id, 
+        [FromBody] DeviceOverrideRequest request)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            
+            var deviceManager = HttpContext.RequestServices.GetRequiredService<Services.PlayerDeviceManager>();
+            
+            var result = await deviceManager.RequestDeviceOverrideAsync(id, userId, request.Reason);
+            
+            if (!result.Success)
+            {
+                return StatusCode(403, ApiResponse<DeviceOverrideResponse>.ErrorResponse(result.Reason));
+            }
+            
+            return Ok(ApiResponse<DeviceOverrideResponse>.SuccessResponse(
+                new DeviceOverrideResponse
+                {
+                    ScreenId = id,
+                    ExpiresAt = result.ExpiresAt,
+                    Message = result.Reason
+                },
+                "Device override requested"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<DeviceOverrideResponse>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Get device binding status for a screen
+    /// </summary>
+    [HttpGet("{id}/device-status")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<DeviceBindingStatusResponse>>> GetDeviceStatus(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<DeviceBindingStatusResponse>.ErrorResponse("Screen not found"));
+            }
+            
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<DeviceBindingStatusResponse>.ErrorResponse(
+                    "Only the screen owner can view device status"));
+            }
+            
+            var deviceManager = HttpContext.RequestServices.GetRequiredService<Services.PlayerDeviceManager>();
+            var status = await deviceManager.GetDeviceBindingStatusAsync(id);
+            
+            if (status == null)
+            {
+                return NotFound(ApiResponse<DeviceBindingStatusResponse>.ErrorResponse("Screen not found"));
+            }
+            
+            return Ok(ApiResponse<DeviceBindingStatusResponse>.SuccessResponse(
+                new DeviceBindingStatusResponse
+                {
+                    ScreenId = status.ScreenId,
+                    IsBound = status.IsBound,
+                    BoundAt = status.BoundAt,
+                    LastVerification = status.LastVerification,
+                    HasPendingOverride = status.HasPendingOverride,
+                    PendingOverrideExpiresAt = status.PendingOverrideExpiresAt
+                }));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<DeviceBindingStatusResponse>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+}
+
+public class GenerateApiKeyResponse
+{
+    public Guid ScreenId { get; set; }
+    public string ApiKey { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}
+
+public class DeviceOverrideRequest
+{
+    public string Reason { get; set; } = "Device replacement";
+}
+
+public class DeviceOverrideResponse
+{
+    public Guid ScreenId { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public string Message { get; set; } = string.Empty;
+}
+
+public class DeviceBindingStatusResponse
+{
+    public Guid ScreenId { get; set; }
+    public bool IsBound { get; set; }
+    public DateTime? BoundAt { get; set; }
+    public DateTime? LastVerification { get; set; }
+    public bool HasPendingOverride { get; set; }
+    public DateTime? PendingOverrideExpiresAt { get; set; }
 }

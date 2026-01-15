@@ -69,6 +69,8 @@ public class UpdateScreenCommandHandler : IRequestHandler<UpdateScreenCommand, S
             screen.PricePerSlot = request.Request.PricePerSlot.Value;
         if (request.Request.Status != null)
             screen.Status = Enum.Parse<Domain.Enums.ScreenStatus>(request.Request.Status);
+        if (!string.IsNullOrEmpty(request.Request.Timezone))
+            screen.Timezone = request.Request.Timezone;
 
         screen.UpdatedAt = DateTime.UtcNow;
 

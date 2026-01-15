@@ -637,10 +637,25 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("DeviceBoundAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceFingerprintHash")
+                        .HasColumnType("text");
+
                     b.Property<string>("DeviceId")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("DeviceOverrideAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeviceOverrideByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeviceOverrideReason")
+                        .HasColumnType("text");
 
                     b.Property<string>("DimensionUnit")
                         .IsRequired()
@@ -654,6 +669,9 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<bool>("IsOnline")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastDeviceVerification")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
@@ -687,6 +705,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<decimal>("PhysicalWidth")
                         .HasPrecision(8, 2)
                         .HasColumnType("decimal(8,2)");
+
+                    b.Property<string>("PreviousDeviceFingerprintHash")
+                        .HasColumnType("text");
 
                     b.Property<decimal>("PricePerSlot")
                         .HasPrecision(18, 2)

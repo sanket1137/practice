@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using CCMS.Api.Extensions;
 using CCMS.Api.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
@@ -7,6 +9,7 @@ namespace CCMS.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting(RateLimitingExtensions.StreamingPolicy)]
 public class StreamingController : ControllerBase
 {
     private readonly IHubContext<StreamingHub> _hubContext;

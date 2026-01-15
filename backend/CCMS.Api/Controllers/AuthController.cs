@@ -1,14 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using CCMS.Application.Interfaces;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Auth;
 using MediatR;
 using CCMS.Application.Features.Auth.Commands;
+using CCMS.Api.Extensions;
 
 namespace CCMS.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;

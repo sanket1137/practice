@@ -20,6 +20,7 @@ public class ScreenDto
     public string Status { get; set; } = string.Empty;
     public decimal PricePerSlot { get; set; }
     public string Currency { get; set; } = "USD";
+    public string Timezone { get; set; } = "UTC"; // IANA timezone identifier (e.g., "Asia/Kolkata", "America/New_York")
     public int ImpressionsPerSlot { get; set; }
     public int DailyTotalImpressions { get; set; }
     public RevenueEstimateDto? RevenueEstimate { get; set; }
@@ -49,6 +50,7 @@ public class CreateScreenRequest
     public string DeviceId { get; set; } = string.Empty;
     public decimal PricePerSlot { get; set; }
     public string Currency { get; set; } = "USD";
+    public string Timezone { get; set; } = "UTC"; // IANA timezone identifier (e.g., "Asia/Kolkata", "America/New_York")
 }
 
 public class UpdateScreenRequest
@@ -67,6 +69,7 @@ public class UpdateScreenRequest
     public int? SlotsPerFrame { get; set; }
     public decimal? PricePerSlot { get; set; }
     public string? Status { get; set; }
+    public string? Timezone { get; set; } // IANA timezone identifier (e.g., "Asia/Kolkata", "America/New_York")
 }
 
 public class AddressDto

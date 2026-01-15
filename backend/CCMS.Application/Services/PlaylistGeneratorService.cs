@@ -3,6 +3,7 @@ using CCMS.Application.Helpers;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -15,19 +16,23 @@ public class PlaylistGeneratorService
     private readonly IRepository<Creative> _creativeRepository;
     private readonly IRepository<OwnerContent> _ownerContentRepository;
     private readonly ILogger<PlaylistGeneratorService> _logger;
+    private readonly string _universalFallbackUrl;
 
     public PlaylistGeneratorService(
         IRepository<Screen> screenRepository,
         IRepository<Booking> bookingRepository,
         IRepository<Creative> creativeRepository,
         IRepository<OwnerContent> ownerContentRepository,
-        ILogger<PlaylistGeneratorService> logger)
+        ILogger<PlaylistGeneratorService> logger,
+        IConfiguration configuration)
     {
         _screenRepository = screenRepository;
         _bookingRepository = bookingRepository;
         _creativeRepository = creativeRepository;
         _ownerContentRepository = ownerContentRepository;
         _logger = logger;
+        _universalFallbackUrl = configuration["DefaultVideo:UniversalFallbackUrl"] 
+            ?? "https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/Pixel_Universal.mp4";
     }
 
     public async Task<PlaylistResponse?> GeneratePlaylistAsync(Guid screenId, DateTime date, CancellationToken cancellationToken = default)
@@ -143,7 +148,7 @@ public class PlaylistGeneratorService
                 // No booking - use default video (custom or universal)
                 var defaultVideoUrl = screen.HasCustomDefaultVideo && !string.IsNullOrEmpty(screen.DefaultVideoUrl)
                     ? screen.DefaultVideoUrl
-                    : "/defaults/universal-default.mp4"; // Universal fallback
+                    : _universalFallbackUrl; // Universal fallback from configuration
                 
                 playlist.Add(new PlaylistItemResponse
                 {

@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using CCMS.Api.Extensions;
 using CCMS.Api.Hubs;
+using CCMS.Api.Services;
 using CCMS.Application.Interfaces;
 using CCMS.Application.Mappings;
 using CCMS.Application.Services;
@@ -241,6 +243,11 @@ builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
 
+// Security services for access control
+builder.Services.AddScoped<AdvertiserScreenAccessService>();
+builder.Services.AddSingleton<ScreenViewerManager>();
+builder.Services.AddScoped<PlayerDeviceManager>();
+
 // Real-time notification services
 builder.Services.AddScoped<CCMS.Application.Interfaces.IPlaylistNotificationService, CCMS.Api.Services.PlaylistNotificationService>();
 builder.Services.AddScoped<CCMS.Application.Interfaces.IBookingNotificationService, CCMS.Api.Services.BookingNotificationService>();
@@ -256,6 +263,9 @@ builder.Services.AddHostedService<CCMS.Api.Services.ImpressionFlushService>();
 
 // Add stream expiry service (auto-cleanup stale streams)
 builder.Services.AddHostedService<CCMS.Api.Services.StreamExpiryService>();
+
+// Add access revocation service (auto-disconnect when booking ends)
+builder.Services.AddHostedService<CCMS.Api.Services.AccessRevocationBackgroundService>();
 
 // Add refresh token cleanup service (security - removes expired tokens daily)
 builder.Services.AddHostedService<CCMS.Api.Services.RefreshTokenCleanupService>();
@@ -278,6 +288,9 @@ builder.Services.AddSingleton(x =>
 });
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
+// Rate Limiting policies
+builder.Services.AddRateLimitingPolicies();
+
 // Static Files (for uploads)
 builder.Services.AddDirectoryBrowser();
 
@@ -296,6 +309,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
+
+// Rate limiting - must be before authentication
+app.UseRateLimiter();
 
 // Static files for uploads
 var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");

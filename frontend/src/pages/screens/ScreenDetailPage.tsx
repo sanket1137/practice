@@ -54,6 +54,7 @@ interface Screen {
     resolutionHeight: number;
     pricePerSlot: number;
     currency: string;
+    timezone: string;
     location: {
         address: string;
         city: string;
@@ -267,6 +268,14 @@ export default function ScreenDetailPage() {
                                         Status
                                     </Typography>
                                     <Typography variant="body1">{screen.status}</Typography>
+                                </Grid>
+                                <Grid item xs={6}>
+                                    <Typography variant="body2" color="textSecondary">
+                                        Timezone
+                                    </Typography>
+                                    <Typography variant="body1">
+                                        {screen.timezone || 'UTC'}
+                                    </Typography>
                                 </Grid>
                             </Grid>
                         </Paper>

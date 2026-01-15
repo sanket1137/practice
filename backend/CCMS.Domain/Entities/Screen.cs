@@ -45,6 +45,15 @@ public class Screen : BaseEntity
     public string? ConnectedDeviceId { get; set; }
     public string? ApiKeyHash { get; set; } // Hashed API key for player authentication
     
+    // Device binding for security
+    public string? DeviceFingerprintHash { get; set; } // SHA256 hash of device fingerprint
+    public DateTime? DeviceBoundAt { get; set; }
+    public DateTime? LastDeviceVerification { get; set; }
+    public string? PreviousDeviceFingerprintHash { get; set; } // For audit trail
+    public string? DeviceOverrideReason { get; set; }
+    public DateTime? DeviceOverrideAt { get; set; }
+    public Guid? DeviceOverrideByUserId { get; set; }
+    
     // Live streaming (WebRTC) - Commented out until database migration is applied
     // public bool LiveStreamingEnabled { get; set; } = false;
     // public DateTime? LastStreamedAt { get; set; }

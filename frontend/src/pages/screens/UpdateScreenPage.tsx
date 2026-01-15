@@ -16,6 +16,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
+import TimezoneSelector from '../../components/common/TimezoneSelector';
 
 export default function UpdateScreenPage() {
     const { id } = useParams();
@@ -40,6 +41,7 @@ export default function UpdateScreenPage() {
         slotsPerFrame: '',
         pricePerSlot: '',
         status: 'Active',
+        timezone: 'UTC',
     });
 
     const [schedule, setSchedule] = useState({
@@ -82,6 +84,7 @@ export default function UpdateScreenPage() {
                 slotsPerFrame: screen.slotsPerFrame?.toString() || '',
                 pricePerSlot: screen.pricePerSlot?.toString() || '',
                 status: screen.status || 'Active',
+                timezone: screen.timezone || 'UTC',
             });
 
             if (screen.schedule) {
@@ -113,6 +116,7 @@ export default function UpdateScreenPage() {
                 slotsPerFrame: data.slotsPerFrame ? parseInt(data.slotsPerFrame) : undefined,
                 pricePerSlot: data.pricePerSlot ? parseFloat(data.pricePerSlot) : undefined,
                 status: data.status,
+                timezone: data.timezone,
             });
             return response.data;
         },
@@ -300,6 +304,20 @@ export default function UpdateScreenPage() {
                                 <MenuItem value="Inactive">Inactive</MenuItem>
                                 <MenuItem value="Maintenance">Maintenance</MenuItem>
                             </TextField>
+                        </Grid>
+
+                        {/* Timezone Selection */}
+                        <Grid item xs={12}>
+                            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                                Timezone
+                            </Typography>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TimezoneSelector
+                                value={formData.timezone}
+                                onChange={(timezone) => setFormData({ ...formData, timezone })}
+                                helperText="Operating hours are interpreted in this timezone"
+                            />
                         </Grid>
 
                         {/* Operating Schedule */}

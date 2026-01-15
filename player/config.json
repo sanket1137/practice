@@ -1,7 +1,7 @@
 {
-    "screen_id": "0570dc97-02ff-4443-af98-8fdbca1e4295",
-    "api_key": "production-api-key",
-    "server_url": "http://91.99.190.216:5000",
+    "screen_id": "698a61b5-af75-4d6c-81db-e4e4d21f207f",
+    "api_key": "NEEDS_REGENERATION",
+    "server_url": "http://localhost:5257",
     "sync_interval_minutes": 10,
     "webrtc": {
         "enabled": true,
@@ -12,7 +12,7 @@
     },
     "default_video": {
         "folder": "default_videos",
-        "universal_fallback_url": "http://91.99.190.216:5000/defaults/universal-default.mp4",
+        "universal_fallback_url": "https://pub-8b275ed0704741b798c135d2ba0f55f9.r2.dev/Pixel_Universal.mp4",
         "max_age_days": 7,
         "redownload_on_change": true
     },
@@ -24,4 +24,4 @@
         "log_retention_days": 7,
         "comment": "Automatically delete log files older than this many days on player startup"
     }
-}
+}   
