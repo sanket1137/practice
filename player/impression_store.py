@@ -83,6 +83,9 @@ class ImpressionStore:
                     played_at TEXT NOT NULL,
                     played_at_local TEXT,
                     duration_ms INTEGER DEFAULT 10000,
+                    duration_seconds INTEGER,
+                    expected_duration_seconds INTEGER,
+                    was_full_play INTEGER DEFAULT 1,
                     verification_hash TEXT,
                     synced INTEGER DEFAULT 0,
                     sync_attempts INTEGER DEFAULT 0,
@@ -114,6 +117,21 @@ class ImpressionStore:
                     success INTEGER
                 );
             ''')
+            
+            # Add new columns if they don't exist (migration for existing DBs)
+            try:
+                conn.execute('ALTER TABLE impressions ADD COLUMN duration_seconds INTEGER')
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+            try:
+                conn.execute('ALTER TABLE impressions ADD COLUMN expected_duration_seconds INTEGER')
+            except sqlite3.OperationalError:
+                pass
+            try:
+                conn.execute('ALTER TABLE impressions ADD COLUMN was_full_play INTEGER DEFAULT 1')
+            except sqlite3.OperationalError:
+                pass
+            
             conn.commit()
             logger.info("[ImpressionStore] Database schema initialized")
     
@@ -182,10 +200,26 @@ class ImpressionStore:
         creative_id: Optional[str] = None,
         owner_content_id: Optional[str] = None,
         duration_ms: int = 10000,
+        duration_seconds: Optional[int] = None,
+        expected_duration_seconds: Optional[int] = None,
+        was_full_play: bool = True,
         played_at_local: Optional[str] = None
     ) -> Tuple[bool, str, bool]:
         """
         Record an impression with automatic deduplication.
+        
+        Args:
+            slot_number: The slot position in the playlist
+            played_at: UTC timestamp when the ad was played
+            booking_id: Optional booking ID for campaign content
+            campaign_id: Optional campaign ID for campaign content
+            creative_id: Optional creative ID for campaign content
+            owner_content_id: Optional owner content ID for owner content
+            duration_ms: Duration in milliseconds (legacy, use duration_seconds)
+            duration_seconds: Actual playback duration in seconds
+            expected_duration_seconds: Expected duration from creative metadata
+            was_full_play: Whether the ad played completely without interruption
+            played_at_local: Optional local timezone timestamp string
         
         Returns:
             Tuple of (success, impression_id, is_new)
@@ -217,8 +251,9 @@ class ImpressionStore:
                         impression_id, slot_play_key, screen_id,
                         booking_id, campaign_id, creative_id, owner_content_id,
                         slot_number, played_at, played_at_local, duration_ms,
+                        duration_seconds, expected_duration_seconds, was_full_play,
                         verification_hash, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     impression_id,
                     slot_play_key,
@@ -231,13 +266,19 @@ class ImpressionStore:
                     played_at.isoformat(),
                     played_at_local,
                     duration_ms,
+                    duration_seconds,
+                    expected_duration_seconds,
+                    1 if was_full_play else 0,
                     verification_hash,
                     datetime.utcnow().isoformat()
                 ))
                 conn.commit()
                 
+                play_status = "full" if was_full_play else "partial"
+                duration_info = f"{duration_seconds}s" if duration_seconds else f"{duration_ms}ms"
                 logger.info(
                     f"[ImpressionStore] Recorded: Slot {slot_number} at {played_at.strftime('%H:%M:%S')} "
+                    f"({play_status}, {duration_info}) "
                     f"({'Campaign ' + campaign_id[:8] if campaign_id else 'Owner ' + owner_content_id[:8] if owner_content_id else 'Unknown'})"
                 )
                 return True, impression_id, True
@@ -282,6 +323,7 @@ class ImpressionStore:
                     impression_id, slot_play_key, screen_id,
                     booking_id, campaign_id, creative_id, owner_content_id,
                     slot_number, played_at, played_at_local, duration_ms,
+                    duration_seconds, expected_duration_seconds, was_full_play,
                     verification_hash, sync_attempts, created_at
                 FROM impressions 
                 WHERE synced = 0 

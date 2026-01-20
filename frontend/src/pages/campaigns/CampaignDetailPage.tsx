@@ -26,6 +26,7 @@ import {
     Add as AddIcon,
     Image as CreativeIcon,
     Visibility as ViewIcon,
+    Assessment as ReportIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -161,6 +162,13 @@ export default function CampaignDetailPage() {
                     </Box>
                 </Box>
                 <Box display="flex" gap={1}>
+                    <Button
+                        variant="contained"
+                        startIcon={<ReportIcon />}
+                        onClick={() => navigate(`/reports/campaigns/${id}`)}
+                    >
+                        View Report
+                    </Button>
                     <Button
                         variant="outlined"
                         startIcon={<EditIcon />}

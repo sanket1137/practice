@@ -13,7 +13,7 @@ import {
     CardContent,
     LinearProgress,
 } from '@mui/material';
-import { ArrowBack as BackIcon } from '@mui/icons-material';
+import { ArrowBack as BackIcon, Assessment as ReportIcon } from '@mui/icons-material';
 
 export default function BookingDetailPage() {
     const { id } = useParams();
@@ -68,6 +68,18 @@ export default function BookingDetailPage() {
                             Booking Details
                         </Typography>
                         <Chip label={booking.status} color={getStatusColor(booking.status) as any} />
+                    </Box>
+                    <Box display="flex" gap={1}>
+                        {['Active', 'Approved', 'Completed'].includes(booking.status) && (
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<ReportIcon />}
+                                onClick={() => navigate(`/reports/bookings/${id}`)}
+                            >
+                                View Report
+                            </Button>
+                        )}
                     </Box>
                 </Box>
 

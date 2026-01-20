@@ -609,7 +609,11 @@ class CCMSPlayer:
                     'slotNumber': imp['slot_number'],
                     'playedAt': imp['played_at'],
                     'verificationHash': imp['verification_hash'],
-                    'screenId': self.screen_id
+                    'screenId': self.screen_id,
+                    # Playback duration tracking (for advertiser reporting)
+                    'durationSeconds': imp.get('duration_seconds'),
+                    'expectedDurationSeconds': imp.get('expected_duration_seconds'),
+                    'wasFullPlay': bool(imp.get('was_full_play', 1))
                 })
             
             sync_data = {
@@ -1211,20 +1215,52 @@ class CCMSPlayer:
             slot_number = item.get('slotNumber', 0)
             self.current_playing_slot_number = slot_number
             
+            # Track start time for duration calculation (advertiser reporting)
+            item['_playback_start_time'] = datetime.now(timezone.utc)
+            
             # Emit SignalR event for real-time frontend updates
             self.emit_ad_started(item)
         except Exception as e:
             logger.error(f"Error handling video started: {e}")
 
     
-    def _handle_video_ended(self, item):
-        """Called when VLC finishes a video"""
+    def _handle_video_ended(self, item, was_interrupted=False):
+        """Called when VLC finishes a video
+        
+        Args:
+            item: The playlist item that just played
+            was_interrupted: True if playback was interrupted/skipped, False if completed normally
+        """
         try:
             # Emit SignalR event
             self.emit_ad_completed(item)
             
-            # Record impression for 10-minute sync
-            self.record_impression(item)
+            # Calculate actual playback duration (for advertiser reporting)
+            start_time = item.get('_playback_start_time')
+            if start_time:
+                end_time = datetime.now(timezone.utc)
+                actual_duration_seconds = int((end_time - start_time).total_seconds())
+            else:
+                actual_duration_seconds = None
+            
+            # Get expected duration from item metadata (duration in seconds)
+            expected_duration_seconds = item.get('duration') or item.get('durationSeconds') or 10
+            
+            # Determine if this was a full play
+            # Full play = completed normally AND actual duration is within 90% of expected
+            was_full_play = not was_interrupted
+            if was_full_play and actual_duration_seconds and expected_duration_seconds:
+                # Allow 10% tolerance for timing variations
+                min_expected = expected_duration_seconds * 0.9
+                was_full_play = actual_duration_seconds >= min_expected
+            
+            # Record impression with duration tracking for 10-minute sync
+            self.record_impression(
+                item, 
+                duration_seconds=actual_duration_seconds,
+                expected_duration_seconds=expected_duration_seconds,
+                was_full_play=was_full_play
+            )
             
             # Check if reload is pending and we just finished the LAST slot
             slot_number = item.get('slotNumber', 0)
@@ -1238,9 +1274,15 @@ class CCMSPlayer:
         except Exception as e:
             logger.error(f"Error handling video ended: {e}")
     
-    def record_impression(self, item):
+    def record_impression(self, item, duration_seconds=None, expected_duration_seconds=None, was_full_play=True):
         """Record impression using ImpressionStore - Single Source of Truth
         Uses SQLite with unique slot_play_key to prevent duplicates
+        
+        Args:
+            item: The playlist item that was played
+            duration_seconds: Actual playback duration in seconds
+            expected_duration_seconds: Expected duration from creative metadata
+            was_full_play: Whether the ad played completely without interruption
         """
         try:
             # Skip impressions for default/filler content
@@ -1262,14 +1304,19 @@ class CCMSPlayer:
                 booking_id=item.get('bookingId'),
                 campaign_id=item.get('campaignId'),
                 creative_id=item.get('creativeId'),
-                owner_content_id=owner_content_id
+                owner_content_id=owner_content_id,
+                duration_seconds=duration_seconds,
+                expected_duration_seconds=expected_duration_seconds,
+                was_full_play=was_full_play
             )
             
             if success:
                 if is_new:
                     content_type = "owner content" if owner_content_id else "campaign"
                     content_id = owner_content_id or item.get('campaignId', 'unknown')
-                    logger.info(f"📊 Recorded {content_type} impression: {content_id} (Slot {slot_number})")
+                    play_status = "✓" if was_full_play else "⚠partial"
+                    duration_info = f"{duration_seconds}s" if duration_seconds else "?"
+                    logger.info(f"📊 Recorded {content_type} impression: {content_id} (Slot {slot_number}, {duration_info}, {play_status})")
                 else:
                     logger.debug(f"⏭️  Duplicate impression prevented for slot {slot_number}")
             else:

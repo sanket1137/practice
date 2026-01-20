@@ -24,6 +24,8 @@ import CreateBookingPage from './pages/bookings/CreateBookingPage';
 import BookingDetailPage from './pages/bookings/BookingDetailPage';
 import UploadCreativePage from './pages/creatives/UploadCreativePage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
+import AdvertiserReportPage from './pages/reports/AdvertiserReportPage';
+import CampaignReportPage from './pages/reports/CampaignReportPage';
 import MainLayout from './components/Layout/MainLayout';
 import DemoPage from './pages/demo/DemoPage';
 
@@ -71,6 +73,8 @@ function App() {
                 <Route path="bookings" element={<BookingsPage />} />
                 <Route path="bookings/new" element={<CreateBookingPage />} />
                 <Route path="bookings/:id" element={<BookingDetailPage />} />
+                <Route path="reports/bookings/:bookingId" element={<AdvertiserReportPage />} />
+                <Route path="reports/campaigns/:campaignId" element={<CampaignReportPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
               </Route>
             </Routes>

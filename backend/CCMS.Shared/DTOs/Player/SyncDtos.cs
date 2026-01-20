@@ -34,6 +34,11 @@ public class FlatImpression
     public DateTime PlayedAt { get; set; }
     public string? VerificationHash { get; set; }
     public string ScreenId { get; set; } = string.Empty;
+    
+    // Playback duration tracking (for advertiser reporting)
+    public int? DurationSeconds { get; set; } // Actual playback duration in seconds
+    public int? ExpectedDurationSeconds { get; set; } // Expected duration from creative/content
+    public bool WasFullPlay { get; set; } = true; // Whether the ad played completely without interruption
 }
 
 public class CampaignImpressionSummary

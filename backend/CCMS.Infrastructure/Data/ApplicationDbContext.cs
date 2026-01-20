@@ -27,6 +27,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<OwnerContent> OwnerContents => Set<OwnerContent>();
+    public DbSet<ImpressionDailySummary> ImpressionDailySummaries => Set<ImpressionDailySummary>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -244,6 +245,14 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => new { e.BookingId, e.SessionDate })
                 .HasDatabaseName("IX_Impressions_Booking_SessionDate");
             
+            // Index for completion rate queries (advertiser reporting)
+            entity.HasIndex(e => new { e.BookingId, e.WasFullPlay })
+                .HasDatabaseName("IX_Impressions_Booking_WasFullPlay");
+            
+            // Index for date range queries on recent data
+            entity.HasIndex(e => e.SessionDate)
+                .HasDatabaseName("IX_Impressions_SessionDate");
+            
             // Relationships
             entity.HasOne(e => e.Booking)
                 .WithMany(b => b.Impressions)
@@ -267,6 +276,63 @@ public class ApplicationDbContext : DbContext
                 
             entity.HasOne(e => e.OwnerContent)
                 .WithMany(oc => oc.Impressions)
+                .HasForeignKey(e => e.OwnerContentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+        
+        // ImpressionDailySummary configuration (aggregated historical data)
+        modelBuilder.Entity<ImpressionDailySummary>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Unique constraint: one summary per booking/screen/date combination
+            entity.HasIndex(e => new { e.BookingId, e.ScreenId, e.Date })
+                .IsUnique()
+                .HasDatabaseName("IX_ImpressionDailySummaries_Booking_Screen_Date");
+            
+            // Index for campaign-level reporting
+            entity.HasIndex(e => new { e.CampaignId, e.Date })
+                .HasDatabaseName("IX_ImpressionDailySummaries_Campaign_Date");
+            
+            // Index for screen-level reporting
+            entity.HasIndex(e => new { e.ScreenId, e.Date })
+                .HasDatabaseName("IX_ImpressionDailySummaries_Screen_Date");
+            
+            // Index for owner content reporting
+            entity.HasIndex(e => new { e.OwnerContentId, e.Date })
+                .HasDatabaseName("IX_ImpressionDailySummaries_OwnerContent_Date");
+            
+            // JSON column for hourly breakdown - PostgreSQL uses 'text' or 'jsonb'
+            entity.Property(e => e.HourlyPlays)
+                .HasColumnType("text")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
+                    v => JsonSerializer.Deserialize<List<int>>(v, (JsonSerializerOptions)null!) ?? new List<int>(new int[24])
+                );
+            
+            // Relationships
+            entity.HasOne(e => e.Booking)
+                .WithMany()
+                .HasForeignKey(e => e.BookingId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(e => e.Campaign)
+                .WithMany()
+                .HasForeignKey(e => e.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            entity.HasOne(e => e.Creative)
+                .WithMany()
+                .HasForeignKey(e => e.CreativeId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            entity.HasOne(e => e.OwnerContent)
+                .WithMany()
                 .HasForeignKey(e => e.OwnerContentId)
                 .OnDelete(DeleteBehavior.SetNull);
         });

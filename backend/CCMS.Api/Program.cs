@@ -243,6 +243,9 @@ builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
 
+// Report export service
+builder.Services.AddScoped<ReportExportService>();
+
 // Security services for access control
 builder.Services.AddScoped<AdvertiserScreenAccessService>();
 builder.Services.AddSingleton<ScreenViewerManager>();

@@ -275,7 +275,11 @@ public class PlayerController : ControllerBase
                         ClientTimestamp = playedAtUtc,
                         VerificationHash = imp.VerificationHash,
                         PlayerVersion = playerVersion,
-                        IsVerified = isVerified
+                        IsVerified = isVerified,
+                        // Playback duration tracking (for advertiser reporting)
+                        DurationSeconds = imp.DurationSeconds,
+                        ExpectedDurationSeconds = imp.ExpectedDurationSeconds,
+                        WasFullPlay = imp.WasFullPlay
                     };
 
                     await _impressionRepository.AddAsync(impression);

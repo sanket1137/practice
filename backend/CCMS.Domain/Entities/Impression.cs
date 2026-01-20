@@ -12,6 +12,11 @@ public class Impression : BaseEntity
     public DateTime PlayedAt { get; set; } // When ad was actually played
     public DateTime SessionDate { get; set; } // Date only for daily grouping
     
+    // Playback duration and completion tracking (for advertiser reporting)
+    public int? DurationSeconds { get; set; } // Actual playback duration in seconds
+    public int? ExpectedDurationSeconds { get; set; } // Expected/scheduled duration from creative
+    public bool WasFullPlay { get; set; } = true; // Whether the ad played completely without interruption
+    
     // Device information
     public string DeviceId { get; set; } = string.Empty;
     
