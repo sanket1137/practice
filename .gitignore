@@ -12,6 +12,8 @@
 # Local credentials files
 creds.local.json
 creds.local.md
+appsettings.*.local.json
+**/appsettings.*.local.json
 
 # Utility scripts with credentials (use templates instead)
 *.csx
