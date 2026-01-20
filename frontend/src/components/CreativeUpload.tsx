@@ -154,7 +154,6 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
                     Supported formats: MP4, MOV, AVI, MKV, PNG, JPG, JPEG, GIF (Max 100MB)
                 </Typography>
             </Paper>
-
             {/* Uploaded Files */}
             {files.length > 0 && (
                 <Box mt={3}>
@@ -163,7 +162,13 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
                     </Typography>
                     <Grid container spacing={2}>
                         {files.map((uploadedFile, index) => (
-                            <Grid item xs={12} sm={6} md={4} key={index}>
+                            <Grid
+                                key={index}
+                                size={{
+                                    xs: 12,
+                                    sm: 6,
+                                    md: 4
+                                }}>
                                 <Card>
                                     <Box sx={{ position: 'relative' }}>
                                         {isVideo(uploadedFile.file) ? (

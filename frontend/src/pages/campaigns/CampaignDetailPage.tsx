@@ -179,10 +179,13 @@ export default function CampaignDetailPage() {
                     </Button>
                 </Box>
             </Box>
-
             {/* Campaign Info */}
             <Grid container spacing={3} mb={3}>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography color="textSecondary" gutterBottom>
@@ -194,7 +197,11 @@ export default function CampaignDetailPage() {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography color="textSecondary" gutterBottom>
@@ -206,7 +213,11 @@ export default function CampaignDetailPage() {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography color="textSecondary" gutterBottom>
@@ -219,7 +230,6 @@ export default function CampaignDetailPage() {
                     </Card>
                 </Grid>
             </Grid>
-
             {/* Description */}
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -227,7 +237,6 @@ export default function CampaignDetailPage() {
                 </Typography>
                 <Typography color="textSecondary">{campaign.description}</Typography>
             </Paper>
-
             {/* Tabs */}
             <Paper sx={{ mb: 3 }}>
                 <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
@@ -255,7 +264,13 @@ export default function CampaignDetailPage() {
                         ) : creatives && creatives.length > 0 ? (
                             <Grid container spacing={2}>
                                 {creatives.map((creative) => (
-                                    <Grid item xs={12} sm={6} md={4} key={creative.id}>
+                                    <Grid
+                                        key={creative.id}
+                                        size={{
+                                            xs: 12,
+                                            sm: 6,
+                                            md: 4
+                                        }}>
                                         <Card>
                                             <Box
                                                 sx={{

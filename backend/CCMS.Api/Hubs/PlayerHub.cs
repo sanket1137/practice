@@ -204,6 +204,10 @@ public class PlayerHub : Hub
             {
                 foreach (var timestamp in campaign.PlayTimestamps)
                 {
+                    // Ensure all DateTime values have Kind=UTC for PostgreSQL
+                    var playedAtUtc = DateTime.SpecifyKind(timestamp, DateTimeKind.Utc);
+                    var sessionDateUtc = DateTime.SpecifyKind(timestamp.Date, DateTimeKind.Utc);
+                    
                     var impression = new Impression
                     {
                         Id = Guid.NewGuid(),
@@ -211,10 +215,11 @@ public class PlayerHub : Hub
                         BookingId = campaign.BookingId,
                         CampaignId = campaign.CampaignId,
                         CreativeId = campaign.CreativeId,
-                        PlayedAt = timestamp,
-                        SessionDate = timestamp.Date,
+                        PlayedAt = playedAtUtc,
+                        SessionDate = sessionDateUtc,
                         DeviceId = screenId,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
                     };
                     
                     _context.Impressions.Add(impression);

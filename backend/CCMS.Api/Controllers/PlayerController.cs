@@ -251,6 +251,10 @@ public class PlayerController : ControllerBase
                         _logger.LogWarning($"Suspicious impression timestamp: {imp.PlayedAt} (diff: {timeDiff:F1}h)");
                     }
                     
+                    // Ensure all DateTime values have Kind=UTC for PostgreSQL
+                    var playedAtUtc = DateTime.SpecifyKind(imp.PlayedAt, DateTimeKind.Utc);
+                    var sessionDateUtc = DateTime.SpecifyKind(imp.PlayedAt.Date, DateTimeKind.Utc);
+                    
                     var impression = new Impression
                     {
                         Id = Guid.NewGuid(),
@@ -260,14 +264,15 @@ public class PlayerController : ControllerBase
                         CreativeId = imp.CreativeId,
                         OwnerContentId = imp.OwnerContentId,
                         SlotPosition = imp.SlotNumber,
-                        PlayedAt = imp.PlayedAt,
-                        SessionDate = imp.PlayedAt.Date,
+                        PlayedAt = playedAtUtc,
+                        SessionDate = sessionDateUtc,
                         DeviceId = request.ScreenId,
                         CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
                         // Deduplication fields
                         ImpressionId = imp.ImpressionId,
                         SlotPlayKey = imp.SlotPlayKey,
-                        ClientTimestamp = imp.PlayedAt,
+                        ClientTimestamp = playedAtUtc,
                         VerificationHash = imp.VerificationHash,
                         PlayerVersion = playerVersion,
                         IsVerified = isVerified
@@ -326,6 +331,10 @@ public class PlayerController : ControllerBase
                         _logger.LogWarning($"Suspicious impression timestamp: {timestamp} (diff: {timeDiff:F1}h) from screen {request.ScreenId}");
                     }
                     
+                    // Ensure all DateTime values have Kind=UTC for PostgreSQL
+                    var playedAtUtc = DateTime.SpecifyKind(timestamp, DateTimeKind.Utc);
+                    var sessionDateUtc = DateTime.SpecifyKind(timestamp.Date, DateTimeKind.Utc);
+                    
                     var impression = new Impression
                     {
                         Id = Guid.NewGuid(),
@@ -333,13 +342,14 @@ public class PlayerController : ControllerBase
                         BookingId = campaign.BookingId,
                         CampaignId = campaign.CampaignId,
                         CreativeId = campaign.CreativeId,
-                        PlayedAt = timestamp,
-                        SessionDate = timestamp.Date,
+                        PlayedAt = playedAtUtc,
+                        SessionDate = sessionDateUtc,
                         DeviceId = request.ScreenId,
                         CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
                         // New deduplication fields
                         ImpressionId = impressionId,
-                        ClientTimestamp = timestamp,
+                        ClientTimestamp = playedAtUtc,
                         VerificationHash = verificationHash,
                         PlayerVersion = playerVersion,
                         IsVerified = isVerified
@@ -373,6 +383,10 @@ public class PlayerController : ControllerBase
                         }
                     }
                     
+                    // Ensure all DateTime values have Kind=UTC for PostgreSQL
+                    var playedAtUtc = DateTime.SpecifyKind(timestamp, DateTimeKind.Utc);
+                    var sessionDateUtc = DateTime.SpecifyKind(timestamp.Date, DateTimeKind.Utc);
+                    
                     var impression = new Impression
                     {
                         Id = Guid.NewGuid(),
@@ -381,13 +395,14 @@ public class PlayerController : ControllerBase
                         BookingId = null,
                         CampaignId = null,
                         CreativeId = null,
-                        PlayedAt = timestamp,
-                        SessionDate = timestamp.Date,
+                        PlayedAt = playedAtUtc,
+                        SessionDate = sessionDateUtc,
                         DeviceId = request.ScreenId,
                         SlotPosition = ownerContent.SlotNumber,
                         CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
                         ImpressionId = impressionId,
-                        ClientTimestamp = timestamp,
+                        ClientTimestamp = playedAtUtc,
                         VerificationHash = verificationHash,
                         PlayerVersion = playerVersion,
                         IsVerified = true

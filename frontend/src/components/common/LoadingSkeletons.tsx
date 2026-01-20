@@ -35,7 +35,7 @@ export function CardSkeleton({ count = 3 }: CardSkeletonProps) {
     return (
         <Grid container spacing={3}>
             {Array.from({ length: count }).map((_, idx) => (
-                <Grid key={idx} item {...RESPONSIVE_GRID.cards}>
+                <Grid key={idx}>
                     <Card>
                         <CardContent>
                             <Skeleton variant="text" width="60%" height={30} />
@@ -61,7 +61,7 @@ export function StatCardSkeleton({ count = 4 }: StatCardSkeletonProps) {
     return (
         <Grid container spacing={3}>
             {Array.from({ length: count }).map((_, idx) => (
-                <Grid key={idx} item {...RESPONSIVE_GRID.stats}>
+                <Grid key={idx}>
                     <Card>
                         <CardContent>
                             <Skeleton variant="text" width="50%" height={20} />

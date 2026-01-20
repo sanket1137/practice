@@ -60,7 +60,11 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
 
                 {/* Revenue Summary Cards */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
                             <Typography variant="caption" color="textSecondary">
                                 Per Cycle
@@ -71,7 +75,11 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                         </Paper>
                     </Grid>
 
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'info.lighter' }}>
                             <Typography variant="caption" color="textSecondary">
                                 Per Hour
@@ -82,7 +90,11 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                         </Paper>
                     </Grid>
 
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Paper
                             sx={{ p: 2, textAlign: 'center', bgcolor: 'success.lighter' }}
                         >
@@ -95,7 +107,11 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                         </Paper>
                     </Grid>
 
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Paper
                             sx={{ p: 2, textAlign: 'center', bgcolor: 'success.lighter' }}
                         >

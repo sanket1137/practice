@@ -61,7 +61,6 @@ export default function BookingDetailPage() {
             <Button startIcon={<BackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
                 Back
             </Button>
-
             <Paper sx={{ p: 4 }}>
                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={3}>
                     <Box>
@@ -73,7 +72,11 @@ export default function BookingDetailPage() {
                 </Box>
 
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
+                    <Grid
+                        size={{
+                            xs: 12,
+                            md: 6
+                        }}>
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
@@ -86,7 +89,11 @@ export default function BookingDetailPage() {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} md={6}>
+                    <Grid
+                        size={{
+                            xs: 12,
+                            md: 6
+                        }}>
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
@@ -99,7 +106,11 @@ export default function BookingDetailPage() {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} md={4}>
+                    <Grid
+                        size={{
+                            xs: 12,
+                            md: 4
+                        }}>
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
@@ -112,7 +123,11 @@ export default function BookingDetailPage() {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} md={4}>
+                    <Grid
+                        size={{
+                            xs: 12,
+                            md: 4
+                        }}>
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
@@ -125,7 +140,11 @@ export default function BookingDetailPage() {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12} md={4}>
+                    <Grid
+                        size={{
+                            xs: 12,
+                            md: 4
+                        }}>
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
@@ -138,7 +157,7 @@ export default function BookingDetailPage() {
                         </Card>
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={12}>
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>

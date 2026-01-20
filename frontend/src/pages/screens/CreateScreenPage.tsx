@@ -125,12 +125,12 @@ export default function CreateScreenPage() {
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
                     <Grid container spacing={3}>
                         {/* Basic Information */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom>
                                 Basic Information
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 required
                                 fullWidth
@@ -140,7 +140,7 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 required
                                 fullWidth
@@ -154,12 +154,16 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Physical Dimensions */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Physical Dimensions
                             </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -170,7 +174,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -181,7 +189,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 select
                                 fullWidth
@@ -196,12 +208,16 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Resolution */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Screen Resolution
                             </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -212,7 +228,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -225,12 +245,12 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Location */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Location
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 required
                                 fullWidth
@@ -240,7 +260,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -250,7 +274,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -260,7 +288,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -270,7 +302,11 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -282,12 +318,16 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Slot Configuration & Pricing */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Slot Configuration & Pricing
                             </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -299,7 +339,11 @@ export default function CreateScreenPage() {
                                 helperText="Duration of one ad cycle"
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -311,7 +355,11 @@ export default function CreateScreenPage() {
                                 helperText="Number of ads per cycle"
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 required
                                 fullWidth
@@ -326,7 +374,7 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {adDurationSeconds > 0 && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Alert severity="info">
                                     <strong>Ad Duration per Slot:</strong> {adDurationSeconds.toFixed(1)} seconds
                                     <br />
@@ -337,7 +385,11 @@ export default function CreateScreenPage() {
                             </Grid>
                         )}
 
-                        <Grid item xs={12} sm={12}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 12
+                            }}>
                             <TextField
                                 select
                                 fullWidth
@@ -354,12 +406,12 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Timezone Selection */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Timezone
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TimezoneSelector
                                 value={formData.timezone}
                                 onChange={(timezone) => setFormData({ ...formData, timezone })}
@@ -369,7 +421,7 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Operating Schedule */}
-                        <Grid item xs={12} sx={{ mt: 2 }}>
+                        <Grid sx={{ mt: 2 }} size={12}>
                             <OperatingScheduleForm
                                 schedule={schedule}
                                 onChange={setSchedule}
@@ -377,12 +429,12 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {/* Device ID */}
-                        <Grid item xs={12} sx={{ mt: 2 }}>
+                        <Grid sx={{ mt: 2 }} size={12}>
                             <Typography variant="h6" gutterBottom>
                                 Device Configuration
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 name="deviceId"
@@ -395,7 +447,7 @@ export default function CreateScreenPage() {
 
                         {/* Revenue Estimate */}
                         {formData.pricePerSlot && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <RevenueEstimateCard
                                     estimate={revenueEstimate}
                                     currency={formData.currency}
@@ -404,7 +456,7 @@ export default function CreateScreenPage() {
                         )}
 
                         {/* Actions */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 3 }}>
                                 <Button
                                     variant="outlined"
@@ -423,7 +475,7 @@ export default function CreateScreenPage() {
                         </Grid>
 
                         {createScreenMutation.isError && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Alert severity="error">
                                     Error creating screen. Please try again.
                                 </Alert>

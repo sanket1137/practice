@@ -106,23 +106,20 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
                     <ChevronRight />
                 </IconButton>
             </Box>
-
             {/* Day headers */}
             <Grid container spacing={0} sx={{ mb: 1 }}>
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <Grid item xs={12 / 7} key={day}>
+                    <Grid key={day} size={12 / 7}>
                         <Typography variant="caption" fontWeight="bold" textAlign="center" display="block">
                             {day}
                         </Typography>
                     </Grid>
                 ))}
             </Grid>
-
             {/* Calendar grid */}
             <Grid container spacing={0}>
                 {renderCalendar()}
             </Grid>
-
             {/* Legend */}
             <Box display="flex" gap={2} mt={3} justifyContent="center" flexWrap="wrap">
                 <Chip label="Available" sx={{ bgcolor: '#4caf50', color: '#fff' }} size="small" />

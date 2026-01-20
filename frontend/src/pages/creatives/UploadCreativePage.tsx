@@ -117,15 +117,18 @@ export default function UploadCreativePage() {
                     Upload a new creative for your campaign
                 </Typography>
             </Box>
-
             <Grid container spacing={3}>
                 {/* Form */}
-                <Grid item xs={12} md={8}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 8
+                    }}>
                     <Paper sx={{ p: 4 }}>
                         <form onSubmit={handleSubmit(onSubmit)}>
                             <Grid container spacing={3}>
                                 {/* Name */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Controller
                                         name="name"
                                         control={control}
@@ -143,7 +146,11 @@ export default function UploadCreativePage() {
                                 </Grid>
 
                                 {/* Type */}
-                                <Grid item xs={12} sm={6}>
+                                <Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6
+                                    }}>
                                     <Controller
                                         name="type"
                                         control={control}
@@ -165,7 +172,7 @@ export default function UploadCreativePage() {
                                 </Grid>
 
                                 {/* File Upload - Duration auto-detected! */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Controller
                                         name="width"
                                         control={control}
@@ -186,7 +193,11 @@ export default function UploadCreativePage() {
                                 </Grid>
 
                                 {/* Height */}
-                                <Grid item xs={12} sm={6}>
+                                <Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6
+                                    }}>
                                     <Controller
                                         name="height"
                                         control={control}
@@ -207,7 +218,7 @@ export default function UploadCreativePage() {
                                 </Grid>
 
                                 {/* File Upload */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Button
                                         variant="outlined"
                                         component="label"
@@ -231,7 +242,7 @@ export default function UploadCreativePage() {
                                 </Grid>
 
                                 {/* Actions */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Box display="flex" gap={2} justifyContent="flex-end">
                                         <Button
                                             variant="outlined"
@@ -255,7 +266,11 @@ export default function UploadCreativePage() {
                 </Grid>
 
                 {/* Preview */}
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography variant="h6" gutterBottom>

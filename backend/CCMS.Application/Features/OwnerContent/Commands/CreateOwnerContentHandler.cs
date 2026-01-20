@@ -61,7 +61,7 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
         var fileUrl = await _fileStorage.UploadFileAsync(
             request.FileStream,
             request.FileName,
-            "owner-content",
+            request.ContentType,  // Use actual MIME type (e.g., video/mp4)
             cancellationToken);
 
         // Validate owner content doesn't conflict with approved/active bookings

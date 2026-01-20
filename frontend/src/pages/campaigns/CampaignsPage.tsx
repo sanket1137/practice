@@ -126,7 +126,6 @@ export default function CampaignsPage() {
                     Create Campaign
                 </Button>
             </Box>
-
             {/* Search & View Toggle */}
             <Box display="flex" gap={2} mb={3}>
                 <TextField
@@ -156,7 +155,6 @@ export default function CampaignsPage() {
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>
-
             {/* Campaign Grid/List */}
             {!filteredCampaigns || filteredCampaigns.length === 0 ? (
                 <EmptyState
@@ -174,7 +172,13 @@ export default function CampaignsPage() {
             ) : viewMode === 'grid' ? (
                 <Grid container spacing={3}>
                     {filteredCampaigns.map((campaign) => (
-                        <Grid item xs={12} sm={6} md={4} key={campaign.id}>
+                        <Grid
+                            key={campaign.id}
+                            size={{
+                                xs: 12,
+                                sm: 6,
+                                md: 4
+                            }}>
                             <EnhancedCampaignCard
                                 campaign={{
                                     ...campaign,
@@ -190,7 +194,7 @@ export default function CampaignsPage() {
             ) : (
                 <Grid container spacing={2}>
                     {filteredCampaigns.map((campaign) => (
-                        <Grid item xs={12} key={campaign.id}>
+                        <Grid key={campaign.id} size={12}>
                             <Box
                                 display="flex"
                                 alignItems="center"
@@ -236,7 +240,6 @@ export default function CampaignsPage() {
                     ))}
                 </Grid>
             )}
-
             {/* Action Menu */}
             <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
                 <MenuItem onClick={() => {
@@ -264,7 +267,6 @@ export default function CampaignsPage() {
                     Delete
                 </MenuItem>
             </Menu>
-
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
                 <DialogTitle>Delete Campaign</DialogTitle>

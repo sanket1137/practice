@@ -76,11 +76,10 @@ export default function BookingCalendarView({
                     </IconButton>
                 </Box>
             </Box>
-
             {/* Weekday headers */}
             <Grid container spacing={1} mb={1}>
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <Grid item xs={12 / 7} key={day}>
+                    <Grid key={day} size={12 / 7}>
                         <Typography
                             variant="caption"
                             color="text.secondary"
@@ -93,12 +92,11 @@ export default function BookingCalendarView({
                     </Grid>
                 ))}
             </Grid>
-
             {/* Calendar Grid */}
             <Grid container spacing={1}>
                 {/* Empty cells for days before month starts */}
                 {Array.from({ length: monthStart.getDay() }).map((_, idx) => (
-                    <Grid item xs={12 / 7} key={`empty-${idx}`}>
+                    <Grid key={`empty-${idx}`} size={12 / 7}>
                         <Box sx={{ height: 100 }} />
                     </Grid>
                 ))}
@@ -109,7 +107,7 @@ export default function BookingCalendarView({
                     const isCurrentDay = isToday(date);
 
                     return (
-                        <Grid item xs={12 / 7} key={date.toISOString()}>
+                        <Grid key={date.toISOString()} size={12 / 7}>
                             <Paper
                                 variant="outlined"
                                 sx={{
@@ -172,7 +170,6 @@ export default function BookingCalendarView({
                     );
                 })}
             </Grid>
-
             {/* Legend */}
             <Box mt={3} display="flex" gap={2} flexWrap="wrap">
                 {Object.entries(STATUS_COLORS).map(([status, color]) => (

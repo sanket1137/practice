@@ -185,18 +185,20 @@ export default function ScreenDetailPage() {
                             </Button>
                         </>
                     )}
-                    <Button
-                        variant="contained"
-                        size="large"
-                        startIcon={<BookIcon />}
-                        onClick={() => navigate(`/bookings/new?screenId=${id}`)}
-                        disabled={screen.status !== 'Active'}
-                    >
-                        Book This Screen
-                    </Button>
+                    {/* Only show Book button for Advertisers and Admins, not Screen Owners */}
+                    {user?.role !== 'ScreenOwner' && (
+                        <Button
+                            variant="contained"
+                            size="large"
+                            startIcon={<BookIcon />}
+                            onClick={() => navigate(`/bookings/new?screenId=${id}`)}
+                            disabled={screen.status !== 'Active'}
+                        >
+                            Book This Screen
+                        </Button>
+                    )}
                 </Box>
             </Box>
-
             {/* Tabs */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
@@ -207,181 +209,193 @@ export default function ScreenDetailPage() {
                     <Tab label="Live Stream" />
                 </Tabs>
             </Box>
-
             {/* Details Tab */}
-            {activeTab === 0 && (
-                <Grid container spacing={3}>
-                    {/* Main Content */}
-                    <Grid item xs={12} md={8}>
-                        {/* Screen Image/Preview */}
-                        <Paper sx={{ mb: 3, p: 0, overflow: 'hidden' }}>
-                            <Box
-                                sx={{
-                                    height: 400,
-                                    bgcolor: 'grey.200',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                }}
-                            >
-                                <TvIcon sx={{ fontSize: 120, color: 'grey.400' }} />
-                            </Box>
-                        </Paper>
-
-                        {/* Description */}
-                        <Paper sx={{ p: 3, mb: 3 }}>
-                            <Typography variant="h6" gutterBottom>
-                                Description
-                            </Typography>
-                            <Typography color="textSecondary">{screen.description}</Typography>
-                        </Paper>
-
-                        {/* Specifications */}
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>
-                                Technical Specifications
-                            </Typography>
-                            <Divider sx={{ my: 2 }} />
-                            <Grid container spacing={2}>
-                                <Grid item xs={6}>
-                                    <Typography variant="body2" color="textSecondary">
-                                        Resolution
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        {screen.resolutionWidth} x {screen.resolutionHeight}
-                                    </Typography>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Typography variant="body2" color="textSecondary">
-                                        Slots Per Frame
-                                    </Typography>
-                                    <Typography variant="body1">{screen.slotsPerFrame}</Typography>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Typography variant="body2" color="textSecondary">
-                                        Time Frame
-                                    </Typography>
-                                    <Typography variant="body1">{screen.timeFrameMinutes} minutes</Typography>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Typography variant="body2" color="textSecondary">
-                                        Status
-                                    </Typography>
-                                    <Typography variant="body1">{screen.status}</Typography>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Typography variant="body2" color="textSecondary">
-                                        Timezone
-                                    </Typography>
-                                    <Typography variant="body1">
-                                        {screen.timezone || 'UTC'}
-                                    </Typography>
-                                </Grid>
-                            </Grid>
-                        </Paper>
-                    </Grid>
-
-                    {/* Sidebar */}
-                    <Grid item xs={12} md={4}>
-                        {/* Pricing Info */}
-                        <Card sx={{ mb: 3 }}>
-                            <CardContent>
-                                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                                    <MoneyIcon color="primary" />
-                                    <Typography variant="h6">Pricing</Typography>
+            {
+                activeTab === 0 && (
+                    <Grid container spacing={3}>
+                        {/* Main Content */}
+                        <Grid
+                            size={{
+                                xs: 12,
+                                md: 8
+                            }}>
+                            {/* Screen Image/Preview */}
+                            <Paper sx={{ mb: 3, p: 0, overflow: 'hidden' }}>
+                                <Box
+                                    sx={{
+                                        height: 400,
+                                        bgcolor: 'grey.200',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <TvIcon sx={{ fontSize: 120, color: 'grey.400' }} />
                                 </Box>
-                                <Typography variant="h4" color="primary" gutterBottom>
-                                    {screen.currency} {screen.pricePerSlot.toLocaleString()}
+                            </Paper>
+
+                            {/* Description */}
+                            <Paper sx={{ p: 3, mb: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Description
                                 </Typography>
-                                <Typography variant="body2" color="textSecondary">
-                                    per slot
+                                <Typography color="textSecondary">{screen.description}</Typography>
+                            </Paper>
+
+                            {/* Specifications */}
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Technical Specifications
                                 </Typography>
                                 <Divider sx={{ my: 2 }} />
-                                <Box display="flex" alignItems="center" gap={1}>
-                                    <ScheduleIcon fontSize="small" color="action" />
-                                    <Typography variant="body2">
-                                        {screen.slotsPerFrame} slots per {screen.timeFrameMinutes} minutes
+                                <Grid container spacing={2}>
+                                    <Grid size={6}>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Resolution
+                                        </Typography>
+                                        <Typography variant="body1">
+                                            {screen.resolutionWidth} x {screen.resolutionHeight}
+                                        </Typography>
+                                    </Grid>
+                                    <Grid size={6}>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Slots Per Frame
+                                        </Typography>
+                                        <Typography variant="body1">{screen.slotsPerFrame}</Typography>
+                                    </Grid>
+                                    <Grid size={6}>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Time Frame
+                                        </Typography>
+                                        <Typography variant="body1">{screen.timeFrameMinutes} minutes</Typography>
+                                    </Grid>
+                                    <Grid size={6}>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Status
+                                        </Typography>
+                                        <Typography variant="body1">{screen.status}</Typography>
+                                    </Grid>
+                                    <Grid size={6}>
+                                        <Typography variant="body2" color="textSecondary">
+                                            Timezone
+                                        </Typography>
+                                        <Typography variant="body1">
+                                            {screen.timezone || 'UTC'}
+                                        </Typography>
+                                    </Grid>
+                                </Grid>
+                            </Paper>
+                        </Grid>
+
+                        {/* Sidebar */}
+                        <Grid
+                            size={{
+                                xs: 12,
+                                md: 4
+                            }}>
+                            {/* Pricing Info */}
+                            <Card sx={{ mb: 3 }}>
+                                <CardContent>
+                                    <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                        <MoneyIcon color="primary" />
+                                        <Typography variant="h6">Pricing</Typography>
+                                    </Box>
+                                    <Typography variant="h4" color="primary" gutterBottom>
+                                        {screen.currency} {screen.pricePerSlot.toLocaleString()}
                                     </Typography>
-                                </Box>
-                            </CardContent>
-                        </Card>
+                                    <Typography variant="body2" color="textSecondary">
+                                        per slot
+                                    </Typography>
+                                    <Divider sx={{ my: 2 }} />
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                        <ScheduleIcon fontSize="small" color="action" />
+                                        <Typography variant="body2">
+                                            {screen.slotsPerFrame} slots per {screen.timeFrameMinutes} minutes
+                                        </Typography>
+                                    </Box>
+                                </CardContent>
+                            </Card>
 
-                        {/* Location */}
-                        <Card>
-                            <CardContent>
-                                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                                    <LocationIcon color="primary" />
-                                    <Typography variant="h6">Location</Typography>
-                                </Box>
-                                <List disablePadding>
-                                    <ListItem disablePadding>
-                                        <ListItemText
-                                            primary="Address"
-                                            secondary={screen.location.address}
-                                            primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
-                                            secondaryTypographyProps={{ variant: 'body1' }}
-                                        />
-                                    </ListItem>
-                                    <ListItem disablePadding>
-                                        <ListItemText
-                                            primary="City"
-                                            secondary={screen.location.city}
-                                            primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
-                                            secondaryTypographyProps={{ variant: 'body1' }}
-                                        />
-                                    </ListItem>
-                                    <ListItem disablePadding>
-                                        <ListItemText
-                                            primary="State/Province"
-                                            secondary={screen.location.state}
-                                            primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
-                                            secondaryTypographyProps={{ variant: 'body1' }}
-                                        />
-                                    </ListItem>
-                                    <ListItem disablePadding>
-                                        <ListItemText
-                                            primary="Country"
-                                            secondary={screen.location.country}
-                                            primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
-                                            secondaryTypographyProps={{ variant: 'body1' }}
-                                        />
-                                    </ListItem>
-                                    <ListItem disablePadding>
-                                        <ListItemText
-                                            primary="ZIP Code"
-                                            secondary={screen.location.zipCode}
-                                            primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
-                                            secondaryTypographyProps={{ variant: 'body1' }}
-                                        />
-                                    </ListItem>
-                                </List>
-                            </CardContent>
-                        </Card>
+                            {/* Location */}
+                            <Card>
+                                <CardContent>
+                                    <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                        <LocationIcon color="primary" />
+                                        <Typography variant="h6">Location</Typography>
+                                    </Box>
+                                    <List disablePadding>
+                                        <ListItem disablePadding>
+                                            <ListItemText
+                                                primary="Address"
+                                                secondary={screen.location.address}
+                                                primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
+                                                secondaryTypographyProps={{ variant: 'body1' }}
+                                            />
+                                        </ListItem>
+                                        <ListItem disablePadding>
+                                            <ListItemText
+                                                primary="City"
+                                                secondary={screen.location.city}
+                                                primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
+                                                secondaryTypographyProps={{ variant: 'body1' }}
+                                            />
+                                        </ListItem>
+                                        <ListItem disablePadding>
+                                            <ListItemText
+                                                primary="State/Province"
+                                                secondary={screen.location.state}
+                                                primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
+                                                secondaryTypographyProps={{ variant: 'body1' }}
+                                            />
+                                        </ListItem>
+                                        <ListItem disablePadding>
+                                            <ListItemText
+                                                primary="Country"
+                                                secondary={screen.location.country}
+                                                primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
+                                                secondaryTypographyProps={{ variant: 'body1' }}
+                                            />
+                                        </ListItem>
+                                        <ListItem disablePadding>
+                                            <ListItemText
+                                                primary="ZIP Code"
+                                                secondary={screen.location.zipCode}
+                                                primaryTypographyProps={{ variant: 'body2', color: 'textSecondary' }}
+                                                secondaryTypographyProps={{ variant: 'body1' }}
+                                            />
+                                        </ListItem>
+                                    </List>
+                                </CardContent>
+                            </Card>
+                        </Grid>
                     </Grid>
-                </Grid>
-            )}
-
+                )
+            }
             {/* Calendar Tab */}
             {/* Bookings Tab */}
-            {activeTab === 1 && (
-                <SlotCalendarView screenId={id!} />
-            )}
-
+            {
+                activeTab === 1 && (
+                    <SlotCalendarView screenId={id!} />
+                )
+            }
             {/* Live Activity Tab */}
-            {activeTab === 2 && (
-                <LiveActivityTab screenId={id as string} />
-            )}
-
+            {
+                activeTab === 2 && (
+                    <LiveActivityTab screenId={id as string} />
+                )
+            }
             {/* Default Video Tab */}
-            {activeTab === 3 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
-                <DefaultVideoSettings screenId={id!} />
-            )}
-
+            {
+                activeTab === 3 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
+                    <DefaultVideoSettings screenId={id!} />
+                )
+            }
             {/* Live Stream Tab */}
-            {(
-                (activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin')) ||
-                (activeTab === 4 && user?.role === 'Advertiser' && streamAccess?.hasAccess)
-            ) && (
+            {
+                (
+                    (activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin')) ||
+                    (activeTab === 4 && user?.role === 'Advertiser' && streamAccess?.hasAccess)
+                ) && (
                     <Box>
                         <Typography variant="h6" gutterBottom>
                             Real-Time Screen Activity
@@ -392,7 +406,11 @@ export default function ScreenDetailPage() {
 
                         <Grid container spacing={3}>
                             {/* WebRTC Live Stream */}
-                            <Grid item xs={12} md={8}>
+                            <Grid
+                                size={{
+                                    xs: 12,
+                                    md: 8
+                                }}>
                                 <WebRTCPlayer
                                     screenId={id!}
                                     autoStart={false}
@@ -401,13 +419,17 @@ export default function ScreenDetailPage() {
                             </Grid>
 
                             {/* Live Preview Widget */}
-                            <Grid item xs={12} md={4}>
+                            <Grid
+                                size={{
+                                    xs: 12,
+                                    md: 4
+                                }}>
                                 <LivePreviewWidget screenId={id!} mode="screen" />
                             </Grid>
                         </Grid>
                     </Box>
-                )}
-
+                )
+            }
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
                 <DialogTitle>Delete Screen?</DialogTitle>
@@ -424,6 +446,6 @@ export default function ScreenDetailPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Container>
+        </Container >
     );
 }
