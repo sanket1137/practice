@@ -88,12 +88,11 @@ export default function CreateCampaignPage() {
                     Set up your advertising campaign details
                 </Typography>
             </Box>
-
             <Paper sx={{ p: 4 }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Grid container spacing={3}>
                         {/* Campaign Name */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Controller
                                 name="name"
                                 control={control}
@@ -111,7 +110,7 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* Description */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Controller
                                 name="description"
                                 control={control}
@@ -131,7 +130,11 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* Budget */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <Controller
                                 name="budget"
                                 control={control}
@@ -152,7 +155,11 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* Currency */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <Controller
                                 name="currency"
                                 control={control}
@@ -176,7 +183,11 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* Start Date */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
                                 <Controller
                                     name="startDate"
@@ -200,7 +211,11 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* End Date */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
                                 <Controller
                                     name="endDate"
@@ -224,7 +239,7 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* Status */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Controller
                                 name="status"
                                 control={control}
@@ -248,7 +263,7 @@ export default function CreateCampaignPage() {
                         </Grid>
 
                         {/* Actions */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Box display="flex" gap={2} justifyContent="flex-end">
                                 <Button
                                     variant="outlined"

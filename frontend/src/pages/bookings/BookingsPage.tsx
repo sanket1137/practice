@@ -152,7 +152,7 @@ export default function BookingsPage() {
             websocketService.off('BookingRejected', handleBookingRejected);
             websocketService.off('BookingUpdated', handleBookingUpdated);
             if (user?.id) {
-                websocketService.invoke('UnsubscribeFromBookings', user.id).catch(() => {});
+                websocketService.invoke('UnsubscribeFromBookings', user.id).catch(() => { });
             }
         };
     }, [user?.id, queryClient, enqueueSnackbar]);
@@ -475,15 +475,20 @@ export default function BookingsPage() {
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             <Box mb={3}>
                 <Typography variant="h4" gutterBottom>
-                    Booking Management
+                    {user?.role === 'ScreenOwner'
+                        ? 'Booking Requests'
+                        : user?.role === 'Advertiser'
+                            ? 'My Bookings'
+                            : 'All Bookings'}
                 </Typography>
                 <Typography variant="body1" color="textSecondary">
                     {user?.role === 'ScreenOwner'
                         ? 'Review and approve booking requests for your screens'
-                        : 'View and manage your bookings'}
+                        : user?.role === 'Advertiser'
+                            ? 'Track the status of your submitted booking requests'
+                            : 'View and manage all bookings on the platform'}
                 </Typography>
             </Box>
-
             {/* Filters */}
             <BookingFiltersBar
                 filters={filters}
@@ -497,20 +502,22 @@ export default function BookingsPage() {
                     })
                 }
             />
-
             <Paper>
                 <Box p={3}>
                     {renderBookingsTable(filteredBookings, user?.role === 'ScreenOwner')}
                 </Box>
             </Paper>
-
             {/* Approve Dialog */}
             <Dialog open={approveDialogOpen} onClose={() => setApproveDialogOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>Approve Booking Request</DialogTitle>
                 <DialogContent>
                     {selectedBooking && (
                         <Grid container spacing={3} sx={{ mt: 1 }}>
-                            <Grid item xs={12} md={6}>
+                            <Grid
+                                size={{
+                                    xs: 12,
+                                    md: 6
+                                }}>
                                 <Card>
                                     <CardMedia
                                         component={selectedBooking.creativeMimeType.startsWith('video/') ? 'video' : 'img'}
@@ -526,7 +533,11 @@ export default function BookingsPage() {
                                     </CardContent>
                                 </Card>
                             </Grid>
-                            <Grid item xs={12} md={6}>
+                            <Grid
+                                size={{
+                                    xs: 12,
+                                    md: 6
+                                }}>
                                 <Typography variant="h6" gutterBottom>
                                     Booking Details
                                 </Typography>
@@ -585,7 +596,6 @@ export default function BookingsPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
-
             {/* Reject Dialog */}
             <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)}>
                 <DialogTitle>Reject Booking Request</DialogTitle>

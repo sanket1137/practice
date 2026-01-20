@@ -194,7 +194,9 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 // Subscribe based on mode
                 if (mode === 'screen' && screenId) {
                     await websocketService.subscribeToScreen(screenId, () => { });
-                    console.log(`[LivePreview] Subscribed to screen: ${screenId}`);
+                    // Request fast sync (1 min) while user is viewing
+                    await websocketService.requestFastSync(screenId);
+                    console.log(`[LivePreview] Subscribed to screen: ${screenId} (fast sync enabled)`);
                 } else if (mode === 'campaign' && campaignId) {
                     await websocketService.subscribeToCampaign(campaignId, () => { });
                     console.log(`[LivePreview] Subscribed to campaign: ${campaignId}`);
@@ -235,6 +237,8 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
 
             // Unsubscribe from updates
             if (mode === 'screen' && screenId) {
+                // Request normal sync (10 min) when user leaves
+                websocketService.requestNormalSync(screenId);
                 websocketService.unsubscribeFromScreen(screenId);
             } else if (mode === 'campaign' && campaignId) {
                 websocketService.unsubscribeFromCampaign(campaignId);

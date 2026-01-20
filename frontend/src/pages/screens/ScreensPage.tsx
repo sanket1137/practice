@@ -101,12 +101,14 @@ export default function ScreensPage() {
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
                 <Box>
                     <Typography variant="h4" gutterBottom>
-                        {isScreenOwner ? 'My Screens' : 'Available Screens'}
+                        {isScreenOwner ? 'My Screens' : isAdvertiser ? 'Screen Marketplace' : 'All Screens'}
                     </Typography>
                     <Typography variant="body1" color="textSecondary">
                         {isAdvertiser
-                            ? 'Browse and book digital signage screens for your campaigns'
-                            : 'Manage your digital signage screens'}
+                            ? 'Discover screens and book slots for your campaigns'
+                            : isScreenOwner
+                                ? 'Manage your digital signage screens and track performance'
+                                : 'View and manage all screens on the platform'}
                     </Typography>
                 </Box>
                 {isScreenOwner && (
@@ -115,7 +117,7 @@ export default function ScreensPage() {
                         startIcon={<AddIcon />}
                         onClick={() => navigate('/screens/new')}
                     >
-                        Add Screen
+                        Add New Screen
                     </Button>
                 )}
             </Box>
@@ -123,7 +125,7 @@ export default function ScreensPage() {
             {/* Filters */}
             <Paper sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} md={8}>
+                    <Grid size={{ xs: 12, md: 8 }}>
                         <TextField
                             fullWidth
                             placeholder="Search by name, location, or description..."
@@ -138,7 +140,7 @@ export default function ScreensPage() {
                             }}
                         />
                     </Grid>
-                    <Grid item xs={12} md={4}>
+                    <Grid size={{ xs: 12, md: 4 }}>
                         <FormControl fullWidth>
                             <InputLabel>Status</InputLabel>
                             <Select
@@ -187,7 +189,7 @@ export default function ScreensPage() {
             ) : (
                 <Grid container spacing={3}>
                     {filteredScreens.map((screen) => (
-                        <Grid item xs={12} sm={6} md={4} key={screen.id}>
+                        <Grid key={screen.id} size={{ xs: 12, sm: 6, md: 4 }}>
                             <EnhancedScreenCard
                                 screen={{
                                     id: screen.id,

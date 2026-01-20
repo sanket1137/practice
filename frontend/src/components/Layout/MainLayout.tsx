@@ -73,17 +73,40 @@ const MainLayout = () => {
         navigate('/login');
     };
 
-    const menuItems = [
-        { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['Admin', 'ScreenOwner', 'Advertiser'] },
-        { text: 'Campaigns', icon: <CampaignIcon />, path: '/campaigns', roles: ['Admin', 'Advertiser'] },
-        { text: 'Screens', icon: <ScreenIcon />, path: '/screens', roles: ['Admin', 'ScreenOwner', 'Advertiser'] },
-        { text: 'Bookings', icon: <BookingIcon />, path: '/bookings', roles: ['Admin', 'ScreenOwner', 'Advertiser'] },
-        { text: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics', roles: ['Admin', 'ScreenOwner', 'Advertiser'] },
-    ];
+    // Role-specific menu items with appropriate labels
+    const getMenuItems = () => {
+        const role = user?.role;
 
-    const filteredMenuItems = menuItems.filter(item =>
-        user?.role && item.roles.includes(user.role)
-    );
+        if (role === 'ScreenOwner') {
+            return [
+                { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+                { text: 'My Screens', icon: <ScreenIcon />, path: '/screens' },
+                { text: 'Booking Requests', icon: <BookingIcon />, path: '/bookings' },
+                { text: 'Earnings & Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+            ];
+        }
+
+        if (role === 'Advertiser') {
+            return [
+                { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+                { text: 'Campaigns', icon: <CampaignIcon />, path: '/campaigns' },
+                { text: 'Screen Marketplace', icon: <ScreenIcon />, path: '/screens' },
+                { text: 'My Bookings', icon: <BookingIcon />, path: '/bookings' },
+                { text: 'Campaign Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+            ];
+        }
+
+        // Admin - full access
+        return [
+            { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+            { text: 'All Campaigns', icon: <CampaignIcon />, path: '/campaigns' },
+            { text: 'All Screens', icon: <ScreenIcon />, path: '/screens' },
+            { text: 'All Bookings', icon: <BookingIcon />, path: '/bookings' },
+            { text: 'Platform Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+        ];
+    };
+
+    const menuItems = getMenuItems();
 
     const drawer = (
         <Box>
@@ -94,7 +117,7 @@ const MainLayout = () => {
             </Toolbar>
             <Divider />
             <List>
-                {filteredMenuItems.map((item) => (
+                {menuItems.map((item) => (
                     <ListItem key={item.text} disablePadding>
                         <ListItemButton
                             selected={location.pathname === item.path}
@@ -133,7 +156,7 @@ const MainLayout = () => {
                     </IconButton>
 
                     <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-                        {filteredMenuItems.find((item) => item.path === location.pathname)?.text || 'CCMS'}
+                        {menuItems.find((item) => item.path === location.pathname)?.text || 'CCMS'}
                     </Typography>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

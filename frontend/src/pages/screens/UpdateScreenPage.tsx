@@ -163,12 +163,12 @@ export default function UpdateScreenPage() {
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
                     <Grid container spacing={3}>
                         {/* Basic Information */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom>
                                 Basic Information
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 name="name"
@@ -177,7 +177,7 @@ export default function UpdateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 multiline
@@ -190,12 +190,16 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Resolution */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Screen Resolution
                             </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 fullWidth
                                 type="number"
@@ -205,7 +209,11 @@ export default function UpdateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 fullWidth
                                 type="number"
@@ -217,12 +225,12 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Location */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Location
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 name="street"
@@ -231,7 +239,11 @@ export default function UpdateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 fullWidth
                                 name="city"
@@ -240,7 +252,11 @@ export default function UpdateScreenPage() {
                                 onChange={handleChange}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 fullWidth
                                 name="state"
@@ -251,12 +267,16 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Slot Configuration & Pricing */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Slot Configuration & Pricing
                             </Typography>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 fullWidth
                                 type="number"
@@ -267,7 +287,11 @@ export default function UpdateScreenPage() {
                                 helperText="Duration of one ad cycle"
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 fullWidth
                                 type="number"
@@ -278,7 +302,11 @@ export default function UpdateScreenPage() {
                                 helperText="Number of ads per cycle"
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <TextField
                                 fullWidth
                                 type="number"
@@ -291,7 +319,11 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Status */}
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <TextField
                                 select
                                 fullWidth
@@ -307,12 +339,12 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Timezone Selection */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Timezone
                             </Typography>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TimezoneSelector
                                 value={formData.timezone}
                                 onChange={(timezone) => setFormData({ ...formData, timezone })}
@@ -321,7 +353,7 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Operating Schedule */}
-                        <Grid item xs={12} sx={{ mt: 2 }}>
+                        <Grid sx={{ mt: 2 }} size={12}>
                             <OperatingScheduleForm
                                 schedule={schedule}
                                 onChange={setSchedule}
@@ -329,7 +361,7 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {/* Actions */}
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 3 }}>
                                 <Button
                                     variant="outlined"
@@ -348,7 +380,7 @@ export default function UpdateScreenPage() {
                         </Grid>
 
                         {updateScreenMutation.isError && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Alert severity="error">
                                     Error updating screen. Please try again.
                                 </Alert>

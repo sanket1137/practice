@@ -148,6 +148,30 @@ class WebSocketService {
         }
     }
 
+    // Request fast sync mode (1 minute interval) - call when user views Live Activity
+    async requestFastSync(screenId: string) {
+        if (!this.isConnected()) return;
+
+        try {
+            await this.connection!.invoke('RequestFastSync', screenId);
+            console.log(`⚡ Requested fast sync for screen: ${screenId}`);
+        } catch (error) {
+            console.error('Error requesting fast sync:', error);
+        }
+    }
+
+    // Request normal sync mode (10 minute interval) - call when user leaves page
+    async requestNormalSync(screenId: string) {
+        if (!this.isConnected()) return;
+
+        try {
+            await this.connection!.invoke('RequestNormalSync', screenId);
+            console.log(`🐢 Requested normal sync for screen: ${screenId}`);
+        } catch (error) {
+            console.error('Error requesting normal sync:', error);
+        }
+    }
+
     // Generic event listener
     on(eventName: string, callback: Function) {
         if (!this.connection) return;

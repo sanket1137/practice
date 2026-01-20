@@ -151,7 +151,11 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
 
                 {/* Summary */}
                 <Grid container spacing={2} mb={2}>
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Box textAlign="center">
                             <Typography variant="h4" color="primary">
                                 {summary.totalAvailableSlots}
@@ -161,7 +165,11 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             </Typography>
                         </Box>
                     </Grid>
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Box textAlign="center">
                             <Typography variant="h4" color="success.main">
                                 {summary.availableDays}
@@ -171,7 +179,11 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             </Typography>
                         </Box>
                     </Grid>
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Box textAlign="center">
                             <Typography variant="h4" color="error.main">
                                 {summary.soldOutDays}
@@ -181,7 +193,11 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             </Typography>
                         </Box>
                     </Grid>
-                    <Grid item xs={6} sm={3}>
+                    <Grid
+                        size={{
+                            xs: 6,
+                            sm: 3
+                        }}>
                         <Box textAlign="center">
                             <Typography variant="h4">
                                 {utilizationRate.toFixed(0)}%

@@ -113,7 +113,11 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
                 {/* Date Range Selector */}
                 <LocalizationProvider dateAdapter={AdapterDateFns}>
                     <Grid container spacing={2} sx={{ mb: 3 }}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <DatePicker
                                 label="Start Date"
                                 value={startDate}
@@ -126,7 +130,11 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
                                 }}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <DatePicker
                                 label="End Date"
                                 value={endDate}
@@ -146,7 +154,11 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
                 {/* Summary */}
                 <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={4}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 4
+                            }}>
                             <Typography variant="caption" color="textSecondary">
                                 Total Bookings
                             </Typography>
@@ -157,7 +169,7 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
                                 (Approved/Active/Completed)
                             </Typography>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={6}>
                             <Typography variant="caption" color="textSecondary">
                                 Total Revenue
                             </Typography>

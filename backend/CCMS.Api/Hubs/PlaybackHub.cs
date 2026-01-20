@@ -114,6 +114,28 @@ public class PlaybackHub : Hub
     }
 
     /// <summary>
+    /// Request player to switch to fast sync mode (1 minute interval)
+    /// Called when user opens Live Activity page
+    /// </summary>
+    public async Task RequestFastSync(string screenId)
+    {
+        _logger.LogInformation($"⚡ Fast sync requested for screen {screenId} by {Context.ConnectionId}");
+        // Notify the player to switch to fast sync mode
+        await Clients.Group($"screen_{screenId}").SendAsync("SetSyncMode", "fast");
+    }
+
+    /// <summary>
+    /// Request player to switch to normal sync mode (10 minute interval)
+    /// Called when user leaves Live Activity page
+    /// </summary>
+    public async Task RequestNormalSync(string screenId)
+    {
+        _logger.LogInformation($"🐢 Normal sync requested for screen {screenId} by {Context.ConnectionId}");
+        // Notify the player to switch to normal sync mode
+        await Clients.Group($"screen_{screenId}").SendAsync("SetSyncMode", "normal");
+    }
+
+    /// <summary>
     /// Subscribe to booking events for a specific user (screen owner or advertiser)
     /// </summary>
     public async Task SubscribeToBookings(string userId)
@@ -154,6 +176,10 @@ public class PlaybackHub : Hub
     {
         try
         {
+            // Ensure all DateTime values have Kind=UTC for PostgreSQL
+            var playedAtUtc = DateTime.SpecifyKind(eventData.Timestamp, DateTimeKind.Utc);
+            var sessionDateUtc = DateTime.SpecifyKind(eventData.Timestamp.Date, DateTimeKind.Utc);
+            
             // Store in memory buffer
             var impression = new Impression
             {
@@ -162,10 +188,11 @@ public class PlaybackHub : Hub
                 CampaignId = Guid.Parse(eventData.CampaignId.ToString()),
                 ScreenId = Guid.Parse(eventData.ScreenId.ToString()),
                 CreativeId = Guid.Parse(eventData.CreativeId.ToString()),
-                PlayedAt = eventData.Timestamp,
-                SessionDate = eventData.Timestamp.Date,
+                PlayedAt = playedAtUtc,
+                SessionDate = sessionDateUtc,
                 DeviceId = eventData.DeviceId,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
             
             _pendingImpressions.Add(impression);

@@ -56,11 +56,9 @@ export default function AvailabilityHeatmap({
             <Typography variant="h6" gutterBottom>
                 Availability Calendar
             </Typography>
-
             <Typography variant="body2" color="text.secondary" mb={3}>
                 {format(startDate, 'MMM dd, yyyy')} - {format(endDate, 'MMM dd, yyyy')}
             </Typography>
-
             {/* Calendar Grid */}
             <Grid container spacing={1} mb={3}>
                 {dateRange.map((date) => {
@@ -69,7 +67,13 @@ export default function AvailabilityHeatmap({
                     const isClickable = !!onDateClick;
 
                     return (
-                        <Grid item xs={12 / 7} sm={12 / 7} md={12 / 14} key={date.toISOString()}>
+                        <Grid
+                            key={date.toISOString()}
+                            size={{
+                                xs: 12 / 7,
+                                sm: 12 / 7,
+                                md: 12 / 14
+                            }}>
                             <Tooltip
                                 title={
                                     dayAvailability
@@ -129,7 +133,6 @@ export default function AvailabilityHeatmap({
                     );
                 })}
             </Grid>
-
             {/* Legend */}
             <Box display="flex" gap={2} flexWrap="wrap" justifyContent="center">
                 {Object.entries(STATUS_LABELS).map(([key, label]) => (

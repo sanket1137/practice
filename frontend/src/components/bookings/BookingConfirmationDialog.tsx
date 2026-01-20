@@ -76,7 +76,6 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                     )}
                 </Box>
             </DialogTitle>
-
             <DialogContent>
                 {isPartialBooking && (
                     <Alert severity="warning" sx={{ mb: 3 }}>
@@ -93,7 +92,7 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                         Booking Summary
                     </Typography>
                     <Grid container spacing={2}>
-                        <Grid item xs={4}>
+                        <Grid size={4}>
                             <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'grey.100' }}>
                                 <Typography variant="caption" color="text.secondary">
                                     Requested
@@ -104,7 +103,7 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                                 <Typography variant="caption">days</Typography>
                             </Paper>
                         </Grid>
-                        <Grid item xs={4}>
+                        <Grid size={4}>
                             <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'success.lighter' }}>
                                 <Typography variant="caption" color="text.secondary">
                                     Available
@@ -116,7 +115,7 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                             </Paper>
                         </Grid>
                         {isPartialBooking && (
-                            <Grid item xs={4}>
+                            <Grid size={4}>
                                 <Paper sx={{ p: 2, textAlign: 'center', bgcolor: 'error.lighter' }}>
                                     <Typography variant="caption" color="text.secondary">
                                         Sold Out
@@ -174,7 +173,7 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                 {/* Price Summary */}
                 <Paper sx={{ p: 2, bgcolor: 'primary.lighter', borderLeft: 4, borderColor: 'primary.main' }}>
                     <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={6}>
+                        <Grid size={6}>
                             <Typography variant="body2" color="text.secondary">
                                 Total Price
                             </Typography>
@@ -182,7 +181,7 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                                 {currency} {calculatedPrice.toLocaleString()}
                             </Typography>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={6}>
                             <Typography variant="caption" color="text.secondary">
                                 Based on {totalAvailable} {totalAvailable === 1 ? 'day' : 'days'}
                             </Typography>
@@ -210,7 +209,6 @@ const BookingConfirmationDialog: React.FC<BookingConfirmationDialogProps> = ({
                     </Box>
                 )}
             </DialogContent>
-
             <DialogActions sx={{ px: 3, pb: 2 }}>
                 <Button onClick={onClose} color="inherit">
                     Cancel

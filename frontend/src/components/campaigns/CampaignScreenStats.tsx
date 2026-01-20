@@ -101,7 +101,11 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
         <Box>
             {/* Overview Stats */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography variant="subtitle2" color="textSecondary">
@@ -113,7 +117,11 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography variant="subtitle2" color="textSecondary">
@@ -125,7 +133,11 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography variant="subtitle2" color="textSecondary">
@@ -138,14 +150,19 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
                     </Card>
                 </Grid>
             </Grid>
-
             {/* Screen Cards */}
             <Typography variant="h6" gutterBottom>
                 Active Screens
             </Typography>
             <Grid container spacing={2}>
                 {screens.map(screen => (
-                    <Grid item xs={12} md={6} lg={4} key={screen.screenId}>
+                    <Grid
+                        key={screen.screenId}
+                        size={{
+                            xs: 12,
+                            md: 6,
+                            lg: 4
+                        }}>
                         <Card>
                             <CardContent>
                                 <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
@@ -198,7 +215,6 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
                     </Grid>
                 ))}
             </Grid>
-
             {screens.length === 0 && !loading && (
                 <Box textAlign="center" py={4}>
                     <Typography color="textSecondary">

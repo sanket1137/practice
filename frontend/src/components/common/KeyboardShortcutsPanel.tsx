@@ -67,7 +67,12 @@ export default function KeyboardShortcutsPanel({ open, onClose }: KeyboardShortc
                             {shortcuts
                                 .filter(s => s.category === category)
                                 .map((shortcut, idx) => (
-                                    <Grid item xs={12} sm={6} key={idx}>
+                                    <Grid
+                                        key={idx}
+                                        size={{
+                                            xs: 12,
+                                            sm: 6
+                                        }}>
                                         <Box display="flex" justifyContent="space-between" alignItems="center">
                                             <Typography variant="body2">{shortcut.description}</Typography>
                                             <Box display="flex" gap={0.5}>

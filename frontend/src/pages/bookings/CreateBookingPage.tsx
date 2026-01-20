@@ -385,15 +385,18 @@ export default function CreateBookingPage() {
                     Book a screen for your campaign
                 </Typography>
             </Box>
-
             <Grid container spacing={3}>
                 {/* Form */}
-                <Grid item xs={12} md={8}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 8
+                    }}>
                     <Paper sx={{ p: 4 }}>
                         <form onSubmit={handleSubmit(onSubmit)}>
                             <Grid container spacing={3}>
                                 {/* Campaign */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Controller
                                         name="campaignId"
                                         control={control}
@@ -424,7 +427,7 @@ export default function CreateBookingPage() {
                                 </Grid>
 
                                 {/* Creative */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Controller
                                         name="creativeId"
                                         control={control}
@@ -463,7 +466,7 @@ export default function CreateBookingPage() {
                                 </Grid>
 
                                 {/* Screen */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Controller
                                         name="screenId"
                                         control={control}
@@ -494,7 +497,11 @@ export default function CreateBookingPage() {
                                 </Grid>
 
                                 {/* Start Date */}
-                                <Grid item xs={12} md={6}>
+                                <Grid
+                                    size={{
+                                        xs: 12,
+                                        md: 6
+                                    }}>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                                         <Controller
                                             name="startDate"
@@ -519,7 +526,11 @@ export default function CreateBookingPage() {
                                 </Grid>
 
                                 {/* End Date */}
-                                <Grid item xs={12} sm={6}>
+                                <Grid
+                                    size={{
+                                        xs: 12,
+                                        sm: 6
+                                    }}>
                                     <LocalizationProvider dateAdapter={AdapterDateFns}>
                                         <Controller
                                             name="endDate"
@@ -546,7 +557,7 @@ export default function CreateBookingPage() {
 
                                 {/* Slot Availability */}
                                 {selectedScreenId && startDate && endDate && (
-                                    <Grid item xs={12}>
+                                    <Grid size={12}>
                                         <SlotAvailabilityCard
                                             screenId={selectedScreenId}
                                             startDate={startDate}
@@ -556,7 +567,7 @@ export default function CreateBookingPage() {
                                 )}
 
                                 {/* Actions */}
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <Box display="flex" gap={2} justifyContent="flex-end">
                                         <Button
                                             variant="outlined"
@@ -580,7 +591,11 @@ export default function CreateBookingPage() {
                 </Grid>
 
                 {/* Summary */}
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography variant="h6" gutterBottom>
@@ -637,7 +652,6 @@ export default function CreateBookingPage() {
                     </Card>
                 </Grid>
             </Grid>
-
             {/* Confirmation dialog removed - booking submits directly */}
         </Container>
     );

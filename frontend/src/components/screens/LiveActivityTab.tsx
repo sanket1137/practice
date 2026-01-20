@@ -251,11 +251,16 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
             <Typography variant="body2" color="text.secondary" gutterBottom>
                 Manage your screen slots and monitor live playback
             </Typography>
-
             <Grid container spacing={2} sx={{ mt: 2 }}>
                 {slots.map((slot) => (
-                    <Grid item xs={12} md={6} lg={4} key={slot.slotNumber}>
-                        <Card>
+                    <Grid
+                        key={slot.slotNumber}
+                        size={{
+                            xs: 12,
+                            md: 6,
+                            lg: 4
+                        }}>
+                        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                             <CardHeader
                                 avatar={
                                     <Avatar sx={{ bgcolor: slot.status === 'Booked' ? 'success.main' : slot.status === 'Custom' ? 'warning.main' : 'grey.500' }}>
@@ -300,7 +305,18 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                                         </Typography>
                                     </Box>
                                 ) : (
-                                    <Box sx={{ mt: 2, mb: 1, p: 2, bgcolor: '#1a1a1a', borderRadius: '8px', textAlign: 'center' }}>
+                                    <Box sx={{
+                                        mt: 2,
+                                        mb: 1,
+                                        p: 2,
+                                        bgcolor: '#1a1a1a',
+                                        borderRadius: '8px',
+                                        textAlign: 'center',
+                                        height: '150px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
                                         <Typography variant="caption" color="text.secondary">
                                             No video available
                                         </Typography>
@@ -325,7 +341,7 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                                 )}
                             </CardContent>
 
-                            <CardActions>
+                            <CardActions sx={{ mt: 'auto' }}>
                                 {slot.canEdit && (
                                     <>
                                         <Button
@@ -333,7 +349,7 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                                             startIcon={<UploadIcon />}
                                             onClick={() => handleUploadClick(slot.slotNumber)}
                                         >
-                                            {slot.status === ' Custom' ? 'Update' : 'Upload'}
+                                            {slot.status === 'Custom' ? 'Update' : 'Upload'}
                                         </Button>
                                         {slot.status === 'Custom' && (
                                             <Button
@@ -353,7 +369,6 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                     </Grid>
                 ))}
             </Grid>
-
             <UploadSlotDialog
                 open={uploadDialogOpen}
                 slotNumber={selectedSlot}

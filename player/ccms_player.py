@@ -60,7 +60,10 @@ class Config:
     LOGS_DIR = BASE_DIR / "logs"
     IMPRESSION_DB_PATH = BASE_DIR / "impressions.db"  # SQLite for offline queue
     
-    SYNC_INTERVAL_MINUTES = 10
+    SYNC_INTERVAL_MINUTES = 1  # Reduced to 1 minute for testing (change back to 10 for production)
+    SYNC_INTERVAL_FAST = 60      # 1 minute (when user viewing Live Activity)
+    SYNC_INTERVAL_NORMAL = 600   # 10 minutes (default background sync)
+    current_sync_interval = SYNC_INTERVAL_NORMAL  # Start with normal mode
     HEARTBEAT_INTERVAL_SECONDS = 30
     PLAYER_VERSION = "1.1.0"  # Version bump for new features
     LOG_RETENTION_DAYS = 7  # Default: keep logs for 7 days
@@ -648,6 +651,11 @@ class CCMSPlayer:
                     return False
             else:
                 logger.error(f"Sync HTTP error: {response.status_code}")
+                try:
+                    error_detail = response.json()
+                    logger.error(f"Sync error details: {error_detail}")
+                except:
+                    logger.error(f"Sync error response: {response.text[:500] if response.text else 'No response body'}")
                 return False
                 
         except Exception as e:
@@ -771,7 +779,10 @@ class CCMSPlayer:
             
             # Listen for slot status changes (real-time frontend sync)
             self.signalr_connection.on("SlotStatusChanged", self._on_slot_status_changed)
-            logger.info("Registered event handlers: PlaylistUpdated, SlotStatusChanged")
+            
+            # Listen for sync mode changes (fast/normal)
+            self.signalr_connection.on("SetSyncMode", self._on_set_sync_mode)
+            logger.info("Registered event handlers: PlaylistUpdated, SlotStatusChanged, SetSyncMode")
             
             # Start connection
             self.signalr_connection.start()
@@ -781,6 +792,21 @@ class CCMSPlayer:
             logger.error(f"Failed to connect to SignalR: {e}")
             self.signalr_connected = False
     
+    def _on_set_sync_mode(self, data):
+        """Handle sync mode change from dashboard (fast/normal)"""
+        try:
+            mode = data[0] if isinstance(data, list) else data
+            if mode == 'fast':
+                Config.current_sync_interval = Config.SYNC_INTERVAL_FAST
+                logger.info("⚡ Switched to FAST sync mode (1 min) - user viewing dashboard")
+                # Trigger immediate sync when switching to fast mode
+                self.sync_daily_data()
+            else:
+                Config.current_sync_interval = Config.SYNC_INTERVAL_NORMAL
+                logger.info("🐢 Switched to NORMAL sync mode (10 min)")
+        except Exception as e:
+            logger.error(f"Failed to handle SetSyncMode event: {e}")
+    
     def _on_slot_status_changed(self, data):
         """Called when slot status changes - can trigger playlist refresh"""
         try:
@@ -788,10 +814,6 @@ class CCMSPlayer:
             # This event is primarily for frontend, but player can use it to detect changes
         except Exception as e:
             logger.error(f"Failed to handle SlotStatusChanged event: {e}")
-            
-        except Exception as e:
-            logger.error(f"Failed to connect to SignalR: {e}")
-            self.signalr_connected = False
     
     def _on_signalr_open(self):
         """Called when SignalR connection opens"""
@@ -844,14 +866,42 @@ class CCMSPlayer:
     def _on_playlist_updated(self, data):
         """Called when owner uploads/deletes content - refresh playlist"""
         try:
+            import os
             logger.info(f"📡 PlaylistUpdated event received: {data}")
             
             # SignalR passes data as arguments list, get first arg which is the event data object
             event_data = data[0] if isinstance(data, list) else data
             action = event_data.get('action', 'Unknown')
-            slot_number = event_data.get('slotNumber', '?')
+            slot_number = event_data.get('slotNumber', 0)
             
             logger.info(f"🔄 Refreshing playlist due to {action} on slot {slot_number}")
+            
+            # Clear cached video for this slot to force re-download
+            cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
+            
+            # Clear default slot video (since slot is now different content type)
+            default_cache = os.path.join(cache_dir, f"default_slot_{slot_number}.mp4")
+            if os.path.exists(default_cache):
+                try:
+                    os.remove(default_cache)
+                    logger.info(f"🗑️  Cleared cached default video for slot {slot_number}")
+                except Exception as e:
+                    logger.warning(f"Failed to clear cache: {e}")
+            
+            # If content was removed, find old playlist item for this slot and clear its cache too
+            if action == 'ContentRemoved':
+                for item in self.playlist:
+                    if item.get('slotNumber') == slot_number:
+                        content_id = item.get('creativeId') or item.get('ownerContentId')
+                        if content_id:
+                            content_cache = os.path.join(cache_dir, f"{content_id}.mp4")
+                            if os.path.exists(content_cache):
+                                try:
+                                    os.remove(content_cache)
+                                    logger.info(f"🗑️  Cleared cached content {content_id[:8]}... for slot {slot_number}")
+                                except Exception as e:
+                                    logger.warning(f"Failed to clear content cache: {e}")
+                        break
             
             # Fetch fresh playlist from server
             self._refresh_playlist()
@@ -1161,12 +1211,6 @@ class CCMSPlayer:
             slot_number = item.get('slotNumber', 0)
             self.current_playing_slot_number = slot_number
             
-            # Check if reload is pending and we're at start of new frame (slot 1)
-            if self.reload_pending_since_slot is not None and slot_number == 1:
-                logger.info("✅ Frame complete - reloading playlist now")
-                self.playlist_needs_reload = True
-                self.reload_pending_since_slot = None
-            
             # Emit SignalR event for real-time frontend updates
             self.emit_ad_started(item)
         except Exception as e:
@@ -1181,6 +1225,16 @@ class CCMSPlayer:
             
             # Record impression for 10-minute sync
             self.record_impression(item)
+            
+            # Check if reload is pending and we just finished the LAST slot
+            slot_number = item.get('slotNumber', 0)
+            if self.reload_pending_since_slot is not None:
+                # slots_per_frame is the total number of slots (e.g., 6)
+                # Reload after the last slot in the frame completes
+                if slot_number == self.slots_per_frame:
+                    logger.info(f"✅ Frame complete (slot {slot_number}/{self.slots_per_frame}) - reloading playlist now")
+                    self.playlist_needs_reload = True
+                    self.reload_pending_since_slot = None
         except Exception as e:
             logger.error(f"Error handling video ended: {e}")
     
@@ -1201,12 +1255,14 @@ class CCMSPlayer:
             owner_content_id = item.get('ownerContentId')
             
             # Use ImpressionStore - the single source of truth
+            from datetime import datetime, timezone
             success, impression_id, is_new = self.impression_store.record_impression(
+                slot_number=slot_number,
+                played_at=datetime.now(timezone.utc),  # Timezone-aware UTC timestamp
                 booking_id=item.get('bookingId'),
                 campaign_id=item.get('campaignId'),
                 creative_id=item.get('creativeId'),
-                owner_content_id=owner_content_id,
-                slot_number=slot_number
+                owner_content_id=owner_content_id
             )
             
             if success:
