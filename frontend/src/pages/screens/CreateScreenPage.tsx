@@ -9,17 +9,26 @@ import {
     Box,
     MenuItem,
     Alert,
+    InputAdornment,
+    IconButton,
+    Tooltip,
+    CircularProgress,
 } from '@mui/material';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import { useRevenueCalculation } from '../../hooks/useRevenueCalculation';
 import TimezoneSelector, { getBrowserTimezone } from '../../components/common/TimezoneSelector';
+import { generateScreenTags } from '../../services/screenTagsService';
 
 export default function CreateScreenPage() {
     const navigate = useNavigate();
+    const { enqueueSnackbar } = useSnackbar();
+    const [gettingLocation, setGettingLocation] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -95,10 +104,60 @@ export default function CreateScreenPage() {
             });
             return response.data;
         },
-        onSuccess: () => {
+        onSuccess: async (response) => {
+            // Auto-generate tags if latitude/longitude provided
+            const screenId = response.data?.id;
+            if (screenId && formData.latitude && formData.longitude) {
+                try {
+                    enqueueSnackbar('Screen created! Generating tags based on location...', { variant: 'info' });
+                    const tagResult = await generateScreenTags(screenId, false);
+                    enqueueSnackbar(`Generated ${tagResult.tagsGenerated} tags for your screen!`, { variant: 'success' });
+                } catch (error) {
+                    console.error('Failed to generate tags:', error);
+                    enqueueSnackbar('Screen created but tag generation failed. You can generate tags manually later.', { variant: 'warning' });
+                }
+            }
             navigate('/screens');
         },
     });
+
+    // Get current location using browser geolocation
+    const handleGetCurrentLocation = () => {
+        if (!navigator.geolocation) {
+            enqueueSnackbar('Geolocation is not supported by your browser', { variant: 'error' });
+            return;
+        }
+        
+        setGettingLocation(true);
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                setFormData({
+                    ...formData,
+                    latitude: position.coords.latitude.toFixed(6),
+                    longitude: position.coords.longitude.toFixed(6),
+                });
+                setGettingLocation(false);
+                enqueueSnackbar('Location detected successfully!', { variant: 'success' });
+            },
+            (error) => {
+                setGettingLocation(false);
+                let message = 'Failed to get location';
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        message = 'Location permission denied. Please enable location access.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        message = 'Location information unavailable.';
+                        break;
+                    case error.TIMEOUT:
+                        message = 'Location request timed out.';
+                        break;
+                }
+                enqueueSnackbar(message, { variant: 'error' });
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -315,6 +374,76 @@ export default function CreateScreenPage() {
                                 value={formData.postalCode}
                                 onChange={handleChange}
                             />
+                        </Grid>
+
+                        {/* GPS Coordinates */}
+                        <Grid size={12}>
+                            <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+                                GPS Coordinates
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    (Required for auto-tagging)
+                                </Typography>
+                            </Typography>
+                            <Alert severity="info" sx={{ mb: 2 }}>
+                                Accurate GPS coordinates help us identify nearby points of interest and automatically tag your screen for better advertiser discovery.
+                            </Alert>
+                        </Grid>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 5
+                            }}>
+                            <TextField
+                                required
+                                fullWidth
+                                type="number"
+                                name="latitude"
+                                label="Latitude"
+                                value={formData.latitude}
+                                onChange={handleChange}
+                                placeholder="e.g., 12.9716"
+                                helperText="Range: -90 to 90"
+                                inputProps={{ step: 'any', min: -90, max: 90 }}
+                            />
+                        </Grid>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 5
+                            }}>
+                            <TextField
+                                required
+                                fullWidth
+                                type="number"
+                                name="longitude"
+                                label="Longitude"
+                                value={formData.longitude}
+                                onChange={handleChange}
+                                placeholder="e.g., 77.5946"
+                                helperText="Range: -180 to 180"
+                                inputProps={{ step: 'any', min: -180, max: 180 }}
+                            />
+                        </Grid>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 2
+                            }}
+                            sx={{ display: 'flex', alignItems: 'center' }}>
+                            <Tooltip title="Use my current location">
+                                <span>
+                                    <Button
+                                        variant="outlined"
+                                        fullWidth
+                                        onClick={handleGetCurrentLocation}
+                                        disabled={gettingLocation}
+                                        startIcon={gettingLocation ? <CircularProgress size={20} /> : <MyLocationIcon />}
+                                        sx={{ height: 56 }}
+                                    >
+                                        {gettingLocation ? 'Getting...' : 'Detect'}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         </Grid>
 
                         {/* Slot Configuration & Pricing */}

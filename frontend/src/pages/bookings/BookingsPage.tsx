@@ -151,8 +151,9 @@ export default function BookingsPage() {
             websocketService.off('BookingApproved', handleBookingApproved);
             websocketService.off('BookingRejected', handleBookingRejected);
             websocketService.off('BookingUpdated', handleBookingUpdated);
+            // Use invokeIfConnected for cleanup to avoid errors when connection failed
             if (user?.id) {
-                websocketService.invoke('UnsubscribeFromBookings', user.id).catch(() => { });
+                websocketService.invokeIfConnected('UnsubscribeFromBookings', user.id);
             }
         };
     }, [user?.id, queryClient, enqueueSnackbar]);

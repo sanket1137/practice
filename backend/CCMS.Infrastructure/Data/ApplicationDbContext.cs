@@ -28,6 +28,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<OwnerContent> OwnerContents => Set<OwnerContent>();
     public DbSet<ImpressionDailySummary> ImpressionDailySummaries => Set<ImpressionDailySummary>();
+    public DbSet<ScreenTag> ScreenTags => Set<ScreenTag>();
+    public DbSet<ScreenTagAssignment> ScreenTagAssignments => Set<ScreenTagAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +108,31 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.DeviceId).HasMaxLength(100);
             
+            // Index for owner queries
+            entity.HasIndex(e => e.OwnerId)
+                .HasDatabaseName("IX_Screens_Owner");
+            
+            // Index for location-based search
+            entity.HasIndex(e => new { e.Latitude, e.Longitude })
+                .HasDatabaseName("IX_Screens_Location");
+            
+            // Index for status filtering
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_Screens_Status");
+            
+            // Index for price range filtering
+            entity.HasIndex(e => e.PricePerSlot)
+                .HasDatabaseName("IX_Screens_Price");
+            
+            // Tagging fields
+            entity.Property(e => e.LastTaggedLatitude)
+                .HasColumnType("decimal(9,6)")
+                .HasPrecision(9, 6);
+                
+            entity.Property(e => e.LastTaggedLongitude)
+                .HasColumnType("decimal(9,6)")
+                .HasPrecision(9, 6);
+            
             // Fix decimal precision warnings
             entity.Property(e => e.PricePerSlot)
                 .HasColumnType("decimal(18,2)")
@@ -155,6 +182,72 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
                 
             entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ScreenTag configuration (master tags)
+        modelBuilder.Entity<ScreenTag>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Unique slug for tag identification
+            entity.HasIndex(e => e.Slug)
+                .IsUnique()
+                .HasDatabaseName("IX_ScreenTags_Slug");
+            
+            // Index for category filtering
+            entity.HasIndex(e => e.Category)
+                .HasDatabaseName("IX_ScreenTags_Category");
+            
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.GooglePlaceTypes).HasColumnType("text"); // JSON array
+            entity.Property(e => e.IconName).HasMaxLength(50);
+            entity.Property(e => e.ColorCode).HasMaxLength(7); // #RRGGBB
+            
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ScreenTagAssignment configuration (junction table)
+        modelBuilder.Entity<ScreenTagAssignment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Unique constraint: one tag assignment per screen-tag combination
+            entity.HasIndex(e => new { e.ScreenId, e.TagId })
+                .IsUnique()
+                .HasDatabaseName("IX_ScreenTagAssignments_Screen_Tag");
+            
+            // Index for getting all tags for a screen
+            entity.HasIndex(e => e.ScreenId)
+                .HasDatabaseName("IX_ScreenTagAssignments_Screen");
+            
+            // Index for finding screens by tag
+            entity.HasIndex(e => e.TagId)
+                .HasDatabaseName("IX_ScreenTagAssignments_Tag");
+            
+            // Index for filtering by source (Auto vs Manual)
+            entity.HasIndex(e => new { e.ScreenId, e.Source })
+                .HasDatabaseName("IX_ScreenTagAssignments_Screen_Source");
+            
+            // Index for finding primary tags
+            entity.HasIndex(e => new { e.ScreenId, e.IsPrimary })
+                .HasDatabaseName("IX_ScreenTagAssignments_Screen_Primary");
+            
+            entity.HasOne(e => e.Screen)
+                .WithMany(s => s.TagAssignments)
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(e => e.Tag)
+                .WithMany(t => t.ScreenAssignments)
+                .HasForeignKey(e => e.TagId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            entity.HasOne(e => e.AssignedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.AssignedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // Campaign configuration

@@ -246,6 +246,16 @@ builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
 // Report export service
 builder.Services.AddScoped<ReportExportService>();
 
+// Memory cache for caching (used by Google Places Service)
+builder.Services.AddMemoryCache();
+
+// Google Places Service for screen tagging
+builder.Services.AddHttpClient("GooglePlaces");
+builder.Services.AddScoped<IGooglePlacesService, GooglePlacesService>();
+
+// Screen Tagging Service
+builder.Services.AddScoped<ScreenTaggingService>();
+
 // Security services for access control
 builder.Services.AddScoped<AdvertiserScreenAccessService>();
 builder.Services.AddSingleton<ScreenViewerManager>();
@@ -372,6 +382,10 @@ using (var scope = app.Services.CreateScope())
             await DataSeeder.SeedAsync(context);
             Console.WriteLine("Seed data applied successfully.");
         }
+        
+        // Always seed screen tags (master data)
+        await ScreenTagSeeder.SeedTagsAsync(context);
+        Console.WriteLine("Screen tags seeded successfully.");
     }
     catch (Exception ex)
     {

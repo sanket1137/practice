@@ -9,11 +9,19 @@ class WebSocketService {
     private connection: signalR.HubConnection | null = null;
     private connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
     private listeners: Map<string, Set<Function>> = new Map();
+    private connectionPromise: Promise<void> | null = null;
 
-    async connect() {
-        if (this.connection) {
-            console.log('[WebSocket] Already connected or connecting, state:', this.connectionState);
+    async connect(): Promise<void> {
+        // If already connected, return immediately
+        if (this.connectionState === 'connected' && this.connection?.state === signalR.HubConnectionState.Connected) {
+            console.log('[WebSocket] Already connected');
             return;
+        }
+
+        // If connection is in progress, wait for it
+        if (this.connectionPromise) {
+            console.log('[WebSocket] Connection already in progress, waiting...');
+            return this.connectionPromise;
         }
 
         console.log('[WebSocket] Starting WebSocket connection...');
@@ -37,7 +45,7 @@ class WebSocketService {
                     return null; // Stop reconnecting after 1 minute
                 }
             })
-            .configureLogging(signalR.LogLevel.Debug)
+            .configureLogging(signalR.LogLevel.Warning)
             .build();
 
         // Setup connection event handlers
@@ -53,22 +61,30 @@ class WebSocketService {
 
         this.connection.onclose((error) => {
             this.connectionState = 'disconnected';
+            this.connectionPromise = null;
             console.log('[WebSocket] Connection closed');
             if (error) {
                 console.error('[WebSocket] Close error:', error);
             }
         });
 
-        try {
-            console.log('[WebSocket] Attempting to start connection...');
-            await this.connection.start();
-            this.connectionState = 'connected';
-            console.log('✓ [WebSocket] Connected successfully to PlaybackHub');
-        } catch (error) {
-            this.connectionState = 'disconnected';
-            console.error('✗ [WebSocket] Connection failed:', error);
-            throw error;
-        }
+        // Create connection promise
+        this.connectionPromise = (async () => {
+            try {
+                console.log('[WebSocket] Attempting to start connection...');
+                await this.connection!.start();
+                this.connectionState = 'connected';
+                console.log('✓ [WebSocket] Connected successfully to PlaybackHub');
+            } catch (error) {
+                this.connectionState = 'disconnected';
+                this.connectionPromise = null;
+                this.connection = null;
+                console.error('✗ [WebSocket] Connection failed:', error);
+                throw error;
+            }
+        })();
+
+        return this.connectionPromise;
     }
 
     async disconnect() {
@@ -200,15 +216,41 @@ class WebSocketService {
 
     // Generic invoke method for signaling calls
     async invoke(methodName: string, ...args: any[]): Promise<any> {
+        // If not connected, try to connect first
         if (!this.isConnected()) {
-            await this.connect();
+            try {
+                await this.connect();
+            } catch (error) {
+                console.warn(`[WebSocket] Failed to connect before invoking ${methodName}:`, error);
+                throw new Error(`Cannot invoke ${methodName}: WebSocket connection failed`);
+            }
+        }
+
+        // Double check we're connected after await
+        if (!this.isConnected()) {
+            throw new Error(`Cannot invoke ${methodName}: WebSocket not connected`);
         }
 
         try {
             return await this.connection!.invoke(methodName, ...args);
         } catch (error) {
-            console.error(`Error invoking ${methodName}:`, error);
+            console.error(`[WebSocket] Error invoking ${methodName}:`, error);
             throw error;
+        }
+    }
+
+    // Safe invoke that doesn't throw if not connected - useful for cleanup
+    async invokeIfConnected(methodName: string, ...args: any[]): Promise<any> {
+        if (!this.isConnected()) {
+            console.log(`[WebSocket] Skipping ${methodName} - not connected`);
+            return;
+        }
+
+        try {
+            return await this.connection!.invoke(methodName, ...args);
+        } catch (error) {
+            console.warn(`[WebSocket] Error invoking ${methodName}:`, error);
+            // Don't throw - this is a "best effort" call
         }
     }
 }

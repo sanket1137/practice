@@ -21,6 +21,7 @@ import {
     IconButton,
     Tabs,
     Tab,
+    Alert,
 } from '@mui/material';
 import {
     LocationOn as LocationIcon,
@@ -30,6 +31,9 @@ import {
     BookOnline as BookIcon,
     Edit as EditIcon,
     Delete as DeleteIcon,
+    LocalOffer as TagIcon,
+    CalendarMonth as CalendarIcon,
+    Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -43,7 +47,11 @@ import LivePreviewWidget from '../../components/common/LivePreviewWidget';
 import { WebRTCPlayer } from '../../components/streaming/WebRTCPlayer';
 import DefaultVideoSettings from '../../components/screens/DefaultVideoSettings';
 import LiveActivityTab from '../../components/screens/LiveActivityTab';
-import { useState } from 'react';
+import ScreenTagsTab from '../../components/screens/ScreenTagsTab';
+import ScreenTagChip from '../../components/screens/ScreenTagChip';
+import { useState, useMemo } from 'react';
+import { getScreenTags } from '../../services/screenTagsService';
+import type { ScreenTagDetail } from '../../types/screen';
 
 interface Screen {
     id: string;
@@ -98,6 +106,13 @@ export default function ScreenDetailPage() {
         enabled: !!id && !!user, // Temporarily check for all users
     });
 
+    // Fetch screen tags for advertisers overview
+    const { data: screenTags = [] } = useQuery<ScreenTagDetail[]>({
+        queryKey: ['screen-tags', id],
+        queryFn: () => getScreenTags(id!),
+        enabled: !!id && user?.role === 'Advertiser',
+    });
+
     // Delete mutation
     const deleteMutation = useMutation({
         mutationFn: async () => {
@@ -112,6 +127,38 @@ export default function ScreenDetailPage() {
             enqueueSnackbar(error.response?.data?.message || 'Failed to delete screen', { variant: 'error' });
         },
     });
+
+    // Determine if user is the screen owner
+    const isOwner = useMemo(() => {
+        if (!user) return false;
+        return user.role === 'ScreenOwner' || user.role === 'Admin';
+    }, [user]);
+
+    // Define tabs based on user role
+    const tabs = useMemo(() => {
+        if (isOwner) {
+            // Screen Owner / Admin tabs
+            return [
+                { id: 'overview', label: 'Overview', icon: <VisibilityIcon /> },
+                { id: 'bookings', label: 'Bookings', icon: <CalendarIcon /> },
+                { id: 'live-activity', label: 'Live Activity' },
+                { id: 'default-video', label: 'Default Video' },
+                { id: 'live-stream', label: 'Live Stream' },
+            ];
+        } else {
+            // Advertiser tabs - focused on booking decision
+            return [
+                { id: 'overview', label: 'Overview', icon: <VisibilityIcon /> },
+                { id: 'tags-audience', label: 'Tags & Audience', icon: <TagIcon /> },
+                { id: 'bookings', label: 'Availability', icon: <CalendarIcon /> },
+            ];
+        }
+    }, [isOwner]);
+
+    // Get primary tags for advertiser overview
+    const primaryTags = useMemo(() => {
+        return screenTags.filter(t => t.isPrimary).slice(0, 5);
+    }, [screenTags]);
 
     const handleDelete = () => {
         deleteMutation.mutate();
@@ -130,6 +177,9 @@ export default function ScreenDetailPage() {
                 return 'default';
         }
     };
+
+    // Get current tab id
+    const currentTabId = tabs[activeTab]?.id || 'overview';
 
     if (isLoading) {
         return (
@@ -202,16 +252,14 @@ export default function ScreenDetailPage() {
             {/* Tabs */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
                 <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)}>
-                    <Tab label="Overview" />
-                    <Tab label="Bookings" />
-                    <Tab label="Live Activity" />
-                    <Tab label="Default Video" />
-                    <Tab label="Live Stream" />
+                    {tabs.map((tab) => (
+                        <Tab key={tab.id} label={tab.label} />
+                    ))}
                 </Tabs>
             </Box>
-            {/* Details Tab */}
-            {
-                activeTab === 0 && (
+
+            {/* Overview Tab */}
+            {currentTabId === 'overview' && (
                     <Grid container spacing={3}>
                         {/* Main Content */}
                         <Grid
@@ -317,7 +365,7 @@ export default function ScreenDetailPage() {
                             </Card>
 
                             {/* Location */}
-                            <Card>
+                            <Card sx={{ mb: 3 }}>
                                 <CardContent>
                                     <Box display="flex" alignItems="center" gap={1} mb={2}>
                                         <LocationIcon color="primary" />
@@ -367,35 +415,67 @@ export default function ScreenDetailPage() {
                                     </List>
                                 </CardContent>
                             </Card>
+
+                            {/* Tags Preview for Advertisers */}
+                            {!isOwner && primaryTags.length > 0 && (
+                                <Card>
+                                    <CardContent>
+                                        <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                            <TagIcon color="primary" />
+                                            <Typography variant="h6">Audience Tags</Typography>
+                                        </Box>
+                                        <Box display="flex" flexWrap="wrap" gap={1} mb={2}>
+                                            {primaryTags.map((tag) => (
+                                                <ScreenTagChip key={tag.tagId} tag={tag} size="small" />
+                                            ))}
+                                        </Box>
+                                        {screenTags.length > 5 && (
+                                            <Button
+                                                size="small"
+                                                onClick={() => setActiveTab(tabs.findIndex(t => t.id === 'tags-audience'))}
+                                            >
+                                                View all {screenTags.length} tags →
+                                            </Button>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
                         </Grid>
                     </Grid>
                 )
             }
-            {/* Calendar Tab */}
-            {/* Bookings Tab */}
-            {
-                activeTab === 1 && (
+
+            {/* Tags & Audience Tab (Advertiser only) */}
+            {currentTabId === 'tags-audience' && (
+                <ScreenTagsTab screenId={id!} />
+            )}
+
+            {/* Bookings/Availability Tab */}
+            {currentTabId === 'bookings' && (
+                <Box>
+                    {!isOwner && (
+                        <Alert severity="info" sx={{ mb: 3 }}>
+                            <Typography variant="body2">
+                                Select available time slots below to book this screen. Green slots indicate availability.
+                            </Typography>
+                        </Alert>
+                    )}
                     <SlotCalendarView screenId={id!} />
-                )
-            }
-            {/* Live Activity Tab */}
-            {
-                activeTab === 2 && (
-                    <LiveActivityTab screenId={id as string} />
-                )
-            }
-            {/* Default Video Tab */}
-            {
-                activeTab === 3 && (user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
-                    <DefaultVideoSettings screenId={id!} />
-                )
-            }
-            {/* Live Stream Tab */}
-            {
-                (
-                    (activeTab === 4 && (user?.role === 'ScreenOwner' || user?.role === 'Admin')) ||
-                    (activeTab === 4 && user?.role === 'Advertiser' && streamAccess?.hasAccess)
-                ) && (
+                </Box>
+            )}
+
+            {/* Live Activity Tab (Owner only) */}
+            {currentTabId === 'live-activity' && isOwner && (
+                <LiveActivityTab screenId={id as string} />
+            )}
+
+            {/* Default Video Tab (Owner only) */}
+            {currentTabId === 'default-video' && isOwner && (
+                <DefaultVideoSettings screenId={id!} />
+            )}
+
+            {/* Live Stream Tab (Owner or Advertiser with access) */}
+            {currentTabId === 'live-stream' && (isOwner || streamAccess?.hasAccess) && (
                     <Box>
                         <Typography variant="h6" gutterBottom>
                             Real-Time Screen Activity

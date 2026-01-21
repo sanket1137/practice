@@ -38,6 +38,7 @@ import {
     Logout as LogoutIcon,
     ChevronLeft as ChevronLeftIcon,
     Search as SearchIcon,
+    Explore as ExploreIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -90,7 +91,7 @@ const MainLayout = () => {
             return [
                 { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
                 { text: 'Campaigns', icon: <CampaignIcon />, path: '/campaigns' },
-                { text: 'Screen Marketplace', icon: <ScreenIcon />, path: '/screens' },
+                { text: 'Discover Screens', icon: <ExploreIcon />, path: '/screens/discover' },
                 { text: 'My Bookings', icon: <BookingIcon />, path: '/bookings' },
                 { text: 'Campaign Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
             ];

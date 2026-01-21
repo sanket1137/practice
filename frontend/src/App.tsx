@@ -19,6 +19,7 @@ import ScreensPage from './pages/screens/ScreensPage';
 import CreateScreenPage from './pages/screens/CreateScreenPage';
 import UpdateScreenPage from './pages/screens/UpdateScreenPage';
 import ScreenDetailPage from './pages/screens/ScreenDetailPage';
+import DiscoverScreensPage from './pages/screens/DiscoverScreensPage';
 import BookingsPage from './pages/bookings/BookingsPage';
 import CreateBookingPage from './pages/bookings/CreateBookingPage';
 import BookingDetailPage from './pages/bookings/BookingDetailPage';
@@ -68,6 +69,7 @@ function App() {
                 <Route path="campaigns/:id/creatives/new" element={<UploadCreativePage />} />
                 <Route path="screens" element={<ScreensPage />} />
                 <Route path="screens/new" element={<CreateScreenPage />} />
+                <Route path="screens/discover" element={<DiscoverScreensPage />} />
                 <Route path="screens/:id/edit" element={<UpdateScreenPage />} />
                 <Route path="screens/:id" element={<ScreenDetailPage />} />
                 <Route path="bookings" element={<BookingsPage />} />

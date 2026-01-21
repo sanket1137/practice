@@ -3,11 +3,15 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using CCMS.Api.Extensions;
 using CCMS.Application.Features.Screens.Commands;
 using CCMS.Application.Features.Screens.Queries;
 using CCMS.Application.Features.OwnerContent.Commands;
 using CCMS.Application.Features.OwnerContent.Queries;
+using CCMS.Infrastructure.Services;
+using CCMS.Domain.Enums;
+using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Screens;
 using CCMS.Shared.DTOs.OwnerContent;
@@ -21,10 +25,17 @@ namespace CCMS.Api.Controllers;
 public class ScreensController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ScreenTaggingService _taggingService;
+    private readonly ApplicationDbContext _context;
 
-    public ScreensController(IMediator mediator)
+    public ScreensController(
+        IMediator mediator,
+        ScreenTaggingService taggingService,
+        ApplicationDbContext context)
     {
         _mediator = mediator;
+        _taggingService = taggingService;
+        _context = context;
     }
 
     [HttpGet]
@@ -436,6 +447,460 @@ public class ScreensController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, ApiResponse<DeviceBindingStatusResponse>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    // ==========================================
+    // TAG MANAGEMENT ENDPOINTS
+    // ==========================================
+    
+    /// <summary>
+    /// Get all available tags (master tag list)
+    /// </summary>
+    [HttpGet("tags")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<MasterTagDto>>>> GetAllTags(
+        [FromQuery] string? category = null)
+    {
+        try
+        {
+            var query = _context.ScreenTags.Where(t => !t.IsDeleted);
+            
+            if (!string.IsNullOrEmpty(category) && 
+                Enum.TryParse<TagCategory>(category, true, out var tagCategory))
+            {
+                query = query.Where(t => t.Category == tagCategory);
+            }
+            
+            var tags = await query
+                .OrderBy(t => t.Category)
+                .ThenBy(t => t.Priority)
+                .Select(t => new MasterTagDto
+                {
+                    Id = t.Id,
+                    Slug = t.Slug,
+                    DisplayName = t.DisplayName,
+                    Category = t.Category.ToString(),
+                    Description = t.Description,
+                    IconName = t.IconName,
+                    ColorCode = t.ColorCode,
+                    Priority = t.Priority
+                })
+                .ToListAsync();
+            
+            return Ok(ApiResponse<IEnumerable<MasterTagDto>>.SuccessResponse(tags));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<IEnumerable<MasterTagDto>>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Get tags for a specific screen
+    /// </summary>
+    [HttpGet("{id}/tags")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ScreenTagDetailDto>>>> GetScreenTags(Guid id)
+    {
+        try
+        {
+            var screenExists = await _context.Screens.AnyAsync(s => s.Id == id && !s.IsDeleted);
+            if (!screenExists)
+            {
+                return NotFound(ApiResponse<IEnumerable<ScreenTagDetailDto>>.ErrorResponse("Screen not found"));
+            }
+            
+            var tags = await _taggingService.GetScreenTagsAsync(id);
+            
+            var result = tags.Select(t => new ScreenTagDetailDto
+            {
+                TagId = t.TagId,
+                Slug = t.Slug,
+                DisplayName = t.DisplayName,
+                Category = t.Category,
+                Description = t.Description,
+                IconName = t.IconName,
+                ColorCode = t.ColorCode,
+                IsPrimary = t.IsPrimary,
+                Score = t.Score,
+                Source = t.Source,
+                DistanceMeters = t.DistanceMeters,
+                PoiCount = t.PoiCount,
+                AssignedAt = t.AssignedAt
+            });
+            
+            return Ok(ApiResponse<IEnumerable<ScreenTagDetailDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<IEnumerable<ScreenTagDetailDto>>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Generate/regenerate tags for a screen based on location
+    /// </summary>
+    [HttpPost("{id}/generate-tags")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<GenerateTagsResult>>> GenerateTags(
+        Guid id, 
+        [FromQuery] bool forceRefresh = false)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<GenerateTagsResult>.ErrorResponse("Screen not found"));
+            }
+            
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<GenerateTagsResult>.ErrorResponse(
+                    "Only the screen owner can generate tags"));
+            }
+            
+            var result = await _taggingService.GenerateTagsAsync(id, forceRefresh);
+            
+            if (!result.Success)
+            {
+                return BadRequest(ApiResponse<GenerateTagsResult>.ErrorResponse(result.Error ?? "Tag generation failed"));
+            }
+            
+            return Ok(ApiResponse<GenerateTagsResult>.SuccessResponse(new GenerateTagsResult
+            {
+                Success = result.Success,
+                Message = result.Message,
+                TagsGenerated = result.TagsGenerated,
+                PrimaryTags = result.PrimaryTags,
+                FromCache = result.FromCache,
+                TotalPoisFound = result.TotalPoisFound
+            }, "Tags generated successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<GenerateTagsResult>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Add a manual tag to a screen
+    /// </summary>
+    [HttpPost("{id}/tags")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<bool>>> AddTag(Guid id, [FromBody] AddTagRequest request)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<bool>.ErrorResponse("Screen not found"));
+            }
+            
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<bool>.ErrorResponse(
+                    "Only the screen owner can add tags"));
+            }
+            
+            var success = await _taggingService.AddManualTagAsync(id, request.TagId, userId);
+            
+            if (!success)
+            {
+                return BadRequest(ApiResponse<bool>.ErrorResponse("Tag already exists or tag not found"));
+            }
+            
+            return Ok(ApiResponse<bool>.SuccessResponse(true, "Tag added successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Remove a tag from a screen
+    /// </summary>
+    [HttpDelete("{id}/tags/{tagId}")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<bool>>> RemoveTag(Guid id, Guid tagId)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<bool>.ErrorResponse("Screen not found"));
+            }
+            
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<bool>.ErrorResponse(
+                    "Only the screen owner can remove tags"));
+            }
+            
+            var success = await _taggingService.RemoveTagAsync(id, tagId, userId, isAdmin);
+            
+            if (!success)
+            {
+                return BadRequest(ApiResponse<bool>.ErrorResponse(
+                    isAdmin ? "Tag not found" : "Only manual tags can be removed. Use generate-tags to refresh auto tags."));
+            }
+            
+            return Ok(ApiResponse<bool>.SuccessResponse(true, "Tag removed successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    // ==========================================
+    // SCREEN SEARCH/DISCOVERY (For Advertisers)
+    // ==========================================
+    
+    /// <summary>
+    /// Search screens with filters (for advertisers)
+    /// </summary>
+    [HttpPost("search")]
+    public async Task<ActionResult<ApiResponse<SearchScreensResult>>> SearchScreens(
+        [FromBody] SearchScreensRequest request)
+    {
+        try
+        {
+            // Build base query WITHOUT Include - use projection instead for performance
+            var query = _context.Screens
+                .AsNoTracking()
+                .Where(s => !s.IsDeleted && s.Status == ScreenStatus.Active);
+            
+            // Text search - use EF.Functions.ILike for case-insensitive search on PostgreSQL
+            if (!string.IsNullOrEmpty(request.SearchText))
+            {
+                var searchPattern = $"%{request.SearchText}%";
+                query = query.Where(s => 
+                    EF.Functions.ILike(s.Name, searchPattern) ||
+                    EF.Functions.ILike(s.Description, searchPattern) ||
+                    EF.Functions.ILike(s.Location.City, searchPattern));
+            }
+            
+            // Location filters
+            if (!string.IsNullOrEmpty(request.City))
+            {
+                query = query.Where(s => EF.Functions.ILike(s.Location.City, request.City));
+            }
+            
+            if (!string.IsNullOrEmpty(request.State))
+            {
+                query = query.Where(s => EF.Functions.ILike(s.Location.State, request.State));
+            }
+            
+            if (!string.IsNullOrEmpty(request.Country))
+            {
+                query = query.Where(s => EF.Functions.ILike(s.Location.Country, request.Country));
+            }
+            
+            // Radius search (approximate using lat/lng box for performance)
+            if (request.Latitude.HasValue && request.Longitude.HasValue && request.RadiusKm.HasValue)
+            {
+                var radiusKm = request.RadiusKm.Value;
+                var latDelta = (decimal)(radiusKm / 111.0);
+                var lngDelta = (decimal)(radiusKm / (111.0 * Math.Cos((double)request.Latitude.Value * Math.PI / 180)));
+                
+                query = query.Where(s =>
+                    s.Latitude >= request.Latitude.Value - latDelta &&
+                    s.Latitude <= request.Latitude.Value + latDelta &&
+                    s.Longitude >= request.Longitude.Value - lngDelta &&
+                    s.Longitude <= request.Longitude.Value + lngDelta);
+            }
+            
+            // Tag filters - Required tags (AND logic)
+            if (request.RequiredTagIds?.Any() == true)
+            {
+                foreach (var tagId in request.RequiredTagIds)
+                {
+                    query = query.Where(s => s.TagAssignments.Any(ta => ta.TagId == tagId));
+                }
+            }
+            
+            // Tag filters - Any tags (OR logic)
+            if (request.AnyTagIds?.Any() == true)
+            {
+                query = query.Where(s => s.TagAssignments.Any(ta => request.AnyTagIds.Contains(ta.TagId)));
+            }
+            
+            // Tag category filter
+            if (!string.IsNullOrEmpty(request.TagCategory) &&
+                Enum.TryParse<TagCategory>(request.TagCategory, true, out var tagCategory))
+            {
+                query = query.Where(s => s.TagAssignments.Any(ta => ta.Tag.Category == tagCategory));
+            }
+            
+            // Price filters
+            if (request.MinPrice.HasValue)
+            {
+                query = query.Where(s => s.PricePerSlot >= request.MinPrice.Value);
+            }
+            
+            if (request.MaxPrice.HasValue)
+            {
+                query = query.Where(s => s.PricePerSlot <= request.MaxPrice.Value);
+            }
+            
+            // Status filter
+            if (!string.IsNullOrEmpty(request.Status) && 
+                Enum.TryParse<ScreenStatus>(request.Status, true, out var status))
+            {
+                query = query.Where(s => s.Status == status);
+            }
+            
+            // Sorting
+            query = request.SortBy?.ToLower() switch
+            {
+                "name" => request.SortDirection?.ToLower() == "desc" 
+                    ? query.OrderByDescending(s => s.Name) 
+                    : query.OrderBy(s => s.Name),
+                "price" => request.SortDirection?.ToLower() == "desc"
+                    ? query.OrderByDescending(s => s.PricePerSlot)
+                    : query.OrderBy(s => s.PricePerSlot),
+                "created" => request.SortDirection?.ToLower() == "desc"
+                    ? query.OrderByDescending(s => s.CreatedAt)
+                    : query.OrderBy(s => s.CreatedAt),
+                _ => query.OrderByDescending(s => s.CreatedAt)
+            };
+            
+            // Pagination
+            var pageSize = Math.Min(request.PageSize, 100);
+            var skip = (request.Page - 1) * pageSize;
+            
+            // Use split query to avoid Cartesian explosion with tags
+            // First get screen IDs and total count in a single efficient query
+            var screenIds = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .Select(s => s.Id)
+                .ToListAsync();
+            
+            var totalCount = await query.CountAsync();
+            
+            // If no screens, return empty result fast
+            if (!screenIds.Any())
+            {
+                return Ok(ApiResponse<SearchScreensResult>.SuccessResponse(new SearchScreensResult
+                {
+                    Screens = new List<ScreenDto>(),
+                    TotalCount = 0,
+                    Page = request.Page,
+                    PageSize = pageSize,
+                    TotalPages = 0
+                }));
+            }
+            
+            // Fetch screens with their data using projection (efficient single query)
+            var screens = await _context.Screens
+                .AsNoTracking()
+                .Where(s => screenIds.Contains(s.Id))
+                .Select(s => new ScreenDto
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    Description = s.Description,
+                    PhysicalWidth = s.PhysicalWidth,
+                    PhysicalHeight = s.PhysicalHeight,
+                    DimensionUnit = s.DimensionUnit,
+                    ResolutionWidth = s.ResolutionWidth,
+                    ResolutionHeight = s.ResolutionHeight,
+                    Location = new AddressDto
+                    {
+                        Street = s.Location.Street,
+                        City = s.Location.City,
+                        State = s.Location.State,
+                        Country = s.Location.Country,
+                        PostalCode = s.Location.PostalCode
+                    },
+                    Latitude = s.Latitude,
+                    Longitude = s.Longitude,
+                    Timezone = s.Timezone,
+                    TimeFrameMinutes = s.TimeFrameMinutes,
+                    SlotsPerFrame = s.SlotsPerFrame,
+                    DeviceId = s.DeviceId,
+                    Status = s.Status.ToString(),
+                    PricePerSlot = s.PricePerSlot,
+                    Currency = s.Currency,
+                    ImpressionsPerSlot = s.ImpressionsPerSlot,
+                    DailyTotalImpressions = s.DailyTotalImpressions,
+                    IsOnline = s.IsOnline,
+                    LastSeenAt = s.LastSeenAt,
+                    CreatedAt = s.CreatedAt,
+                    LastTaggedAt = s.LastTaggedAt,
+                    Tags = s.TagAssignments.Select(ta => new ScreenTagSummaryDto
+                    {
+                        TagId = ta.TagId,
+                        Slug = ta.Tag.Slug,
+                        DisplayName = ta.Tag.DisplayName,
+                        Category = ta.Tag.Category.ToString(),
+                        IconName = ta.Tag.IconName,
+                        ColorCode = ta.Tag.ColorCode,
+                        IsPrimary = ta.IsPrimary,
+                        Source = ta.Source.ToString()
+                    }).ToList(),
+                    PrimaryTags = s.TagAssignments
+                        .Where(ta => ta.IsPrimary)
+                        .Select(ta => new ScreenTagSummaryDto
+                        {
+                            TagId = ta.TagId,
+                            Slug = ta.Tag.Slug,
+                            DisplayName = ta.Tag.DisplayName,
+                            Category = ta.Tag.Category.ToString(),
+                            IconName = ta.Tag.IconName,
+                            ColorCode = ta.Tag.ColorCode,
+                            IsPrimary = true,
+                            Source = ta.Source.ToString()
+                        }).ToList()
+                })
+                .ToListAsync();
+            
+            // Maintain original sort order
+            var orderedScreens = screenIds
+                .Select(id => screens.FirstOrDefault(s => s.Id == id))
+                .Where(s => s != null)
+                .Cast<ScreenDto>()
+                .ToList();
+            
+            var result = new SearchScreensResult
+            {
+                Screens = orderedScreens,
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
+            
+            return Ok(ApiResponse<SearchScreensResult>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<SearchScreensResult>.ErrorResponse($"Error: {ex.Message}"));
         }
     }
 }

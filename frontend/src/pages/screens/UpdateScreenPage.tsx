@@ -17,6 +17,7 @@ import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
 import TimezoneSelector from '../../components/common/TimezoneSelector';
+import ScreenTagsManager from '../../components/screens/ScreenTagsManager';
 
 export default function UpdateScreenPage() {
     const { id } = useParams();
@@ -358,6 +359,17 @@ export default function UpdateScreenPage() {
                                 schedule={schedule}
                                 onChange={setSchedule}
                             />
+                        </Grid>
+
+                        {/* Screen Tags */}
+                        <Grid sx={{ mt: 2 }} size={12}>
+                            <Typography variant="h6" gutterBottom>
+                                Screen Tags
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Tags help advertisers find your screen. Auto-generated tags are based on nearby points of interest.
+                            </Typography>
+                            {id && <ScreenTagsManager screenId={id} />}
                         </Grid>
 
                         {/* Actions */}

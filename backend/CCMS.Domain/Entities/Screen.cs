@@ -74,10 +74,16 @@ public class Screen : BaseEntity
     public int ImpressionsPerSlot => CalculateImpressionsPerSlot();
     public int DailyTotalImpressions => ImpressionsPerSlot * SlotsPerFrame;
     
+    // Tagging system - Last auto-tag generation timestamp
+    public DateTime? LastTaggedAt { get; set; }
+    public decimal? LastTaggedLatitude { get; set; }
+    public decimal? LastTaggedLongitude { get; set; }
+    
     // Navigation properties
     public virtual User Owner { get; set; } = null!;
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public virtual ICollection<Impression> Impressions { get; set; } = new List<Impression>();
+    public virtual ICollection<ScreenTagAssignment> TagAssignments { get; set; } = new List<ScreenTagAssignment>();
     
     private int CalculateImpressionsPerSlot()
     {
