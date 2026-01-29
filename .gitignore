@@ -15,6 +15,12 @@ creds.local.md
 appsettings.*.local.json
 **/appsettings.*.local.json
 
+# Sensitive config files with credentials
+appsettings.Development.json
+appsettings.Production.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+
 # Utility scripts with credentials (use templates instead)
 *.csx
 TempDbFix/
