@@ -84,6 +84,7 @@ public class Screen : BaseEntity
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public virtual ICollection<Impression> Impressions { get; set; } = new List<Impression>();
     public virtual ICollection<ScreenTagAssignment> TagAssignments { get; set; } = new List<ScreenTagAssignment>();
+    public virtual ICollection<ScreenImage> Images { get; set; } = new List<ScreenImage>();
     
     private int CalculateImpressionsPerSlot()
     {

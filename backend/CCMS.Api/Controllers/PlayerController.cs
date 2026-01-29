@@ -20,15 +20,20 @@ public class PlayerController : ControllerBase
     private readonly IRepository<Screen> _screenRepository;
     private readonly PlaylistGeneratorService _playlistService;
     private readonly IRepository<Impression> _impressionRepository;
+    private readonly IRepository<OwnerContent> _ownerContentRepository;
     private readonly IHubContext<PlayerHub> _hubContext;
     private readonly ILogger<PlayerController> _logger;
     private readonly ITimeZoneService _timeZoneService;
     private readonly PlayerDeviceManager _deviceManager;
+    
+    // Cache valid owner content IDs to avoid repeated DB lookups
+    private HashSet<Guid>? _validOwnerContentIds;
 
     public PlayerController(
         IRepository<Screen> screenRepository,
         PlaylistGeneratorService playlistService,
         IRepository<Impression> impressionRepository,
+        IRepository<OwnerContent> ownerContentRepository,
         IHubContext<PlayerHub> hubContext,
         ILogger<PlayerController> logger,
         ITimeZoneService timeZoneService,
@@ -37,6 +42,7 @@ public class PlayerController : ControllerBase
         _screenRepository = screenRepository;
         _playlistService = playlistService;
         _impressionRepository = impressionRepository;
+        _ownerContentRepository = ownerContentRepository;
         _hubContext = hubContext;
         _logger = logger;
         _timeZoneService = timeZoneService;
@@ -251,6 +257,27 @@ public class PlayerController : ControllerBase
                         _logger.LogWarning($"Suspicious impression timestamp: {imp.PlayedAt} (diff: {timeDiff:F1}h)");
                     }
                     
+                    // Validate OwnerContentId exists (to avoid FK constraint violation on hard-deleted content)
+                    Guid? validOwnerContentId = null;
+                    if (imp.OwnerContentId.HasValue)
+                    {
+                        // Lazy load valid owner content IDs for this request
+                        if (_validOwnerContentIds == null)
+                        {
+                            var allOwnerContent = await _ownerContentRepository.GetAllAsync();
+                            _validOwnerContentIds = new HashSet<Guid>(allOwnerContent.Select(oc => oc.Id));
+                        }
+                        
+                        if (_validOwnerContentIds.Contains(imp.OwnerContentId.Value))
+                        {
+                            validOwnerContentId = imp.OwnerContentId.Value;
+                        }
+                        else
+                        {
+                            _logger.LogWarning($"Ignoring invalid OwnerContentId {imp.OwnerContentId} - content may have been deleted");
+                        }
+                    }
+                    
                     // Ensure all DateTime values have Kind=UTC for PostgreSQL
                     var playedAtUtc = DateTime.SpecifyKind(imp.PlayedAt, DateTimeKind.Utc);
                     var sessionDateUtc = DateTime.SpecifyKind(imp.PlayedAt.Date, DateTimeKind.Utc);
@@ -262,7 +289,7 @@ public class PlayerController : ControllerBase
                         BookingId = imp.BookingId,
                         CampaignId = imp.CampaignId,
                         CreativeId = imp.CreativeId,
-                        OwnerContentId = imp.OwnerContentId,
+                        OwnerContentId = validOwnerContentId, // Use validated ID
                         SlotPosition = imp.SlotNumber,
                         PlayedAt = playedAtUtc,
                         SessionDate = sessionDateUtc,
@@ -367,6 +394,19 @@ public class PlayerController : ControllerBase
             // Save owner content impressions with deduplication
             foreach (var ownerContent in request.SyncData.OwnerContentImpressions)
             {
+                // Validate OwnerContentId exists (to avoid FK constraint violation on hard-deleted content)
+                if (_validOwnerContentIds == null)
+                {
+                    var allOwnerContent = await _ownerContentRepository.GetAllAsync();
+                    _validOwnerContentIds = new HashSet<Guid>(allOwnerContent.Select(oc => oc.Id));
+                }
+                
+                if (!_validOwnerContentIds.Contains(ownerContent.OwnerContentId))
+                {
+                    _logger.LogWarning($"Skipping impressions for invalid OwnerContentId {ownerContent.OwnerContentId} - content may have been deleted");
+                    continue;
+                }
+                
                 var impressionIds = ownerContent.ImpressionIds ?? new List<string>();
                 var verificationHashes = ownerContent.VerificationHashes ?? new List<string>();
                 

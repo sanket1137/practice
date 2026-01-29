@@ -21,7 +21,15 @@ public class MappingProfiles : Profile
         // Screen mappings
         CreateMap<Screen, ScreenDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.RevenueEstimate, opt => opt.Ignore()); // Set manually in handlers
+            .ForMember(dest => dest.RevenueEstimate, opt => opt.Ignore()) // Set manually in handlers
+            .ForMember(dest => dest.Images, opt => opt.MapFrom(src => 
+                src.Images.OrderBy(img => img.DisplayOrder).ToList()))
+            .ForMember(dest => dest.PrimaryImage, opt => opt.MapFrom(src => 
+                src.Images.FirstOrDefault(img => img.IsPrimary)));
+        
+        // ScreenImage mapping
+        CreateMap<ScreenImage, ScreenImageDto>()
+            .ForMember(dest => dest.ImageType, opt => opt.MapFrom(src => src.ImageType.ToString()));
         
         CreateMap<CreateScreenRequest, Screen>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())

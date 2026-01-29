@@ -25,6 +25,12 @@ import {
     InputAdornment,
     Divider,
     Tooltip,
+    ToggleButton,
+    ToggleButtonGroup,
+    List,
+    ListItemIcon,
+    ListItemText,
+    ListItemButton,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -33,17 +39,29 @@ import MonitorIcon from '@mui/icons-material/Monitor';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ClearIcon from '@mui/icons-material/Clear';
+import MapIcon from '@mui/icons-material/Map';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import CircleIcon from '@mui/icons-material/Circle';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { searchScreens, getAllTags } from '../../services/screenTagsService';
 import ScreenTagChip from '../../components/screens/ScreenTagChip';
+import { ScreensMap } from '../../components/map';
 import type { Screen, MasterTag, SearchScreensRequest } from '../../types/screen';
 import { TAG_CATEGORIES, TAG_CATEGORY_LABELS } from '../../types/screen';
 
 const DEFAULT_PAGE_SIZE = 12;
+const MAP_PAGE_SIZE = 200; // Load more screens for map view
+const SIDEBAR_WIDTH = 380;
 
 export default function DiscoverScreensPage() {
+    const navigate = useNavigate();
     const [showFilters, setShowFilters] = useState(false);
+    const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
     
     // Search and filter state
     const [searchText, setSearchText] = useState('');
@@ -60,7 +78,7 @@ export default function DiscoverScreensPage() {
     const buildSearchRequest = useCallback((): SearchScreensRequest => {
         const request: SearchScreensRequest = {
             page,
-            pageSize: DEFAULT_PAGE_SIZE,
+            pageSize: viewMode === 'map' ? MAP_PAGE_SIZE : DEFAULT_PAGE_SIZE,
             sortBy,
             sortDirection,
         };
@@ -88,7 +106,7 @@ export default function DiscoverScreensPage() {
         }
 
         return request;
-    }, [page, searchText, city, state, selectedTags, selectedCategory, priceRange, sortBy, sortDirection]);
+    }, [page, viewMode, searchText, city, state, selectedTags, selectedCategory, priceRange, sortBy, sortDirection]);
 
     // Fetch all master tags for filter
     const { data: allTags } = useQuery({
@@ -136,6 +154,313 @@ export default function DiscoverScreensPage() {
 
     const hasActiveFilters = searchText || selectedTags.length > 0 || selectedCategory || city || state || priceRange[0] > 0 || priceRange[1] < 10000;
 
+    // Map view - fills entire content area with sidebar containing all controls
+    if (viewMode === 'map') {
+        return (
+            <Box
+                sx={{
+                    position: isFullscreen ? 'fixed' : 'relative',
+                    top: isFullscreen ? 0 : 'auto',
+                    left: isFullscreen ? 0 : 'auto',
+                    right: isFullscreen ? 0 : 'auto',
+                    bottom: isFullscreen ? 0 : 'auto',
+                    zIndex: isFullscreen ? 1300 : 'auto',
+                    height: isFullscreen ? '100vh' : 'calc(100vh - 64px)',
+                    minHeight: 500,
+                    display: 'flex',
+                    bgcolor: 'background.default',
+                }}
+            >
+                {/* Sidebar with all controls and screen list */}
+                <Paper
+                    sx={{
+                        width: SIDEBAR_WIDTH,
+                        flexShrink: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        borderRadius: 0,
+                        overflow: 'hidden',
+                        zIndex: 1,
+                    }}
+                >
+                    {/* Header */}
+                    <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                            <Box>
+                                <Typography variant="h6" fontWeight={600}>
+                                    Discover Screens
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    Find screens for your campaigns
+                                </Typography>
+                            </Box>
+                            {isFullscreen && (
+                                <IconButton size="small" onClick={() => setIsFullscreen(false)}>
+                                    <FullscreenExitIcon />
+                                </IconButton>
+                            )}
+                        </Box>
+                    </Box>
+
+                    {/* Search */}
+                    <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            placeholder="Search screens..."
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: searchText && (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setSearchText('')}>
+                                            <ClearIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                            }}
+                            sx={{ mb: 1 }}
+                        />
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <Button
+                                size="small"
+                                variant="contained"
+                                onClick={handleSearch}
+                                sx={{ flex: 1 }}
+                            >
+                                Search
+                            </Button>
+                            <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => setShowFilters(!showFilters)}
+                                startIcon={<FilterListIcon />}
+                            >
+                                {showFilters ? 'Hide' : 'Filters'}
+                            </Button>
+                            <ToggleButtonGroup
+                                value={viewMode}
+                                exclusive
+                                onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                                size="small"
+                            >
+                                <ToggleButton value="list" aria-label="list view">
+                                    <ViewListIcon fontSize="small" />
+                                </ToggleButton>
+                                <ToggleButton value="map" aria-label="map view">
+                                    <MapIcon fontSize="small" />
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                            <Tooltip title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                                <IconButton 
+                                    onClick={() => setIsFullscreen(!isFullscreen)}
+                                    size="small"
+                                >
+                                    {isFullscreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    </Box>
+
+                    {/* Collapsible Filters */}
+                    <Collapse in={showFilters}>
+                        <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
+                            <Grid container spacing={1}>
+                                <Grid size={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="City"
+                                        value={city}
+                                        onChange={(e) => setCity(e.target.value)}
+                                        size="small"
+                                    />
+                                </Grid>
+                                <Grid size={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="State"
+                                        value={state}
+                                        onChange={(e) => setState(e.target.value)}
+                                        size="small"
+                                    />
+                                </Grid>
+                                <Grid size={12}>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Category</InputLabel>
+                                        <Select
+                                            value={selectedCategory}
+                                            label="Category"
+                                            onChange={(e) => setSelectedCategory(e.target.value)}
+                                        >
+                                            <MenuItem value="">All</MenuItem>
+                                            {TAG_CATEGORIES.map(cat => (
+                                                <MenuItem key={cat} value={cat}>
+                                                    {TAG_CATEGORY_LABELS[cat]}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid size={12}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Price: ₹{priceRange[0]} - ₹{priceRange[1]}
+                                    </Typography>
+                                    <Slider
+                                        value={priceRange}
+                                        onChange={(_, value) => setPriceRange(value as [number, number])}
+                                        valueLabelDisplay="auto"
+                                        min={0}
+                                        max={10000}
+                                        step={100}
+                                        size="small"
+                                    />
+                                </Grid>
+                                <Grid size={12}>
+                                    <Autocomplete
+                                        multiple
+                                        size="small"
+                                        options={allTags || []}
+                                        getOptionLabel={(option) => option.displayName}
+                                        value={selectedTags}
+                                        onChange={(_, value) => setSelectedTags(value)}
+                                        renderInput={(params) => (
+                                            <TextField {...params} label="Tags" placeholder="Select..." />
+                                        )}
+                                        renderTags={(value, getTagProps) =>
+                                            value.map((option, index) => (
+                                                <Chip
+                                                    {...getTagProps({ index })}
+                                                    key={option.id}
+                                                    label={option.displayName}
+                                                    size="small"
+                                                />
+                                            ))
+                                        }
+                                        limitTags={2}
+                                    />
+                                </Grid>
+                                {hasActiveFilters && (
+                                    <Grid size={12}>
+                                        <Button
+                                            fullWidth
+                                            size="small"
+                                            onClick={handleClearFilters}
+                                            startIcon={<ClearIcon />}
+                                        >
+                                            Clear Filters
+                                        </Button>
+                                    </Grid>
+                                )}
+                            </Grid>
+                        </Box>
+                    </Collapse>
+
+                    {/* Screen Count */}
+                    <Box sx={{ px: 2, py: 1, bgcolor: 'action.hover' }}>
+                        <Typography variant="body2" fontWeight={600}>
+                            {searchResult?.screens.filter(s => s.latitude && s.longitude).length || 0} screens
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            Click a screen to view on map
+                        </Typography>
+                    </Box>
+
+                    {/* Screen List */}
+                    <List sx={{ flex: 1, overflow: 'auto', py: 0 }}>
+                        {isLoading ? (
+                            <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography color="text.secondary">Loading...</Typography>
+                            </Box>
+                        ) : error ? (
+                            <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <Typography color="error">Failed to load screens</Typography>
+                            </Box>
+                        ) : searchResult?.screens.filter(s => s.latitude && s.longitude).map((screen) => (
+                            <ListItemButton
+                                key={screen.id}
+                                selected={selectedScreenId === screen.id}
+                                onClick={() => setSelectedScreenId(screen.id)}
+                                sx={{
+                                    borderBottom: 1,
+                                    borderColor: 'divider',
+                                    py: 1.5,
+                                    '&.Mui-selected': {
+                                        bgcolor: 'action.selected',
+                                    },
+                                }}
+                            >
+                                <ListItemIcon sx={{ minWidth: 48 }}>
+                                    <MonitorIcon sx={{ color: 'text.secondary' }} />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary={
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <CircleIcon 
+                                                sx={{ 
+                                                    fontSize: 8, 
+                                                    color: screen.isOnline || screen.status === 'Active' ? 'success.main' : 'warning.main' 
+                                                }} 
+                                            />
+                                            <Typography variant="body2" fontWeight={600} color="primary">
+                                                INR {screen.pricePerSlot?.toLocaleString() || '0'} <Typography component="span" variant="caption" color="text.secondary">/play</Typography>
+                                            </Typography>
+                                        </Box>
+                                    }
+                                    secondary={
+                                        <Box component="span" sx={{ display: 'block' }}>
+                                            {screen.primaryTags?.[0] && (
+                                                <Chip
+                                                    label={screen.primaryTags[0].displayName}
+                                                    size="small"
+                                                    sx={{ 
+                                                        mt: 0.5, 
+                                                        mb: 0.5,
+                                                        height: 20,
+                                                        fontSize: '0.7rem',
+                                                        bgcolor: 'primary.main',
+                                                        color: 'primary.contrastText',
+                                                    }}
+                                                />
+                                            )}
+                                            <Typography component="span" variant="body2" color="text.secondary" sx={{ display: 'block' }}>
+                                                {screen.name}
+                                            </Typography>
+                                        </Box>
+                                    }
+                                />
+                            </ListItemButton>
+                        ))}
+                        {!isLoading && !error && (!searchResult?.screens || searchResult.screens.filter(s => s.latitude && s.longitude).length === 0) && (
+                            <Box sx={{ p: 3, textAlign: 'center' }}>
+                                <MonitorIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    No screens found
+                                </Typography>
+                            </Box>
+                        )}
+                    </List>
+                </Paper>
+
+                {/* Map - fills remaining space */}
+                <Box sx={{ flex: 1, overflow: 'hidden' }}>
+                    <ScreensMap
+                        screens={searchResult?.screens.filter(s => s.latitude && s.longitude) || []}
+                        onScreenClick={(screen) => navigate(`/screens/${screen.id}`)}
+                        selectedScreenId={selectedScreenId || undefined}
+                        isOwnerView={false}
+                    />
+                </Box>
+            </Box>
+        );
+    }
+
+    // List view
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             {/* Header */}
@@ -340,9 +665,26 @@ export default function DiscoverScreensPage() {
                         'Loading...'
                     )}
                 </Typography>
+                <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                    size="small"
+                >
+                    <ToggleButton value="list" aria-label="list view">
+                        <Tooltip title="List View">
+                            <ViewListIcon />
+                        </Tooltip>
+                    </ToggleButton>
+                    <ToggleButton value="map" aria-label="map view">
+                        <Tooltip title="Map View">
+                            <MapIcon />
+                        </Tooltip>
+                    </ToggleButton>
+                </ToggleButtonGroup>
             </Box>
 
-            {/* Results */}
+            {/* Results - List View */}
             {isLoading ? (
                 <Grid container spacing={3}>
                     {[...Array(6)].map((_, i) => (
@@ -402,6 +744,32 @@ function ScreenCard({ screen, onTagClick }: ScreenCardProps) {
 
     return (
         <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Screen Image */}
+            {screen.primaryImage?.imageUrl ? (
+                <Box
+                    component="img"
+                    src={screen.primaryImage.imageUrl}
+                    alt={screen.name}
+                    sx={{
+                        width: '100%',
+                        height: 180,
+                        objectFit: 'cover',
+                    }}
+                />
+            ) : (
+                <Box
+                    sx={{
+                        width: '100%',
+                        height: 180,
+                        bgcolor: 'grey.200',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                >
+                    <MonitorIcon sx={{ fontSize: 64, color: 'grey.400' }} />
+                </Box>
+            )}
             <CardContent sx={{ flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
                     <Typography variant="h6" component="div" noWrap sx={{ maxWidth: '70%' }}>

@@ -57,10 +57,13 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
         if (activeBooking != null)
             throw new InvalidOperationException($"Slot {request.SlotNumber} has active booking");
 
-        // 3. Upload file
+        // 3. Upload file to Screens/{screenId}/owner/ folder
+        var fileExtension = Path.GetExtension(request.FileName);
+        var ownerContentPath = $"Screens/{request.ScreenId}/owner/slot{request.SlotNumber}_{Guid.NewGuid()}{fileExtension}";
+        
         var fileUrl = await _fileStorage.UploadFileAsync(
             request.FileStream,
-            request.FileName,
+            ownerContentPath,
             request.ContentType,  // Use actual MIME type (e.g., video/mp4)
             cancellationToken);
 

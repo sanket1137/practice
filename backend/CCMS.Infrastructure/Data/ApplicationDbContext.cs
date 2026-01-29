@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ImpressionDailySummary> ImpressionDailySummaries => Set<ImpressionDailySummary>();
     public DbSet<ScreenTag> ScreenTags => Set<ScreenTag>();
     public DbSet<ScreenTagAssignment> ScreenTagAssignments => Set<ScreenTagAssignment>();
+    public DbSet<ScreenImage> ScreenImages => Set<ScreenImage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -248,6 +249,33 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.AssignedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ScreenImage configuration
+        modelBuilder.Entity<ScreenImage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Index for getting all images for a screen
+            entity.HasIndex(e => e.ScreenId)
+                .HasDatabaseName("IX_ScreenImages_Screen");
+            
+            // Index for filtering by image type
+            entity.HasIndex(e => new { e.ScreenId, e.ImageType })
+                .HasDatabaseName("IX_ScreenImages_Screen_Type");
+            
+            // Index for finding primary images
+            entity.HasIndex(e => new { e.ScreenId, e.IsPrimary })
+                .HasDatabaseName("IX_ScreenImages_Screen_Primary");
+            
+            entity.Property(e => e.ImageUrl).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.OriginalFileName).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.ContentType).HasMaxLength(100);
+            
+            entity.HasOne(e => e.Screen)
+                .WithMany(s => s.Images)
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Campaign configuration

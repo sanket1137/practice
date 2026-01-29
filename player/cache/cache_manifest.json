@@ -77,17 +77,17 @@
         }
       ]
     },
-    "ba9a7bf1-6bf8-4caf-ad6a-95e0b262c858": {
+    "c22726e2-0133-4f6b-92cc-11174fbf9616": {
       "campaign_id": "e5199440-61f0-43c2-9c6a-44235a18979a",
       "videos": [
         {
           "creative_id": "19efb6a8-d8c1-4b99-b52c-5773622ec086",
           "file_path": "C:\\Users\\Sanket\\Desktop\\Me\\Projects\\Playground\\PixelCCMSCopilot\\practice\\player\\video_cache\\19efb6a8-d8c1-4b99-b52c-5773622ec086.mp4",
-          "downloaded_at": "2026-01-15T23:52:14.264332",
-          "last_accessed": "2026-01-21T12:09:26.418196"
+          "downloaded_at": "2026-01-29T14:06:22.541336",
+          "last_accessed": "2026-01-29T14:06:44.674959"
         }
       ]
     }
   },
-  "last_cleanup": "2026-01-21T12:09:26.402459"
+  "last_cleanup": "2026-01-29T14:06:44.664564"
 }

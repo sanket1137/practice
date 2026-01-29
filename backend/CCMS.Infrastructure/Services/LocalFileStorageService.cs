@@ -26,10 +26,30 @@ public class LocalFileStorageService : IFileStorageService
 
     public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, CancellationToken cancellationToken = default)
     {
-        // Generate unique filename
-        var fileExtension = Path.GetExtension(fileName);
-        var uniqueFilename = $"{Guid.NewGuid()}{fileExtension}";
-        var filePath = Path.Combine(_storagePath, uniqueFilename);
+        string relativePath;
+        string filePath;
+        
+        // Check if fileName contains a path (directory structure)
+        if (fileName.Contains('/') || fileName.Contains('\\'))
+        {
+            // Path provided - preserve directory structure
+            relativePath = fileName.Replace('\\', '/');
+            filePath = Path.Combine(_storagePath, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            
+            // Ensure directory exists
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+        }
+        else
+        {
+            // No path provided - generate unique filename at root
+            var fileExtension = Path.GetExtension(fileName);
+            relativePath = $"{Guid.NewGuid()}{fileExtension}";
+            filePath = Path.Combine(_storagePath, relativePath);
+        }
 
         // Save file
         using (var fileWriteStream = File.Create(filePath))
@@ -37,8 +57,8 @@ public class LocalFileStorageService : IFileStorageService
             await fileStream.CopyToAsync(fileWriteStream, cancellationToken);
         }
 
-        // Return URL
-        return GetFileUrl(uniqueFilename);
+        // Return URL (use forward slashes for URL)
+        return GetFileUrl(relativePath);
     }
 
     public Task<bool> DeleteFileAsync(string fileUrl, CancellationToken cancellationToken = default)

@@ -9,6 +9,7 @@ using CCMS.Application.Features.Screens.Commands;
 using CCMS.Application.Features.Screens.Queries;
 using CCMS.Application.Features.OwnerContent.Commands;
 using CCMS.Application.Features.OwnerContent.Queries;
+using CCMS.Application.Interfaces;
 using CCMS.Infrastructure.Services;
 using CCMS.Domain.Enums;
 using CCMS.Infrastructure.Data;
@@ -27,15 +28,18 @@ public class ScreensController : ControllerBase
     private readonly IMediator _mediator;
     private readonly ScreenTaggingService _taggingService;
     private readonly ApplicationDbContext _context;
+    private readonly IScreenImageService _imageService;
 
     public ScreensController(
         IMediator mediator,
         ScreenTaggingService taggingService,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IScreenImageService imageService)
     {
         _mediator = mediator;
         _taggingService = taggingService;
         _context = context;
+        _imageService = imageService;
     }
 
     [HttpGet]
@@ -231,6 +235,232 @@ public class ScreensController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error deleting screen: {ex.Message}"));
+        }
+    }
+    
+    // ==========================================
+    // SCREEN IMAGE ENDPOINTS
+    // ==========================================
+    
+    /// <summary>
+    /// Get all images for a screen
+    /// </summary>
+    [HttpGet("{id}/images")]
+    public async Task<ActionResult<ApiResponse<List<ScreenImageDto>>>> GetImages(Guid id)
+    {
+        try
+        {
+            var images = await _imageService.GetImagesAsync(id);
+            return Ok(ApiResponse<List<ScreenImageDto>>.SuccessResponse(images));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<List<ScreenImageDto>>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Upload images for a screen
+    /// </summary>
+    /// <param name="id">Screen ID</param>
+    /// <param name="imageType">Image type: "Screen" or "Surrounding"</param>
+    [HttpPost("{id}/images")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    [RequestSizeLimit(52_428_800)] // 50 MB limit for multiple images
+    public async Task<ActionResult<ApiResponse<UploadScreenImagesResponse>>> UploadImages(
+        Guid id, 
+        [FromQuery] string imageType)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<UploadScreenImagesResponse>.ErrorResponse("Screen not found"));
+            }
+            
+            var isAdmin = User.IsInRole("Admin");
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<UploadScreenImagesResponse>.ErrorResponse(
+                    "Only the screen owner can upload images"));
+            }
+            
+            if (Request.Form.Files.Count == 0)
+            {
+                return BadRequest(ApiResponse<UploadScreenImagesResponse>.ErrorResponse("No files provided"));
+            }
+            
+            // Convert IFormFiles to ImageUploadFile objects
+            var uploadFiles = Request.Form.Files.Select(f => new ImageUploadFile
+            {
+                Stream = f.OpenReadStream(),
+                FileName = f.FileName,
+                ContentType = f.ContentType,
+                Length = f.Length
+            }).ToList();
+            
+            var result = await _imageService.UploadImagesAsync(id, uploadFiles, imageType);
+            
+            // Dispose streams after upload
+            foreach (var uf in uploadFiles)
+            {
+                uf.Stream.Dispose();
+            }
+            
+            if (!result.Success && !result.UploadedImages.Any())
+            {
+                return BadRequest(ApiResponse<UploadScreenImagesResponse>.ErrorResponse(
+                    string.Join("; ", result.Errors)));
+            }
+            
+            return Ok(ApiResponse<UploadScreenImagesResponse>.SuccessResponse(result, result.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<UploadScreenImagesResponse>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<UploadScreenImagesResponse>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Delete an image from a screen
+    /// </summary>
+    [HttpDelete("{id}/images/{imageId}")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteImage(Guid id, Guid imageId)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+            }
+            
+            var isAdmin = User.IsInRole("Admin");
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<object>.ErrorResponse(
+                    "Only the screen owner can delete images"));
+            }
+            
+            var result = await _imageService.DeleteImageAsync(id, imageId);
+            
+            if (!result)
+            {
+                return BadRequest(ApiResponse<object>.ErrorResponse(
+                    "Cannot delete image. Either image not found or screen must have at least 1 image."));
+            }
+            
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Image deleted successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Set an image as the primary image for a screen
+    /// </summary>
+    [HttpPost("{id}/images/{imageId}/set-primary")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> SetPrimaryImage(Guid id, Guid imageId)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+            }
+            
+            var isAdmin = User.IsInRole("Admin");
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<object>.ErrorResponse(
+                    "Only the screen owner can set primary image"));
+            }
+            
+            var result = await _imageService.SetPrimaryImageAsync(id, imageId);
+            
+            if (!result)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse("Image not found"));
+            }
+            
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Primary image set successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+    
+    /// <summary>
+    /// Reorder images for a screen
+    /// </summary>
+    [HttpPost("{id}/images/reorder")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> ReorderImages(
+        Guid id, 
+        [FromBody] ReorderScreenImagesRequest request)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            
+            // Check ownership
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+            
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+            }
+            
+            var isAdmin = User.IsInRole("Admin");
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<object>.ErrorResponse(
+                    "Only the screen owner can reorder images"));
+            }
+            
+            var result = await _imageService.ReorderImagesAsync(id, request.ImageIds);
+            
+            if (!result)
+            {
+                return BadRequest(ApiResponse<object>.ErrorResponse("Invalid image IDs provided"));
+            }
+            
+            return Ok(ApiResponse<object>.SuccessResponse(null, "Images reordered successfully"));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
         }
     }
     
@@ -677,6 +907,166 @@ public class ScreensController : ControllerBase
     }
     
     // ==========================================
+    // PUBLIC SCREEN DISCOVERY (No Auth Required)
+    // ==========================================
+    
+    /// <summary>
+    /// Public endpoint to explore screens on map view (no authentication required)
+    /// Returns limited data - no owner info, no revenue data
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("explore")]
+    public async Task<ActionResult<ApiResponse<PublicSearchScreensResult>>> ExploreScreens(
+        [FromBody] PublicSearchScreensRequest request)
+    {
+        try
+        {
+            // Build base query - only active screens for public view
+            var query = _context.Screens
+                .AsNoTracking()
+                .Where(s => !s.IsDeleted && s.Status == ScreenStatus.Active);
+            
+            // Text search
+            if (!string.IsNullOrEmpty(request.SearchText))
+            {
+                var searchPattern = $"%{request.SearchText}%";
+                query = query.Where(s => 
+                    EF.Functions.ILike(s.Name, searchPattern) ||
+                    EF.Functions.ILike(s.Location.City, searchPattern));
+            }
+            
+            // Location filters
+            if (!string.IsNullOrEmpty(request.City))
+            {
+                query = query.Where(s => EF.Functions.ILike(s.Location.City, request.City));
+            }
+            
+            if (!string.IsNullOrEmpty(request.State))
+            {
+                query = query.Where(s => EF.Functions.ILike(s.Location.State, request.State));
+            }
+            
+            if (!string.IsNullOrEmpty(request.Country))
+            {
+                query = query.Where(s => EF.Functions.ILike(s.Location.Country, request.Country));
+            }
+            
+            // Bounding box search for map viewport
+            if (request.BoundingBox != null)
+            {
+                query = query.Where(s =>
+                    s.Latitude >= request.BoundingBox.South &&
+                    s.Latitude <= request.BoundingBox.North &&
+                    s.Longitude >= request.BoundingBox.West &&
+                    s.Longitude <= request.BoundingBox.East);
+            }
+            
+            // Radius search
+            if (request.Latitude.HasValue && request.Longitude.HasValue && request.RadiusKm.HasValue)
+            {
+                var radiusKm = request.RadiusKm.Value;
+                var latDelta = (decimal)(radiusKm / 111.0);
+                var lngDelta = (decimal)(radiusKm / (111.0 * Math.Cos((double)request.Latitude.Value * Math.PI / 180)));
+                
+                query = query.Where(s =>
+                    s.Latitude >= request.Latitude.Value - latDelta &&
+                    s.Latitude <= request.Latitude.Value + latDelta &&
+                    s.Longitude >= request.Longitude.Value - lngDelta &&
+                    s.Longitude <= request.Longitude.Value + lngDelta);
+            }
+            
+            // Tag category filter (basic)
+            if (!string.IsNullOrEmpty(request.TagCategory) &&
+                Enum.TryParse<TagCategory>(request.TagCategory, true, out var tagCategory))
+            {
+                query = query.Where(s => s.TagAssignments.Any(ta => ta.Tag.Category == tagCategory));
+            }
+            
+            // Price filters (show range indicator)
+            if (request.MinPrice.HasValue)
+            {
+                query = query.Where(s => s.PricePerSlot >= request.MinPrice.Value);
+            }
+            
+            if (request.MaxPrice.HasValue)
+            {
+                query = query.Where(s => s.PricePerSlot <= request.MaxPrice.Value);
+            }
+            
+            // Sorting
+            query = request.SortBy?.ToLower() switch
+            {
+                "name" => request.SortDirection?.ToLower() == "desc" 
+                    ? query.OrderByDescending(s => s.Name) 
+                    : query.OrderBy(s => s.Name),
+                "price" => request.SortDirection?.ToLower() == "desc"
+                    ? query.OrderByDescending(s => s.PricePerSlot)
+                    : query.OrderBy(s => s.PricePerSlot),
+                _ => query.OrderByDescending(s => s.CreatedAt)
+            };
+            
+            // Pagination - limit to 500 for map view performance
+            var pageSize = Math.Min(request.PageSize, 500);
+            var skip = (request.Page - 1) * pageSize;
+            
+            var totalCount = await query.CountAsync();
+            
+            // Fetch screens with LIMITED public data
+            var screens = await query
+                .Skip(skip)
+                .Take(pageSize)
+                .Select(s => new PublicScreenDto
+                {
+                    Id = s.Id,
+                    Name = s.Name,
+                    City = s.Location.City,
+                    State = s.Location.State,
+                    Country = s.Location.Country,
+                    Latitude = s.Latitude,
+                    Longitude = s.Longitude,
+                    // Show price range indicator instead of exact price
+                    PriceRange = s.PricePerSlot < 10 ? "Budget" 
+                        : s.PricePerSlot < 50 ? "Standard" 
+                        : s.PricePerSlot < 200 ? "Premium" 
+                        : "Enterprise",
+                    StartingPrice = s.PricePerSlot,
+                    Currency = s.Currency,
+                    IsOnline = s.IsOnline,
+                    // Only show primary tag category, not full details
+                    PrimaryTagCategory = s.TagAssignments
+                        .Where(ta => ta.IsPrimary)
+                        .Select(ta => ta.Tag.Category.ToString())
+                        .FirstOrDefault(),
+                    PrimaryTagName = s.TagAssignments
+                        .Where(ta => ta.IsPrimary)
+                        .Select(ta => ta.Tag.DisplayName)
+                        .FirstOrDefault(),
+                    // Primary image URL for display
+                    PrimaryImageUrl = s.Images
+                        .Where(img => img.IsPrimary)
+                        .Select(img => img.ImageUrl)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+            
+            var result = new PublicSearchScreensResult
+            {
+                Screens = screens,
+                TotalCount = totalCount,
+                Page = request.Page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            };
+            
+            return Ok(ApiResponse<PublicSearchScreensResult>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<PublicSearchScreensResult>.ErrorResponse($"Error exploring screens: {ex.Message}"));
+        }
+    }
+    
+    // ==========================================
     // SCREEN SEARCH/DISCOVERY (For Advertisers)
     // ==========================================
     
@@ -876,7 +1266,40 @@ public class ScreensController : ControllerBase
                             ColorCode = ta.Tag.ColorCode,
                             IsPrimary = true,
                             Source = ta.Source.ToString()
-                        }).ToList()
+                        }).ToList(),
+                    // Images
+                    Images = s.Images
+                        .OrderBy(img => img.DisplayOrder)
+                        .Select(img => new ScreenImageDto
+                        {
+                            Id = img.Id,
+                            ImageUrl = img.ImageUrl,
+                            ImageType = img.ImageType.ToString(),
+                            DisplayOrder = img.DisplayOrder,
+                            IsPrimary = img.IsPrimary,
+                            OriginalFileName = img.OriginalFileName,
+                            SizeBytes = img.SizeBytes,
+                            ContentType = img.ContentType,
+                            Width = img.Width,
+                            Height = img.Height,
+                            UploadedAt = img.UploadedAt
+                        }).ToList(),
+                    PrimaryImage = s.Images
+                        .Where(img => img.IsPrimary)
+                        .Select(img => new ScreenImageDto
+                        {
+                            Id = img.Id,
+                            ImageUrl = img.ImageUrl,
+                            ImageType = img.ImageType.ToString(),
+                            DisplayOrder = img.DisplayOrder,
+                            IsPrimary = img.IsPrimary,
+                            OriginalFileName = img.OriginalFileName,
+                            SizeBytes = img.SizeBytes,
+                            ContentType = img.ContentType,
+                            Width = img.Width,
+                            Height = img.Height,
+                            UploadedAt = img.UploadedAt
+                        }).FirstOrDefault()
                 })
                 .ToListAsync();
             

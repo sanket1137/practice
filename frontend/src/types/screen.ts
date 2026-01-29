@@ -1,5 +1,43 @@
 // Screen-related types for the frontend
 
+export interface ScreenImage {
+    id: string;
+    imageUrl: string;
+    imageType: 'Screen' | 'Surrounding';
+    displayOrder: number;
+    isPrimary: boolean;
+    originalFileName?: string;
+    sizeBytes?: number;
+    width?: number;
+    height?: number;
+    uploadedAt: string;
+}
+
+export interface UploadScreenImagesResponse {
+    success: boolean;
+    message?: string;
+    uploadedImages: ScreenImage[];
+    errors: string[];
+}
+
+export interface ScreenImageValidation {
+    maxScreenPhotos: number;
+    maxSurroundingPhotos: number;
+    minTotalImages: number;
+    maxFileSizeBytes: number;
+    allowedContentTypes: string[];
+    allowedExtensions: string[];
+}
+
+export const SCREEN_IMAGE_VALIDATION: ScreenImageValidation = {
+    maxScreenPhotos: 4,
+    maxSurroundingPhotos: 5,
+    minTotalImages: 1,
+    maxFileSizeBytes: 10 * 1024 * 1024, // 10 MB
+    allowedContentTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+    allowedExtensions: ['.jpg', '.jpeg', '.png', '.webp'],
+};
+
 export interface ScreenTagSummary {
     tagId: string;
     slug: string;
@@ -100,6 +138,8 @@ export interface Screen {
     lastTaggedAt?: string;
     tags?: ScreenTagSummary[];
     primaryTags?: ScreenTagSummary[];
+    images?: ScreenImage[];
+    primaryImage?: ScreenImage;
 }
 
 // Tag categories for filtering

@@ -92,33 +92,7 @@ public class PlaylistGeneratorService
         // Generate one playlist item per slot
         for (int slotNumber = 1; slotNumber <= screen.SlotsPerFrame; slotNumber++)
         {
-            // PRIORITY 1: Check for owner content in this slot
-            var ownerContent = ownerContentItems.FirstOrDefault(oc => oc.SlotNumber == slotNumber);
-            
-            if (ownerContent != null)
-            {
-                // Owner content takes precedence
-                playlist.Add(new PlaylistItemResponse
-                {
-                    StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
-                    EndTime = daySchedule.EndTime.ToString(@"hh\:mm"),
-                    SlotNumber = slotNumber,
-                    BookingId = null,
-                    CampaignId = null,
-                    CreativeId = null,
-                    CreativeUrl = ownerContent.FileUrl,
-                    CreativeMimeType = ownerContent.MimeType,
-                    DurationSeconds = ownerContent.Duration > 0 ? ownerContent.Duration : durationPerSlot,
-                    ImpressionId = Guid.NewGuid(),
-                    IsFillerContent = false,
-                    OwnerContentId = ownerContent.Id // Important for player to recognize
-                });
-                
-                bookedSlots++;
-                continue; // Skip booking check for this slot
-            }
-            
-            // PRIORITY 2: Find booking that owns this slot on this date
+            // PRIORITY 1: Check for advertiser booking (highest priority - paid content)
             var booking = FindBookingForSlot(relevantBookings, date, slotNumber);
 
             if (booking != null)
@@ -142,14 +116,15 @@ public class PlaylistGeneratorService
                 });
                 
                 bookedSlots++;
+                continue; // Skip owner content check for this slot
             }
-            else
+            
+            // PRIORITY 2: Check for owner content in this slot
+            var ownerContent = ownerContentItems.FirstOrDefault(oc => oc.SlotNumber == slotNumber);
+            
+            if (ownerContent != null)
             {
-                // No booking - use default video (custom or universal)
-                var defaultVideoUrl = screen.HasCustomDefaultVideo && !string.IsNullOrEmpty(screen.DefaultVideoUrl)
-                    ? screen.DefaultVideoUrl
-                    : _universalFallbackUrl; // Universal fallback from configuration
-                
+                // Owner content fills unbookeد slots
                 playlist.Add(new PlaylistItemResponse
                 {
                     StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
@@ -158,15 +133,38 @@ public class PlaylistGeneratorService
                     BookingId = null,
                     CampaignId = null,
                     CreativeId = null,
-                    CreativeUrl = defaultVideoUrl,
-                    CreativeMimeType = "video/mp4",
-                    DurationSeconds = durationPerSlot,
+                    CreativeUrl = ownerContent.FileUrl,
+                    CreativeMimeType = ownerContent.MimeType,
+                    DurationSeconds = ownerContent.Duration > 0 ? ownerContent.Duration : durationPerSlot,
                     ImpressionId = Guid.NewGuid(),
-                    IsFillerContent = true
+                    IsFillerContent = false,
+                    OwnerContentId = ownerContent.Id // Important for player to recognize
                 });
                 
-                fillerSlots++;
+                continue; // Skip default video
             }
+            
+            // PRIORITY 3: No booking or owner content - use default video
+            var defaultVideoUrl = screen.HasCustomDefaultVideo && !string.IsNullOrEmpty(screen.DefaultVideoUrl)
+                ? screen.DefaultVideoUrl
+                : _universalFallbackUrl; // Universal fallback from configuration
+            
+            playlist.Add(new PlaylistItemResponse
+            {
+                StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
+                EndTime = daySchedule.EndTime.ToString(@"hh\:mm"),
+                SlotNumber = slotNumber,
+                BookingId = null,
+                CampaignId = null,
+                CreativeId = null,
+                CreativeUrl = defaultVideoUrl,
+                CreativeMimeType = "video/mp4",
+                DurationSeconds = durationPerSlot,
+                ImpressionId = Guid.NewGuid(),
+                IsFillerContent = true
+            });
+            
+            fillerSlots++;
         }
 
         // DEBUG: Log what we generated

@@ -34,6 +34,7 @@ import {
     LocalOffer as TagIcon,
     CalendarMonth as CalendarIcon,
     Visibility as VisibilityIcon,
+    PhotoLibrary as ImagesIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -49,9 +50,11 @@ import DefaultVideoSettings from '../../components/screens/DefaultVideoSettings'
 import LiveActivityTab from '../../components/screens/LiveActivityTab';
 import ScreenTagsTab from '../../components/screens/ScreenTagsTab';
 import ScreenTagChip from '../../components/screens/ScreenTagChip';
+import ScreenImageUpload from '../../components/screens/ScreenImageUpload';
+import ScreenImageGallery from '../../components/screens/ScreenImageGallery';
 import { useState, useMemo } from 'react';
 import { getScreenTags } from '../../services/screenTagsService';
-import type { ScreenTagDetail } from '../../types/screen';
+import type { ScreenTagDetail, ScreenImage } from '../../types/screen';
 
 interface Screen {
     id: string;
@@ -74,6 +77,12 @@ interface Screen {
     };
     slotsPerFrame: number;
     timeFrameMinutes: number;
+    dailyTotalImpressions?: number;
+    operatingSchedule?: {
+        enabled: boolean;
+    };
+    images?: ScreenImage[];
+    primaryImage?: ScreenImage;
 }
 
 export default function ScreenDetailPage() {
@@ -140,6 +149,7 @@ export default function ScreenDetailPage() {
             // Screen Owner / Admin tabs
             return [
                 { id: 'overview', label: 'Overview', icon: <VisibilityIcon /> },
+                { id: 'images', label: 'Images', icon: <ImagesIcon /> },
                 { id: 'bookings', label: 'Bookings', icon: <CalendarIcon /> },
                 { id: 'live-activity', label: 'Live Activity' },
                 { id: 'default-video', label: 'Default Video' },
@@ -269,18 +279,63 @@ export default function ScreenDetailPage() {
                             }}>
                             {/* Screen Image/Preview */}
                             <Paper sx={{ mb: 3, p: 0, overflow: 'hidden' }}>
-                                <Box
-                                    sx={{
-                                        height: 400,
-                                        bgcolor: 'grey.200',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                    }}
-                                >
-                                    <TvIcon sx={{ fontSize: 120, color: 'grey.400' }} />
-                                </Box>
+                                {screen.primaryImage?.imageUrl ? (
+                                    <Box
+                                        component="img"
+                                        src={screen.primaryImage.imageUrl}
+                                        alt={screen.name}
+                                        sx={{
+                                            width: '100%',
+                                            height: 400,
+                                            objectFit: 'cover',
+                                        }}
+                                    />
+                                ) : (
+                                    <Box
+                                        sx={{
+                                            height: 400,
+                                            bgcolor: 'grey.200',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexDirection: 'column',
+                                        }}
+                                    >
+                                        <TvIcon sx={{ fontSize: 120, color: 'grey.400' }} />
+                                        {isOwner && (
+                                            <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+                                                Add images in the "Images" tab
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                )}
                             </Paper>
+
+                            {/* Image Gallery - Show all photos for both advertisers and owners */}
+                            {screen.images && screen.images.length > 0 && (
+                                <Paper sx={{ mb: 3, p: 3 }}>
+                                    <Box display="flex" alignItems="center" gap={1} mb={2}>
+                                        <ImagesIcon color="primary" />
+                                        <Typography variant="h6">Screen Photos</Typography>
+                                        <Chip 
+                                            label={`${screen.images.length} ${screen.images.length === 1 ? 'photo' : 'photos'}`}
+                                            size="small"
+                                            color="primary"
+                                            variant="outlined"
+                                        />
+                                    </Box>
+                                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                                        {isOwner 
+                                            ? 'Photos help advertisers understand your screen placement and surroundings.'
+                                            : 'View screen photos to evaluate placement and surroundings before booking.'}
+                                    </Typography>
+                                    <ScreenImageGallery 
+                                        images={screen.images}
+                                        screenName={screen.name}
+                                        showTabs={true}
+                                    />
+                                </Paper>
+                            )}
 
                             {/* Description */}
                             <Paper sx={{ p: 3, mb: 3 }}>
@@ -418,7 +473,7 @@ export default function ScreenDetailPage() {
 
                             {/* Tags Preview for Advertisers */}
                             {!isOwner && primaryTags.length > 0 && (
-                                <Card>
+                                <Card sx={{ mb: 3 }}>
                                     <CardContent>
                                         <Box display="flex" alignItems="center" gap={1} mb={2}>
                                             <TagIcon color="primary" />
@@ -440,10 +495,77 @@ export default function ScreenDetailPage() {
                                     </CardContent>
                                 </Card>
                             )}
+
+                            {/* Quick Info for Advertisers */}
+                            {!isOwner && (
+                                <Card>
+                                    <CardContent>
+                                        <Typography variant="h6" gutterBottom>Quick Info</Typography>
+                                        <List disablePadding dense>
+                                            <ListItem disablePadding sx={{ py: 0.5 }}>
+                                                <ListItemText
+                                                    primary={
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <ImagesIcon fontSize="small" color="action" />
+                                                            <span>Screen Photos</span>
+                                                        </Box>
+                                                    }
+                                                    secondary={
+                                                        screen.images && screen.images.length > 0
+                                                            ? `${screen.images.length} photos available`
+                                                            : 'No photos uploaded yet'
+                                                    }
+                                                />
+                                            </ListItem>
+                                            <ListItem disablePadding sx={{ py: 0.5 }}>
+                                                <ListItemText
+                                                    primary={
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <VisibilityIcon fontSize="small" color="action" />
+                                                            <span>Daily Impressions</span>
+                                                        </Box>
+                                                    }
+                                                    secondary={screen.dailyTotalImpressions?.toLocaleString() || 'Not specified'}
+                                                />
+                                            </ListItem>
+                                            <ListItem disablePadding sx={{ py: 0.5 }}>
+                                                <ListItemText
+                                                    primary={
+                                                        <Box display="flex" alignItems="center" gap={1}>
+                                                            <ScheduleIcon fontSize="small" color="action" />
+                                                            <span>Active Hours</span>
+                                                        </Box>
+                                                    }
+                                                    secondary={screen.operatingSchedule?.enabled 
+                                                        ? 'Custom schedule' 
+                                                        : '24/7 operation'}
+                                                />
+                                            </ListItem>
+                                        </List>
+                                    </CardContent>
+                                </Card>
+                            )}
                         </Grid>
                     </Grid>
                 )
             }
+
+            {/* Images Tab (Owner only) */}
+            {currentTabId === 'images' && isOwner && (
+                <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                        Screen Images
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary" paragraph>
+                        Upload photos of your screen and its surroundings. These images help advertisers understand
+                        the screen's location and audience. A primary image will be shown on the screen card.
+                    </Typography>
+                    <ScreenImageUpload 
+                        screenId={id!} 
+                        onImagesChanged={() => queryClient.invalidateQueries({ queryKey: ['screen', id] })}
+                    />
+                </Paper>
+            )}
 
             {/* Tags & Audience Tab (Advertiser only) */}
             {currentTabId === 'tags-audience' && (

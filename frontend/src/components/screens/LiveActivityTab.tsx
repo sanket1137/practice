@@ -158,6 +158,7 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
 export default function LiveActivityTab({ screenId }: { screenId: string }) {
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
     const [selectedSlot, setSelectedSlot] = useState<number>(1);
+    const [currentlyPlaying, setCurrentlyPlaying] = useState<{ slotNumber: number; creativeId: string | null } | null>(null);
     const queryClient = useQueryClient();
     const connectionRef = useRef<HubConnection | null>(null);
 
@@ -176,6 +177,17 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
             .withUrl(`${API_BASE}/hubs/playback`)
             .withAutomaticReconnect()
             .build();
+
+        // Listen for AdStarted events to track what's ACTUALLY playing
+        connection.on('AdStarted', (data: { screenId: string; slotNumber?: number; creativeId?: string }) => {
+            console.log('🎬 AdStarted:', data);
+            if (data.screenId === screenId) {
+                setCurrentlyPlaying({
+                    slotNumber: data.slotNumber || 0,
+                    creativeId: data.creativeId || null
+                });
+            }
+        });
 
         // Listen for impression updates
         connection.on('ImpressionRecorded', (data: { screenId: string; slotNumber: number; ownerContentId: string; timestamp: string }) => {
@@ -301,7 +313,13 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                                             muted
                                         />
                                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                                            Currently Playing
+                                            {currentlyPlaying?.slotNumber === slot.slotNumber ? (
+                                                <Typography variant="caption" color="success.main" fontWeight="bold">
+                                                    ▶️ Currently Playing
+                                                </Typography>
+                                            ) : (
+                                                'Preview'
+                                            )}
                                         </Typography>
                                     </Box>
                                 ) : (

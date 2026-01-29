@@ -18,14 +18,14 @@ public class ScreenTaggingService
     private readonly IGooglePlacesService _placesService;
     private readonly ILogger<ScreenTaggingService> _logger;
     
-    // Distance weight factors for scoring (from BRD)
+    // Distance weight factors for scoring - optimized for DOOH relevance
+    // Closer POIs get much higher weight since screen audiences won't walk far
     private static readonly Dictionary<int, double> DistanceWeights = new()
     {
-        { 250, 1.0 },
-        { 500, 0.7 },
-        { 750, 0.5 },
-        { 1000, 0.3 },
-        { 2000, 0.15 }
+        { 50, 1.0 },    // Immediate proximity - full weight
+        { 100, 0.85 },  // Very close - high relevance
+        { 250, 0.6 },   // Walking distance - moderate relevance  
+        { 500, 0.35 }   // Extended area - lower relevance
     };
     
     // Quality multiplier based on Google rating

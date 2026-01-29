@@ -9,6 +9,7 @@ import asyncio
 import json
 import sys
 import os
+import time
 import uuid
 import shutil
 import sqlite3
@@ -16,6 +17,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections import defaultdict
+from urllib.parse import urlparse
 import logging
 
 try:
@@ -65,6 +67,7 @@ class Config:
     SYNC_INTERVAL_NORMAL = 600   # 10 minutes (default background sync)
     current_sync_interval = SYNC_INTERVAL_NORMAL  # Start with normal mode
     HEARTBEAT_INTERVAL_SECONDS = 30
+    PLAYLIST_REFRESH_INTERVAL_MINUTES = 1  # Refresh playlist every minute (fallback if SignalR fails)
     PLAYER_VERSION = "1.1.0"  # Version bump for new features
     LOG_RETENTION_DAYS = 7  # Default: keep logs for 7 days
     
@@ -215,9 +218,20 @@ class CCMSPlayer:
         # This ensures single source of truth and prevents duplicates
         # Old in-memory dicts (impressions, campaign_summaries, owner_content_summaries) REMOVED
         
-        # Flag to trigger playlist reload when owner content changes
-        self.playlist_needs_reload = False
-        self.reload_pending_since_slot = None  # Track when reload was requested
+        # Buffered playlist for seamless cycle-boundary swap
+        # Changes are buffered and only applied when current cycle completes (after slot 6)
+        self._pending_playlist = None  # New playlist waiting to be applied
+        self._pending_slots_per_frame = None  # Slot count for pending playlist
+        self._download_task = None  # Background download task
+        self.playlist_needs_reload = False  # Flag to trigger MPV playlist reload
+        self._reload_event = asyncio.Event()  # Event to signal immediate reload
+        self._event_loop = None  # Reference to main event loop for thread-safe async calls
+        
+        # Duplicate event prevention
+        self._last_ended_slot = None  # Last slot that triggered video-ended
+        self._last_ended_time = 0  # Timestamp of last video-ended event
+        
+        # Track current playback position
         self.current_playing_slot_number = None  # Track current slot
         self.slots_per_frame = 6  # Will be updated from playlist
         
@@ -914,7 +928,15 @@ class CCMSPlayer:
             logger.error(f"Failed to handle PlaylistUpdated event: {e}")
     
     def _refresh_playlist(self):
-        """Fetch and update playlist from server"""
+        """Fetch updated playlist from server and buffer it for cycle-boundary swap.
+        
+        Changes are NOT applied immediately. Instead:
+        1. New playlist is stored in _pending_playlist
+        2. Background download is triggered for new videos
+        3. When current cycle completes (after last slot), pending playlist is applied
+        
+        This ensures uninterrupted playback during the current cycle.
+        """
         try:
             logger.info("Fetching updated playlist from server...")
             
@@ -931,23 +953,33 @@ class CCMSPlayer:
                 playlist_data = data.get("playlist")
                 if playlist_data and isinstance(playlist_data, dict):
                     new_playlist = playlist_data.get("playlist", [])
+                    new_slots_count = len(new_playlist)
                     
-                    logger.info(f"✓ Playlist refreshed: {len(new_playlist)} items")
+                    logger.info(f"✓ Playlist fetched: {new_slots_count} items")
                     
-                    # Update playlist
-                    self.playlist = new_playlist
+                    # Check if playlist actually changed
+                    if self._is_playlist_same(new_playlist):
+                        logger.info("📋 Playlist unchanged, no update needed")
+                        return
                     
-                    # Update slots_per_frame from new playlist
-                    self.slots_per_frame = len(new_playlist)
+                    # If no playback yet or playlist empty, apply immediately
+                    if not self.playlist or self.current_playing_slot_number is None:
+                        logger.info("📋 Applying playlist immediately (no active playback)")
+                        self.playlist = new_playlist
+                        self.slots_per_frame = new_slots_count
+                        # Trigger download - use thread-safe method if event loop available
+                        self._schedule_background_download(new_playlist, is_pending=False)
+                        return
                     
-                    # Defer reload until current frame completes
-                    if self.current_playing_slot_number is not None:
-                        self.reload_pending_since_slot = self.current_playing_slot_number
-                        logger.info(f"🔄 Playlist reload scheduled (currently at slot {self.current_playing_slot_number}, will reload after frame completes)")
-                    else:
-                        # No playback yet, reload immediately
-                        self.playlist_needs_reload = True
-                        logger.info("🔄 Playlist reload scheduled (no active playback)")
+                    # Buffer the new playlist for cycle-boundary swap
+                    self._pending_playlist = new_playlist
+                    self._pending_slots_per_frame = new_slots_count
+                    
+                    logger.info(f"📦 Playlist buffered (currently at slot {self.current_playing_slot_number}/{self.slots_per_frame})")
+                    logger.info(f"   Will apply after slot {self.slots_per_frame} completes")
+                    
+                    # Start background download for pending playlist (thread-safe)
+                    self._schedule_background_download(new_playlist, is_pending=True)
                 else:
                     logger.warning("No playlist in refresh response")
             else:
@@ -955,6 +987,131 @@ class CCMSPlayer:
                 
         except Exception as e:
             logger.error(f"Failed to refresh playlist: {e}")
+    
+    def _is_playlist_same(self, new_playlist: list) -> bool:
+        """Check if new playlist is the same as current (or pending) playlist."""
+        if not self.playlist:
+            return False
+        if len(new_playlist) != len(self.playlist):
+            return False
+        
+        # Compare by creativeUrl and ownerContentId
+        for i, new_item in enumerate(new_playlist):
+            old_item = self.playlist[i]
+            new_url = new_item.get('creativeUrl', '')
+            old_url = old_item.get('creativeUrl', '')
+            new_owner = new_item.get('ownerContentId')
+            old_owner = old_item.get('ownerContentId')
+            
+            if new_url != old_url or new_owner != old_owner:
+                return False
+        return True
+    
+    def _schedule_background_download(self, playlist: list, is_pending: bool = False):
+        """Schedule background download in a thread-safe manner.
+        
+        This method handles the case where we're called from a SignalR callback thread
+        (not the main asyncio event loop thread).
+        """
+        try:
+            # Try to get the running event loop
+            try:
+                loop = asyncio.get_running_loop()
+                # We're in an async context, can use create_task directly
+                if self._download_task is None or self._download_task.done():
+                    self._download_task = asyncio.create_task(
+                        self._download_videos_for_playlist(playlist, is_pending=is_pending)
+                    )
+            except RuntimeError:
+                # No running event loop - we're in a different thread (SignalR callback)
+                if self._event_loop is not None:
+                    # Schedule on the main event loop thread-safely
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._download_videos_for_playlist(playlist, is_pending=is_pending),
+                        self._event_loop
+                    )
+                    logger.debug(f"Scheduled background download via run_coroutine_threadsafe")
+                else:
+                    logger.warning("No event loop available for background download")
+        except Exception as e:
+            logger.error(f"Failed to schedule background download: {e}")
+    
+    async def _download_videos_for_playlist(self, playlist: list, is_pending: bool = False):
+        """
+        Download videos for a given playlist (used for pending playlist background downloads).
+        This method downloads without modifying self.playlist - it's purely for caching.
+        Also sets local_path on each playlist item after download.
+        """
+        try:
+            cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
+            os.makedirs(cache_dir, exist_ok=True)
+            
+            playlist_type = "pending" if is_pending else "current"
+            logger.info(f"Starting background download for {playlist_type} playlist ({len(playlist)} items)")
+            
+            for item in playlist:
+                url = item.get("creativeUrl", "")
+                slot_number = item.get("slotNumber", 0)
+                
+                if not url:
+                    continue
+                
+                # Use same caching logic as download_videos() to avoid re-downloads
+                # Extract filename/id from URL for consistent cache naming
+                creative_id = item.get("creativeId") or item.get("ownerContentId")
+                if creative_id:
+                    # Use creative/owner ID as filename (same as download_videos)
+                    ext = os.path.splitext(url.split('?')[0])[1] or ".mp4"
+                    cache_filename = f"{creative_id}{ext}"
+                else:
+                    # Fallback: use hash-based naming for default videos
+                    url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
+                    ext = os.path.splitext(url.split('?')[0])[1] or ".mp4"
+                    cache_filename = f"default_slot_{slot_number}{ext}"
+                
+                cache_path = os.path.join(cache_dir, cache_filename)
+                
+                # Skip if already cached - just set local_path
+                if os.path.exists(cache_path) and os.path.getsize(cache_path) > 0:
+                    logger.debug(f"[BG Download] Already cached: {cache_filename}")
+                    item['local_path'] = cache_path
+                    continue
+                
+                # Download the video
+                try:
+                    logger.info(f"[BG Download] Downloading slot {slot_number}: {url}")
+                    response = await asyncio.get_event_loop().run_in_executor(
+                        None,
+                        lambda url=url: requests.get(url, timeout=120, stream=True)
+                    )
+                    
+                    if response.status_code == 200:
+                        # Write to temp file first, then rename (atomic operation)
+                        temp_path = cache_path + ".tmp"
+                        with open(temp_path, 'wb') as f:
+                            for chunk in response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    f.write(chunk)
+                        
+                        # Rename temp to final (atomic)
+                        os.replace(temp_path, cache_path)
+                        item['local_path'] = cache_path
+                        file_size = os.path.getsize(cache_path) / (1024 * 1024)
+                        logger.info(f"[BG Download] Cached slot {slot_number}: {cache_filename} ({file_size:.1f} MB)")
+                    else:
+                        logger.warning(f"[BG Download] Failed to download slot {slot_number}: HTTP {response.status_code}")
+                        
+                except Exception as e:
+                    logger.error(f"[BG Download] Error downloading slot {slot_number}: {e}")
+                    continue
+                
+                # Small delay between downloads to avoid overwhelming network
+                await asyncio.sleep(0.1)
+            
+            logger.info(f"Background download complete for {playlist_type} playlist")
+            
+        except Exception as e:
+            logger.error(f"Background download failed: {e}")
     
     def emit_ad_started(self, item):
         """Emit AdStarted event to SignalR"""
@@ -971,12 +1128,15 @@ class CCMSPlayer:
                 "BookingId": str(item.get("bookingId", "")),
                 "ScreenId": str(self.screen_id),
                 "CampaignId": str(item.get("campaignId", "")),
+                "SlotNumber": item.get("slotNumber", 0),
+                "IsFillerContent": item.get("isFillerContent", False),
+                "OwnerContentId": str(item.get("ownerContentId", "")),
                 "Timestamp": datetime.now().isoformat(),
                 "DeviceId": f"player-{self.screen_id[:8]}"
             }
             
             self.signalr_connection.send("AdStarted", [event_data])
-            logger.debug(f"Emitted AdStarted event for campaign {item.get('campaignId')}")
+            logger.debug(f"Emitted AdStarted event for slot {item.get('slotNumber')} campaign {item.get('campaignId')}")
         except Exception as e:
             logger.error(f"Failed to emit AdStarted: {e}")
     
@@ -1016,6 +1176,20 @@ class CCMSPlayer:
         while self.is_running:
             await asyncio.sleep(Config.SYNC_INTERVAL_MINUTES * 60)
             self.sync_daily_data()
+    
+    async def playlist_refresh_loop(self):
+        """Periodically refresh playlist to pick up owner content changes.
+        
+        This is a fallback mechanism in case SignalR notifications are not received.
+        Ensures player always gets updated content within PLAYLIST_REFRESH_INTERVAL_MINUTES.
+        """
+        while self.is_running:
+            await asyncio.sleep(Config.PLAYLIST_REFRESH_INTERVAL_MINUTES * 60)
+            try:
+                logger.info("⏰ Periodic playlist refresh...")
+                self._refresh_playlist()
+            except Exception as e:
+                logger.error(f"Periodic playlist refresh failed: {e}")
     
     async def cache_cleanup_loop(self):
         """Run cache cleanup daily"""
@@ -1232,6 +1406,20 @@ class CCMSPlayer:
             was_interrupted: True if playback was interrupted/skipped, False if completed normally
         """
         try:
+            slot_number = item.get('slotNumber', 0)
+            current_time = time.time()
+            
+            # DUPLICATE EVENT GUARD: Skip if we just processed this exact slot recently
+            # This prevents double-triggers from VLC/MPV event quirks
+            if (self._last_ended_slot == slot_number and 
+                (current_time - self._last_ended_time) < 1.0):  # 1 second debounce
+                logger.debug(f"⏭️  Ignoring duplicate video_ended for slot {slot_number} (debounced)")
+                return
+            
+            # Update last ended tracking
+            self._last_ended_slot = slot_number
+            self._last_ended_time = current_time
+            
             # Emit SignalR event
             self.emit_ad_completed(item)
             
@@ -1262,15 +1450,44 @@ class CCMSPlayer:
                 was_full_play=was_full_play
             )
             
-            # Check if reload is pending and we just finished the LAST slot
-            slot_number = item.get('slotNumber', 0)
-            if self.reload_pending_since_slot is not None:
-                # slots_per_frame is the total number of slots (e.g., 6)
-                # Reload after the last slot in the frame completes
-                if slot_number == self.slots_per_frame:
-                    logger.info(f"✅ Frame complete (slot {slot_number}/{self.slots_per_frame}) - reloading playlist now")
-                    self.playlist_needs_reload = True
-                    self.reload_pending_since_slot = None
+            # CYCLE BOUNDARY CHECK: Apply pending playlist when cycle completes
+            # A cycle is complete when we finish the LAST slot (slot_number == slots_per_frame)
+            if slot_number == self.slots_per_frame and self._pending_playlist is not None:
+                logger.info(f"🔄 Cycle complete (slot {slot_number}/{self.slots_per_frame}) - applying pending playlist")
+                
+                # Check if all videos in pending playlist have local_path
+                all_cached = all(item.get('local_path') for item in self._pending_playlist)
+                
+                if not all_cached:
+                    logger.warning("⚠️  Pending playlist not fully cached yet, keeping pending for next cycle")
+                    # Don't apply yet - wait for downloads to complete
+                    return
+                
+                # Apply the pending playlist
+                self.playlist = self._pending_playlist
+                self._pending_playlist = None
+                
+                # Update slots_per_frame if it changed
+                if self._pending_slots_per_frame is not None:
+                    self.slots_per_frame = self._pending_slots_per_frame
+                    self._pending_slots_per_frame = None
+                    logger.info(f"Updated slots_per_frame to {self.slots_per_frame}")
+                
+                logger.info(f"✅ Pending playlist applied with {len(self.playlist)} items")
+                
+                # Reload MPV immediately (synchronous) to prevent slot 1 from starting with old playlist
+                logger.info("🔄 Reloading MPV with new playlist...")
+                try:
+                    if self.mpv_player.load_playlist(self.playlist):
+                        logger.info("✅ Playlist reloaded successfully!")
+                        # Resume playback after reload
+                        self.mpv_player.play()
+                        logger.info("▶️  Playback resumed")
+                    else:
+                        logger.error("❌ Failed to reload playlist in MPV")
+                except Exception as e:
+                    logger.error(f"❌ Error reloading playlist: {e}")
+                
         except Exception as e:
             logger.error(f"Error handling video ended: {e}")
     
@@ -1387,21 +1604,7 @@ class CCMSPlayer:
                                 self.is_within_operating_hours = False
                             break  # Exit inner loop to re-check in outer loop
                         
-                        # Check if playlist needs to be reloaded (owner content changed)
-                        if self.playlist_needs_reload:
-                            logger.info("🔄 Playlist reload requested - downloading and reloading...")
-                            self.playlist_needs_reload = False
-                            
-                            # Download any new videos
-                            await self.download_videos()
-                            
-                            # Reload playlist in MPV
-                            if self.mpv_player.load_playlist(self.playlist):
-                                logger.info("✅ Playlist reloaded successfully!")
-                                self.mpv_player.play()
-                            else:
-                                logger.error("Failed to reload playlist")
-                        
+                        # Periodic check (every 10 seconds)
                         await asyncio.sleep(10)
                 else:
                     logger.error("Failed to load playlist, retrying in 30s...")
@@ -1416,6 +1619,9 @@ class CCMSPlayer:
     
     async def run(self):
         """Main entry point"""
+        # Store event loop reference for thread-safe async calls from SignalR callbacks
+        self._event_loop = asyncio.get_running_loop()
+        
         logger.info("=" * 60)
         logger.info("CCMS Player Starting")
         logger.info("=" * 60)
@@ -1520,6 +1726,7 @@ class CCMSPlayer:
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
         sync_task = asyncio.create_task(self.sync_loop())
         cache_cleanup_task = asyncio.create_task(self.cache_cleanup_loop())
+        playlist_refresh_task = asyncio.create_task(self.playlist_refresh_loop())
         
         try:
             await self.play_loop()
@@ -1530,6 +1737,7 @@ class CCMSPlayer:
             heartbeat_task.cancel()
             sync_task.cancel()
             cache_cleanup_task.cancel()
+            playlist_refresh_task.cancel()
             
             # Stop WebRTC streaming
             if webrtc_client:

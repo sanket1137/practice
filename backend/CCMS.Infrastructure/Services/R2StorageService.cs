@@ -1,9 +1,13 @@
 using Amazon;
+using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer;
 using Microsoft.Extensions.Configuration;
 using CCMS.Application.Interfaces;
+using System.Net;
+using System.Net.Http;
+using System.Security.Authentication;
 
 namespace CCMS.Infrastructure.Services;
 
@@ -14,11 +18,15 @@ public class R2StorageService : IFileStorageService
 {
     private readonly IAmazonS3 _s3Client;
     private readonly string _bucketName;
+    private readonly string _basePath;
     private readonly string _publicUrlBase;
+    private bool _bucketVerified;
+    private readonly object _verifyLock = new();
 
     public R2StorageService(IConfiguration configuration)
     {
-        Console.WriteLine("[R2Storage] Initializing Cloudflare R2 Storage Service...");
+        // Force TLS 1.2 for Cloudflare R2 compatibility
+        ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
         
         var accountId = configuration["R2:AccountId"] 
             ?? throw new InvalidOperationException("R2 Account ID not configured");
@@ -28,39 +36,60 @@ public class R2StorageService : IFileStorageService
             ?? throw new InvalidOperationException("R2 Secret Access Key not configured");
         
         _bucketName = configuration["R2:BucketName"] ?? "ccms-creatives";
+        _basePath = configuration["R2:BasePath"]?.Trim('/') ?? ""; // Remove leading/trailing slashes
         _publicUrlBase = configuration["R2:PublicUrlBase"] 
             ?? $"https://{_bucketName}.{accountId}.r2.cloudflarestorage.com";
         
-        Console.WriteLine($"[R2Storage] Bucket: {_bucketName}");
-        Console.WriteLine($"[R2Storage] Public URL: {_publicUrlBase}");
-        
         // Create S3 client with R2 endpoint
-        // CRITICAL: Disable chunked encoding for R2 compatibility
         var r2Endpoint = $"https://{accountId}.r2.cloudflarestorage.com";
+        
+        // Create custom HttpClient with TLS configuration
+        var httpClientHandler = new HttpClientHandler
+        {
+            SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+        };
         
         var config = new AmazonS3Config
         {
             ServiceURL = r2Endpoint,
             ForcePathStyle = true, // Required for R2
-            SignatureVersion = "4"
+            SignatureVersion = "4",
+            HttpClientFactory = new R2HttpClientFactory(httpClientHandler)
         };
         
         _s3Client = new AmazonS3Client(accessKeyId, secretAccessKey, config);
         
-        // Verify bucket access (async would be better but can't use in constructor)
+        // Log initialization once (no blocking bucket check)
+        var pathInfo = string.IsNullOrEmpty(_basePath) ? "root" : $"/{_basePath}/";
+        Console.WriteLine($"[R2Storage] Initialized - Bucket: {_bucketName}, BasePath: {pathInfo}, URL: {_publicUrlBase}");
+    }
+    
+    /// <summary>
+    /// Lazy bucket verification - only checks on first upload
+    /// </summary>
+    private async Task EnsureBucketAccessAsync()
+    {
+        if (_bucketVerified) return;
+        
+        lock (_verifyLock)
+        {
+            if (_bucketVerified) return;
+            _bucketVerified = true; // Set immediately to avoid repeated attempts
+        }
+        
         try
         {
-            var listResponse = _s3Client.ListObjectsV2Async(new ListObjectsV2Request
+            await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
             {
                 BucketName = _bucketName,
                 MaxKeys = 1
-            }).GetAwaiter().GetResult();
-            
-            Console.WriteLine($"[R2Storage] Bucket '{_bucketName}' accessible");
+            });
+            Console.WriteLine($"[R2Storage] Bucket '{_bucketName}' verified accessible");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[R2Storage] WARNING: Could not access bucket: {ex.Message}");
+            Console.WriteLine($"[R2Storage] WARNING: Bucket access check failed: {ex.Message}");
+            // Don't throw - let the actual upload fail with a better error
         }
     }
 
@@ -70,21 +99,36 @@ public class R2StorageService : IFileStorageService
         string contentType,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine($"[R2Storage] Uploading file: {fileName}, Type: {contentType}");
+        // Lazy bucket verification on first upload
+        await EnsureBucketAccessAsync();
         
-        // Generate unique object key
-        var fileExtension = Path.GetExtension(fileName);
-        var objectKey = $"{Guid.NewGuid()}{fileExtension}";
+        // Use the fileName as the object key (preserves directory structure)
+        // If fileName already contains path (e.g., "Screens/xxx/image.png"), use it as-is
+        // Otherwise, generate a unique key with the original extension
+        string objectKey;
+        if (fileName.Contains('/') || fileName.Contains('\\'))
+        {
+            // Path provided - use as object key (normalize slashes)
+            objectKey = fileName.Replace('\\', '/');
+        }
+        else
+        {
+            // No path provided - generate unique key
+            var fileExtension = Path.GetExtension(fileName);
+            objectKey = $"{Guid.NewGuid()}{fileExtension}";
+        }
         
-        Console.WriteLine($"[R2Storage] Object key: {objectKey}");
+        // Prepend base path if configured (e.g., "uploads/Screens/xxx/image.png")
+        if (!string.IsNullOrEmpty(_basePath))
+        {
+            objectKey = $"{_basePath}/{objectKey}";
+        }
         
         // Copy stream to MemoryStream to get the content length
         // This is required because R2 needs Content-Length header
         using var memoryStream = new MemoryStream();
         await fileStream.CopyToAsync(memoryStream, cancellationToken);
         memoryStream.Position = 0;
-        
-        Console.WriteLine($"[R2Storage] File size: {memoryStream.Length} bytes");
         
         var putRequest = new PutObjectRequest
         {
@@ -187,5 +231,23 @@ public class R2StorageService : IFileStorageService
         var uri = new Uri(fileUrl);
         var objectKey = uri.AbsolutePath.TrimStart('/');
         return objectKey;
+    }
+}
+
+/// <summary>
+/// Custom HttpClientFactory to configure TLS for Cloudflare R2 compatibility
+/// </summary>
+internal class R2HttpClientFactory : Amazon.Runtime.HttpClientFactory
+{
+    private readonly HttpClientHandler _handler;
+
+    public R2HttpClientFactory(HttpClientHandler handler)
+    {
+        _handler = handler;
+    }
+
+    public override HttpClient CreateHttpClient(IClientConfig clientConfig)
+    {
+        return new HttpClient(_handler, disposeHandler: false);
     }
 }

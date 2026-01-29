@@ -73,13 +73,17 @@ if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(
             builder.Configuration.GetConnectionString("PostgresConnection"),
-            npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorCodesToAdd: null
-            )
+            npgsqlOptions => {
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null
+                );
+                // Use split queries by default to avoid Cartesian explosion with multiple Includes
+                npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+            }
         ));
-    Console.WriteLine("Using PostgreSQL database");
+    Console.WriteLine("Using PostgreSQL database with SplitQuery optimization");
 }
 else
 {
@@ -185,19 +189,20 @@ builder.Services.AddHttpClient("ComBirds"); // HttpClient for SMS API
 var fileStorageProvider = builder.Configuration["FileStorage:Provider"] ?? "Local";
 Console.WriteLine($"[CONFIG] FileStorage:Provider value read from config: '{fileStorageProvider}'");
 
+// Use Singleton for storage services to reuse connections and avoid repeated initialization
 if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddScoped<IFileStorageService, AzureBlobStorageService>();
+    builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
     Console.WriteLine("Using Azure Blob Storage for file uploads");
 }
 else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddScoped<IFileStorageService, R2StorageService>();
+    builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
     Console.WriteLine("Using Cloudflare R2 Storage for file uploads (S3-compatible, zero egress)");
 }
 else
 {
-    builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+    builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
     Console.WriteLine("Using Local File System for file uploads");
 }
 
@@ -249,12 +254,15 @@ builder.Services.AddScoped<ReportExportService>();
 // Memory cache for caching (used by Google Places Service)
 builder.Services.AddMemoryCache();
 
-// Google Places Service for screen tagging
+// Google Places Service for screen tagging (Singleton to reuse HTTP client and cache)
 builder.Services.AddHttpClient("GooglePlaces");
-builder.Services.AddScoped<IGooglePlacesService, GooglePlacesService>();
+builder.Services.AddSingleton<IGooglePlacesService, GooglePlacesService>();
 
 // Screen Tagging Service
 builder.Services.AddScoped<ScreenTaggingService>();
+
+// Screen Image Service
+builder.Services.AddScoped<IScreenImageService, ScreenImageService>();
 
 // Security services for access control
 builder.Services.AddScoped<AdvertiserScreenAccessService>();

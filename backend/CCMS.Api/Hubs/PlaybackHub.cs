@@ -35,6 +35,12 @@ public class PlaybackHub : Hub
         _configuration = configuration;
     }
 
+    public override async Task OnConnectedAsync()
+    {
+        _logger.LogInformation($"[PlaybackHub] Client connected: {Context.ConnectionId}");
+        await base.OnConnectedAsync();
+    }
+
     /// <summary>
     /// Register a device (Raspberry Pi/Player) with a screen
     /// </summary>
@@ -94,14 +100,14 @@ public class PlaybackHub : Hub
     public async Task SubscribeToScreen(string screenId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"screen_{screenId}");
-        _logger.LogInformation($"Client {Context.ConnectionId} subscribed to screen {screenId}");
+        _logger.LogInformation($"[PlaybackHub] Client {Context.ConnectionId} subscribed to screen group: screen_{screenId}");
     }
 
     public async Task UnsubscribeFromScreen(string screenId)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"screen_{screenId}");
+        _logger.LogInformation($"[PlaybackHub] Client {Context.ConnectionId} unsubscribed from screen: {screenId}");
     }
-
     public async Task SubscribeToCampaign(string campaignId)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, $"campaign_{campaignId}");

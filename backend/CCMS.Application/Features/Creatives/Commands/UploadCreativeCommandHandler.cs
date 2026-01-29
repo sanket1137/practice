@@ -104,9 +104,13 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             // ✅ CRITICAL: Reset stream position after metadata extraction
             stream.Position = 0;
             
+            // Generate storage path: Creatives/{campaignId}/{guid}_{filename}
+            var fileExtension = Path.GetExtension(request.FileName);
+            var storagePath = $"Creatives/{request.CampaignId}/{Guid.NewGuid()}{fileExtension}";
+            
             fileUrl = await _fileStorageService.UploadFileAsync(
                 stream,
-                request.FileName,
+                storagePath,
                 request.ContentType);
 
             // Calculate file hash for integrity

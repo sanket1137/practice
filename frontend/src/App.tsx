@@ -29,6 +29,7 @@ import AdvertiserReportPage from './pages/reports/AdvertiserReportPage';
 import CampaignReportPage from './pages/reports/CampaignReportPage';
 import MainLayout from './components/Layout/MainLayout';
 import DemoPage from './pages/demo/DemoPage';
+import ExploreScreensPage from './pages/public/ExploreScreensPage';
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ function App() {
               <Route path="/verify-phone" element={<VerifyPhonePage />} />
               <Route path="/resend-verification" element={<ResendVerificationPage />} />
               <Route path="/demo" element={<DemoPage />} />
+              <Route path="/explore" element={<ExploreScreensPage />} />
               <Route
                 path="/"
                 element={

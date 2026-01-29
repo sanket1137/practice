@@ -35,6 +35,10 @@ public class ScreenDto
     public List<ScreenTagSummaryDto> Tags { get; set; } = new();
     public List<ScreenTagSummaryDto> PrimaryTags { get; set; } = new();
     public DateTime? LastTaggedAt { get; set; }
+    
+    // Images
+    public List<ScreenImageDto> Images { get; set; } = new();
+    public ScreenImageDto? PrimaryImage { get; set; }
 }
 
 public class CreateScreenRequest
@@ -288,6 +292,144 @@ public class SearchScreensRequest
 public class SearchScreensResult
 {
     public List<ScreenDto> Screens { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; set; }
+}
+
+// ==========================================
+// PUBLIC EXPLORE DTOs (No Auth Required)
+// ==========================================
+
+/// <summary>
+/// Bounding box for map viewport search
+/// </summary>
+public class BoundingBox
+{
+    public decimal North { get; set; }
+    public decimal South { get; set; }
+    public decimal East { get; set; }
+    public decimal West { get; set; }
+}
+
+/// <summary>
+/// Request for public screen exploration (no auth required)
+/// </summary>
+public class PublicSearchScreensRequest
+{
+    /// <summary>
+    /// Text search on name, city
+    /// </summary>
+    public string? SearchText { get; set; }
+    
+    /// <summary>
+    /// Filter by city
+    /// </summary>
+    public string? City { get; set; }
+    
+    /// <summary>
+    /// Filter by state
+    /// </summary>
+    public string? State { get; set; }
+    
+    /// <summary>
+    /// Filter by country
+    /// </summary>
+    public string? Country { get; set; }
+    
+    /// <summary>
+    /// Bounding box for map viewport
+    /// </summary>
+    public BoundingBox? BoundingBox { get; set; }
+    
+    /// <summary>
+    /// Center latitude for radius search
+    /// </summary>
+    public decimal? Latitude { get; set; }
+    
+    /// <summary>
+    /// Center longitude for radius search
+    /// </summary>
+    public decimal? Longitude { get; set; }
+    
+    /// <summary>
+    /// Radius in km for location search
+    /// </summary>
+    public int? RadiusKm { get; set; }
+    
+    /// <summary>
+    /// Filter by tag category
+    /// </summary>
+    public string? TagCategory { get; set; }
+    
+    /// <summary>
+    /// Minimum price per slot
+    /// </summary>
+    public decimal? MinPrice { get; set; }
+    
+    /// <summary>
+    /// Maximum price per slot
+    /// </summary>
+    public decimal? MaxPrice { get; set; }
+    
+    /// <summary>
+    /// Page number (1-based)
+    /// </summary>
+    public int Page { get; set; } = 1;
+    
+    /// <summary>
+    /// Page size (default: 100, max: 500 for map)
+    /// </summary>
+    public int PageSize { get; set; } = 100;
+    
+    /// <summary>
+    /// Sort by field: "name", "price"
+    /// </summary>
+    public string? SortBy { get; set; }
+    
+    /// <summary>
+    /// Sort direction: "asc" or "desc"
+    /// </summary>
+    public string? SortDirection { get; set; }
+}
+
+/// <summary>
+/// Public screen data with limited information (no owner details, no revenue)
+/// </summary>
+public class PublicScreenDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public string? Country { get; set; }
+    public decimal? Latitude { get; set; }
+    public decimal? Longitude { get; set; }
+    /// <summary>
+    /// Price range indicator: "Budget", "Standard", "Premium", "Enterprise"
+    /// </summary>
+    public string? PriceRange { get; set; }
+    /// <summary>
+    /// Starting price for display
+    /// </summary>
+    public decimal? StartingPrice { get; set; }
+    public string? Currency { get; set; }
+    public bool IsOnline { get; set; }
+    public string? PrimaryTagCategory { get; set; }
+    public string? PrimaryTagName { get; set; }
+    /// <summary>
+    /// Primary image URL for display
+    /// </summary>
+    public string? PrimaryImageUrl { get; set; }
+}
+
+/// <summary>
+/// Public search results with limited data
+/// </summary>
+public class PublicSearchScreensResult
+{
+    public List<PublicScreenDto> Screens { get; set; } = new();
     public int TotalCount { get; set; }
     public int Page { get; set; }
     public int PageSize { get; set; }
