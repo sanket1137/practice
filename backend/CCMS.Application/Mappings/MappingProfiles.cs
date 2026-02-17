@@ -58,6 +58,8 @@ public class MappingProfiles : Profile
         // Campaign mappings
         CreateMap<Campaign, CampaignDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.StartDate.ToString("yyyy-MM-dd")))
+            .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.EndDate.HasValue ? src.EndDate.Value.ToString("yyyy-MM-dd") : ""))
             .ForMember(dest => dest.TotalCreatives, opt => opt.MapFrom(src => src.Creatives != null ? src.Creatives.Count : 0))
             .ForMember(dest => dest.TotalBookings, opt => opt.MapFrom(src => src.Bookings != null ? src.Bookings.Count : 0))
             .ForMember(dest => dest.TotalImpressions, opt => opt.MapFrom(src => src.Bookings != null ? src.Bookings.Sum(b => b.DeliveredImpressions) : 0));
@@ -81,7 +83,13 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.CreativeMimeType, opt => opt.MapFrom(src => src.Creative.MimeType))
             .ForMember(dest => dest.ExpectedImpressions, opt => opt.Ignore())
             .ForMember(dest => dest.DeliveredImpressions, opt => opt.Ignore())
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()));
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.StartDate.ToString("yyyy-MM-dd")))
+            .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.EndDate.ToString("yyyy-MM-dd")))
+            .ForMember(dest => dest.BookedDates, opt => opt.MapFrom(src => 
+                src.DailySlotAssignments != null 
+                    ? src.DailySlotAssignments.Keys.Select(d => d.ToString("yyyy-MM-dd")).ToList() 
+                    : null));
         
         CreateMap<CreateBookingRequest, Booking>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())

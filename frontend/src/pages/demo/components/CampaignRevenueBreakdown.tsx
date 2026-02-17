@@ -11,7 +11,6 @@ interface CampaignRevenueBreakdownProps {
 }
 
 export const CampaignRevenueBreakdown: React.FC<CampaignRevenueBreakdownProps> = ({
-    screenName,
     slots,
     pricePerPlay = 10,
 }) => {

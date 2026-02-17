@@ -20,8 +20,7 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { websocketService } from '../../services/websocket';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { api } from '../../services/api';
 
 interface LivePreviewWidgetProps {
     screenId?: string;
@@ -85,26 +84,20 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                 }
 
                 console.log('[LivePreview] Loading initial stats from:', endpoint);
-                const response = await fetch(`${API_URL}${endpoint}`);
+                const response = await api.get(endpoint);
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success && result.data) {
+                if (response.data?.success && response.data?.data) {
                     setStats({
-                        totalPlaysToday: result.data.totalPlaysToday,
-                        savedPlays: result.data.savedPlays,
-                        pendingPlays: result.data.pendingPlays,
-                        lastUpdated: result.data.lastUpdated
+                        totalPlaysToday: response.data.data.totalPlaysToday,
+                        savedPlays: response.data.data.savedPlays,
+                        pendingPlays: response.data.data.pendingPlays,
+                        lastUpdated: response.data.data.lastUpdated
                     });
 
                     // Reset realtime counter
                     setRealtimeCount(0);
 
-                    console.log('[LivePreview] Loaded initial stats:', result.data);
+                    console.log('[LivePreview] Loaded initial stats:', response.data.data);
                 }
             } catch (error) {
                 console.error('[LivePreview] Failed to load stats:', error);

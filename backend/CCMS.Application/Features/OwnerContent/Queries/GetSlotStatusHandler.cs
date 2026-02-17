@@ -1,8 +1,10 @@
+using CCMS.Application.Helpers;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.OwnerContent;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 
 namespace CCMS.Application.Features.OwnerContent.Queries;
 
@@ -13,19 +15,22 @@ public class GetSlotStatusHandler : IRequestHandler<GetSlotStatusQuery, List<Slo
     private readonly IRepository<Domain.Entities.OwnerContent> _ownerContentRepo;
     private readonly IRepository<Impression> _impressionRepo;
     private readonly IRepository<Creative> _creativeRepo;
+    private readonly string _r2PublicUrlBase;
 
     public GetSlotStatusHandler(
         IRepository<Screen> screenRepo,
         IRepository<Booking> bookingRepo,
         IRepository<Domain.Entities.OwnerContent> ownerContentRepo,
         IRepository<Impression> impressionRepo,
-        IRepository<Creative> creativeRepo)
+        IRepository<Creative> creativeRepo,
+        IConfiguration configuration)
     {
         _screenRepo = screenRepo;
         _bookingRepo = bookingRepo;
         _ownerContentRepo = ownerContentRepo;
         _impressionRepo = impressionRepo;
         _creativeRepo = creativeRepo;
+        _r2PublicUrlBase = configuration["R2:PublicUrlBase"] ?? "";
     }
 
     public async Task<List<SlotStatusDto>> Handle(GetSlotStatusQuery request, CancellationToken cancellationToken)
@@ -35,13 +40,14 @@ public class GetSlotStatusHandler : IRequestHandler<GetSlotStatusQuery, List<Slo
             throw new KeyNotFoundException($"Screen {request.ScreenId} not found");
 
         var now = DateTime.UtcNow;
+        var nowDate = DateOnly.FromDateTime(now);
         
         // Get active bookings with Creative loaded
         var activeBookings = (await _bookingRepo.FindAsync(b =>
             b.ScreenId == request.ScreenId &&
             (b.Status == BookingStatus.Approved || b.Status == BookingStatus.Active) &&
-            b.StartDate <= now &&
-            b.EndDate >= now,
+            b.StartDate <= nowDate &&
+            b.EndDate >= nowDate,
             cancellationToken)).ToList();
         
         // Load creatives for all bookings
@@ -123,7 +129,7 @@ public class GetSlotStatusHandler : IRequestHandler<GetSlotStatusQuery, List<Slo
                     SlotNumber = slot,
                     Status = "Booked",
                     ContentName = booking.Creative?.Name ?? "Booked Content",
-                    VideoUrl = booking.Creative?.FileUrl,
+                    VideoUrl = MediaUrlHelper.ToProxyUrl(booking.Creative?.FileUrl, _r2PublicUrlBase),
                     CanEdit = false
                 });
             }
@@ -136,14 +142,14 @@ public class GetSlotStatusHandler : IRequestHandler<GetSlotStatusQuery, List<Slo
                     SlotNumber = slot,
                     Status = "Custom",
                     ContentName = ownerContent.Name,
-                    VideoUrl = ownerContent.FileUrl,
+                    VideoUrl = MediaUrlHelper.ToProxyUrl(ownerContent.FileUrl, _r2PublicUrlBase),
                     CanEdit = true,
                     OwnerContent = new OwnerContentDto
                     {
                         Id = ownerContent.Id,
                         SlotNumber = ownerContent.SlotNumber,
                         Name = ownerContent.Name,
-                        FileUrl = ownerContent.FileUrl,
+                        FileUrl = MediaUrlHelper.ToProxyUrl(ownerContent.FileUrl, _r2PublicUrlBase),
                         Duration = ownerContent.Duration,
                         PricePerPlay = ownerContent.PricePerPlay,
                         TotalPlays = plays,
@@ -161,7 +167,7 @@ public class GetSlotStatusHandler : IRequestHandler<GetSlotStatusQuery, List<Slo
                     SlotNumber = slot,
                     Status = "Empty",
                     ContentName = "Default Video",
-                    VideoUrl = screen.DefaultVideoUrl,
+                    VideoUrl = MediaUrlHelper.ToProxyUrl(screen.DefaultVideoUrl, _r2PublicUrlBase),
                     CanEdit = true
                 });
             }

@@ -49,16 +49,30 @@ export default function CreateCampaignPage() {
             name: '',
             description: '',
             budget: 0,
-            currency: 'USD',
+            currency: 'INR', // Default to INR for India
             startDate: new Date(),
             endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
             status: 'Draft',
         },
     });
 
+    // Helper function to format date as YYYY-MM-DD string (no timezone issues!)
+    const formatDateOnly = (date: Date): string => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
     const createMutation = useMutation({
         mutationFn: async (data: CampaignFormData) => {
-            const response = await api.post('/campaigns', data);
+            // Send date-only strings to avoid timezone conversion issues
+            const formattedData = {
+                ...data,
+                startDate: formatDateOnly(data.startDate),
+                endDate: formatDateOnly(data.endDate),
+            };
+            const response = await api.post('/campaigns', formattedData);
             return response.data.data; // ApiResponse wrapper
         },
         onSuccess: (data) => {
@@ -173,10 +187,10 @@ export default function CreateCampaignPage() {
                                         helperText={errors.currency?.message}
                                         required
                                     >
+                                        <MenuItem value="INR">INR</MenuItem>
                                         <MenuItem value="USD">USD</MenuItem>
                                         <MenuItem value="EUR">EUR</MenuItem>
                                         <MenuItem value="GBP">GBP</MenuItem>
-                                        <MenuItem value="INR">INR</MenuItem>
                                     </TextField>
                                 )}
                             />

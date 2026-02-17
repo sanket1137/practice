@@ -7,13 +7,10 @@ import {
     LinearProgress,
     Stack,
     Tooltip,
-    IconButton,
 } from '@mui/material';
 import {
     Tv as ScreenIcon,
     LocationOn,
-    Info as InfoIcon,
-    TrendingUp,
 } from '@mui/icons-material';
 
 interface Screen {

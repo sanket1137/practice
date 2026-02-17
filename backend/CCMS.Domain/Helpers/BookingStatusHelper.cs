@@ -34,10 +34,10 @@ public static class BookingStatusHelper
     /// </summary>
     public static bool IsActiveOn(this Booking booking, DateTime date)
     {
-        var dateOnly = date.Date;
+        var dateOnly = DateOnly.FromDateTime(date);
         return booking.Status.IsActiveForPlaylist() &&
-               booking.StartDate.Date <= dateOnly &&
-               booking.EndDate.Date >= dateOnly;
+               booking.StartDate <= dateOnly &&
+               booking.EndDate >= dateOnly;
     }
     
     /// <summary>

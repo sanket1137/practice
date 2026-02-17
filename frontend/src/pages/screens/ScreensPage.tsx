@@ -331,7 +331,7 @@ export default function ScreensPage() {
                                 slug: '', 
                                 displayName: t.displayName, 
                                 category: '',
-                                source: 'manual' as const,
+                                source: 'Manual' as const,
                                 isPrimary: true 
                             })),
                         })) || []}

@@ -15,8 +15,6 @@ import {
     Avatar,
     Menu,
     MenuItem,
-    useMediaQuery,
-    useTheme,
 } from '@mui/material';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
@@ -36,24 +34,19 @@ import {
     BarChart as AnalyticsIcon,
     AccountCircle as AccountIcon,
     Logout as LogoutIcon,
-    ChevronLeft as ChevronLeftIcon,
     Search as SearchIcon,
     Explore as ExploreIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
-const miniDrawerWidth = 60;
 
 const MainLayout = () => {
-    const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuthStore();
     const { connectionState } = useWebSocket();
     const [mobileOpen, setMobileOpen] = useState(false);
-    const [desktopOpen, setDesktopOpen] = useState(true);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
     const { open: shortcutsOpen, setOpen: setShortcutsOpen } = useKeyboardShortcuts();
 

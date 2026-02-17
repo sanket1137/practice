@@ -1,5 +1,7 @@
 using CCMS.Api.Hubs;
 using CCMS.Application.Interfaces;
+using CCMS.Domain.Entities;
+using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
@@ -7,18 +9,24 @@ using Microsoft.Extensions.Logging;
 namespace CCMS.Api.Services;
 
 /// <summary>
-/// Service for sending real-time booking notifications via SignalR PlaybackHub
+/// Service for sending real-time booking notifications via SignalR PlaybackHub and email
 /// </summary>
 public class BookingNotificationService : IBookingNotificationService
 {
     private readonly IHubContext<PlaybackHub> _hubContext;
+    private readonly IEmailService _emailService;
+    private readonly IRepository<User> _userRepository;
     private readonly ILogger<BookingNotificationService> _logger;
 
     public BookingNotificationService(
         IHubContext<PlaybackHub> hubContext,
+        IEmailService emailService,
+        IRepository<User> userRepository,
         ILogger<BookingNotificationService> logger)
     {
         _hubContext = hubContext;
+        _emailService = emailService;
+        _userRepository = userRepository;
         _logger = logger;
     }
 
@@ -53,6 +61,38 @@ public class BookingNotificationService : IBookingNotificationService
         });
 
         _logger.LogInformation("[SignalR] BookingCreated broadcast complete");
+
+        // Send email notification to screen owner
+        try
+        {
+            var screenOwner = await _userRepository.GetByIdAsync(screenOwnerId);
+            var advertiser = await _userRepository.GetByIdAsync(booking.AdvertiserId);
+            var advertiserName = advertiser != null 
+                ? $"{advertiser.FirstName} {advertiser.LastName}".Trim() 
+                : "Advertiser";
+            
+            if (screenOwner != null && !string.IsNullOrEmpty(screenOwner.Email))
+            {
+                // Parse YYYY-MM-DD format strings to DateTime for email service
+                var startDateTime = DateOnly.Parse(booking.StartDate).ToDateTime(TimeOnly.MinValue);
+                var endDateTime = DateOnly.Parse(booking.EndDate).ToDateTime(TimeOnly.MinValue);
+                
+                await _emailService.SendNewBookingRequestEmailAsync(
+                    screenOwner.Email,
+                    screenOwner.FirstName ?? "Screen Owner",
+                    booking.Id,
+                    booking.ScreenName,
+                    advertiserName,
+                    booking.CampaignName,
+                    startDateTime,
+                    endDateTime);
+                _logger.LogInformation("[Email] New booking request email sent to screen owner {Email}", screenOwner.Email);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Email] Failed to send new booking request email to screen owner");
+        }
     }
 
     public async Task NotifyBookingApprovedAsync(BookingDto booking, Guid advertiserId)
@@ -78,6 +118,34 @@ public class BookingNotificationService : IBookingNotificationService
         });
 
         _logger.LogInformation("[SignalR] BookingApproved broadcast complete");
+
+        // Send email notification to advertiser
+        try
+        {
+            var advertiser = await _userRepository.GetByIdAsync(advertiserId);
+            if (advertiser != null && !string.IsNullOrEmpty(advertiser.Email))
+            {
+                // Parse YYYY-MM-DD format strings to DateTime for email service
+                var startDateTime = DateOnly.Parse(booking.StartDate).ToDateTime(TimeOnly.MinValue);
+                var endDateTime = DateOnly.Parse(booking.EndDate).ToDateTime(TimeOnly.MinValue);
+                
+                await _emailService.SendBookingApprovedEmailAsync(
+                    advertiser.Email,
+                    advertiser.FirstName ?? "Advertiser",
+                    booking.Id,
+                    booking.CampaignName,
+                    booking.ScreenName,
+                    startDateTime,
+                    endDateTime,
+                    booking.TotalPrice,
+                    booking.Currency);
+                _logger.LogInformation("[Email] Booking approved email sent to advertiser {Email}", advertiser.Email);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Email] Failed to send booking approved email to advertiser");
+        }
     }
 
     public async Task NotifyBookingRejectedAsync(BookingDto booking, Guid advertiserId, string? reason)
@@ -104,6 +172,27 @@ public class BookingNotificationService : IBookingNotificationService
         });
 
         _logger.LogInformation("[SignalR] BookingRejected broadcast complete");
+
+        // Send email notification to advertiser
+        try
+        {
+            var advertiser = await _userRepository.GetByIdAsync(advertiserId);
+            if (advertiser != null && !string.IsNullOrEmpty(advertiser.Email))
+            {
+                await _emailService.SendBookingRejectedEmailAsync(
+                    advertiser.Email,
+                    advertiser.FirstName ?? "Advertiser",
+                    booking.Id,
+                    booking.CampaignName,
+                    booking.ScreenName,
+                    reason);
+                _logger.LogInformation("[Email] Booking rejected email sent to advertiser {Email}", advertiser.Email);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Email] Failed to send booking rejected email to advertiser");
+        }
     }
 
     public async Task NotifyBookingUpdatedAsync(BookingDto booking, Guid screenOwnerId, Guid advertiserId)

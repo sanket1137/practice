@@ -1,4 +1,5 @@
-import { useSnackbar, VariantType } from 'notistack';
+import { useSnackbar } from 'notistack';
+import type { VariantType } from 'notistack';
 import { IconButton } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 

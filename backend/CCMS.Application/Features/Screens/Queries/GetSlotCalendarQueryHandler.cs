@@ -27,8 +27,8 @@ public class GetSlotCalendarQueryHandler : IRequestHandler<GetSlotCalendarQuery,
         // Get all bookings for this screen in the date range
         var allBookings = (await _bookingRepository.GetAllAsync(cancellationToken))
             .Where(b => b.ScreenId == request.ScreenId && 
-                       b.StartDate.Date <= request.EndDate.Date &&
-                       b.EndDate.Date >= request.StartDate.Date &&
+                       b.StartDate <= request.EndDate &&
+                       b.EndDate >= request.StartDate &&
                        (b.Status == Domain.Enums.BookingStatus.Approved || 
                         b.Status == Domain.Enums.BookingStatus.Active ||
                         b.Status == Domain.Enums.BookingStatus.Completed))
@@ -43,15 +43,15 @@ public class GetSlotCalendarQueryHandler : IRequestHandler<GetSlotCalendarQuery,
         };
 
         // Generate calendar for each day in range
-        var currentDate = request.StartDate.Date;
-        while (currentDate <= request.EndDate.Date)
+        var currentDate = request.StartDate;
+        while (currentDate <= request.EndDate)
         {
             var dayOfWeek = currentDate.DayOfWeek;
             var daySchedule = GetDaySchedule(screen.Schedule, dayOfWeek);
             
             var dayDto = new CalendarDayDto
             {
-                Date = currentDate,
+                Date = currentDate.ToDateTime(TimeOnly.MinValue),
                 IsOperating = daySchedule?.IsOperating ?? false,
                 Slots = new List<CalendarSlotDto>()
             };
@@ -70,17 +70,22 @@ public class GetSlotCalendarQueryHandler : IRequestHandler<GetSlotCalendarQuery,
                     // Check if this slot is booked on this date
                     var booking = allBookings.FirstOrDefault(b =>
                     {
-                        // Check if booking contains this date
-                        if (b.StartDate.Date > currentDate || b.EndDate.Date < currentDate)
-                            return false;
-
-                        // Check if booking includes this slot
-                        if (b.DailySlotAssignments != null && b.DailySlotAssignments.TryGetValue(currentDate, out var slotForDay))
+                        // PRIMARY CHECK: Use DailySlotAssignments which stores actual local dates
+                        if (b.DailySlotAssignments != null)
                         {
-                            return slotForDay == slotNum;
+                            if (b.DailySlotAssignments.TryGetValue(currentDate.ToDateTime(TimeOnly.MinValue), out var slotForDay))
+                            {
+                                return slotForDay == slotNum;
+                            }
+                            // If DailySlotAssignments exists but doesn't have this date, not booked
+                            return false;
                         }
 
-                        // Fallback: check SlotNumbers
+                        // FALLBACK: For legacy bookings without DailySlotAssignments
+                        if (b.StartDate > currentDate || b.EndDate < currentDate)
+                            return false;
+
+                        // Check SlotNumbers for legacy bookings
                         return b.SlotNumbers != null && b.SlotNumbers.Any(s => s == slotNum);
                     });
 

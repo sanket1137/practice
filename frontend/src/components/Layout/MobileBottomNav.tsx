@@ -69,7 +69,7 @@ export default function MobileBottomNav() {
         >
             <BottomNavigation
                 value={value}
-                onChange={(event, newValue) => {
+                onChange={(_event, newValue) => {
                     setValue(newValue);
                     navigate(filteredItems[newValue].path);
                 }}

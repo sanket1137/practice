@@ -53,8 +53,8 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<int>("DeliveredImpressions")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
 
                     b.Property<int>("ExpectedImpressions")
                         .HasColumnType("integer");
@@ -72,8 +72,8 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -119,8 +119,8 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("EndDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -130,8 +130,8 @@ namespace CCMS.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -1146,6 +1146,14 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredCurrency")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredTimezone")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ProfileImageUrl")

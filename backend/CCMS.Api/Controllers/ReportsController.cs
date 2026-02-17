@@ -62,9 +62,9 @@ public class ReportsController : ControllerBase
             if (booking == null)
                 return NotFound(ApiResponse<BookingImpressionReport>.ErrorResponse("Booking not found"));
 
-            // Default to booking period if no dates provided
-            var from = startDate ?? booking.StartDate;
-            var to = endDate ?? booking.EndDate;
+            // Default to booking period if no dates provided (convert DateOnly to DateTime)
+            var from = startDate ?? booking.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? booking.EndDate.ToDateTime(TimeOnly.MaxValue);
             
             // Ensure UTC
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
@@ -101,9 +101,9 @@ public class ReportsController : ControllerBase
             if (campaign == null)
                 return NotFound(ApiResponse<CampaignSummaryReport>.ErrorResponse("Campaign not found"));
 
-            // Default to campaign period if no dates provided
-            var from = startDate ?? campaign.StartDate;
-            var to = endDate ?? campaign.EndDate ?? DateTime.UtcNow;
+            // Default to campaign period if no dates provided (convert DateOnly to DateTime)
+            var from = startDate ?? campaign.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? campaign.EndDate?.ToDateTime(TimeOnly.MaxValue) ?? DateTime.UtcNow;
             
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
             to = DateTime.SpecifyKind(to.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
@@ -134,8 +134,8 @@ public class ReportsController : ControllerBase
             if (campaign == null)
                 return NotFound(ApiResponse<CampaignDailyReport>.ErrorResponse("Campaign not found"));
 
-            var from = startDate ?? campaign.StartDate;
-            var to = endDate ?? campaign.EndDate ?? DateTime.UtcNow;
+            var from = startDate ?? campaign.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? campaign.EndDate?.ToDateTime(TimeOnly.MaxValue) ?? DateTime.UtcNow;
             
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
             to = DateTime.SpecifyKind(to.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
@@ -222,8 +222,8 @@ public class ReportsController : ControllerBase
             if (booking == null)
                 return NotFound(ApiResponse<ImpressionLogsResponse>.ErrorResponse("Booking not found"));
 
-            var from = startDate ?? booking.StartDate;
-            var to = endDate ?? booking.EndDate;
+            var from = startDate ?? booking.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? booking.EndDate.ToDateTime(TimeOnly.MaxValue);
             
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
             to = DateTime.SpecifyKind(to.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
@@ -354,7 +354,7 @@ public class ReportsController : ControllerBase
             ScreenLocation = booking.Screen?.Location?.City ?? "Unknown",
             CreativeId = booking.CreativeId,
             CreativeName = booking.Creative?.Name ?? "Unknown",
-            BookingPeriod = new DateRange { StartDate = booking.StartDate, EndDate = booking.EndDate },
+            BookingPeriod = new DateRange { StartDate = booking.StartDate.ToDateTime(TimeOnly.MinValue), EndDate = booking.EndDate.ToDateTime(TimeOnly.MaxValue) },
             ReportPeriod = new DateRange { StartDate = from, EndDate = to },
             GeneratedAt = DateTime.UtcNow,
             
@@ -425,7 +425,7 @@ public class ReportsController : ControllerBase
             CampaignId = campaign.Id,
             CampaignName = campaign.Name,
             AdvertiserId = campaign.AdvertiserId,
-            CampaignPeriod = new DateRange { StartDate = campaign.StartDate, EndDate = campaign.EndDate ?? DateTime.UtcNow },
+            CampaignPeriod = new DateRange { StartDate = campaign.StartDate.ToDateTime(TimeOnly.MinValue), EndDate = campaign.EndDate?.ToDateTime(TimeOnly.MaxValue) ?? DateTime.UtcNow },
             ReportPeriod = new DateRange { StartDate = from, EndDate = to },
             GeneratedAt = DateTime.UtcNow,
             
@@ -552,8 +552,8 @@ public class ReportsController : ControllerBase
             if (booking == null)
                 return NotFound("Booking not found");
 
-            var from = startDate ?? booking.StartDate;
-            var to = endDate ?? booking.EndDate;
+            var from = startDate ?? booking.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? booking.EndDate.ToDateTime(TimeOnly.MaxValue);
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
             to = DateTime.SpecifyKind(to.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
 
@@ -598,8 +598,8 @@ public class ReportsController : ControllerBase
             if (campaign == null)
                 return NotFound("Campaign not found");
 
-            var from = startDate ?? campaign.StartDate;
-            var to = endDate ?? campaign.EndDate ?? DateTime.UtcNow;
+            var from = startDate ?? campaign.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? campaign.EndDate?.ToDateTime(TimeOnly.MaxValue) ?? DateTime.UtcNow;
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
             to = DateTime.SpecifyKind(to.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
 
@@ -638,8 +638,8 @@ public class ReportsController : ControllerBase
             if (booking == null)
                 return NotFound("Booking not found");
 
-            var from = startDate ?? booking.StartDate;
-            var to = endDate ?? booking.EndDate;
+            var from = startDate ?? booking.StartDate.ToDateTime(TimeOnly.MinValue);
+            var to = endDate ?? booking.EndDate.ToDateTime(TimeOnly.MaxValue);
             from = DateTime.SpecifyKind(from.Date, DateTimeKind.Utc);
             to = DateTime.SpecifyKind(to.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
 

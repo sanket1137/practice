@@ -1,16 +1,14 @@
 // ScreenCard Component (MUI Version)
 
 import React, { useEffect } from 'react';
-import { Box, Typography, Paper, Chip, Alert, Divider } from '@mui/material';
+import { Box, Typography, Paper, Chip, Alert } from '@mui/material';
 import type { Screen, Booking, SlotState, ScreenOwnerStats } from '../types';
 import { RotatingSlotVideo } from './RotatingSlotVideo';
 import { BookingItem } from './BookingItem';
 import { SlotGrid } from './SlotGrid';
 import { RevenueEstimator } from './RevenueEstimator';
-import { BookingCounter } from './BookingCounter';
 import { BookedSlotsPreview } from './BookedSlotsPreview';
 import { CampaignRevenueBreakdown } from './CampaignRevenueBreakdown';
-import { DebugSlots } from './DebugSlots';
 
 interface ScreenCardProps {
     screen: Screen;
@@ -30,10 +28,8 @@ export const ScreenCard: React.FC<ScreenCardProps> = ({
     screen,
     bookings,
     campaignName,
-    videoUrl,
     slots,
     pricePerSlot,
-    screenOwnerStats,
     onApprove,
     onReject,
     onAdStart,

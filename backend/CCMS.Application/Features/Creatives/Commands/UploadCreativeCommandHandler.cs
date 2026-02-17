@@ -130,9 +130,9 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             MimeType = request.ContentType,
             FileSize = request.FileSize,
             FileHash = fileHash,
-            Duration = metadata.Duration,  // ✅ From video file, not user!
-            Width = metadata.Width,        // ✅ From video file, not user!
-            Height = metadata.Height,      // ✅ From video file, not user!
+            Duration = metadata.Duration,  // Always from video file
+            Width = request.Width ?? metadata.Width,   // User-provided overrides auto-detected
+            Height = request.Height ?? metadata.Height, // User-provided overrides auto-detected
             CreatedAt = DateTime.UtcNow
         };
 

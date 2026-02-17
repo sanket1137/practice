@@ -11,7 +11,6 @@ import {
     Link,
     MenuItem,
     Grid,
-    Alert,
     InputAdornment,
     Chip,
 } from '@mui/material';
@@ -31,7 +30,7 @@ const registerSchema = z.object({
         .min(10, 'Phone number must be 10 digits')
         .max(10, 'Phone number must be 10 digits')
         .regex(/^[6-9]\d{9}$/, 'Enter a valid Indian mobile number'),
-    role: z.enum(['Admin', 'ScreenOwner', 'Advertiser']),
+    role: z.enum(['ScreenOwner', 'Advertiser']),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ['confirmPassword'],
@@ -273,7 +272,6 @@ export default function RegisterPage() {
                                         >
                                             <MenuItem value="Advertiser">Advertiser</MenuItem>
                                             <MenuItem value="ScreenOwner">Screen Owner</MenuItem>
-                                            <MenuItem value="Admin">Admin</MenuItem>
                                         </TextField>
                                     )}
                                 />

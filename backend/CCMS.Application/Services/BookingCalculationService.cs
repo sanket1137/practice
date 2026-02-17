@@ -31,7 +31,7 @@ public class BookingCalculationService
         var currentDate = startDate.Date;
         while (currentDate <= endDate.Date)
         {
-            breakdown.RequestedDates.Add(currentDate);
+            breakdown.RequestedDates.Add(currentDate.ToString("yyyy-MM-dd"));
 
             // Check if slot is available on this day
             var availableSlots = await _availabilityService.GetDayAvailableSlots(
@@ -41,11 +41,11 @@ public class BookingCalculationService
 
             if (availableSlots.Contains(slotNumber))
             {
-                breakdown.AvailableDates.Add(currentDate);
+                breakdown.AvailableDates.Add(currentDate.ToString("yyyy-MM-dd"));
             }
             else
             {
-                breakdown.UnavailableDates.Add(currentDate);
+                breakdown.UnavailableDates.Add(currentDate.ToString("yyyy-MM-dd"));
             }
 
             currentDate = currentDate.AddDays(1);

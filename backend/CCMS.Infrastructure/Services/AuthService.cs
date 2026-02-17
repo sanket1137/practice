@@ -67,6 +67,12 @@ public class AuthService : IAuthService
             throw new ArgumentException("Invalid role specified");
         }
 
+        // Prevent self-registration as Admin - Admin role can only be assigned via database
+        if (userRole == UserRole.Admin)
+        {
+            throw new InvalidOperationException("Admin accounts cannot be created through registration. Please contact system administrator.");
+        }
+
         // Create user with unverified status
         var user = new User
         {

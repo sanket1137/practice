@@ -13,6 +13,6 @@ public class UploadCreativeCommand : IRequest<CreativeDto>
     public long FileSize { get; set; }
     public string Name { get; set; } = string.Empty;
     public int Duration { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
+    public int? Width { get; set; }  // Nullable - if provided, overrides auto-detection
+    public int? Height { get; set; } // Nullable - if provided, overrides auto-detection
 }

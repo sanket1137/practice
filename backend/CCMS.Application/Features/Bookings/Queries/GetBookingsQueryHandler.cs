@@ -83,40 +83,42 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
             if (booking.DailySlotAssignments != null && booking.DailySlotAssignments.Any())
             {
                 var bookedDates = booking.DailySlotAssignments.Keys.OrderBy(d => d).ToList();
-                dto.BookedDates = bookedDates;
+                var bookedDateOnly = bookedDates.Select(d => DateOnly.FromDateTime(d)).ToList();
+                dto.BookedDates = bookedDateOnly.Select(d => d.ToString("yyyy-MM-dd")).ToList();
 
                 // Calculate total requested days
-                var totalDays = (int)(booking.EndDate.Date - booking.StartDate.Date).TotalDays + 1;
+                var totalDays = booking.EndDate.DayNumber - booking.StartDate.DayNumber + 1;
                 
                 // Generate all requested dates
-                var requestedDates = new List<DateTime>();
-                var currentDate = booking.StartDate.Date;
-                while (currentDate <= booking.EndDate.Date)
+                var requestedDates = new List<DateOnly>();
+                var currentDate = booking.StartDate;
+                while (currentDate <= booking.EndDate)
                 {
                     requestedDates.Add(currentDate);
                     currentDate = currentDate.AddDays(1);
                 }
 
                 // Find unavailable dates
-                var unavailableDates = requestedDates.Except(bookedDates).ToList();
+                var unavailableDates = requestedDates.Except(bookedDateOnly).ToList();
 
                 // Create breakdown
                 dto.DateBreakdown = new BookingDateBreakdown
                 {
-                    RequestedDates = requestedDates,
-                    AvailableDates = bookedDates,
-                    UnavailableDates = unavailableDates,
+                    RequestedDates = requestedDates.Select(d => d.ToString("yyyy-MM-dd")).ToList(),
+                    AvailableDates = bookedDateOnly.Select(d => d.ToString("yyyy-MM-dd")).ToList(),
+                    UnavailableDates = unavailableDates.Select(d => d.ToString("yyyy-MM-dd")).ToList(),
                     TotalRequested = totalDays,
-                    TotalAvailable = bookedDates.Count,
+                    TotalAvailable = bookedDateOnly.Count,
                     TotalUnavailable = unavailableDates.Count,
                     // Only partial if some REQUESTED days couldn't be booked
-                    IsPartialBooking = bookedDates.Count < totalDays
+                    IsPartialBooking = bookedDateOnly.Count < totalDays
                 };
             }
         }
         
         // Populate play counts and live status
         var today = DateTime.UtcNow.Date;
+        var todayDate = DateOnly.FromDateTime(today);
         var now = DateTime.UtcNow;
         
         foreach (var dto in bookingDtos)
@@ -145,8 +147,8 @@ public class GetBookingsQueryHandler : IRequestHandler<GetBookingsQuery, IEnumer
             var screen = await _screenRepository.GetByIdAsync(dto.ScreenId, cancellationToken);
             dto.IsLive = screen?.IsOnline == true && 
                         booking.Status == CCMS.Domain.Enums.BookingStatus.Approved &&
-                        now >= booking.StartDate && 
-                        now <= booking.EndDate;
+                        todayDate >= booking.StartDate && 
+                        todayDate <= booking.EndDate;
         }
 
         return bookingDtos;

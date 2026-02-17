@@ -1,5 +1,6 @@
 import { Box, Stepper, Step, StepLabel, Button, Paper, Typography } from '@mui/material';
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 
 interface FormStep {
     label: string;
@@ -59,7 +60,7 @@ export default function MultiStepForm({ steps, onComplete, onCancel }: MultiStep
     return (
         <Box>
             <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-                {steps.map((step, index) => (
+                {steps.map((step) => (
                     <Step key={step.label}>
                         <StepLabel>
                             {step.label}

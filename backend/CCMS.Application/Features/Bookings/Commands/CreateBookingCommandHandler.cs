@@ -47,23 +47,12 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
 
     public async Task<BookingDto> Handle(CreateBookingCommand request, CancellationToken cancellationToken)
     {
-        // Helper method for timezone conversion
-        DateTime ConvertToUtc(DateTime localDate, string? timezone)
-        {
-            if (string.IsNullOrEmpty(timezone))
-                return localDate.ToUniversalTime();
-            
-            try
-            {
-                var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(timezone);
-                return TimeZoneInfo.ConvertTimeToUtc(localDate, timeZoneInfo);
-            }
-            catch
-            {
-                // Fallback to simple UTC conversion if timezone invalid
-                return localDate.ToUniversalTime();
-            }
-        }
+        // Parse date strings to DateOnly (no timezone issues - dates are dates!)
+        if (!DateOnly.TryParse(request.Request.StartDate, out var startDate))
+            throw new InvalidOperationException($"Invalid start date format: {request.Request.StartDate}. Expected YYYY-MM-DD.");
+        
+        if (!DateOnly.TryParse(request.Request.EndDate, out var endDate))
+            throw new InvalidOperationException($"Invalid end date format: {request.Request.EndDate}. Expected YYYY-MM-DD.");
 
         // Validate entities exist
         var screen = await _screenRepository.GetByIdAsync(request.Request.ScreenId, cancellationToken);
@@ -74,17 +63,17 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         if (campaign == null)
             throw new KeyNotFoundException("Campaign not found");
 
-        // Campaign date range enforcement
-        if (request.Request.StartDate < campaign.StartDate)
+        // Campaign date range enforcement (simple date comparison - no timezone issues!)
+        if (startDate < campaign.StartDate)
         {
             throw new InvalidOperationException(
-                $"Booking start date ({request.Request.StartDate:yyyy-MM-dd}) must be on or after campaign start date ({campaign.StartDate:yyyy-MM-dd}).");
+                $"Booking start date ({startDate:yyyy-MM-dd}) must be on or after campaign start date ({campaign.StartDate:yyyy-MM-dd}).");
         }
 
-        if (campaign.EndDate.HasValue && request.Request.EndDate > campaign.EndDate.Value)
+        if (campaign.EndDate.HasValue && endDate > campaign.EndDate.Value)
         {
             throw new InvalidOperationException(
-                $"Booking end date ({request.Request.EndDate:yyyy-MM-dd}) must be on or before campaign end date ({campaign.EndDate.Value:yyyy-MM-dd}).");
+                $"Booking end date ({endDate:yyyy-MM-dd}) must be on or before campaign end date ({campaign.EndDate.Value:yyyy-MM-dd}).");
         }
 
         var creative = await _creativeRepository.GetByIdAsync(request.Request.CreativeId, cancellationToken);
@@ -120,8 +109,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             var isAvailable = await _slotAvailabilityService.IsSlotAvailable(
                 screen.Id,
                 slotNumber,
-                request.Request.StartDate,
-                request.Request.EndDate,
+                startDate.ToDateTime(TimeOnly.MinValue),
+                endDate.ToDateTime(TimeOnly.MinValue),
                 cancellationToken);
 
             if (!isAvailable)
@@ -135,8 +124,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             // Auto-assign first available slot (allows partial availability)
             var availableSlot = await _slotAvailabilityService.FindPartiallyAvailableSlot(
                 screen.Id,
-                request.Request.StartDate,
-                request.Request.EndDate,
+                startDate.ToDateTime(TimeOnly.MinValue),
+                endDate.ToDateTime(TimeOnly.MinValue),
                 cancellationToken);
 
             if (!availableSlot.HasValue)
@@ -152,8 +141,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         var calculation = await _calculationService.CalculateBookingWithAvailability(
             screen,
             slotNumber,  // Now we know the slot number
-            request.Request.StartDate,
-            request.Request.EndDate,
+            startDate.ToDateTime(TimeOnly.MinValue),
+            endDate.ToDateTime(TimeOnly.MinValue),
             _slotAvailabilityService,
             cancellationToken
         );
@@ -163,10 +152,9 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             throw new InvalidOperationException(
                 "No available slots found for the selected date range. All days are sold out.");
 
-        // FIXED: Use user's requested dates as-is (BookSlot handles gaps naturally)
-        // Previously: adjusted to first/last bookable days, causing wrong dates to be booked
-        var bookingStartDate = request.Request.StartDate;
-        var bookingEndDate = request.Request.EndDate;
+        // Use parsed DateOnly values directly
+        var bookingStartDate = startDate;
+        var bookingEndDate = endDate;
 
         // CORRECTED FORMULA: Use calculated cost from service
         // Cost = price_per_slot_per_minute × display_time_per_slot × total_frames
@@ -204,8 +192,8 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             ScreenId = request.Request.ScreenId,
             CampaignId = request.Request.CampaignId,
             CreativeId = request.Request.CreativeId,
-            StartDate = ConvertToUtc(bookingStartDate, request.Request.ClientTimezone),
-            EndDate = ConvertToUtc(bookingEndDate, request.Request.ClientTimezone),
+            StartDate = bookingStartDate,  // DateOnly - no timezone conversion needed!
+            EndDate = bookingEndDate,      // DateOnly - no timezone conversion needed!
             SlotNumbers = new List<int> { slotNumber },
             Status = Domain.Enums.BookingStatus.Pending,
             ExpectedImpressions = calculation.TotalExpectedImpressions,

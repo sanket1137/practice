@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Box, Typography, Paper, IconButton, Chip, Tooltip, Grid, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, IconButton, Chip, Grid, CircularProgress } from '@mui/material';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';

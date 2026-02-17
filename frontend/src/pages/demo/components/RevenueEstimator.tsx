@@ -12,7 +12,6 @@ interface RevenueEstimatorProps {
 }
 
 export const RevenueEstimator: React.FC<RevenueEstimatorProps> = ({
-    screenName,
     slots,
     pricePerSlot,
 }) => {

@@ -22,6 +22,7 @@ appsettings.Production.json
 **/appsettings.Production.json
 
 # Utility scripts with credentials (use templates instead)
+Scripts/
 *.csx
 TempDbFix/
 TempDbCreate/

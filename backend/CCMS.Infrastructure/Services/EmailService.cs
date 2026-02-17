@@ -328,5 +328,278 @@ public class EmailService : IEmailService
 </html>";
     }
 
+    public async Task<bool> SendBookingApprovedEmailAsync(
+        string email, 
+        string firstName, 
+        Guid bookingId,
+        string campaignName,
+        string screenName,
+        DateTime startDate,
+        DateTime endDate,
+        decimal totalPrice,
+        string currency)
+    {
+        var bookingLink = $"{_appBaseUrl}/bookings/{bookingId}";
+        var subject = $"🎉 Booking Approved - {campaignName}";
+        var htmlBody = GetBookingApprovedEmailTemplate(firstName, campaignName, screenName, startDate, endDate, totalPrice, currency, bookingLink);
+        var textBody = $"Hi {firstName},\n\nGreat news! Your booking for '{campaignName}' on screen '{screenName}' has been approved!\n\n" +
+                      $"Period: {startDate:MMM dd, yyyy} to {endDate:MMM dd, yyyy}\n" +
+                      $"Total: {currency} {totalPrice:N2}\n\n" +
+                      $"Your ad will start displaying on the scheduled date.\n\n" +
+                      $"View details: {bookingLink}\n\n" +
+                      $"Best regards,\nThe PixelSpot Team";
+
+        return await SendEmailAsync(email, subject, htmlBody, textBody);
+    }
+
+    public async Task<bool> SendBookingRejectedEmailAsync(
+        string email, 
+        string firstName, 
+        Guid bookingId,
+        string campaignName,
+        string screenName,
+        string? rejectionReason)
+    {
+        var dashboardLink = $"{_appBaseUrl}/bookings";
+        var subject = $"Booking Update - {campaignName}";
+        var htmlBody = GetBookingRejectedEmailTemplate(firstName, campaignName, screenName, rejectionReason, dashboardLink);
+        var textBody = $"Hi {firstName},\n\nUnfortunately, your booking for '{campaignName}' on screen '{screenName}' was not approved.\n\n" +
+                      (string.IsNullOrEmpty(rejectionReason) ? "" : $"Reason: {rejectionReason}\n\n") +
+                      $"You can browse other available screens or modify your booking request.\n\n" +
+                      $"View other options: {dashboardLink}\n\n" +
+                      $"Best regards,\nThe PixelSpot Team";
+
+        return await SendEmailAsync(email, subject, htmlBody, textBody);
+    }
+
+    public async Task<bool> SendNewBookingRequestEmailAsync(
+        string email, 
+        string firstName,
+        Guid bookingId,
+        string screenName,
+        string advertiserName,
+        string campaignName,
+        DateTime startDate,
+        DateTime endDate)
+    {
+        var bookingLink = $"{_appBaseUrl}/bookings/{bookingId}";
+        var subject = $"📋 New Booking Request - {screenName}";
+        var htmlBody = GetNewBookingRequestEmailTemplate(firstName, screenName, advertiserName, campaignName, startDate, endDate, bookingLink);
+        var textBody = $"Hi {firstName},\n\nYou have a new booking request for your screen '{screenName}'!\n\n" +
+                      $"Advertiser: {advertiserName}\n" +
+                      $"Campaign: {campaignName}\n" +
+                      $"Period: {startDate:MMM dd, yyyy} to {endDate:MMM dd, yyyy}\n\n" +
+                      $"Review and respond: {bookingLink}\n\n" +
+                      $"Best regards,\nThe PixelSpot Team";
+
+        return await SendEmailAsync(email, subject, htmlBody, textBody);
+    }
+
+    private string GetBookingApprovedEmailTemplate(string firstName, string campaignName, string screenName, DateTime startDate, DateTime endDate, decimal totalPrice, string currency, string bookingLink)
+    {
+        return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+</head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+        <tr>
+            <td align='center' style='padding: 40px 0;'>
+                <table role='presentation' width='600' cellspacing='0' cellpadding='0' border='0' style='background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                    <tr>
+                        <td style='padding: 40px 40px 20px 40px; text-align: center; background-color: #10B981; border-radius: 8px 8px 0 0;'>
+                            <h1 style='margin: 0; color: #ffffff; font-size: 28px;'>🎉 Booking Approved!</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 40px;'>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                Hi {firstName},
+                            </p>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                Great news! Your booking has been approved and your ad is scheduled to go live.
+                            </p>
+                            <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
+                                <tr>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'><strong>Campaign</strong></td>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'>{campaignName}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px; border-bottom: 1px solid #eee;'><strong>Screen</strong></td>
+                                    <td style='padding: 12px; border-bottom: 1px solid #eee;'>{screenName}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'><strong>Start Date</strong></td>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'>{startDate:MMMM dd, yyyy}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px; border-bottom: 1px solid #eee;'><strong>End Date</strong></td>
+                                    <td style='padding: 12px; border-bottom: 1px solid #eee;'>{endDate:MMMM dd, yyyy}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px; background-color: #f8f8f8;'><strong>Total</strong></td>
+                                    <td style='padding: 12px; background-color: #f8f8f8; font-weight: bold; color: #10B981;'>{currency} {totalPrice:N2}</td>
+                                </tr>
+                            </table>
+                            <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+                                <tr>
+                                    <td align='center' style='padding-top: 20px;'>
+                                        <a href='{bookingLink}' style='display: inline-block; padding: 14px 40px; background-color: #4F46E5; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; border-radius: 6px;'>
+                                            View Booking Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 20px 40px; background-color: #f8f8f8; border-radius: 0 0 8px 8px; text-align: center;'>
+                            <p style='margin: 0; color: #999999; font-size: 12px;'>© 2026 PixelSpot. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+    }
+
+    private string GetBookingRejectedEmailTemplate(string firstName, string campaignName, string screenName, string? rejectionReason, string dashboardLink)
+    {
+        return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+</head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+        <tr>
+            <td align='center' style='padding: 40px 0;'>
+                <table role='presentation' width='600' cellspacing='0' cellpadding='0' border='0' style='background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                    <tr>
+                        <td style='padding: 40px 40px 20px 40px; text-align: center; background-color: #F59E0B; border-radius: 8px 8px 0 0;'>
+                            <h1 style='margin: 0; color: #ffffff; font-size: 28px;'>Booking Update</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 40px;'>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                Hi {firstName},
+                            </p>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                Unfortunately, your booking request for <strong>{campaignName}</strong> on screen <strong>{screenName}</strong> was not approved.
+                            </p>
+                            {(string.IsNullOrEmpty(rejectionReason) ? "" : $@"
+                            <div style='background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; margin: 20px 0;'>
+                                <p style='margin: 0; color: #92400E; font-size: 14px;'>
+                                    <strong>Reason:</strong> {rejectionReason}
+                                </p>
+                            </div>
+                            ")}
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                Don't worry! There are many other screens available that might be a perfect fit for your campaign.
+                            </p>
+                            <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+                                <tr>
+                                    <td align='center' style='padding-top: 20px;'>
+                                        <a href='{dashboardLink}' style='display: inline-block; padding: 14px 40px; background-color: #4F46E5; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; border-radius: 6px;'>
+                                            Browse Screens
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 20px 40px; background-color: #f8f8f8; border-radius: 0 0 8px 8px; text-align: center;'>
+                            <p style='margin: 0; color: #999999; font-size: 12px;'>© 2026 PixelSpot. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+    }
+
+    private string GetNewBookingRequestEmailTemplate(string firstName, string screenName, string advertiserName, string campaignName, DateTime startDate, DateTime endDate, string bookingLink)
+    {
+        return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+</head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+        <tr>
+            <td align='center' style='padding: 40px 0;'>
+                <table role='presentation' width='600' cellspacing='0' cellpadding='0' border='0' style='background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+                    <tr>
+                        <td style='padding: 40px 40px 20px 40px; text-align: center; background-color: #3B82F6; border-radius: 8px 8px 0 0;'>
+                            <h1 style='margin: 0; color: #ffffff; font-size: 28px;'>📋 New Booking Request</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 40px;'>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                Hi {firstName},
+                            </p>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>
+                                You have received a new booking request for your screen <strong>{screenName}</strong>.
+                            </p>
+                            <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
+                                <tr>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'><strong>Advertiser</strong></td>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'>{advertiserName}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px; border-bottom: 1px solid #eee;'><strong>Campaign</strong></td>
+                                    <td style='padding: 12px; border-bottom: 1px solid #eee;'>{campaignName}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'><strong>Start Date</strong></td>
+                                    <td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'>{startDate:MMMM dd, yyyy}</td>
+                                </tr>
+                                <tr>
+                                    <td style='padding: 12px;'><strong>End Date</strong></td>
+                                    <td style='padding: 12px;'>{endDate:MMMM dd, yyyy}</td>
+                                </tr>
+                            </table>
+                            <p style='margin: 0 0 20px 0; color: #666666; font-size: 14px; line-height: 1.5;'>
+                                Please review the request and approve or reject it at your earliest convenience.
+                            </p>
+                            <table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+                                <tr>
+                                    <td align='center' style='padding-top: 20px;'>
+                                        <a href='{bookingLink}' style='display: inline-block; padding: 14px 40px; background-color: #4F46E5; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; border-radius: 6px;'>
+                                            Review Booking Request
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding: 20px 40px; background-color: #f8f8f8; border-radius: 0 0 8px 8px; text-align: center;'>
+                            <p style='margin: 0; color: #999999; font-size: 12px;'>© 2026 PixelSpot. All rights reserved.</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
+    }
+
     #endregion
 }

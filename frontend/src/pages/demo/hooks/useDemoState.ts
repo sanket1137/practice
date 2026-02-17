@@ -1,7 +1,7 @@
 // useDemoState - Main state management hook for demo page
 
 import { useState, useCallback } from 'react';
-import type { DemoState, Booking, CampaignLog, PlayLog, Creative } from '../types';
+import type { DemoState, Booking, PlayLog } from '../types';
 import { generateId, BOOKING_DURATION_MS, createVideoUrl, revokeVideoUrl } from '../utils/demoUtils';
 import { DEFAULT_PRICING_CONFIG, createInitialSlots } from '../utils/pricingUtils';
 

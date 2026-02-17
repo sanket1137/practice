@@ -182,6 +182,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 // Email & SMS Services for verification
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 builder.Services.AddHttpClient("ComBirds"); // HttpClient for SMS API
 
 // File Storage Service - configurable via appsettings

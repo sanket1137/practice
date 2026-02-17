@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Box } from '@mui/material';
 import { keyframes } from '@mui/system';
 
@@ -10,15 +10,6 @@ const fadeIn = keyframes`
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-`;
-
-const fadeOut = keyframes`
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
   }
 `;
 

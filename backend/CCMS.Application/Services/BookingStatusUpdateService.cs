@@ -112,17 +112,17 @@ public class BookingStatusUpdateService
     /// </summary>
     private BookingStatus DetermineBookingStatus(Booking booking, Screen screen, DateTime now)
     {
-        var today = now.Date;
+        var today = DateOnly.FromDateTime(now);
         var currentTime = now.TimeOfDay;
 
         // Check if we're before the booking period
-        if (today < booking.StartDate.Date)
+        if (today < booking.StartDate)
         {
             return booking.Status; // Keep current status (should be Approved)
         }
 
         // Check if we're after the booking period
-        if (today > booking.EndDate.Date)
+        if (today > booking.EndDate)
         {
             return BookingStatus.Completed;
         }
@@ -139,7 +139,7 @@ public class BookingStatusUpdateService
         }
 
         // Check if we're on the end date
-        if (today == booking.EndDate.Date)
+        if (today == booking.EndDate)
         {
             // If current time is past the end of operating hours, mark as completed
             if (currentTime >= currentDaySchedule.EndTime)
@@ -149,7 +149,7 @@ public class BookingStatusUpdateService
         }
 
         // Check if we're on the start date
-        if (today == booking.StartDate.Date)
+        if (today == booking.StartDate)
         {
             // If current time is before operating hours start, stay Approved
             if (currentTime < currentDaySchedule.StartTime)
@@ -160,10 +160,10 @@ public class BookingStatusUpdateService
 
         // We're within the booking period and within operating hours
         // OR we're after start date/time but before end date/time
-        if ((today > booking.StartDate.Date || 
-            (today == booking.StartDate.Date && currentTime >= currentDaySchedule.StartTime)) &&
-            (today < booking.EndDate.Date || 
-            (today == booking.EndDate.Date && currentTime < currentDaySchedule.EndTime)))
+        if ((today > booking.StartDate || 
+            (today == booking.StartDate && currentTime >= currentDaySchedule.StartTime)) &&
+            (today < booking.EndDate || 
+            (today == booking.EndDate && currentTime < currentDaySchedule.EndTime)))
         {
             // Check if we're currently within operating hours
             if (currentTime >= currentDaySchedule.StartTime && currentTime < currentDaySchedule.EndTime)

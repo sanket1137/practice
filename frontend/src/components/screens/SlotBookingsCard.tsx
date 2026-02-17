@@ -14,7 +14,6 @@ import {
     Paper,
     CircularProgress,
     Alert,
-    TextField,
     Grid,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -77,10 +76,7 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
         b.status === 'Approved' || b.status === 'Active' || b.status === 'Completed'
     ) || [];
 
-    const pendingBookings = bookings?.filter(b => b.status === 'Pending') || [];
-
     const totalRevenue = confirmedBookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
-    const potentialRevenue = pendingBookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
 
     if (isLoading) {
         return (

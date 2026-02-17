@@ -13,6 +13,10 @@ import {
     MenuItem,
     Card,
     CardContent,
+    FormControl,
+    InputLabel,
+    Select,
+    Alert,
 } from '@mui/material';
 import { CloudUpload as UploadIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -28,6 +32,18 @@ const creativeSchema = z.object({
 
 type CreativeFormData = z.infer<typeof creativeSchema>;
 
+// Common screen dimension presets
+const DIMENSION_PRESETS = [
+    { label: 'Auto-detect from file', value: 'auto', width: 0, height: 0 },
+    { label: '1920×1080 (Full HD Landscape)', value: '1920x1080', width: 1920, height: 1080 },
+    { label: '1080×1920 (Full HD Portrait)', value: '1080x1920', width: 1080, height: 1920 },
+    { label: '3840×2160 (4K UHD Landscape)', value: '3840x2160', width: 3840, height: 2160 },
+    { label: '2160×3840 (4K UHD Portrait)', value: '2160x3840', width: 2160, height: 3840 },
+    { label: '1280×720 (HD Landscape)', value: '1280x720', width: 1280, height: 720 },
+    { label: '720×1280 (HD Portrait)', value: '720x1280', width: 720, height: 1280 },
+    { label: 'Custom', value: 'custom', width: 0, height: 0 },
+];
+
 export default function UploadCreativePage() {
     const { id } = useParams(); // Campaign ID
     const navigate = useNavigate();
@@ -35,6 +51,11 @@ export default function UploadCreativePage() {
     const { enqueueSnackbar } = useSnackbar();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
+    
+    // Dimension state
+    const [dimensionPreset, setDimensionPreset] = useState<string>('auto');
+    const [customWidth, setCustomWidth] = useState<number>(1920);
+    const [customHeight, setCustomHeight] = useState<number>(1080);
 
     const {
         control,
@@ -56,7 +77,19 @@ export default function UploadCreativePage() {
             const formData = new FormData();
             formData.append('name', data.name);
             formData.append('campaignId', id!);
-            // Duration, width, height are auto-extracted by backend from video file!
+            
+            // Add dimensions if not auto-detect
+            if (dimensionPreset !== 'auto') {
+                const preset = DIMENSION_PRESETS.find(p => p.value === dimensionPreset);
+                if (dimensionPreset === 'custom') {
+                    formData.append('width', customWidth.toString());
+                    formData.append('height', customHeight.toString());
+                } else if (preset) {
+                    formData.append('width', preset.width.toString());
+                    formData.append('height', preset.height.toString());
+                }
+            }
+            
             if (selectedFile) {
                 formData.append('file', selectedFile);
             }
@@ -171,51 +204,61 @@ export default function UploadCreativePage() {
                                     />
                                 </Grid>
 
-                                {/* File Upload - Duration auto-detected! */}
+                                {/* Dimensions */}
                                 <Grid size={12}>
-                                    <Controller
-                                        name="width"
-                                        control={control}
-                                        render={({ field: { onChange, value, ...field } }) => (
-                                            <TextField
-                                                {...field}
-                                                fullWidth
-                                                label="Width (pixels)"
-                                                type="number"
-                                                value={value}
-                                                onChange={(e) => onChange(parseInt(e.target.value))}
-                                                error={!!errors.width}
-                                                helperText={errors.width?.message || 'e.g., 1920 for Full HD'}
-                                                required
-                                            />
-                                        )}
-                                    />
+                                    <FormControl fullWidth>
+                                        <InputLabel>Target Dimensions</InputLabel>
+                                        <Select
+                                            value={dimensionPreset}
+                                            label="Target Dimensions"
+                                            onChange={(e) => setDimensionPreset(e.target.value)}
+                                        >
+                                            {DIMENSION_PRESETS.map((preset) => (
+                                                <MenuItem key={preset.value} value={preset.value}>
+                                                    {preset.label}
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                    <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 1 }}>
+                                        Select the target screen dimensions for this creative. "Auto-detect" will extract dimensions from the uploaded file.
+                                    </Typography>
                                 </Grid>
 
-                                {/* Height */}
-                                <Grid
-                                    size={{
-                                        xs: 12,
-                                        sm: 6
-                                    }}>
-                                    <Controller
-                                        name="height"
-                                        control={control}
-                                        render={({ field: { onChange, value, ...field } }) => (
+                                {/* Custom dimensions fields */}
+                                {dimensionPreset === 'custom' && (
+                                    <>
+                                        <Grid size={{ xs: 6 }}>
                                             <TextField
-                                                {...field}
                                                 fullWidth
-                                                label="Height (pixels)"
                                                 type="number"
-                                                value={value}
-                                                onChange={(e) => onChange(parseInt(e.target.value))}
-                                                error={!!errors.height}
-                                                helperText={errors.height?.message || 'e.g., 1080 for Full HD'}
-                                                required
+                                                label="Width (px)"
+                                                value={customWidth}
+                                                onChange={(e) => setCustomWidth(parseInt(e.target.value) || 0)}
+                                                inputProps={{ min: 1, max: 7680 }}
                                             />
-                                        )}
-                                    />
-                                </Grid>
+                                        </Grid>
+                                        <Grid size={{ xs: 6 }}>
+                                            <TextField
+                                                fullWidth
+                                                type="number"
+                                                label="Height (px)"
+                                                value={customHeight}
+                                                onChange={(e) => setCustomHeight(parseInt(e.target.value) || 0)}
+                                                inputProps={{ min: 1, max: 4320 }}
+                                            />
+                                        </Grid>
+                                    </>
+                                )}
+
+                                {/* Show selected dimensions info */}
+                                {dimensionPreset !== 'auto' && dimensionPreset !== 'custom' && (
+                                    <Grid size={12}>
+                                        <Alert severity="info" sx={{ py: 0 }}>
+                                            Creative will be registered as {DIMENSION_PRESETS.find(p => p.value === dimensionPreset)?.width}×{DIMENSION_PRESETS.find(p => p.value === dimensionPreset)?.height} pixels
+                                        </Alert>
+                                    </Grid>
+                                )}
 
                                 {/* File Upload */}
                                 <Grid size={12}>
@@ -237,7 +280,7 @@ export default function UploadCreativePage() {
                                     <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 1 }}>
                                         {selectedType === 'Image'
                                             ? 'Supported formats: JPG, PNG, GIF (Max 10MB)'
-                                            : 'Supported formats: MP4, AVI, MOV (Max 50MB)'}
+                                            : 'Supported formats: MP4, AVI, MOV (Max 2GB, Max 2min 40sec)'}
                                     </Typography>
                                 </Grid>
 

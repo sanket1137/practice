@@ -36,7 +36,7 @@ interface CompleteVerificationResponse {
         email: string;
         firstName: string;
         lastName: string;
-        role: string;
+        role: 'Admin' | 'ScreenOwner' | 'Advertiser';
     };
 }
 

@@ -42,8 +42,8 @@ public static class BookingFactory
             ScreenId = screenId,
             CampaignId = campaignId,
             CreativeId = creativeId,
-            StartDate = startDate.ToUniversalTime(), // Always UTC
-            EndDate = endDate.ToUniversalTime(),
+            StartDate = DateOnly.FromDateTime(startDate), // DateOnly
+            EndDate = DateOnly.FromDateTime(endDate),
             Status = BookingStatus.Pending,
             SlotNumbers = slotNumbers,
             DailySlotAssignmentsJson = CreateDailySlotAssignmentsJson(dailyAssignments),
@@ -112,8 +112,8 @@ public static class BookingFactory
             ScreenId = screenId,
             CampaignId = campaignId,
             CreativeId = creativeId,
-            StartDate = startDate.ToUniversalTime(),
-            EndDate = endDate.ToUniversalTime(),
+            StartDate = DateOnly.FromDateTime(startDate),
+            EndDate = DateOnly.FromDateTime(endDate),
             Status = BookingStatus.Pending,
             SlotNumbers = allSlots, // All slots that are used across all days
             DailySlotAssignmentsJson = CreateDailySlotAssignmentsJson(dailySlotAssignments),

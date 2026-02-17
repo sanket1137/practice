@@ -25,7 +25,7 @@ interface CompleteVerificationResponse {
         email: string;
         firstName: string;
         lastName: string;
-        role: string;
+        role: 'Admin' | 'ScreenOwner' | 'Advertiser';
     };
 }
 
@@ -81,7 +81,7 @@ export default function VerifyEmailPage() {
                 setMessage('Email verified! Please verify your phone number to complete registration.');
             } else {
                 setStatus('success');
-                setMessage(response.message || 'Email verified successfully!');
+                setMessage(data.message || 'Email verified successfully!');
             }
         },
         onError: (error: any) => {

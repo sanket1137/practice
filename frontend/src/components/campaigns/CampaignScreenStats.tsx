@@ -16,8 +16,7 @@ import {
 } from '@mui/icons-material';
 import { websocketService } from '../../services/websocket';
 import { formatDistanceToNow } from 'date-fns';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { api } from '../../services/api';
 
 interface ScreenStats {
     screenId: string;
@@ -46,11 +45,9 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
         const loadStats = async () => {
             try {
                 setLoading(true);
-                const response = await fetch(`${API_URL}/api/campaigns/${campaignId}/screens/stats`);
-                if (!response.ok) throw new Error('Failed to load stats');
-
-                const result = await response.json();
-                if (result.success && result.data) {
+                const response = await api.get(`/campaigns/${campaignId}/screens/stats`);
+                const result = response.data;
+                if (result?.success && result?.data) {
                     setScreens(result.data.screens || []);
                     setTotalPlays(result.data.totalPlays || 0);
                     setActiveScreens(result.data.activeScreens || 0);

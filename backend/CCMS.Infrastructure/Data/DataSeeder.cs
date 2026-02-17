@@ -251,9 +251,9 @@ public static class DataSeeder
             Name = "Summer Sale 2024",
             Description = "Promote summer products and discounts",
             Budget = 5000,
-            Currency = "USD",
-            StartDate = DateTime.UtcNow.AddDays(-10),
-            EndDate = DateTime.UtcNow.AddDays(20),
+            Currency = "INR",
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(20)),
             Status = CampaignStatus.Active,
             CreatedAt = DateTime.UtcNow.AddDays(-15)
         };
@@ -265,9 +265,9 @@ public static class DataSeeder
             Name = "New Product Launch",
             Description = "Launch campaign for new product line",
             Budget = 3000,
-            Currency = "USD",
-            StartDate = DateTime.UtcNow.AddDays(5),
-            EndDate = DateTime.UtcNow.AddDays(35),
+            Currency = "INR",
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(5)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(35)),
             Status = CampaignStatus.Draft,
             CreatedAt = DateTime.UtcNow.AddDays(-5)
         };
@@ -279,9 +279,9 @@ public static class DataSeeder
             Name = "Holiday Season Promo",
             Description = "Holiday discounts and special offers",
             Budget = 7500,
-            Currency = "USD",
-            StartDate = DateTime.UtcNow.AddDays(30),
-            EndDate = DateTime.UtcNow.AddDays(60),
+            Currency = "INR",
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(60)),
             Status = CampaignStatus.Draft,
             CreatedAt = DateTime.UtcNow.AddDays(-2)
         };
@@ -293,9 +293,9 @@ public static class DataSeeder
             Name = "Brand Awareness Q4",
             Description = "Build brand recognition in key markets",
             Budget = 10000,
-            Currency = "USD",
-            StartDate = DateTime.UtcNow.AddDays(-30),
-            EndDate = DateTime.UtcNow.AddDays(-5),
+            Currency = "INR",
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)),
             Status = CampaignStatus.Completed,
             CreatedAt = DateTime.UtcNow.AddDays(-45)
         };
@@ -378,8 +378,8 @@ public static class DataSeeder
             ScreenId = screen1.Id,
             CampaignId = campaign1.Id,
             CreativeId = creative1.Id,
-            StartDate = DateTime.UtcNow.AddDays(-5),
-            EndDate = DateTime.UtcNow.AddDays(15),
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-5)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(15)),
             SlotNumbers = new List<int> { 1, 2, 3 },
             Status = BookingStatus.Approved,
             ApprovedBy = owner1.Id,
@@ -387,7 +387,7 @@ public static class DataSeeder
             ExpectedImpressions = 50000,
             DeliveredImpressions = 25000,
             TotalPrice = 750,
-            Currency = "USD",
+            Currency = "INR",
             CreatedAt = DateTime.UtcNow.AddDays(-7)
         };
 
@@ -397,14 +397,14 @@ public static class DataSeeder
             ScreenId = screen2.Id,
             CampaignId = campaign1.Id,
             CreativeId = creative2.Id,
-            StartDate = DateTime.UtcNow.AddDays(2),
-            EndDate = DateTime.UtcNow.AddDays(12),
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(2)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(12)),
             SlotNumbers = new List<int> { 1, 2 },
             Status = BookingStatus.Pending,
             ExpectedImpressions = 30000,
             DeliveredImpressions = 0,
             TotalPrice = 300,
-            Currency = "USD",
+            Currency = "INR",
             CreatedAt = DateTime.UtcNow.AddDays(-1)
         };
 
@@ -414,8 +414,8 @@ public static class DataSeeder
             ScreenId = screen3.Id,
             CampaignId = campaign4.Id,
             CreativeId = creative1.Id,
-            StartDate = DateTime.UtcNow.AddDays(-25),
-            EndDate = DateTime.UtcNow.AddDays(-10),
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-25)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-10)),
             SlotNumbers = new List<int> { 1, 4, 5 },
             Status = BookingStatus.Completed,
             ApprovedBy = owner2.Id,
@@ -423,7 +423,7 @@ public static class DataSeeder
             ExpectedImpressions = 75000,
             DeliveredImpressions = 73500,
             TotalPrice = 675,
-            Currency = "USD",
+            Currency = "INR",
             CreatedAt = DateTime.UtcNow.AddDays(-30)
         };
 
@@ -433,15 +433,15 @@ public static class DataSeeder
             ScreenId = screen1.Id,
             CampaignId = campaign2.Id,
             CreativeId = creative3.Id,
-            StartDate = DateTime.UtcNow.AddDays(7),
-            EndDate = DateTime.UtcNow.AddDays(21),
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(7)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(21)),
             SlotNumbers = new List<int> { 4, 5 },
             Status = BookingStatus.Rejected,
             RejectionReason = "Time slots already booked for this period",
             ExpectedImpressions = 40000,
             DeliveredImpressions = 0,
             TotalPrice = 500,
-            Currency = "USD",
+            Currency = "INR",
             CreatedAt = DateTime.UtcNow.AddDays(-3)
         };
 

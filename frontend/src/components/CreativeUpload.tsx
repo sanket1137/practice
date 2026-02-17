@@ -9,18 +9,16 @@ import {
     Card,
     CardMedia,
     CardContent,
-    Button,
     Grid,
     Chip,
 } from '@mui/material';
 import {
     CloudUpload as UploadIcon,
     Delete as DeleteIcon,
-    PlayArrow as PlayIcon,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
-import { api } from '../../services/api';
+import { api } from '../services/api';
 
 interface CreativeUploadProps {
     campaignId: string;
@@ -50,7 +48,7 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
-                onUploadProgress: (progressEvent) => {
+                onUploadProgress: (progressEvent: { loaded: number; total?: number }) => {
                     const progress = progressEvent.total
                         ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
                         : 0;

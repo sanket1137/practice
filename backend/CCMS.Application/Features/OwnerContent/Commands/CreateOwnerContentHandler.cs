@@ -4,7 +4,9 @@ using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.OwnerContent;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using CCMS.Application.Helpers;
 
 namespace CCMS.Application.Features.OwnerContent.Commands;
 
@@ -16,6 +18,7 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
     private readonly IFileStorageService _fileStorage;
     private readonly ILogger<CreateOwnerContentHandler> _logger;
     private readonly IPlaylistNotificationService _notificationService;
+    private readonly string _r2PublicUrlBase;
 
     public CreateOwnerContentHandler(
         IRepository<Domain.Entities.OwnerContent> ownerContentRepo,
@@ -23,7 +26,8 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
         IRepository<Booking> bookingRepo,
         IFileStorageService fileStorage,
         ILogger<CreateOwnerContentHandler> logger,
-        IPlaylistNotificationService notificationService)
+        IPlaylistNotificationService notificationService,
+        IConfiguration configuration)
     {
         _ownerContentRepo = ownerContentRepo;
         _screenRepo = screenRepo;
@@ -31,6 +35,7 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
         _fileStorage = fileStorage;
         _logger = logger;
         _notificationService = notificationService;
+        _r2PublicUrlBase = configuration["R2:PublicUrlBase"] ?? "";
     }
 
     public async Task<OwnerContentDto> Handle(CreateOwnerContentCommand request, CancellationToken cancellationToken)
@@ -46,16 +51,25 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
         // 2. Check slot is not taken by active booking
         // Use GetAllAsync and filter in memory since SlotNumbers is a JSON column
         var allBookings = (await _bookingRepo.GetAllAsync(cancellationToken)).ToList();
+        var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);
         
+        // Single comprehensive check: slot must not have any currently-active booking
+        // Filter by date range so past bookings (even if still in Approved status) don't block the slot
         var activeBooking = allBookings.FirstOrDefault(b =>
             b.ScreenId == request.ScreenId &&
             b.SlotNumbers.Contains(request.SlotNumber) &&
-            b.Status == BookingStatus.Approved &&
-            b.StartDate <= DateTime.UtcNow &&
-            b.EndDate >= DateTime.UtcNow);
+            (b.Status == BookingStatus.Approved || b.Status == BookingStatus.Active) &&
+            b.StartDate <= todayDate &&
+            b.EndDate >= todayDate &&
+            !b.IsDeleted);
 
         if (activeBooking != null)
-            throw new InvalidOperationException($"Slot {request.SlotNumber} has active booking");
+        {
+            throw new InvalidOperationException(
+                $"Slot {request.SlotNumber} has an active booking (ends {activeBooking.EndDate}). " +
+                $"Owner content cannot be assigned to booked slots. " +
+                $"Please choose a different slot or wait for the booking to complete.");
+        }
 
         // 3. Upload file to Screens/{screenId}/owner/ folder
         var fileExtension = Path.GetExtension(request.FileName);
@@ -66,22 +80,6 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
             ownerContentPath,
             request.ContentType,  // Use actual MIME type (e.g., video/mp4)
             cancellationToken);
-
-        // Validate owner content doesn't conflict with approved/active bookings
-        var hasConflictingBooking = allBookings
-            .Any(b =>
-                b.ScreenId == request.ScreenId &&
-                b.SlotNumbers.Contains(request.SlotNumber) &&
-                (b.Status == Domain.Enums.BookingStatus.Approved || b.Status == Domain.Enums.BookingStatus.Active) &&
-                !b.IsDeleted);
-
-        if (hasConflictingBooking)
-        {
-            throw new InvalidOperationException(
-                $"Slot {request.SlotNumber} has active or approved bookings. " +
-                $"Owner content cannot be assigned to booked slots. " +
-                $"Please choose a different slot or wait for booking to complete.");
-        }
 
         // 4. Create or update owner content
         // Try to create new content first
@@ -138,7 +136,7 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
             Id = content.Id,
             SlotNumber = content.SlotNumber,
             Name = content.Name,
-            FileUrl = content.FileUrl,
+            FileUrl = MediaUrlHelper.ToProxyUrl(content.FileUrl, _r2PublicUrlBase) ?? content.FileUrl,
             Duration = content.Duration,
             PricePerPlay = content.PricePerPlay,
             TotalPlays = 0,

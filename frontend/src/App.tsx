@@ -5,6 +5,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from 'notistack';
 import theme from './theme';
 import { useAuthStore } from './store/authStore';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { OfflineBanner } from './components/common/OfflineBanner';
+import { useRateLimitHandler } from './hooks/useRateLimitHandler';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
@@ -38,54 +41,70 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
+// Component that initializes global handlers (must be inside SnackbarProvider)
+const AppGlobalHandlers: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  useRateLimitHandler();
+  return (
+    <>
+      <OfflineBanner variant="snackbar" />
+      {children}
+    </>
+  );
+};
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <SnackbarProvider maxSnack={3}>
-          <BrowserRouter>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/verify-email" element={<VerifyEmailPage />} />
-              <Route path="/verify-phone" element={<VerifyPhonePage />} />
-              <Route path="/resend-verification" element={<ResendVerificationPage />} />
-              <Route path="/demo" element={<DemoPage />} />
-              <Route path="/explore" element={<ExploreScreensPage />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<Navigate to="/dashboard" replace />} />
-                <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="campaigns" element={<CampaignsPage />} />
-                <Route path="campaigns/new" element={<CreateCampaignPage />} />
-                <Route path="campaigns/:id/edit" element={<EditCampaignPage />} />
-                <Route path="campaigns/:id" element={<CampaignDetailPage />} />
-                <Route path="campaigns/:id/creatives/new" element={<UploadCreativePage />} />
-                <Route path="screens" element={<ScreensPage />} />
-                <Route path="screens/new" element={<CreateScreenPage />} />
-                <Route path="screens/discover" element={<DiscoverScreensPage />} />
-                <Route path="screens/:id/edit" element={<UpdateScreenPage />} />
-                <Route path="screens/:id" element={<ScreenDetailPage />} />
-                <Route path="bookings" element={<BookingsPage />} />
-                <Route path="bookings/new" element={<CreateBookingPage />} />
-                <Route path="bookings/:id" element={<BookingDetailPage />} />
-                <Route path="reports/bookings/:bookingId" element={<AdvertiserReportPage />} />
-                <Route path="reports/campaigns/:campaignId" element={<CampaignReportPage />} />
-                <Route path="analytics" element={<AnalyticsPage />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-        </SnackbarProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <SnackbarProvider maxSnack={3}>
+            <AppGlobalHandlers>
+              <BrowserRouter>
+                <Routes>
+                {/* Public Routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/verify-phone" element={<VerifyPhonePage />} />
+                <Route path="/resend-verification" element={<ResendVerificationPage />} />
+                <Route path="/demo" element={<DemoPage />} />
+                <Route path="/explore" element={<ExploreScreensPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/dashboard" replace />} />
+                  <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="campaigns" element={<CampaignsPage />} />
+                  <Route path="campaigns/new" element={<CreateCampaignPage />} />
+                  <Route path="campaigns/create" element={<CreateCampaignPage />} />
+                  <Route path="campaigns/:id/edit" element={<EditCampaignPage />} />
+                  <Route path="campaigns/:id" element={<CampaignDetailPage />} />
+                  <Route path="campaigns/:id/creatives/new" element={<UploadCreativePage />} />
+                  <Route path="screens" element={<ScreensPage />} />
+                  <Route path="screens/new" element={<CreateScreenPage />} />
+                  <Route path="screens/discover" element={<DiscoverScreensPage />} />
+                  <Route path="screens/:id/edit" element={<UpdateScreenPage />} />
+                  <Route path="screens/:id" element={<ScreenDetailPage />} />
+                  <Route path="bookings" element={<BookingsPage />} />
+                  <Route path="bookings/new" element={<CreateBookingPage />} />
+                  <Route path="bookings/:id" element={<BookingDetailPage />} />
+                  <Route path="reports/bookings/:bookingId" element={<AdvertiserReportPage />} />
+                  <Route path="reports/campaigns/:campaignId" element={<CampaignReportPage />} />
+                  <Route path="analytics" element={<AnalyticsPage />} />
+                </Route>
+              </Routes>
+              </BrowserRouter>
+            </AppGlobalHandlers>
+          </SnackbarProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

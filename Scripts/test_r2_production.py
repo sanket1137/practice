@@ -1,15 +1,28 @@
 """
 Test Cloudflare R2 Production Bucket (prod-ccms)
 Run this after creating the bucket in Cloudflare Dashboard
+
+USAGE:
+  Set environment variables before running:
+    export R2_ACCOUNT_ID=your_account_id
+    export R2_ACCESS_KEY=your_access_key
+    export R2_SECRET_KEY=your_secret_key
+  Then: python test_r2_production.py
 """
+import os
 import boto3
 from botocore.config import Config
 
-# R2 credentials (same account, different bucket)
-account_id = '4f22ea89a2e684c242ace359b5706b03'
-access_key = 'aa934dbced6f083dcba7f9125590d20f'
-secret_key = '71ed546e79b20506e19af06054f929da7946178ea7938862a8185a7b9b86405f'
+# R2 credentials from environment variables (NEVER hardcode credentials)
+account_id = os.environ.get('R2_ACCOUNT_ID')
+access_key = os.environ.get('R2_ACCESS_KEY') or os.environ.get('R2_ACCESS_KEY_ID')
+secret_key = os.environ.get('R2_SECRET_KEY') or os.environ.get('R2_SECRET_ACCESS_KEY')
 bucket_name = 'prod-ccms'
+
+if not all([account_id, access_key, secret_key]):
+    print('❌ Missing R2 credentials. Set these environment variables:')
+    print('   R2_ACCOUNT_ID, R2_ACCESS_KEY, R2_SECRET_KEY')
+    exit(1)
 
 r2_endpoint = f'https://{account_id}.r2.cloudflarestorage.com'
 print(f'Testing R2 Production Bucket: {bucket_name}')

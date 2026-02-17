@@ -8,6 +8,7 @@ using CCMS.Application.Interfaces;
 using System.Net;
 using System.Net.Http;
 using System.Security.Authentication;
+using System.Text.Json;
 
 namespace CCMS.Infrastructure.Services;
 
@@ -20,6 +21,7 @@ public class R2StorageService : IFileStorageService
     private readonly string _bucketName;
     private readonly string _basePath;
     private readonly string _publicUrlBase;
+    private readonly string[] _corsAllowedOrigins;
     private bool _bucketVerified;
     private readonly object _verifyLock = new();
 
@@ -59,6 +61,21 @@ public class R2StorageService : IFileStorageService
         
         _s3Client = new AmazonS3Client(accessKeyId, secretAccessKey, config);
         
+        // Collect CORS allowed origins from configuration
+        // These are the same origins allowed by the ASP.NET CORS policy
+        var corsOrigins = new List<string>();
+        var configuredOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        if (configuredOrigins != null)
+        {
+            corsOrigins.AddRange(configuredOrigins);
+        }
+        // Ensure production domain is always included
+        if (!corsOrigins.Contains("https://ccms.pixelspot.in"))
+        {
+            corsOrigins.Add("https://ccms.pixelspot.in");
+        }
+        _corsAllowedOrigins = corsOrigins.ToArray();
+        
         // Log initialization once (no blocking bucket check)
         var pathInfo = string.IsNullOrEmpty(_basePath) ? "root" : $"/{_basePath}/";
         Console.WriteLine($"[R2Storage] Initialized - Bucket: {_bucketName}, BasePath: {pathInfo}, URL: {_publicUrlBase}");
@@ -90,6 +107,50 @@ public class R2StorageService : IFileStorageService
         {
             Console.WriteLine($"[R2Storage] WARNING: Bucket access check failed: {ex.Message}");
             // Don't throw - let the actual upload fail with a better error
+        }
+        
+        // Configure CORS on the R2 bucket so browsers can load videos directly
+        // This is a belt-and-suspenders approach: nginx proxy handles most requests,
+        // but direct R2 access (e.g., from players or cached URLs) also needs CORS.
+        await EnsureCorsConfiguredAsync();
+    }
+    
+    /// <summary>
+    /// Configures CORS on the R2 bucket via the S3-compatible PutBucketCors API.
+    /// This runs once on startup and is idempotent — it overwrites any existing CORS config
+    /// with the authoritative set of allowed origins from appsettings/environment.
+    /// </summary>
+    private async Task EnsureCorsConfiguredAsync()
+    {
+        try
+        {
+            var corsConfiguration = new CORSConfiguration
+            {
+                Rules = new List<CORSRule>
+                {
+                    new CORSRule
+                    {
+                        AllowedOrigins = _corsAllowedOrigins.ToList(),
+                        AllowedMethods = new List<string> { "GET", "HEAD" },
+                        AllowedHeaders = new List<string> { "*" },
+                        MaxAgeSeconds = 86400 // Cache preflight for 24 hours
+                    }
+                }
+            };
+            
+            await _s3Client.PutCORSConfigurationAsync(new PutCORSConfigurationRequest
+            {
+                BucketName = _bucketName,
+                Configuration = corsConfiguration
+            });
+            
+            Console.WriteLine($"[R2Storage] CORS configured for bucket '{_bucketName}' — allowed origins: {string.Join(", ", _corsAllowedOrigins)}");
+        }
+        catch (Exception ex)
+        {
+            // CORS config failure is non-fatal — the nginx proxy will still serve 
+            // videos to the frontend. Log a warning so operators can investigate.
+            Console.WriteLine($"[R2Storage] WARNING: Failed to configure CORS on bucket: {ex.Message}");
         }
     }
 

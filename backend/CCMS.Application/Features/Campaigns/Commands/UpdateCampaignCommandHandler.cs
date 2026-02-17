@@ -42,11 +42,11 @@ public class UpdateCampaignCommandHandler : IRequestHandler<UpdateCampaignComman
         if (request.Request.Budget.HasValue)
             campaign.Budget = request.Request.Budget.Value;
         
-        if (request.Request.StartDate.HasValue)
-            campaign.StartDate = request.Request.StartDate.Value;
+        if (!string.IsNullOrWhiteSpace(request.Request.StartDate) && DateOnly.TryParse(request.Request.StartDate, out var startDate))
+            campaign.StartDate = startDate;
         
-        if (request.Request.EndDate.HasValue)
-            campaign.EndDate = request.Request.EndDate.Value;
+        if (!string.IsNullOrWhiteSpace(request.Request.EndDate) && DateOnly.TryParse(request.Request.EndDate, out var endDate))
+            campaign.EndDate = endDate;
         
         if (!string.IsNullOrWhiteSpace(request.Request.Status))
         {

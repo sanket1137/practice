@@ -292,7 +292,8 @@ public class StreamingHub : Hub
             screenId = screenId.ToLowerInvariant();
             
             var userId = Context.User?.FindFirst("sub")?.Value 
-                      ?? Context.User?.FindFirst("id")?.Value;
+                      ?? Context.User?.FindFirst("id")?.Value
+                      ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             _logger.LogInformation(
                 "Player registering stream. ScreenId: {ScreenId}, ConnectionId: {ConnectionId}, UserId: {UserId}, StreamKey: {StreamKey}",
@@ -483,7 +484,8 @@ public class StreamingHub : Hub
             screenId = screenId.ToLowerInvariant();
             
             var userId = Context.User?.FindFirst("sub")?.Value 
-                      ?? Context.User?.FindFirst("id")?.Value;
+                      ?? Context.User?.FindFirst("id")?.Value
+                      ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             _logger.LogInformation(
                 "Viewer requesting stream. ScreenId: {ScreenId}, ViewerId: {ViewerId}, UserId: {UserId}",

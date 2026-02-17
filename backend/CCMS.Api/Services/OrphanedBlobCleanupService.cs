@@ -53,7 +53,7 @@ public class OrphanedBlobCleanupService : BackgroundService
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var fileStorage = scope.ServiceProvider.GetRequiredService<IFileStorageService>();
 
-        var cutoffDate = DateTime.UtcNow.AddDays(-RETENTION_DAYS);
+        var cutoffDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-RETENTION_DAYS));
         
         // Find creatives that are soft-deleted AND their campaign ended > 160 days ago
         var deletedCreatives = await context.Creatives
@@ -75,13 +75,13 @@ public class OrphanedBlobCleanupService : BackgroundService
                 {
                     shouldDelete = true;
                 }
-                else if (!creative.Campaign.EndDate.HasValue && creative.IsDeleted && creative.UpdatedAt.HasValue && creative.UpdatedAt.Value < cutoffDate)
+                else if (!creative.Campaign.EndDate.HasValue && creative.IsDeleted && creative.UpdatedAt.HasValue && DateOnly.FromDateTime(creative.UpdatedAt.Value) < cutoffDate)
                 {
                     // If campaign has no end date, use creative deletion date (UpdatedAt when IsDeleted)
                     shouldDelete = true;
                 }
             }
-            else if (creative.IsDeleted && creative.UpdatedAt.HasValue && creative.UpdatedAt.Value < cutoffDate)
+            else if (creative.IsDeleted && creative.UpdatedAt.HasValue && DateOnly.FromDateTime(creative.UpdatedAt.Value) < cutoffDate)
             {
                 // If no campaign association, use deletion date (UpdatedAt when IsDeleted)
                 shouldDelete = true;

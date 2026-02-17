@@ -60,8 +60,9 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
                 Console.WriteLine($"[SCREEN {screenDto.Name}] Found {approvedBookings.Count} approved bookings");
                 
                 // For revenue, only count bookings active today
+                var todayDate = DateOnly.FromDateTime(DateTime.Today);
                 var activeToday = approvedBookings
-                    .Where(b => b.StartDate <= DateTime.Today && b.EndDate >= DateTime.Today)
+                    .Where(b => b.StartDate <= todayDate && b.EndDate >= todayDate)
                     .ToList();
 
                 Console.WriteLine($"[SCREEN {screenDto.Name}] {activeToday.Count} bookings active today");

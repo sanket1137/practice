@@ -40,4 +40,68 @@ public interface IEmailService
     /// <param name="firstName">User's first name</param>
     /// <returns>True if email sent successfully</returns>
     Task<bool> SendWelcomeEmailAsync(string email, string firstName);
+
+    /// <summary>
+    /// Send email notification when a booking is approved
+    /// </summary>
+    /// <param name="email">Advertiser's email address</param>
+    /// <param name="firstName">Advertiser's first name</param>
+    /// <param name="bookingId">The booking ID</param>
+    /// <param name="campaignName">Name of the campaign</param>
+    /// <param name="screenName">Name of the screen</param>
+    /// <param name="startDate">Booking start date</param>
+    /// <param name="endDate">Booking end date</param>
+    /// <param name="totalPrice">Total booking price</param>
+    /// <param name="currency">Currency code</param>
+    /// <returns>True if email sent successfully</returns>
+    Task<bool> SendBookingApprovedEmailAsync(
+        string email, 
+        string firstName, 
+        Guid bookingId,
+        string campaignName,
+        string screenName,
+        DateTime startDate,
+        DateTime endDate,
+        decimal totalPrice,
+        string currency);
+
+    /// <summary>
+    /// Send email notification when a booking is rejected
+    /// </summary>
+    /// <param name="email">Advertiser's email address</param>
+    /// <param name="firstName">Advertiser's first name</param>
+    /// <param name="bookingId">The booking ID</param>
+    /// <param name="campaignName">Name of the campaign</param>
+    /// <param name="screenName">Name of the screen</param>
+    /// <param name="rejectionReason">Reason for rejection (optional)</param>
+    /// <returns>True if email sent successfully</returns>
+    Task<bool> SendBookingRejectedEmailAsync(
+        string email, 
+        string firstName, 
+        Guid bookingId,
+        string campaignName,
+        string screenName,
+        string? rejectionReason);
+
+    /// <summary>
+    /// Send email notification to screen owner when a new booking request is received
+    /// </summary>
+    /// <param name="email">Screen owner's email address</param>
+    /// <param name="firstName">Screen owner's first name</param>
+    /// <param name="bookingId">The booking ID</param>
+    /// <param name="screenName">Name of the screen</param>
+    /// <param name="advertiserName">Name of the advertiser</param>
+    /// <param name="campaignName">Name of the campaign</param>
+    /// <param name="startDate">Booking start date</param>
+    /// <param name="endDate">Booking end date</param>
+    /// <returns>True if email sent successfully</returns>
+    Task<bool> SendNewBookingRequestEmailAsync(
+        string email, 
+        string firstName,
+        Guid bookingId,
+        string screenName,
+        string advertiserName,
+        string campaignName,
+        DateTime startDate,
+        DateTime endDate);
 }

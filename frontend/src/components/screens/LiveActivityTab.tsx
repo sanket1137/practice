@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Box,
     Grid,
@@ -14,7 +14,6 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    IconButton,
     TextField,
     CircularProgress,
     Alert,
@@ -23,13 +22,11 @@ import {
 import {
     Upload as UploadIcon,
     Delete as DeleteIcon,
-    PlayArrow,
     Lock
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import { HubConnectionBuilder, HubConnection } from '@microsoft/signalr';
-import { useEffect, useRef } from 'react';
+import { websocketService } from '../../services/websocket';
 
 interface SlotStatus {
     slotNumber: number;
@@ -58,13 +55,16 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
     const [price, setPrice] = useState<number>(0);
     const [currency, setCurrency] = useState<string>('INR'); // Default to INR
     const [file, setFile] = useState<File | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string>('');
     const queryClient = useQueryClient();
 
     const uploadMutation = useMutation({
         mutationFn: async () => {
             const formData = new FormData();
-            formData.append('name', name);
-            formData.append('pricePerPlay', price.toString());
+            formData.append('name', name.trim());
+            // Ensure price is a valid number, default to 0 if NaN
+            const safePrice = isNaN(price) ? 0 : price;
+            formData.append('pricePerPlay', safePrice.toString());
             formData.append('currency', currency);
             if (file) formData.append('file', file);
 
@@ -73,6 +73,14 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
             handleClose();
+        },
+        onError: (error: any) => {
+            // Extract the actual error message from the backend response
+            const backendMessage = error?.response?.data?.message 
+                || error?.response?.data?.errors?.[0]
+                || error?.message
+                || 'Upload failed. Please try again.';
+            setErrorMessage(backendMessage);
         }
     });
 
@@ -81,6 +89,7 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
         setPrice(0);
         setCurrency('INR'); // Reset to default
         setFile(null);
+        setErrorMessage('');
         onClose();
     };
 
@@ -121,7 +130,10 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
                             type="number"
                             fullWidth
                             value={price}
-                            onChange={(e) => setPrice(parseFloat(e.target.value))}
+                            onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                setPrice(isNaN(val) ? 0 : val);
+                            }}
                             required
                             inputProps={{ min: 0, step: 0.01 }}
                         />
@@ -136,7 +148,7 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
                         />
                     </Button>
                     {uploadMutation.isError && (
-                        <Alert severity="error">Upload failed. Please try again.</Alert>
+                        <Alert severity="error">{errorMessage || 'Upload failed. Please try again.'}</Alert>
                     )}
                 </Box>
             </DialogContent>
@@ -160,7 +172,7 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
     const [selectedSlot, setSelectedSlot] = useState<number>(1);
     const [currentlyPlaying, setCurrentlyPlaying] = useState<{ slotNumber: number; creativeId: string | null } | null>(null);
     const queryClient = useQueryClient();
-    const connectionRef = useRef<HubConnection | null>(null);
+    const subscribedRef = useRef(false);
 
     const { data: slotsData, isLoading } = useQuery({
         queryKey: ['slot-status', screenId],
@@ -169,54 +181,77 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
         staleTime: 30000 // Consider data fresh for 30 seconds
     });
 
-    // Real-time SignalR subscription for impression updates AND slot status changes
+    // Stable callback refs to avoid re-subscribing on every render
+    const handleAdStarted = useCallback((data: { screenId: string; slotNumber?: number; creativeId?: string }) => {
+        console.log('🎬 AdStarted:', data);
+        if (data.screenId === screenId) {
+            setCurrentlyPlaying({
+                slotNumber: data.slotNumber || 0,
+                creativeId: data.creativeId || null
+            });
+        }
+    }, [screenId]);
+
+    const handleImpressionRecorded = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
+    }, [queryClient, screenId]);
+
+    const handleSlotStatusChanged = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
+    }, [queryClient, screenId]);
+
+    // No-op handler for player-only SetSyncMode events (prevents SignalR warnings)
+    const handleSetSyncMode = useCallback(() => {}, []);
+
+    // Real-time SignalR subscription using the singleton websocketService
     useEffect(() => {
-        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5257';
+        let cancelled = false;
 
-        const connection = new HubConnectionBuilder()
-            .withUrl(`${API_BASE}/hubs/playback`)
-            .withAutomaticReconnect()
-            .build();
+        const setup = async () => {
+            try {
+                await websocketService.connect();
+                if (cancelled) return;
 
-        // Listen for AdStarted events to track what's ACTUALLY playing
-        connection.on('AdStarted', (data: { screenId: string; slotNumber?: number; creativeId?: string }) => {
-            console.log('🎬 AdStarted:', data);
-            if (data.screenId === screenId) {
-                setCurrentlyPlaying({
-                    slotNumber: data.slotNumber || 0,
-                    creativeId: data.creativeId || null
-                });
-            }
-        });
+                // Register event listeners
+                websocketService.on('AdStarted', handleAdStarted);
+                websocketService.on('ImpressionRecorded', handleImpressionRecorded);
+                websocketService.on('SlotStatusChanged', handleSlotStatusChanged);
+                // SetSyncMode is a player-only command; register a no-op handler
+                // to prevent SignalR "No client method" warnings in the console
+                websocketService.on('SetSyncMode', handleSetSyncMode);
 
-        // Listen for impression updates
-        connection.on('ImpressionRecorded', (data: { screenId: string; slotNumber: number; ownerContentId: string; timestamp: string }) => {
-            console.log('📊 Impression recorded:', data);
-            // Invalidate and refetch slot status to get updated play counts
-            queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
-        });
-
-        // Listen for slot status changes (booking activated, owner content added/removed)
-        connection.on('SlotStatusChanged', (data: { screenId: string; slotNumber: number; action: string; newStatus: string; contentName?: string }) => {
-            console.log('🔄 Slot status changed:', data);
-            // Invalidate to refetch slot status immediately
-            queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
-        });
-
-        connection.start()
-            .then(() => {
+                // Subscribe to this screen's events
+                await websocketService.subscribeToScreen(screenId, () => {});
+                subscribedRef.current = true;
                 console.log('✅ SignalR connected for screen:', screenId);
-                // Subscribe to screen-specific events
-                return connection.invoke('SubscribeToScreen', screenId);
-            })
-            .catch(err => console.error('❌ SignalR connection error:', err));
 
-        connectionRef.current = connection;
+                // Request fast sync while viewing live activity
+                await websocketService.requestFastSync(screenId);
+            } catch (err) {
+                if (!cancelled) {
+                    console.error('❌ SignalR connection error:', err);
+                }
+            }
+        };
+
+        setup();
 
         return () => {
-            connection.stop();
+            cancelled = true;
+            // Clean up event listeners
+            websocketService.off('AdStarted', handleAdStarted);
+            websocketService.off('ImpressionRecorded', handleImpressionRecorded);
+            websocketService.off('SlotStatusChanged', handleSlotStatusChanged);
+            websocketService.off('SetSyncMode', handleSetSyncMode);
+
+            // Unsubscribe and revert to normal sync
+            if (subscribedRef.current) {
+                websocketService.invokeIfConnected('UnsubscribeFromScreen', screenId);
+                websocketService.requestNormalSync(screenId);
+                subscribedRef.current = false;
+            }
         };
-    }, [screenId, queryClient]);
+    }, [screenId, handleAdStarted, handleImpressionRecorded, handleSlotStatusChanged, handleSetSyncMode]);
 
     const deleteMutation = useMutation({
         mutationFn: (slotNumber: number) =>

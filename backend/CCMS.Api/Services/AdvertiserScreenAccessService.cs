@@ -39,7 +39,8 @@ public class AdvertiserScreenAccessService
     public async Task<ScreenAccessResult> CheckAdvertiserAccessAsync(Guid advertiserId, Guid screenId)
     {
         var now = DateTime.UtcNow;
-        var previewThreshold = now.AddHours(PREVIEW_ACCESS_HOURS);
+        var today = DateOnly.FromDateTime(now);
+        var previewThresholdDate = DateOnly.FromDateTime(now.AddHours(PREVIEW_ACCESS_HOURS));
 
         // Find any booking that grants access
         var accessGrantingBooking = await _context.Bookings
@@ -52,7 +53,7 @@ public class AdvertiserScreenAccessService
                          b.Status == BookingStatus.Active
                          ||
                          // Approved booking starting within preview window
-                         (b.Status == BookingStatus.Approved && b.StartDate <= previewThreshold && b.EndDate >= now)
+                         (b.Status == BookingStatus.Approved && b.StartDate <= previewThresholdDate && b.EndDate >= today)
                      ))
             .OrderBy(b => b.StartDate)
             .FirstOrDefaultAsync();
@@ -71,7 +72,7 @@ public class AdvertiserScreenAccessService
         }
 
         var isPreviewAccess = accessGrantingBooking.Status == BookingStatus.Approved 
-                              && accessGrantingBooking.StartDate > now;
+                              && accessGrantingBooking.StartDate > today;
 
         _logger.LogInformation(
             "Advertiser {AdvertiserId} granted {AccessType} access to screen {ScreenId} via booking {BookingId}",
@@ -83,9 +84,9 @@ public class AdvertiserScreenAccessService
             BookingId = accessGrantingBooking.Id,
             CampaignId = accessGrantingBooking.CampaignId,
             IsPreviewAccess = isPreviewAccess,
-            AccessExpiresAt = accessGrantingBooking.EndDate,
+            AccessExpiresAt = accessGrantingBooking.EndDate.ToDateTime(TimeOnly.MaxValue),
             Reason = isPreviewAccess 
-                ? $"Preview access - campaign starts {accessGrantingBooking.StartDate:g}" 
+                ? $"Preview access - campaign starts {accessGrantingBooking.StartDate}" 
                 : "Active booking"
         };
     }
@@ -96,7 +97,8 @@ public class AdvertiserScreenAccessService
     public async Task<List<ScreenAccessInfo>> GetAccessibleScreensAsync(Guid advertiserId)
     {
         var now = DateTime.UtcNow;
-        var previewThreshold = now.AddHours(PREVIEW_ACCESS_HOURS);
+        var today = DateOnly.FromDateTime(now);
+        var previewThresholdDate = DateOnly.FromDateTime(now.AddHours(PREVIEW_ACCESS_HOURS));
 
         var accessibleBookings = await _context.Bookings
             .Include(b => b.Campaign)
@@ -107,7 +109,7 @@ public class AdvertiserScreenAccessService
                      && (
                          b.Status == BookingStatus.Active
                          ||
-                         (b.Status == BookingStatus.Approved && b.StartDate <= previewThreshold && b.EndDate >= now)
+                         (b.Status == BookingStatus.Approved && b.StartDate <= previewThresholdDate && b.EndDate >= today)
                      ))
             .Select(b => new ScreenAccessInfo
             {
@@ -116,10 +118,10 @@ public class AdvertiserScreenAccessService
                 BookingId = b.Id,
                 CampaignId = b.CampaignId,
                 CampaignName = b.Campaign.Name,
-                IsPreviewAccess = b.Status == BookingStatus.Approved && b.StartDate > now,
-                AccessExpiresAt = b.EndDate,
-                BookingStartDate = b.StartDate,
-                BookingEndDate = b.EndDate
+                IsPreviewAccess = b.Status == BookingStatus.Approved && b.StartDate > today,
+                AccessExpiresAt = b.EndDate.ToDateTime(TimeOnly.MaxValue),
+                BookingStartDate = b.StartDate.ToDateTime(TimeOnly.MinValue),
+                BookingEndDate = b.EndDate.ToDateTime(TimeOnly.MaxValue)
             })
             .ToListAsync();
 
@@ -133,7 +135,8 @@ public class AdvertiserScreenAccessService
     public async Task<List<AdvertiserAccessInfo>> GetScreenAccessorsAsync(Guid screenId)
     {
         var now = DateTime.UtcNow;
-        var previewThreshold = now.AddHours(PREVIEW_ACCESS_HOURS);
+        var today = DateOnly.FromDateTime(now);
+        var previewThresholdDate = DateOnly.FromDateTime(now.AddHours(PREVIEW_ACCESS_HOURS));
 
         var accessors = await _context.Bookings
             .Include(b => b.Campaign)
@@ -143,7 +146,7 @@ public class AdvertiserScreenAccessService
                      && (
                          b.Status == BookingStatus.Active
                          ||
-                         (b.Status == BookingStatus.Approved && b.StartDate <= previewThreshold && b.EndDate >= now)
+                         (b.Status == BookingStatus.Approved && b.StartDate <= previewThresholdDate && b.EndDate >= today)
                      ))
             .Select(b => new AdvertiserAccessInfo
             {
@@ -151,8 +154,8 @@ public class AdvertiserScreenAccessService
                 AdvertiserEmail = b.Campaign.Advertiser.Email,
                 BookingId = b.Id,
                 CampaignId = b.CampaignId,
-                AccessExpiresAt = b.EndDate,
-                IsPreviewAccess = b.Status == BookingStatus.Approved && b.StartDate > now
+                AccessExpiresAt = b.EndDate.ToDateTime(TimeOnly.MaxValue),
+                IsPreviewAccess = b.Status == BookingStatus.Approved && b.StartDate > today
             })
             .ToListAsync();
 
@@ -165,13 +168,15 @@ public class AdvertiserScreenAccessService
     public async Task<List<ExpiredAccessInfo>> GetNewlyExpiredAccessAsync(DateTime since)
     {
         var now = DateTime.UtcNow;
+        var today = DateOnly.FromDateTime(now);
+        var sinceDate = DateOnly.FromDateTime(since);
 
         // Find bookings that ended between 'since' and 'now'
         var expiredBookings = await _context.Bookings
             .Include(b => b.Campaign)
             .Where(b => (b.Status == BookingStatus.Active || b.Status == BookingStatus.Completed)
-                     && b.EndDate >= since
-                     && b.EndDate < now
+                     && b.EndDate >= sinceDate
+                     && b.EndDate < today
                      && !b.IsDeleted)
             .Select(b => new ExpiredAccessInfo
             {
@@ -179,7 +184,7 @@ public class AdvertiserScreenAccessService
                 ScreenId = b.ScreenId,
                 AdvertiserId = b.Campaign.AdvertiserId,
                 CampaignId = b.CampaignId,
-                ExpiredAt = b.EndDate
+                ExpiredAt = b.EndDate.ToDateTime(TimeOnly.MaxValue)
             })
             .ToListAsync();
 

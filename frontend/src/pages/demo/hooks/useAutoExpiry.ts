@@ -9,7 +9,7 @@ export const useAutoExpiry = (
     onExpireBooking: (bookingId: string) => void,
     onStopStream: (screenId: string) => void
 ) => {
-    const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+    const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
     useEffect(() => {
         // Setup booking expiry timers

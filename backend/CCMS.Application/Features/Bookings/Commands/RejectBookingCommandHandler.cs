@@ -59,8 +59,8 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
             await _slotAvailabilityService.ReleaseSlot(
                 booking.ScreenId,
                 slotNumber,
-                booking.StartDate,
-                booking.EndDate,
+                booking.StartDate.ToDateTime(TimeOnly.MinValue),
+                booking.EndDate.ToDateTime(TimeOnly.MinValue),
                 cancellationToken);
         }
 

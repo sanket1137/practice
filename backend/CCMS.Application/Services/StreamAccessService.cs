@@ -11,7 +11,9 @@ public class StreamAccessResult
 {
     public bool HasAccess { get; set; }
     public string Reason { get; set; } = string.Empty;
-    public DateTime? AccessValidUntil { get; set; }
+    public DateOnly? AccessValidUntil { get; set; }
+    public bool IsPreviewAccess { get; set; }
+    public Guid? BookingId { get; set; }
 }
 
 public interface IStreamAccessService
@@ -24,6 +26,11 @@ public class StreamAccessService : IStreamAccessService
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Campaign> _campaignRepository;
     private readonly ILogger<StreamAccessService> _logger;
+    
+    /// <summary>
+    /// Hours before booking start date that advertiser gets preview access
+    /// </summary>
+    private const int PREVIEW_ACCESS_HOURS = 24;
 
     public StreamAccessService(
         IRepository<Booking> bookingRepository,
@@ -38,35 +45,76 @@ public class StreamAccessService : IStreamAccessService
     public async Task<StreamAccessResult> CheckAdvertiserAccessAsync(Guid userId, Guid screenId)
     {
         _logger.LogInformation(
-            "Checking stream access for user {UserId} on screen {ScreenId}",
+            "Checking stream access for advertiser {UserId} on screen {ScreenId}",
             userId, screenId);
 
-        // TEMPORARY: Allow all advertisers access until repository GUID comparison is fixed
-        // TODO: Fix Repository.FindAsync to properly handle GUID comparisons
-        _logger.LogWarning(
-            "TEMPORARY: Granting stream access to advertiser {UserId} on screen {ScreenId} - Repository bug bypass",
-            userId, screenId);
+        var now = DateTime.UtcNow;
+        var previewThreshold = now.AddHours(PREVIEW_ACCESS_HOURS);
 
-        return await Task.FromResult(new StreamAccessResult
+        // Get all campaigns for this advertiser
+        var advertiserCampaigns = await _campaignRepository.FindAsync(c => c.AdvertiserId == userId);
+        var campaignIds = advertiserCampaigns.Select(c => c.Id).ToList();
+
+        if (!campaignIds.Any())
+        {
+            _logger.LogDebug(
+                "Advertiser {UserId} has no campaigns - denying stream access to screen {ScreenId}",
+                userId, screenId);
+
+            return new StreamAccessResult
+            {
+                HasAccess = false,
+                Reason = "No campaigns found"
+            };
+        }
+
+        // Find bookings that grant access:
+        // 1. Active booking on the screen
+        // 2. Approved booking starting within 24 hours (preview access)
+        var previewThresholdDate = DateOnly.FromDateTime(previewThreshold);
+        var nowDate = DateOnly.FromDateTime(now);
+        var accessGrantingBookings = await _bookingRepository.FindAsync(b =>
+            campaignIds.Contains(b.CampaignId) &&
+            b.ScreenId == screenId &&
+            !b.IsDeleted &&
+            (
+                // Active booking (currently running)
+                b.Status == BookingStatus.Active ||
+                // Approved booking starting within preview window
+                (b.Status == BookingStatus.Approved && b.StartDate <= previewThresholdDate && b.EndDate >= nowDate)
+            ));
+
+        var accessGrantingBooking = accessGrantingBookings.OrderBy(b => b.StartDate).FirstOrDefault();
+
+        if (accessGrantingBooking == null)
+        {
+            _logger.LogDebug(
+                "Advertiser {UserId} denied stream access to screen {ScreenId} - no active or upcoming booking",
+                userId, screenId);
+
+            return new StreamAccessResult
+            {
+                HasAccess = false,
+                Reason = "No active or upcoming booking on this screen"
+            };
+        }
+
+        var isPreviewAccess = accessGrantingBooking.Status == BookingStatus.Approved 
+                              && accessGrantingBooking.StartDate > nowDate;
+
+        _logger.LogInformation(
+            "Advertiser {UserId} granted {AccessType} stream access to screen {ScreenId} via booking {BookingId}",
+            userId, isPreviewAccess ? "PREVIEW" : "ACTIVE", screenId, accessGrantingBooking.Id);
+
+        return new StreamAccessResult
         {
             HasAccess = true,
-            Reason = "Advertiser access (temporary bypass)",
-            AccessValidUntil = DateTime.UtcNow.AddDays(30) // Valid for 30 days
-        });
-
-        /* ORIGINAL CODE - TO BE RESTORED AFTER FIX:
-        var now = DateTime.UtcNow;
-        var today = now.Date;
-
-        var activeBookings = await _dbContext.Bookings
-            .Where(b =>
-                b.ScreenId == screenId &&
-                b.Status == BookingStatus.Approved &&
-                b.StartDate <= today &&
-                b.EndDate >= today)
-            .ToListAsync();
-
-        ... rest of logic ...
-        */
+            BookingId = accessGrantingBooking.Id,
+            IsPreviewAccess = isPreviewAccess,
+            AccessValidUntil = accessGrantingBooking.EndDate,
+            Reason = isPreviewAccess 
+                ? $"Preview access - booking starts {accessGrantingBooking.StartDate:g}" 
+                : "Active booking access"
+        };
     }
 }

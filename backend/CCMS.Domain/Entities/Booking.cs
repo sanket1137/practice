@@ -10,9 +10,9 @@ public class Booking : BaseEntity
     public Guid CampaignId { get; set; }
     public Guid CreativeId { get; set; }
     
-    // Booking period
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    // Booking period (date-only, times determined by screen operating hours)
+    public DateOnly StartDate { get; set; }
+    public DateOnly EndDate { get; set; }
     
     // Slot allocation (stored as JSON array, e.g., [1, 2, 3])
     // NOTE: This is kept for backward compatibility
@@ -63,7 +63,7 @@ public class Booking : BaseEntity
     
     // Pricing
     public decimal TotalPrice { get; set; }
-    public string Currency { get; set; } = "USD";
+    public string Currency { get; set; } = "INR";
     
     // Navigation properties
     public virtual Screen Screen { get; set; } = null!;

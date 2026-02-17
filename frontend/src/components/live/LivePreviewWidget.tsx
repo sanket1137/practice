@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { websocketService } from '@/services/websocket';
+import { useState, useEffect } from 'react';
+import { websocketService } from '../../services/websocket';
 
 interface LivePreviewWidgetProps {
     screenId: string;

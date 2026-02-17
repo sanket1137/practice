@@ -4,6 +4,7 @@ using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using CCMS.Application.Interfaces;
 using CCMS.Shared.Common;
+using CCMS.Application.Helpers;
 
 namespace CCMS.Api.Controllers;
 
@@ -15,18 +16,21 @@ public class ScreenDefaultVideoController : ControllerBase
     private readonly IFileStorageService _fileStorageService;
     private readonly ILogger<ScreenDefaultVideoController> _logger;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly string _r2PublicUrlBase;
     private const long MaxVideoSizeBytes = 52428800; // 50MB
 
     public ScreenDefaultVideoController(
         IRepository<Screen> screenRepository,
         IFileStorageService fileStorageService,
         ILogger<ScreenDefaultVideoController> logger,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IConfiguration configuration)
     {
         _screenRepository = screenRepository;
         _fileStorageService = fileStorageService;
         _logger = logger;
         _unitOfWork = unitOfWork;
+        _r2PublicUrlBase = configuration["R2:PublicUrlBase"] ?? "";
     }
 
     /// <summary>
@@ -107,7 +111,7 @@ public class ScreenDefaultVideoController : ControllerBase
 
             return Ok(ApiResponse<object>.SuccessResponse(new
             {
-                videoUrl,
+                videoUrl = MediaUrlHelper.ToProxyUrl(videoUrl, _r2PublicUrlBase) ?? videoUrl,
                 uploadedAt = screen.DefaultVideoUploadedAt,
                 sizeBytes = screen.DefaultVideoSizeBytes
             }));
@@ -191,7 +195,7 @@ public class ScreenDefaultVideoController : ControllerBase
             return Ok(ApiResponse<object>.SuccessResponse(new
             {
                 hasCustomVideo = screen.HasCustomDefaultVideo,
-                videoUrl = screen.DefaultVideoUrl,
+                videoUrl = MediaUrlHelper.ToProxyUrl(screen.DefaultVideoUrl, _r2PublicUrlBase),
                 uploadedAt = screen.DefaultVideoUploadedAt,
                 sizeBytes = screen.DefaultVideoSizeBytes,
                 isUsingUniversal = !screen.HasCustomDefaultVideo

@@ -18,7 +18,6 @@ import {
     DialogContent,
     DialogActions,
     DialogContentText,
-    IconButton,
     Tabs,
     Tab,
     Alert,
@@ -35,14 +34,15 @@ import {
     CalendarMonth as CalendarIcon,
     Visibility as VisibilityIcon,
     PhotoLibrary as ImagesIcon,
+    LiveTv as LiveTvIcon,
+    VideoSettings as VideoSettingsIcon,
+    ShowChart as ActivityIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useSnackbar } from 'notistack';
-import SlotBookingsCard from '../../components/screens/SlotBookingsCard';
-import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import SlotCalendarView from '../../components/screens/SlotCalendarView';
 import LivePreviewWidget from '../../components/common/LivePreviewWidget';
 import { WebRTCPlayer } from '../../components/streaming/WebRTCPlayer';
@@ -151,19 +151,26 @@ export default function ScreenDetailPage() {
                 { id: 'overview', label: 'Overview', icon: <VisibilityIcon /> },
                 { id: 'images', label: 'Images', icon: <ImagesIcon /> },
                 { id: 'bookings', label: 'Bookings', icon: <CalendarIcon /> },
-                { id: 'live-activity', label: 'Live Activity' },
-                { id: 'default-video', label: 'Default Video' },
-                { id: 'live-stream', label: 'Live Stream' },
+                { id: 'live-activity', label: 'Live Activity', icon: <ActivityIcon /> },
+                { id: 'default-video', label: 'Default Video', icon: <VideoSettingsIcon /> },
+                { id: 'live-stream', label: 'Live Stream', icon: <LiveTvIcon /> },
             ];
         } else {
             // Advertiser tabs - focused on booking decision
-            return [
+            const advertiserTabs = [
                 { id: 'overview', label: 'Overview', icon: <VisibilityIcon /> },
                 { id: 'tags-audience', label: 'Tags & Audience', icon: <TagIcon /> },
                 { id: 'bookings', label: 'Availability', icon: <CalendarIcon /> },
             ];
+            
+            // Add live stream tab if advertiser has access (e.g., approved booking)
+            if (streamAccess?.hasAccess) {
+                advertiserTabs.push({ id: 'live-stream', label: 'Live Stream', icon: <LiveTvIcon /> });
+            }
+            
+            return advertiserTabs;
         }
-    }, [isOwner]);
+    }, [isOwner, streamAccess?.hasAccess]);
 
     // Get primary tags for advertiser overview
     const primaryTags = useMemo(() => {
@@ -616,7 +623,6 @@ export default function ScreenDetailPage() {
                                 <WebRTCPlayer
                                     screenId={id!}
                                     autoStart={false}
-                                    fallbackToVideoSync={true}
                                 />
                             </Grid>
 

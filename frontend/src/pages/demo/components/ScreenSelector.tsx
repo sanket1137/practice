@@ -1,7 +1,7 @@
 // ScreenSelector Component (MUI Version)
 
 import React from 'react';
-import { FormControl, InputLabel, Select, MenuItem, Box } from '@mui/material';
+import { FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 
 interface Screen {
     id: string;

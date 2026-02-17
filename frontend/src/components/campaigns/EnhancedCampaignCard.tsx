@@ -3,16 +3,13 @@ import {
     CardContent,
     Typography,
     Box,
-    Chip,
     LinearProgress,
     Stack,
     Divider,
 } from '@mui/material';
 import {
     Campaign as CampaignIcon,
-    TrendingUp,
     CalendarToday,
-    AttachMoney,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import StatusChip from '../common/StatusChip';

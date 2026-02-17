@@ -1,5 +1,4 @@
 import { Box, Skeleton, Card, CardContent, Grid } from '@mui/material';
-import { RESPONSIVE_GRID } from '../../constants/layout';
 
 interface TableSkeletonProps {
     rows?: number;

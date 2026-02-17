@@ -72,6 +72,58 @@ public class ScreensController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a paginated list of screens with optional filtering and sorting.
+    /// </summary>
+    /// <param name="page">Page number (1-based). Defaults to 1.</param>
+    /// <param name="pageSize">Number of items per page. Defaults to 10, max 100.</param>
+    /// <param name="search">Optional search term to filter by name, address, or description.</param>
+    /// <param name="status">Optional status filter (Online, Offline, Maintenance).</param>
+    /// <param name="sortBy">Sort field (Name, Location, CreatedAt). Defaults to CreatedAt.</param>
+    /// <param name="sortDirection">Sort direction (asc or desc). Defaults to desc.</param>
+    [HttpGet("paged")]
+    public async Task<ActionResult<ApiResponse<PagedResult<ScreenDto>>>> GetPaged(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string sortBy = "CreatedAt",
+        [FromQuery] string sortDirection = "desc")
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(ApiResponse<PagedResult<ScreenDto>>.ErrorResponse("User not authenticated"));
+
+            var userGuid = Guid.Parse(userId);
+            var isScreenOwner = User.IsInRole("ScreenOwner");
+            
+            var query = new GetScreensPagedQuery
+            {
+                PageNumber = page,
+                PageSize = pageSize,
+                SearchTerm = search,
+                Status = status,
+                SortBy = sortBy,
+                SortDirection = sortDirection
+            };
+            
+            // Screen owners see ONLY their own screens
+            if (isScreenOwner)
+            {
+                query.OwnerId = userGuid;
+            }
+            
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<PagedResult<ScreenDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<PagedResult<ScreenDto>>.ErrorResponse($"Error retrieving screens: {ex.Message}"));
+        }
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<ScreenDto>>> GetById(Guid id)
     {
@@ -160,8 +212,8 @@ public class ScreensController : ControllerBase
             var query = new GetSlotCalendarQuery
             {
                 ScreenId = id,
-                StartDate = startDate.Date,
-                EndDate = endDate.Date
+                StartDate = DateOnly.FromDateTime(startDate),
+                EndDate = DateOnly.FromDateTime(endDate)
             };
 
             var result = await _mediator.Send(query);
@@ -488,6 +540,7 @@ public class ScreensController : ControllerBase
     
     [HttpPost("{id}/slots/{slotNumber}/content")]
     [Authorize(Roles = "ScreenOwner,Admin")]
+    [RequestSizeLimit(52_428_800)] // 50 MB limit for video uploads
     public async Task<ActionResult<ApiResponse<OwnerContentDto>>> UploadSlotContent(
         Guid id, int slotNumber, [FromForm] string name, 
         [FromForm] decimal pricePerPlay, [FromForm] string currency, [FromForm] IFormFile file)

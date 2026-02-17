@@ -1,7 +1,7 @@
 // VideoUploader Component (MUI Version)
 
 import React, { useRef, useState } from 'react';
-import { Box, Typography, Button, Alert, Paper } from '@mui/material';
+import { Box, Typography, Alert, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { validateVideoLength } from '../utils/demoUtils';

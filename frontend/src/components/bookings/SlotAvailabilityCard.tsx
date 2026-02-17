@@ -88,7 +88,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
         }
     };
 
-    const getStatusIcon = (status: string) => {
+    const getStatusIcon = (status: string): React.ReactElement | undefined => {
         switch (status) {
             case 'AVAILABLE':
                 return <CheckCircleIcon fontSize="small" />;
@@ -97,7 +97,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
             case 'SOLD_OUT':
                 return <ErrorIcon fontSize="small" />;
             default:
-                return null;
+                return undefined;
         }
     };
 

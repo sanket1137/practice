@@ -69,13 +69,14 @@ public class PlaylistGeneratorService
 
         // Fetch all approved/active bookings for this screen that overlap with the target date
         var bookings = await _bookingRepository.GetAllAsync(cancellationToken);
+        var targetDateOnly = DateOnly.FromDateTime(date);
         
         var relevantBookings = bookings
             .Where(b => b.ScreenId == screenId 
                 && !b.IsDeleted
                 && (b.Status == BookingStatus.Approved || b.Status == BookingStatus.Active || b.Status == BookingStatus.Completed)
-                && b.StartDate.Date <= date.Date 
-                && b.EndDate.Date >= date.Date)
+                && b.StartDate <= targetDateOnly 
+                && b.EndDate >= targetDateOnly)
             .ToList();
 
         // Build playlist - ONE ITEM PER SLOT (player will loop these)

@@ -67,7 +67,7 @@ public class StreamAccessController : ControllerBase
                 {
                     HasAccess = accessResult.HasAccess,
                     Reason = accessResult.Reason,
-                    ValidUntil = accessResult.AccessValidUntil
+                    ValidUntil = accessResult.AccessValidUntil?.ToDateTime(TimeOnly.MaxValue)
                 };
             }
             else if (role == "ScreenOwner" || role == "Admin")

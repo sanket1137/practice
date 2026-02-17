@@ -1,4 +1,5 @@
-import { Backdrop, CircularProgress, Typography, Box } from '@mui/material';
+import { useState } from 'react';
+import { Backdrop, CircularProgress, Typography } from '@mui/material';
 
 interface GlobalLoadingProps {
     open: boolean;

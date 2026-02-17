@@ -1,7 +1,8 @@
-import { TextField, TextFieldProps } from '@mui/material';
+import { TextField } from '@mui/material';
+import type { TextFieldProps } from '@mui/material';
 import { useState, useEffect } from 'react';
 
-interface ValidatedTextFieldProps extends Omit<TextFieldProps, 'error' | 'helperText'> {
+interface ValidatedTextFieldProps extends Omit<TextFieldProps, 'error'> {
     value: string;
     validationRules?: {
         required?: boolean;

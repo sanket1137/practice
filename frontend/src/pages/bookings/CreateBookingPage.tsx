@@ -14,7 +14,6 @@ import {
     Card,
     CardContent,
     Divider,
-    CircularProgress,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -24,18 +23,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import SlotAvailabilityCard from '../../components/bookings/SlotAvailabilityCard';
-import BookingConfirmationDialog from '../../components/bookings/BookingConfirmationDialog';
-
-// Define type directly to avoid import issues
-interface BookingDateBreakdown {
-    requestedDates: string[];
-    availableDates: string[];
-    unavailableDates: string[];
-    totalRequested: number;
-    totalAvailable: number;
-    totalUnavailable: number;
-    isPartialBooking: boolean;
-}
 
 // Calculate tomorrow's date for validation
 const getTomorrow = () => {
@@ -346,8 +333,8 @@ export default function CreateBookingPage() {
     // State for confirmation dialog - REMOVED (no longer needed)
     // Backend will handle slot assignment automatically
 
-    // Format date helper
-    const formatDate = (date: Date) => {
+    // Helper function to format date as YYYY-MM-DD string (no timezone issues!)
+    const formatDateOnly = (date: Date): string => {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -365,11 +352,13 @@ export default function CreateBookingPage() {
             return;
         }
 
-        // Format and submit booking - backend will auto-assign an available slot
+        // Format and submit booking - send date-only strings to avoid timezone issues
         const formattedData = {
-            ...data,
-            startDate: formatDate(data.startDate),
-            endDate: formatDate(data.endDate),
+            campaignId: data.campaignId,
+            creativeId: data.creativeId,
+            screenId: data.screenId,
+            startDate: formatDateOnly(data.startDate),  // YYYY-MM-DD string
+            endDate: formatDateOnly(data.endDate),      // YYYY-MM-DD string
         };
 
         createMutation.mutate(formattedData);

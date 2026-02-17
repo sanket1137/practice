@@ -15,6 +15,10 @@ public class User : BaseEntity
     public bool IsPhoneVerified { get; set; }
     public DateTime? LastLoginAt { get; set; }
     
+    // User preferences (with India defaults)
+    public string PreferredTimezone { get; set; } = "Asia/Kolkata";
+    public string PreferredCurrency { get; set; } = "INR";
+    
     // Navigation properties
     public virtual ICollection<Screen> Screens { get; set; } = new List<Screen>();
     public virtual ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();

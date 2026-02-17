@@ -37,6 +37,47 @@ public class CampaignsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a paginated list of campaigns with optional filtering and sorting.
+    /// </summary>
+    /// <param name="search">Optional search term for campaign name.</param>
+    /// <param name="status">Optional filter by campaign status (Draft, Active, Paused, Completed).</param>
+    /// <param name="page">Page number (1-based). Defaults to 1.</param>
+    /// <param name="pageSize">Number of items per page. Defaults to 10.</param>
+    /// <param name="sortBy">Sort field (Name, CreatedAt, StartDate, EndDate). Defaults to CreatedAt.</param>
+    /// <param name="sortDirection">Sort direction (asc or desc). Defaults to desc.</param>
+    [HttpGet("paged")]
+    public async Task<ActionResult<ApiResponse<PagedResult<CampaignDto>>>> GetPaged(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string sortBy = "CreatedAt",
+        [FromQuery] string sortDirection = "desc")
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var query = new GetCampaignsPagedQuery
+            {
+                UserId = User.IsInRole("Admin") ? Guid.Empty : userId,
+                PageNumber = page,
+                PageSize = pageSize,
+                SearchTerm = search,
+                Status = status,
+                SortBy = sortBy,
+                SortDirection = sortDirection
+            };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<PagedResult<CampaignDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500,
+                ApiResponse<PagedResult<CampaignDto>>.ErrorResponse($"Error retrieving campaigns: {ex.Message}"));
+        }
+    }
+
     // POST /api/campaigns
     [HttpPost]
     [Authorize(Roles = "Advertiser,ScreenOwner,Admin")]

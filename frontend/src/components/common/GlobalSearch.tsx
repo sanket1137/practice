@@ -21,7 +21,6 @@ import {
     Tv as ScreenIcon,
     BookOnline as BookingIcon,
     History as HistoryIcon,
-    TrendingUp as TrendingIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 

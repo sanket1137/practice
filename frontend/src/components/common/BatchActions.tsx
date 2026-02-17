@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-    Box,
     Checkbox,
     Toolbar,
     Typography,
@@ -9,10 +8,7 @@ import {
     Collapse,
 } from '@mui/material';
 import {
-    Delete as DeleteIcon,
     Close as CloseIcon,
-    CheckCircle as ApproveIcon,
-    Cancel as RejectIcon,
 } from '@mui/icons-material';
 
 interface BatchAction {

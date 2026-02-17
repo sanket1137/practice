@@ -12,9 +12,8 @@ import {
 import {
     ChevronLeft,
     ChevronRight,
-    Event as EventIcon,
 } from '@mui/icons-material';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
 
 interface BookingCalendarEvent {
     id: string;

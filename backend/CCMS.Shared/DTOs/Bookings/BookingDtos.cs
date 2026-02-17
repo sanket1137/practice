@@ -12,20 +12,20 @@ public class BookingDto
     public string CreativeName { get; set; } = string.Empty;
     public string? CreativeFileUrl { get; set; }
     public string? CreativeMimeType { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public string StartDate { get; set; } = string.Empty; // YYYY-MM-DD format
+    public string EndDate { get; set; } = string.Empty;   // YYYY-MM-DD format
     public List<int> SlotNumbers { get; set; } = new();
     public string Status { get; set; } = string.Empty;
     public string? RejectionReason { get; set; }
     public int ExpectedImpressions { get; set; }
     public int DeliveredImpressions { get; set; }
     public decimal TotalPrice { get; set; }
-    public string Currency { get; set; } = "USD";
+    public string Currency { get; set; } = "INR";
     public DateTime CreatedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     
     // NEW: Actual booked dates (for partial bookings)
-    public List<DateTime>? BookedDates { get; set; }
+    public List<string>? BookedDates { get; set; } // YYYY-MM-DD format
     public BookingDateBreakdown? DateBreakdown { get; set; }
     
     // NEW: Real-time analytics
@@ -37,9 +37,9 @@ public class BookingDto
 
 public class BookingDateBreakdown
 {
-    public List<DateTime> RequestedDates { get; set; } = new();
-    public List<DateTime> AvailableDates { get; set; } = new();
-    public List<DateTime> UnavailableDates { get; set; } = new();
+    public List<string> RequestedDates { get; set; } = new(); // YYYY-MM-DD format
+    public List<string> AvailableDates { get; set; } = new();
+    public List<string> UnavailableDates { get; set; } = new();
     public int TotalRequested { get; set; }
     public int TotalAvailable { get; set; }
     public int TotalUnavailable { get; set; }
@@ -51,10 +51,9 @@ public class CreateBookingRequest
     public Guid ScreenId { get; set; }
     public Guid CampaignId { get; set; }
     public Guid CreativeId { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public string StartDate { get; set; } = string.Empty; // YYYY-MM-DD format (date-only, no timezone issues)
+    public string EndDate { get; set; } = string.Empty;   // YYYY-MM-DD format
     public int? SlotNumber { get; set; } // null = auto-assign, 1-6 = specific slot
-    public string? ClientTimezone { get; set; } // e.g., "America/New_York", "Asia/Kolkata"
 }
 
 public class ApproveBookingRequest

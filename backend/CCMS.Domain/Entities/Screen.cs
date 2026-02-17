@@ -25,7 +25,7 @@ public class Screen : BaseEntity
     
     // Timezone for operating hours (IANA timezone identifier)
     // Examples: "Asia/Kolkata", "America/Los_Angeles", "Europe/London"
-    public string Timezone { get; set; } = "UTC";
+    public string Timezone { get; set; } = "Asia/Kolkata";
     
     // Operating schedule (stored as JSON)
     public OperatingSchedule Schedule { get; set; } = new();
@@ -68,7 +68,7 @@ public class Screen : BaseEntity
     
     // Pricing
     public decimal PricePerSlot { get; set; }
-    public string Currency { get; set; } = "USD";
+    public string Currency { get; set; } = "INR";
     
     // Calculated fields (can be computed properties)
     public int ImpressionsPerSlot => CalculateImpressionsPerSlot();

@@ -5,9 +5,10 @@ import {
     CheckCircleOutline as CompletedIcon,
     Cancel as RejectedIcon,
     Edit as DraftIcon,
+    DoNotDisturbOn as CancelledIcon,
 } from '@mui/icons-material';
 
-export type BookingStatus = 'Pending' | 'Approved' | 'Active' | 'Completed' | 'Rejected' | 'Draft';
+export type BookingStatus = 'Pending' | 'Approved' | 'Active' | 'Completed' | 'Rejected' | 'Draft' | 'Cancelled';
 export type CampaignStatus = 'Draft' | 'Active' | 'Paused' | 'Completed';
 
 export interface StatusConfig {
@@ -53,6 +54,12 @@ export const BOOKING_STATUS_CONFIG: Record<BookingStatus, StatusConfig> = {
         color: 'default',
         icon: DraftIcon,
         description: 'Saved but not submitted',
+    },
+    Cancelled: {
+        label: 'Cancelled',
+        color: 'error',
+        icon: CancelledIcon,
+        description: 'Booking was cancelled',
     },
 };
 

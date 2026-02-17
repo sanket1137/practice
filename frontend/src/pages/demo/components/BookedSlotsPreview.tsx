@@ -9,7 +9,7 @@ interface BookedSlotsPreviewProps {
     screenName: string;
 }
 
-export const BookedSlotsPreview: React.FC<BookedSlotsPreviewProps> = ({ slots, screenName }) => {
+export const BookedSlotsPreview: React.FC<BookedSlotsPreviewProps> = ({ slots }) => {
     const bookedSlots = slots.filter(s => s.isBooked && s.videoUrl);
 
     if (bookedSlots.length === 0) {

@@ -1,6 +1,6 @@
 // DemoPage - Main Interactive Demo Component (MUI Version - Simplified Layout)
 
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Box, Container, Typography, Chip, Paper, IconButton, Tooltip } from '@mui/material';
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
@@ -26,7 +26,6 @@ export const DemoPage: React.FC = () => {
         createBooking,
         approveBooking,
         rejectBooking,
-        stopStream,
         addPlayLog,
         incrementPlayCount,
     } = useDemoState();

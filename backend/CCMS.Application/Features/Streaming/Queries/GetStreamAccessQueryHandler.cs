@@ -84,13 +84,14 @@ public class GetStreamAccessQueryHandler : IRequestHandler<GetStreamAccessQuery,
             if (user.Role == UserRole.Advertiser)
             {
                 var now = DateTime.UtcNow;
+                var nowDate = DateOnly.FromDateTime(now);
                 
                 // Get all active bookings for this screen
                 var activeBookings = await _bookingRepository.FindAsync(
                     b => b.ScreenId == screenId && 
                          b.Status == BookingStatus.Approved &&
-                         b.StartDate <= now &&
-                         b.EndDate >= now,
+                         b.StartDate <= nowDate &&
+                         b.EndDate >= nowDate,
                     cancellationToken);
 
                 if (activeBookings.Any())

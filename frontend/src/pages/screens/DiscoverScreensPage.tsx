@@ -48,6 +48,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { searchScreens, getAllTags } from '../../services/screenTagsService';
 import ScreenTagChip from '../../components/screens/ScreenTagChip';
+import BookScreenDialog from '../../components/screens/BookScreenDialog';
 import { ScreensMap } from '../../components/map';
 import type { Screen, MasterTag, SearchScreensRequest } from '../../types/screen';
 import { TAG_CATEGORIES, TAG_CATEGORY_LABELS } from '../../types/screen';
@@ -62,6 +63,15 @@ export default function DiscoverScreensPage() {
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
+    
+    // Book screen dialog state
+    const [bookDialogOpen, setBookDialogOpen] = useState(false);
+    const [screenToBook, setScreenToBook] = useState<{ id: string; name: string } | null>(null);
+    
+    const handleBookScreen = (screenId: string, screenName: string) => {
+        setScreenToBook({ id: screenId, name: screenName });
+        setBookDialogOpen(true);
+    };
     
     // Search and filter state
     const [searchText, setSearchText] = useState('');
@@ -712,7 +722,7 @@ export default function DiscoverScreensPage() {
                     <Grid container spacing={3}>
                         {searchResult?.screens.map((screen) => (
                             <Grid key={screen.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                <ScreenCard screen={screen} onTagClick={handleTagClick} />
+                                <ScreenCard screen={screen} onTagClick={handleTagClick} onBook={handleBookScreen} />
                             </Grid>
                         ))}
                     </Grid>
@@ -730,6 +740,19 @@ export default function DiscoverScreensPage() {
                     )}
                 </>
             )}
+
+            {/* Book Screen Dialog */}
+            {screenToBook && (
+                <BookScreenDialog
+                    open={bookDialogOpen}
+                    onClose={() => {
+                        setBookDialogOpen(false);
+                        setScreenToBook(null);
+                    }}
+                    screenId={screenToBook.id}
+                    screenName={screenToBook.name}
+                />
+            )}
         </Container>
     );
 }
@@ -737,9 +760,10 @@ export default function DiscoverScreensPage() {
 interface ScreenCardProps {
     screen: Screen;
     onTagClick?: (tag: MasterTag) => void;
+    onBook?: (screenId: string, screenName: string) => void;
 }
 
-function ScreenCard({ screen, onTagClick }: ScreenCardProps) {
+function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
     const navigate = useNavigate();
 
     return (
@@ -843,7 +867,7 @@ function ScreenCard({ screen, onTagClick }: ScreenCardProps) {
                 <Button size="small" onClick={() => navigate(`/screens/${screen.id}`)}>
                     View Details
                 </Button>
-                <Button size="small" color="primary" onClick={() => navigate(`/campaigns/create?screenId=${screen.id}`)}>
+                <Button size="small" color="primary" onClick={() => onBook?.(screen.id, screen.name)}>
                     Book Now
                 </Button>
             </CardActions>

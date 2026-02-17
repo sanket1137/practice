@@ -26,12 +26,13 @@ public class PlaylistService : IPlaylistService
         }
 
         // Get approved bookings for this screen and date
+        var bookingDate = DateOnly.FromDateTime(date);
         var bookings = await _context.Bookings
             .Include(b => b.Creative)
             .Where(b => b.ScreenId == screenId 
                 && b.Status == BookingStatus.Approved
-                && b.StartDate <= date 
-                && b.EndDate >= date)
+                && b.StartDate <= bookingDate 
+                && b.EndDate >= bookingDate)
             .ToListAsync(cancellationToken);
 
         // Get active owner content

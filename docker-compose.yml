@@ -32,8 +32,10 @@ services:
       - Cors__AllowedOrigins__2=http://${SERVER_IP:-91.99.190.216}
       - Cors__AllowedOrigins__3=http://${SERVER_IP:-91.99.190.216}:3000
       - Cors__AllowedOrigins__4=http://${SERVER_IP:-91.99.190.216}:80
+      - Cors__AllowedOrigins__5=https://ccms.pixelspot.in
+      - Cors__AllowedOrigins__6=http://ccms.pixelspot.in
       # App Settings
-      - App__BaseUrl=${FRONTEND_URL:-http://91.99.190.216}
+      - App__BaseUrl=${FRONTEND_URL:-https://ccms.pixelspot.in}
       - TimeZone__Id=Asia/Kolkata
       # AWS SES (Email)
       - AWS__SES__AccessKeyId=${AWS_ACCESS_KEY_ID}
@@ -69,7 +71,7 @@ services:
         - VITE_SIGNALR_URL=
     container_name: ccms-frontend
     ports:
-      - "80:80"
+      - "8080:80"
     networks:
       - ccms-network
     depends_on:

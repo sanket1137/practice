@@ -56,7 +56,7 @@ public class CacheCleanupController : ControllerBase
                     {
                         BookingId = booking.Id,
                         CampaignId = booking.CampaignId,
-                        EndDate = booking.EndDate,
+                        EndDate = booking.EndDate.ToDateTime(TimeOnly.MaxValue),
                         SafeToDelete = true
                     });
                 }
@@ -88,9 +88,10 @@ public class CacheCleanupController : ControllerBase
         // plus the entire following day for overnight operations
         
         var endDatePlusBuffer = booking.EndDate.AddDays(1);
+        var today = DateOnly.FromDateTime(now);
         
         // Only safe to delete if we're past the end date + 1 full day
-        return now.Date > endDatePlusBuffer;
+        return today > endDatePlusBuffer;
     }
 }
 

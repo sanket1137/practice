@@ -54,6 +54,9 @@ interface Creative {
     fileUrl: string;
     durationSeconds: number;
     status: string;
+    mimeType?: string;
+    duration?: number;
+    fileSize?: number;
 }
 
 interface Booking {
@@ -321,9 +324,11 @@ export default function CampaignDetailPage() {
                                                 <Typography variant="body2" color="textSecondary">
                                                     {creative.mimeType} • {creative.duration}s
                                                 </Typography>
-                                                <Typography variant="caption" color="textSecondary" display="block">
-                                                    {(creative.fileSize / 1024 / 1024).toFixed(2)} MB
-                                                </Typography>
+                                                {creative.fileSize && (
+                                                    <Typography variant="caption" color="textSecondary" display="block">
+                                                        {(creative.fileSize / 1024 / 1024).toFixed(2)} MB
+                                                    </Typography>
+                                                )}
                                             </CardContent>
                                         </Card>
                                     </Grid>
