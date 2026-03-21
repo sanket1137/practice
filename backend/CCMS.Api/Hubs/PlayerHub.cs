@@ -145,10 +145,17 @@ public class PlayerHub : Hub
                 return new HandshakeResponse { Success = false, Message = "Screen not found" };
             }
             
-            // TODO: Implement BCrypt verification when API keys are generated
+            // Verify API key
             if (string.IsNullOrEmpty(screen.ApiKeyHash))
             {
                 _logger.LogWarning($"Screen {screenId} has no API key configured");
+                return new HandshakeResponse { Success = false, Message = "Screen has no API key configured" };
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(apiKey, screen.ApiKeyHash))
+            {
+                _logger.LogWarning($"Handshake failed: Invalid API key for screen {screenId}");
+                return new HandshakeResponse { Success = false, Message = "Invalid API key" };
             }
             
             // Update screen status
@@ -316,7 +323,28 @@ public class PlayerHub : Hub
             throw new HubException("Unauthorized: Only dashboards can subscribe");
         }
         
-        // TODO: Check if user owns this campaign
+        if (!Guid.TryParse(campaignId, out var campaignGuid))
+        {
+            throw new HubException("Invalid campaign ID");
+        }
+
+        var userId = Context.Items["UserId"]?.ToString();
+        if (string.IsNullOrEmpty(userId))
+        {
+            throw new HubException("Unauthorized");
+        }
+
+        var userGuid = Guid.Parse(userId);
+        var campaign = await _context.Campaigns.FindAsync(campaignGuid);
+        if (campaign == null)
+        {
+            throw new HubException("Campaign not found");
+        }
+
+        if (campaign.AdvertiserId != userGuid && !Context.User!.IsInRole("Admin"))
+        {
+            throw new HubException("Unauthorized: You do not own this campaign");
+        }
         
         await Groups.AddToGroupAsync(Context.ConnectionId, $"campaign_{campaignId}");
         _logger.LogInformation($"Dashboard subscribed to campaign {campaignId}");

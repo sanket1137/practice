@@ -18,48 +18,94 @@ public class RevenueCalculationService : IRevenueCalculationService
         
         // Revenue per hour
         var revenuePerHour = framesPerHour * revenuePerFrame;
+        
+        // Slot duration
+        var slotDurationSeconds = screen.SlotsPerFrame > 0
+            ? (screen.TimeFrameMinutes * 60) / screen.SlotsPerFrame
+            : 0;
 
-        var dailyBreakdown = new Dictionary<string, decimal>
+        // Build day breakdowns with slot/frame counts
+        var dayMap = new (string Name, DaySchedule Sched)[]
         {
-            { "monday", CalculateDailyRevenue(screen.Schedule.Monday, revenuePerFrame, screen.TimeFrameMinutes) },
-            { "tuesday", CalculateDailyRevenue(screen.Schedule.Tuesday, revenuePerFrame, screen.TimeFrameMinutes) },
-            { "wednesday", CalculateDailyRevenue(screen.Schedule.Wednesday, revenuePerFrame, screen.TimeFrameMinutes) },
-            { "thursday", CalculateDailyRevenue(screen.Schedule.Thursday, revenuePerFrame, screen.TimeFrameMinutes) },
-            { "friday", CalculateDailyRevenue(screen.Schedule.Friday, revenuePerFrame, screen.TimeFrameMinutes) },
-            { "saturday", CalculateDailyRevenue(screen.Schedule.Saturday, revenuePerFrame, screen.TimeFrameMinutes) },
-            { "sunday", CalculateDailyRevenue(screen.Schedule.Sunday, revenuePerFrame, screen.TimeFrameMinutes) }
+            ("monday", screen.Schedule.Monday),
+            ("tuesday", screen.Schedule.Tuesday),
+            ("wednesday", screen.Schedule.Wednesday),
+            ("thursday", screen.Schedule.Thursday),
+            ("friday", screen.Schedule.Friday),
+            ("saturday", screen.Schedule.Saturday),
+            ("sunday", screen.Schedule.Sunday),
         };
 
-        var weeklyRevenue = dailyBreakdown.Values.Sum();
+        var dailyBreakdown = new Dictionary<string, DayBreakdownDto>();
+        var dailyLegacy = new Dictionary<string, decimal>();
+        var totalWeeklySlotPlays = 0;
+
+        foreach (var (name, sched) in dayMap)
+        {
+            var breakdown = CalculateDayBreakdown(sched, revenuePerFrame, screen.TimeFrameMinutes, screen.SlotsPerFrame);
+            dailyBreakdown[name] = breakdown;
+            dailyLegacy[name] = breakdown.Revenue;
+            totalWeeklySlotPlays += breakdown.TotalSlotPlays;
+        }
+
+        var weeklyRevenue = dailyBreakdown.Values.Sum(d => d.Revenue);
         var monthlyRevenue = weeklyRevenue * 4.33m; // Average weeks per month
 
         return new RevenueEstimateDto
         {
             PerFrame = revenuePerFrame,
             PerHour = revenuePerHour,
-            Daily = dailyBreakdown,
+            DailyBreakdown = dailyBreakdown,
+            Daily = dailyLegacy,
             Weekly = weeklyRevenue,
             Monthly = monthlyRevenue,
+            SlotDurationSeconds = slotDurationSeconds,
+            TotalWeeklySlotPlays = totalWeeklySlotPlays,
             
             // Deprecated but kept for backward compatibility
-            PerMinute = revenuePerFrame / screen.TimeFrameMinutes
+            PerMinute = screen.TimeFrameMinutes > 0 ? revenuePerFrame / screen.TimeFrameMinutes : 0
         };
     }
 
-    public decimal CalculateDailyRevenue(DaySchedule schedule, decimal revenuePerFrame, int timeFrameMinutes)
+    private DayBreakdownDto CalculateDayBreakdown(DaySchedule schedule, decimal revenuePerFrame, int timeFrameMinutes, int slotsPerFrame)
     {
         if (!schedule.IsOperating)
-            return 0;
+        {
+            return new DayBreakdownDto
+            {
+                IsOperating = false,
+                OperatingHours = "Closed",
+                OperatingHoursDecimal = 0,
+                FramesPerDay = 0,
+                TotalSlotPlays = 0,
+                Revenue = 0
+            };
+        }
 
         var operatingMinutes = (decimal)(schedule.EndTime - schedule.StartTime).TotalMinutes;
         
         // Handle midnight crossover (e.g., 23:00 to 01:00)
         if (operatingMinutes < 0)
-            operatingMinutes += 24 * 60; // Add 24 hours in minutes
+            operatingMinutes += 24 * 60;
 
-        // Number of frames (complete cycles) in the day
-        var framesPerDay = operatingMinutes / timeFrameMinutes;
-        
-        return revenuePerFrame * framesPerDay;
+        var operatingHours = operatingMinutes / 60m;
+        var framesPerDay = (int)(operatingMinutes / timeFrameMinutes);
+        var totalSlotPlays = framesPerDay * slotsPerFrame;
+        var revenue = revenuePerFrame * framesPerDay;
+
+        return new DayBreakdownDto
+        {
+            IsOperating = true,
+            OperatingHours = $"{schedule.StartTime:hh\\:mm}–{schedule.EndTime:hh\\:mm}",
+            OperatingHoursDecimal = Math.Round(operatingHours, 1),
+            FramesPerDay = framesPerDay,
+            TotalSlotPlays = totalSlotPlays,
+            Revenue = revenue
+        };
+    }
+
+    public decimal CalculateDailyRevenue(DaySchedule schedule, decimal revenuePerFrame, int timeFrameMinutes)
+    {
+        return CalculateDayBreakdown(schedule, revenuePerFrame, timeFrameMinutes, 1).Revenue;
     }
 }

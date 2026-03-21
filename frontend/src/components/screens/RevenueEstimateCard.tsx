@@ -16,13 +16,25 @@ import {
 } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 
+interface DayBreakdown {
+    isOperating: boolean;
+    operatingHours: string;    // "09:00–22:00" or "Closed"
+    operatingHoursDecimal: number;
+    framesPerDay: number;
+    totalSlotPlays: number;
+    revenue: number;
+}
+
 interface RevenueEstimate {
-    perFrame: number;  // Revenue per complete time frame cycle
+    perFrame: number;
     perHour: number;
-    daily: Record<string, number>;
+    daily?: Record<string, number>;           // legacy
+    dailyBreakdown?: Record<string, DayBreakdown>;
     weekly: number;
     monthly: number;
-    perMinute?: number; // Deprecated, kept for backward compatibility
+    slotDurationSeconds?: number;
+    totalWeeklySlotPlays?: number;
+    perMinute?: number; // Deprecated
 }
 
 interface RevenueEstimateCardProps {
@@ -48,13 +60,15 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
         'sunday',
     ];
 
+    const hasBreakdown = estimate.dailyBreakdown && Object.keys(estimate.dailyBreakdown).length > 0;
+
     return (
         <Card sx={{ mt: 3 }}>
             <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <TrendingUpIcon sx={{ mr: 1, color: 'success.main' }} />
                     <Typography variant="h6">
-                        💰 Estimated Revenue (If All Slots Sold)
+                        Estimated Revenue (If All Slots Sold)
                     </Typography>
                 </Box>
 
@@ -125,6 +139,28 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                     </Grid>
                 </Grid>
 
+                {/* Slot config summary */}
+                {(estimate.slotDurationSeconds != null || estimate.totalWeeklySlotPlays != null) && (
+                    <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                        {estimate.slotDurationSeconds != null && (
+                            <Chip
+                                label={`Slot duration: ${estimate.slotDurationSeconds}s`}
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                            />
+                        )}
+                        {estimate.totalWeeklySlotPlays != null && (
+                            <Chip
+                                label={`Weekly slot plays: ${estimate.totalWeeklySlotPlays.toLocaleString()}`}
+                                size="small"
+                                variant="outlined"
+                                color="secondary"
+                            />
+                        )}
+                    </Box>
+                )}
+
                 {/* Daily Breakdown Table */}
                 <Typography variant="subtitle2" gutterBottom>
                     Daily Breakdown
@@ -134,14 +170,20 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                         <TableHead>
                             <TableRow>
                                 <TableCell>Day</TableCell>
+                                {hasBreakdown && <TableCell align="center">Hours</TableCell>}
+                                {hasBreakdown && <TableCell align="right">Frames</TableCell>}
+                                {hasBreakdown && <TableCell align="right">Slot Plays</TableCell>}
                                 <TableCell align="right">Revenue</TableCell>
                                 <TableCell align="center">Status</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {daysOfWeek.map((day) => {
-                                const revenue = estimate.daily[day];
-                                const isOperating = revenue > 0;
+                                const breakdown = hasBreakdown ? estimate.dailyBreakdown![day] : null;
+                                const revenue = breakdown
+                                    ? breakdown.revenue
+                                    : (estimate.daily?.[day] ?? 0);
+                                const isOperating = breakdown ? breakdown.isOperating : revenue > 0;
 
                                 return (
                                     <TableRow key={day}>
@@ -153,6 +195,27 @@ const RevenueEstimateCard: React.FC<RevenueEstimateCardProps> = ({
                                                 {day}
                                             </Typography>
                                         </TableCell>
+                                        {hasBreakdown && (
+                                            <TableCell align="center">
+                                                <Typography variant="body2">
+                                                    {breakdown?.isOperating ? breakdown.operatingHours : '—'}
+                                                </Typography>
+                                            </TableCell>
+                                        )}
+                                        {hasBreakdown && (
+                                            <TableCell align="right">
+                                                <Typography variant="body2">
+                                                    {breakdown?.isOperating ? breakdown.framesPerDay.toLocaleString() : '—'}
+                                                </Typography>
+                                            </TableCell>
+                                        )}
+                                        {hasBreakdown && (
+                                            <TableCell align="right">
+                                                <Typography variant="body2" fontWeight={isOperating ? 'medium' : 'regular'}>
+                                                    {breakdown?.isOperating ? breakdown.totalSlotPlays.toLocaleString() : '—'}
+                                                </Typography>
+                                            </TableCell>
+                                        )}
                                         <TableCell align="right">
                                             <Typography
                                                 variant="body2"

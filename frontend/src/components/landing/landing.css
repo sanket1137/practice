@@ -1,0 +1,316 @@
+/* ============================================================ */
+/* PixelSpot CCMS Landing Page — CSS Animations & Base Styles   */
+/* ============================================================ */
+
+/* --- CSS Variables (landing-specific palette) --- */
+.landing-root {
+  --bg: #080d18;
+  --surface: #0f172a;
+  --surface-2: #1a2235;
+  --border: rgba(255,255,255,0.07);
+  --indigo: #6366f1;
+  --indigo-glow: rgba(99,102,241,0.20);
+  --pink: #ec4899;
+  --pink-glow: rgba(236,72,153,0.15);
+  --cyan: #06b6d4;
+  --green: #22c55e;
+  --amber: #f59e0b;
+  --text-1: #f1f5f9;
+  --text-2: #94a3b8;
+  --text-3: #475569;
+  --red: #ef4444;
+}
+
+/* --- Scroll Progress Bar --- */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--indigo), var(--pink));
+  width: 0%;
+  z-index: 10000;
+  transition: width 0.1s linear;
+  pointer-events: none;
+}
+
+/* --- Cursor Glow --- */
+.cursor-glow {
+  position: fixed;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,102,241,0.08), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+.landing-root:hover .cursor-glow { display: block; }
+
+/* --- Ticker --- */
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: flex;
+  animation: ticker 40s linear infinite;
+  white-space: nowrap;
+}
+
+/* --- Shimmer Badge --- */
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* --- Pulse Dot --- */
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.7; }
+  100% { transform: scale(0.95); opacity: 1; }
+}
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  animation: pulse-ring 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* --- Hero Character Animation --- */
+@keyframes charRain {
+  to { opacity: 1; transform: translateY(0); }
+}
+.hero-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(-40px);
+  animation: charRain 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes text-shimmer {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.3); }
+}
+.char-pulse {
+  animation: text-shimmer 3s ease-in-out infinite;
+}
+
+/* --- Glow Breathe --- */
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+/* --- Floating Cards --- */
+@keyframes float-left {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50% { transform: translateY(-12px) rotate(-6deg); }
+}
+@keyframes float-right {
+  0%, 100% { transform: translateY(0) rotate(4deg); }
+  50% { transform: translateY(-10px) rotate(4deg); }
+}
+
+/* --- Slide In (feed items) --- */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.mock-feed-item {
+  animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- Marquee (logos + testimonials) --- */
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes scrollRight {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+.marquee-track {
+  display: flex;
+  gap: 48px;
+  animation: marqueeScroll 30s linear infinite;
+}
+.marquee-track:hover { animation-play-state: paused; }
+
+.testimonial-row {
+  display: flex;
+  gap: 24px;
+  animation: marqueeScroll 40s linear infinite;
+}
+.testimonial-row.reverse {
+  animation: scrollRight 35s linear infinite;
+}
+.testimonial-rows:hover .testimonial-row {
+  animation-play-state: paused;
+}
+
+/* --- Section Reveal --- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal-section {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* --- Story Step --- */
+.story-step {
+  border-left: 4px solid var(--border);
+  transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0.4;
+}
+.story-step.active {
+  background: var(--surface);
+  border-left-color: var(--indigo);
+  opacity: 1;
+  transform: translateX(10px);
+}
+
+/* --- Calculator Slider --- */
+.landing-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+.landing-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--indigo);
+  cursor: pointer;
+  border: 3px solid var(--surface-2);
+  box-shadow: 0 0 10px rgba(99,102,241,0.4);
+}
+.landing-slider.pink::-webkit-slider-thumb {
+  background: var(--pink);
+  box-shadow: 0 0 10px rgba(236,72,153,0.4);
+}
+
+/* --- Badge Wiggle --- */
+@keyframes badgeWiggle {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+
+/* --- Widget --- */
+@keyframes widgetSlide {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.widget-item {
+  animation: widgetSlide 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- Rotating Gradient (CTA bg) --- */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -30px); }
+}
+
+/* --- Confetti --- */
+@keyframes confettiFall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--x), 400px) rotate(720deg); opacity: 0; }
+}
+@keyframes successPop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* --- Canvas Float Text --- */
+@keyframes canvasFloat {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-60px); opacity: 0; }
+}
+
+/* --- Flag Wave --- */
+@keyframes flagWave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-2px) rotate(5deg); }
+  75% { transform: translateY(1px) rotate(-5deg); }
+}
+.flag-wave {
+  animation: flagWave 1s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* --- Nav Link Underline --- */
+.landing-nav-link {
+  position: relative;
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 200ms;
+  cursor: pointer;
+}
+.landing-nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  width: 0;
+  height: 1.5px;
+  background: var(--indigo);
+  transition: width 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateX(-50%);
+}
+.landing-nav-link:hover { color: var(--text-1); }
+.landing-nav-link:hover::after { width: 100%; }
+
+/* --- Grid Background --- */
+.hero-grid-bg {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* --- Reduced Motion --- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ticker-track, .marquee-track, .testimonial-row {
+    animation: none !important;
+  }
+}
+
+/* --- Responsive --- */
+@media (max-width: 1024px) {
+  .landing-nav-links { display: none !important; }
+  .floating-card-el { display: none !important; }
+  .story-visual-panel { display: none !important; }
+}
+@media (max-width: 768px) {
+  .nav-ghost-btn { display: none !important; }
+}

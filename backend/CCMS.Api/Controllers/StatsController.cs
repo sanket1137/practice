@@ -3,11 +3,14 @@ using Microsoft.EntityFrameworkCore;
 using CCMS.Api.Hubs;
 using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/stats")]
+[Route("api/v{version:apiVersion}/stats")]
 public class StatsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

@@ -23,6 +23,11 @@ public interface IBookingNotificationService
     Task NotifyBookingRejectedAsync(BookingDto booking, Guid advertiserId, string? reason);
 
     /// <summary>
+    /// Notify both parties when a booking is cancelled
+    /// </summary>
+    Task NotifyBookingCancelledAsync(BookingDto booking, Guid screenOwnerId, Guid advertiserId, string? reason);
+
+    /// <summary>
     /// Notify both parties when a booking is updated
     /// </summary>
     Task NotifyBookingUpdatedAsync(BookingDto booking, Guid screenOwnerId, Guid advertiserId);

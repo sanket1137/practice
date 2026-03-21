@@ -1,6 +1,7 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,14 +11,14 @@ namespace CCMS.Api.Services;
 /// Manages device binding for player authentication.
 /// Each player is bound to a specific device fingerprint.
 /// Supports manual override by screen owners for device replacement.
+/// 
+/// Override requests are persisted to the DeviceOverrideHistories table
+/// so they survive backend restarts (no in-memory state).
 /// </summary>
 public class PlayerDeviceManager
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<PlayerDeviceManager> _logger;
-    
-    // Cache of pending device override approvals (screenId -> override request)
-    private static readonly ConcurrentDictionary<Guid, DeviceOverrideRequest> _pendingOverrides = new();
     
     // TTL for pending override requests
     private const int OVERRIDE_REQUEST_TTL_MINUTES = 30;
@@ -60,6 +61,18 @@ public class PlayerDeviceManager
             screen.DeviceFingerprintHash = fingerprintHash;
             screen.DeviceBoundAt = DateTime.UtcNow;
             screen.LastDeviceVerification = DateTime.UtcNow;
+
+            // Record first binding in audit trail
+            _context.DeviceOverrideHistories.Add(new DeviceOverrideHistory
+            {
+                ScreenId = screenId,
+                Action = "First_Binding",
+                Reason = "Initial device registration",
+                NewFingerprintHash = fingerprintHash,
+                RequestedByUserId = screen.OwnerId,
+                IsPending = false
+            });
+
             await _context.SaveChangesAsync();
 
             return new DeviceValidationResult
@@ -83,35 +96,65 @@ public class PlayerDeviceManager
             };
         }
 
-        // Fingerprint doesn't match - check for pending override
-        if (_pendingOverrides.TryGetValue(screenId, out var overrideRequest))
+        // Fingerprint doesn't match - check for pending override in DB
+        var pendingOverride = await _context.DeviceOverrideHistories
+            .Where(h => h.ScreenId == screenId
+                     && h.IsPending
+                     && h.Action == "Override_Requested"
+                     && h.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(h => h.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (pendingOverride != null)
         {
-            // Check if override is still valid (allow any new device during override window)
-            if (overrideRequest.ExpiresAt > DateTime.UtcNow)
+            // Apply the override - bind to the new device
+            var oldHash = screen.DeviceFingerprintHash;
+            screen.PreviousDeviceFingerprintHash = oldHash;
+            screen.DeviceFingerprintHash = fingerprintHash;
+            screen.DeviceBoundAt = DateTime.UtcNow;
+            screen.LastDeviceVerification = DateTime.UtcNow;
+            screen.DeviceOverrideReason = pendingOverride.Reason;
+            screen.DeviceOverrideAt = DateTime.UtcNow;
+            screen.DeviceOverrideByUserId = pendingOverride.RequestedByUserId;
+
+            // Device changed — require re-verification
+            if (screen.VerificationStatus == ScreenVerificationStatus.Verified)
             {
-                // Apply the override - bind to the new device
-                screen.PreviousDeviceFingerprintHash = screen.DeviceFingerprintHash;
-                screen.DeviceFingerprintHash = fingerprintHash;
-                screen.DeviceBoundAt = DateTime.UtcNow;
-                screen.LastDeviceVerification = DateTime.UtcNow;
-                screen.DeviceOverrideReason = overrideRequest.Reason;
-                screen.DeviceOverrideAt = DateTime.UtcNow;
-                screen.DeviceOverrideByUserId = overrideRequest.RequestedByUserId;
-                
-                await _context.SaveChangesAsync();
-                _pendingOverrides.TryRemove(screenId, out _);
-
+                screen.VerificationStatus = ScreenVerificationStatus.ReVerificationRequired;
                 _logger.LogWarning(
-                    "Device override applied for screen {ScreenId} by user {UserId}. Reason: {Reason}",
-                    screenId, overrideRequest.RequestedByUserId, overrideRequest.Reason);
-
-                return new DeviceValidationResult
-                {
-                    IsValid = true,
-                    IsOverride = true,
-                    Reason = "Device override applied"
-                };
+                    "Screen {ScreenId} set to ReVerificationRequired due to device override",
+                    screenId);
             }
+            
+            // Mark the override request as consumed
+            pendingOverride.IsPending = false;
+            pendingOverride.NewFingerprintHash = fingerprintHash;
+            pendingOverride.UpdatedAt = DateTime.UtcNow;
+
+            // Record the applied override in audit trail
+            _context.DeviceOverrideHistories.Add(new DeviceOverrideHistory
+            {
+                ScreenId = screenId,
+                Action = "Override_Applied",
+                Reason = pendingOverride.Reason,
+                OldFingerprintHash = oldHash,
+                NewFingerprintHash = fingerprintHash,
+                RequestedByUserId = pendingOverride.RequestedByUserId,
+                IsPending = false
+            });
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogWarning(
+                "Device override applied for screen {ScreenId} by user {UserId}. Reason: {Reason}",
+                screenId, pendingOverride.RequestedByUserId, pendingOverride.Reason);
+
+            return new DeviceValidationResult
+            {
+                IsValid = true,
+                IsOverride = true,
+                Reason = "Device override applied"
+            };
         }
 
         // Device mismatch - potential security issue
@@ -131,7 +174,8 @@ public class PlayerDeviceManager
     }
 
     /// <summary>
-    /// Request a device override (called by screen owner)
+    /// Request a device override (called by screen owner).
+    /// Creates a DB-persisted override window so it survives restarts.
     /// </summary>
     public async Task<DeviceOverrideResult> RequestDeviceOverrideAsync(
         Guid screenId,
@@ -167,27 +211,42 @@ public class PlayerDeviceManager
             }
         }
 
-        var overrideRequest = new DeviceOverrideRequest
+        // Expire any existing pending overrides for this screen
+        var existingPending = await _context.DeviceOverrideHistories
+            .Where(h => h.ScreenId == screenId && h.IsPending)
+            .ToListAsync();
+
+        foreach (var pending in existingPending)
+        {
+            pending.IsPending = false;
+            pending.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var expiresAt = DateTime.UtcNow.AddMinutes(OVERRIDE_REQUEST_TTL_MINUTES);
+
+        // Create new override request in DB
+        _context.DeviceOverrideHistories.Add(new DeviceOverrideHistory
         {
             ScreenId = screenId,
-            RequestedByUserId = requestedByUserId,
+            Action = "Override_Requested",
             Reason = reason,
             OldFingerprintHash = screen.DeviceFingerprintHash,
-            RequestedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(OVERRIDE_REQUEST_TTL_MINUTES)
-        };
+            RequestedByUserId = requestedByUserId,
+            ExpiresAt = expiresAt,
+            IsPending = true
+        });
 
-        _pendingOverrides[screenId] = overrideRequest;
+        await _context.SaveChangesAsync();
 
         _logger.LogInformation(
             "Device override requested for screen {ScreenId} by user {UserId}. Valid until {ExpiresAt}",
-            screenId, requestedByUserId, overrideRequest.ExpiresAt);
+            screenId, requestedByUserId, expiresAt);
 
         return new DeviceOverrideResult
         {
             Success = true,
             Reason = $"Device override approved. New device can connect within {OVERRIDE_REQUEST_TTL_MINUTES} minutes.",
-            ExpiresAt = overrideRequest.ExpiresAt
+            ExpiresAt = expiresAt
         };
     }
 
@@ -217,8 +276,29 @@ public class PlayerDeviceManager
         screen.DeviceOverrideAt = DateTime.UtcNow;
         screen.DeviceOverrideByUserId = requestedByUserId;
 
+        // Expire any pending overrides
+        var pendingOverrides = await _context.DeviceOverrideHistories
+            .Where(h => h.ScreenId == screenId && h.IsPending)
+            .ToListAsync();
+
+        foreach (var pending in pendingOverrides)
+        {
+            pending.IsPending = false;
+            pending.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Record clear in audit trail
+        _context.DeviceOverrideHistories.Add(new DeviceOverrideHistory
+        {
+            ScreenId = screenId,
+            Action = "Binding_Cleared",
+            Reason = "Binding cleared by admin",
+            OldFingerprintHash = oldHash,
+            RequestedByUserId = requestedByUserId,
+            IsPending = false
+        });
+
         await _context.SaveChangesAsync();
-        _pendingOverrides.TryRemove(screenId, out _);
 
         _logger.LogWarning(
             "Device binding cleared for screen {ScreenId} by admin {UserId}",
@@ -235,8 +315,15 @@ public class PlayerDeviceManager
         var screen = await _context.Screens.FindAsync(screenId);
         if (screen == null) return null;
 
-        var hasPendingOverride = _pendingOverrides.TryGetValue(screenId, out var pendingOverride)
-            && pendingOverride.ExpiresAt > DateTime.UtcNow;
+        // Check DB for pending override instead of in-memory dictionary
+        var pendingOverride = await _context.DeviceOverrideHistories
+            .AsNoTracking()
+            .Where(h => h.ScreenId == screenId
+                     && h.IsPending
+                     && h.Action == "Override_Requested"
+                     && h.ExpiresAt > DateTime.UtcNow)
+            .OrderByDescending(h => h.CreatedAt)
+            .FirstOrDefaultAsync();
 
         return new DeviceBindingStatus
         {
@@ -244,8 +331,8 @@ public class PlayerDeviceManager
             IsBound = !string.IsNullOrEmpty(screen.DeviceFingerprintHash),
             BoundAt = screen.DeviceBoundAt,
             LastVerification = screen.LastDeviceVerification,
-            HasPendingOverride = hasPendingOverride,
-            PendingOverrideExpiresAt = hasPendingOverride ? pendingOverride!.ExpiresAt : null
+            HasPendingOverride = pendingOverride != null,
+            PendingOverrideExpiresAt = pendingOverride?.ExpiresAt
         };
     }
 
@@ -280,17 +367,6 @@ public class DeviceValidationResult
     public bool IsOverride { get; set; }
     public bool IsMismatch { get; set; }
     public string Reason { get; set; } = string.Empty;
-}
-
-public class DeviceOverrideRequest
-{
-    public Guid ScreenId { get; set; }
-    public Guid RequestedByUserId { get; set; }
-    public string Reason { get; set; } = string.Empty;
-    public string? OldFingerprintHash { get; set; }
-    public string? NewFingerprintHash { get; set; }
-    public DateTime RequestedAt { get; set; }
-    public DateTime ExpiresAt { get; set; }
 }
 
 public class DeviceOverrideResult

@@ -48,7 +48,13 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
         if (screen.OwnerId != request.OwnerId)
             throw new UnauthorizedAccessException("You do not own this screen");
 
-        // 2. Check slot is not taken by active booking
+        // 2. Validate slot number is within the screen's configured range
+        if (request.SlotNumber < 1 || request.SlotNumber > screen.SlotsPerFrame)
+            throw new InvalidOperationException(
+                $"Slot number {request.SlotNumber} is out of range. " +
+                $"This screen has {screen.SlotsPerFrame} slots per frame (valid: 1–{screen.SlotsPerFrame}).");
+
+        // 3. Check slot is not taken by active booking
         // Use GetAllAsync and filter in memory since SlotNumbers is a JSON column
         var allBookings = (await _bookingRepo.GetAllAsync(cancellationToken)).ToList();
         var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);

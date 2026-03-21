@@ -1,7 +1,12 @@
-import { Chip, Tooltip } from '@mui/material';
+import { Chip, Tooltip, keyframes } from '@mui/material';
 import type { ChipProps } from '@mui/material';
 import type { BookingStatus, CampaignStatus } from '../../constants/statusConfig';
 import { BOOKING_STATUS_CONFIG, CAMPAIGN_STATUS_CONFIG } from '../../constants/statusConfig';
+
+const pulseAnimation = keyframes`
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+`;
 
 interface StatusChipProps extends Omit<ChipProps, 'color'> {
     status: BookingStatus | CampaignStatus;
@@ -26,6 +31,7 @@ export default function StatusChip({
     }
 
     const Icon = config.icon;
+    const isPulsing = status === 'PaymentPending';
 
     const chip = (
         <Chip
@@ -33,6 +39,7 @@ export default function StatusChip({
             color={config.color}
             size="small"
             icon={showIcon ? <Icon fontSize="small" /> : undefined}
+            sx={isPulsing ? { animation: `${pulseAnimation} 2s ease-in-out infinite` } : undefined}
             {...chipProps}
         />
     );

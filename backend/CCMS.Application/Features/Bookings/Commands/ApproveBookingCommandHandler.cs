@@ -2,9 +2,11 @@ using AutoMapper;
 using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using System.Linq;
 
 namespace CCMS.Application.Features.Bookings.Commands;
@@ -16,9 +18,11 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
     private readonly IRepository<Creative> _creativeRepository;
     private readonly IRepository<Campaign> _campaignRepository;
     private readonly SlotAvailabilityService _slotAvailabilityService;
+    private readonly IRazorpayService _razorpayService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IBookingNotificationService _notificationService;
+    private readonly ILogger<ApproveBookingCommandHandler> _logger;
 
     public ApproveBookingCommandHandler(
         IRepository<Booking> bookingRepository,
@@ -26,18 +30,22 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
         IRepository<Creative> creativeRepository,
         IRepository<Campaign> campaignRepository,
         SlotAvailabilityService slotAvailabilityService,
+        IRazorpayService razorpayService,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IBookingNotificationService notificationService)
+        IBookingNotificationService notificationService,
+        ILogger<ApproveBookingCommandHandler> logger)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
         _creativeRepository = creativeRepository;
         _campaignRepository = campaignRepository;
         _slotAvailabilityService = slotAvailabilityService;
+        _razorpayService = razorpayService;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<BookingDto> Handle(ApproveBookingCommand request, CancellationToken cancellationToken)
@@ -119,6 +127,35 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
             await _creativeRepository.UpdateAsync(creative, cancellationToken);
         }
 
+        // Skip payment for self-reserved bookings with internal payment
+        if (booking.Source != Domain.Enums.BookingSource.SelfReserved || !booking.IsInternalPayment)
+        {
+            // Create Razorpay order for payment collection
+            var receipt = $"booking_{booking.Id:N}";
+            var order = await _razorpayService.CreateOrderAsync(booking.TotalPrice, booking.Currency, receipt);
+
+            booking.RazorpayOrderId = order.OrderId;
+            booking.PaymentStatus = PaymentStatus.OrderCreated;
+            booking.PaymentExpiresAt = DateTime.UtcNow.AddHours(24);
+
+            _logger.LogInformation(
+                "Razorpay order {OrderId} created for booking {BookingId}, expires at {ExpiresAt}",
+                order.OrderId, booking.Id, booking.PaymentExpiresAt);
+
+            // Create virtual account for bank transfer option
+            try
+            {
+                var va = await _razorpayService.CreateVirtualAccountAsync(
+                    order.OrderId, $"Payment for booking on {screen.Name}");
+                booking.VirtualAccountNumber = va.AccountNumber;
+                booking.VirtualAccountIfsc = va.Ifsc;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to create virtual account for booking {BookingId}, bank transfer will be unavailable", booking.Id);
+            }
+        }
+
         await _bookingRepository.UpdateAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -127,7 +164,7 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
         // Notify advertiser that their booking has been approved
         try
         {
-            var campaign = await _campaignRepository.GetByIdAsync(booking.CampaignId, cancellationToken);
+            var campaign = booking.CampaignId.HasValue ? await _campaignRepository.GetByIdAsync(booking.CampaignId.Value, cancellationToken) : null;
             if (campaign != null)
             {
                 await _notificationService.NotifyBookingApprovedAsync(bookingDto, campaign.AdvertiserId);

@@ -1,0 +1,124 @@
+--------- beginning of main
+02-18 21:09:37.070   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:09:37.386   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 2, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:09:37.386   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 2, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:09:37.997   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:09:37.998   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:09:39.771  1229 11258 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] threadEnabled=%b, internetReady=%b
+02-18 21:09:39.777  1229 11258 I GmsThreadNetwork: [ThreadNetworkAgent] Thread network sync starting [CONTEXT service_id=305 ]
+02-18 21:09:39.778  1229 11258 I GmsThreadNetwork: [ThreadNetworkAgent] Checking cast auth registration status [CONTEXT service_id=305 ]
+--------- beginning of system
+02-18 21:09:39.799   684   712 W ProcessStats: Tracking association SourceState{eaed9ab com.google.android.gms/10054 BTop #2735} whose proc state 2 is better than process ProcessState{7e0140b com.google.android.gms.persistent/10054 pkg=com.google.android.gms} proc state 3 (20 skipped)
+02-18 21:09:39.809  1475  7367 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 21:09:39.809  1475  7367 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 21:09:39.811  1475  7367 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 21:09:39.811  1475  7367 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: [ThreadNetworkAgent] Failed to do network sync, waiting for CastAuth registration [CONTEXT service_id=305 ]
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: m.mg: 17: API: CastAuth.API is not available on this device. Connection failed with: kr{statusCode=API_UNAVAILABLE, resolution=null, message=null}
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.qk.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):13)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.ng.c(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.oi.t(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):48)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.oi.f(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):10)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.oi.j(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):184)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.oi.i(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):2)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.rh.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.qs.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):7)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.ql.d(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):81)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.qm.handleMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):280)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at m.fke.dispatchMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):138)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at android.os.Looper.loop(Looper.java:338)
+02-18 21:09:39.814  1229 11258 W GmsThreadNetwork: 	at android.os.HandlerThread.run(HandlerThread.java:85)
+02-18 21:09:39.814  1229 11258 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Schedule retry network sync on failure in %d ms
+02-18 21:09:39.815  1229 11258 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Network sync completed: %s
+02-18 21:09:42.339  1983  2066 I cast_shell: [0218/210942.339774:INFO:wifi_frame_histogram_capturer.cc(406)] No histogram or IOCTL data
+02-18 21:09:42.825  1983  1983 I cast_shell: [0218/210942.825223:INFO:metrics_recorder.cc(193)] Record action: Cast.CecHdmiInputState.Unknown
+02-18 21:09:42.825  1983  1983 I cast_shell: [0218/210942.825391:INFO:metrics_recorder.cc(193)] Record action: Cast.CecStandby.Unknown
+02-18 21:09:46.345  1983  1983 I cast_shell: [0218/210946.345035:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:09:46.345  1983  1983 I cast_shell: [0218/210946.345196:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:09:46.345  1983  1983 I cast_shell: [0218/210946.345273:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=4
+02-18 21:09:46.345  1983  1983 I cast_shell: [metrics_stat_logger] Cast.CecHdmiInputState.Unknown=1
+02-18 21:09:46.345  1983  1983 I cast_shell: [metrics_stat_logger] Cast.CecStandby.Unknown=1
+02-18 21:09:46.345  1983  1983 I cast_shell: [metrics_stat_logger] Cast.ConnectionType.Ethernet=1
+02-18 21:09:46.345  1983  1983 I cast_shell: [metrics_stat_logger] Cast.Network.CheckIn=1
+02-18 21:10:11.382  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:10:11.383  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:10:11.383  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:10:11.383  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:10:41.209  1229 11258 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 12358209]
+02-18 21:10:41.213  1229 11258 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 12358213]
+02-18 21:10:46.346  1983  1983 I cast_shell: [0218/211046.345859:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:10:46.346  1983  1983 I cast_shell: [0218/211046.346165:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:10:46.346  1983  1983 I cast_shell: [0218/211046.346256:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+02-18 21:10:56.275   684   950 W ProcessStats: Tracking association SourceState{2b9411 com.google.android.tvrecommendations/10050 BTop #2739} whose proc state 2 is better than process ProcessState{7e0140b com.google.android.gms.persistent/10054 pkg=com.google.android.gms} proc state 3 (20 skipped)
+02-18 21:11:11.385  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:11:11.386  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:11:11.386  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:11:11.386  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:11:14.736   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:11:14.757   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:11:15.076   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:11:15.079   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:11:19.224   684   781 I UsageStatsService: User[0] Flushing usage stats to disk
+02-18 21:11:32.596   928   999 I QuickAccessWalletTile: QAW service is unavailable, recreating the wallet client.
+02-18 21:11:39.029  1288  2033 W native  : W0000 00:00:1771429299.029230    2033 publisher.cc:35] [FTL] No subscribers for event "assistant.api.events.MetricEvent" from publisher "UmaMetricsForwarder"
+02-18 21:11:40.117  1983  2066 I cast_CastCrashUploader: Remove crash dumps
+02-18 21:11:40.850  1983  1983 I cast_shell: [0218/211140.850918:INFO:grpc_manager_impl.cc(881)] GRPC[uri=localhost:10042]: num_pending_calls=0, num_active_handlers=1, num_free_handlers=0
+02-18 21:11:40.851  1983  1983 I cast_shell: [0218/211140.851085:INFO:grpc_manager_impl.cc(881)] GRPC[uri=localhost:10042]: num_pending_calls=0, num_active_handlers=1, num_free_handlers=0
+02-18 21:11:40.851  1983  1983 I cast_shell: [0218/211140.851134:INFO:grpc_manager_impl.cc(881)] GRPC[uri=]: num_pending_calls=0, num_active_handlers=0, num_free_handlers=0
+02-18 21:11:40.885  1983  1983 I cast_shell: [0218/211140.885502:INFO:grpc_manager_impl.cc(881)] GRPC[uri=]: num_pending_calls=0, num_active_handlers=0, num_free_handlers=0
+02-18 21:11:41.324  1983  1983 I cast_shell: [0218/211141.324441:INFO:grpc_manager_impl.cc(881)] GRPC[uri=[::]:0]: num_pending_calls=0, num_active_handlers=4, num_free_handlers=0
+02-18 21:11:46.347  1983  1983 I cast_shell: [0218/211146.347067:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:11:46.347  1983  1983 I cast_shell: [0218/211146.347302:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:11:46.347  1983  1983 I cast_shell: [0218/211146.347387:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+02-18 21:12:11.389  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:12:11.414  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:12:11.414  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:12:11.414  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:12:39.816  1229 11258 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] threadEnabled=%b, internetReady=%b
+02-18 21:12:39.817  1229 11258 I GmsThreadNetwork: [ThreadNetworkAgent] Thread network sync starting [CONTEXT service_id=305 ]
+02-18 21:12:39.818  1229 11258 I GmsThreadNetwork: [ThreadNetworkAgent] Checking cast auth registration status [CONTEXT service_id=305 ]
+02-18 21:12:39.897   684 10629 W ProcessStats: Tracking association SourceState{eaed9ab com.google.android.gms/10054 BTop #2740} whose proc state 2 is better than process ProcessState{7e0140b com.google.android.gms.persistent/10054 pkg=com.google.android.gms} proc state 3 (3 skipped)
+02-18 21:12:39.907  1475  2568 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 21:12:39.907  1475  2568 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: [ThreadNetworkAgent] Failed to do network sync, waiting for CastAuth registration [CONTEXT service_id=305 ]
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: m.mg: 17: API: CastAuth.API is not available on this device. Connection failed with: kr{statusCode=API_UNAVAILABLE, resolution=null, message=null}
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.qk.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):13)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.ng.c(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.oi.t(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):48)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.oi.f(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):10)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.oi.j(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):184)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.oi.i(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):2)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.rh.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.qs.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):7)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.ql.d(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):81)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.qm.handleMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):280)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at m.fke.dispatchMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):138)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at android.os.Looper.loop(Looper.java:338)
+02-18 21:12:39.909  1229 11258 W GmsThreadNetwork: 	at android.os.HandlerThread.run(HandlerThread.java:85)
+02-18 21:12:39.910  1229 11258 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Schedule retry network sync on failure in %d ms
+02-18 21:12:39.910  1475  2568 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 21:12:39.912  1475  2568 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 21:12:39.913  1229 11258 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Network sync completed: %s
+02-18 21:12:46.349  1983  1983 I cast_shell: [0218/211246.349450:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:12:46.349  1983  1983 I cast_shell: [0218/211246.349679:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:12:46.350  1983  1983 I cast_shell: [0218/211246.349808:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+02-18 21:12:52.051   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:12:52.060   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:13:11.415  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:13:11.416  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:13:11.416  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:13:11.416  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:13:46.352  1983  1983 I cast_shell: [0218/211346.352119:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:13:46.352  1983  1983 I cast_shell: [0218/211346.352706:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:13:46.353  1983  1983 I cast_shell: [0218/211346.352971:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+02-18 21:14:11.441  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:14:11.441  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:14:11.441  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:14:11.441  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:14:12.330  1983  2066 I cast_shell: [0218/211412.330929:INFO:wifi_frame_histogram_capturer.cc(406)] No histogram or IOCTL data
+02-18 21:14:12.826  1983  1983 I cast_shell: [0218/211412.826651:INFO:metrics_recorder.cc(193)] Record action: Cast.CecHdmiInputState.Unknown
+02-18 21:14:12.826  1983  1983 I cast_shell: [0218/211412.826862:INFO:metrics_recorder.cc(193)] Record action: Cast.CecStandby.Unknown

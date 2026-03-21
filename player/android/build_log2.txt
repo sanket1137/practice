@@ -1,0 +1,64 @@
+﻿> Task :app:clean
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :app:checkKotlinGradlePluginConfigurationErrors
+> Task :app:generateDebugResValues
+> Task :app:dataBindingMergeDependencyArtifactsDebug
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:processDebugNavigationResources
+> Task :app:mergeDebugResources
+> Task :app:parseDebugLocalResources
+> Task :app:checkDebugAarMetadata
+> Task :app:compileDebugNavigationResources
+> Task :app:dataBindingGenBaseClassesDebug
+> Task :app:mapDebugSourceSetPaths
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:mergeDebugShaders
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:javaPreCompileDebug
+> Task :app:mergeDebugAssets
+> Task :app:compressDebugAssets
+> Task :app:desugarDebugFileDependencies
+> Task :app:mergeDebugJniLibFolders
+> Task :app:processDebugManifestForPackage
+> Task :app:checkDebugDuplicateClasses
+> Task :app:mergeDebugNativeLibs
+> Task :app:processDebugResources
+> Task :app:mergeLibDexDebug
+> Task :app:validateSigningDebug
+> Task :app:writeDebugAppMetadata
+> Task :app:writeDebugSigningConfigVersions
+
+> Task :app:stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libjingle_peerconnection_so.so. Run with --info option to learn more.
+
+> Task :app:mergeExtDexDebug
+> Task :app:kspDebugKotlin
+
+> Task :app:compileDebugKotlin
+w: file:///C:/Users/Sanket/Desktop/Me/Projects/Playground/PixelCCMSCopilot/practice/player/android/app/src/main/java/com/pixelspot/ccms/player/MainActivity.kt:156:15 'onBackPressed(): Unit' is deprecated. Deprecated in Java
+w: file:///C:/Users/Sanket/Desktop/Me/Projects/Playground/PixelCCMSCopilot/practice/player/android/app/src/main/java/com/pixelspot/ccms/player/player/ExoPlayerManager.kt:60:17 'constructor SimpleCache(File, CacheEvictor)' is deprecated. Deprecated in Java
+w: file:///C:/Users/Sanket/Desktop/Me/Projects/Playground/PixelCCMSCopilot/practice/player/android/app/src/main/java/com/pixelspot/ccms/player/player/PlaylistManager.kt:294:29 Enum argument can be null in Java, but exhaustive when contains no null branch
+w: file:///C:/Users/Sanket/Desktop/Me/Projects/Playground/PixelCCMSCopilot/practice/player/android/app/src/main/java/com/pixelspot/ccms/player/service/PlayerService.kt:305:55 Parameter 'deviceId' is never used
+
+> Task :app:compileDebugJavaWithJavac
+> Task :app:hiltAggregateDepsDebug
+> Task :app:hiltJavaCompileDebug
+> Task :app:processDebugJavaRes
+> Task :app:mergeDebugJavaResource
+> Task :app:transformDebugClassesWithAsm
+> Task :app:dexBuilderDebug
+> Task :app:mergeProjectDexDebug
+> Task :app:mergeDebugGlobalSynthetics
+> Task :app:packageDebug
+> Task :app:createDebugApkListingFileRedirect
+> Task :app:assembleDebug
+
+BUILD SUCCESSFUL in 2m 32s
+46 actionable tasks: 46 executed

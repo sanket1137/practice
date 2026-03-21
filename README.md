@@ -23,10 +23,15 @@
 6. [Deployment](#-deployment)
 7. [API Reference](#-api-reference)
 8. [Raspberry Pi Player Setup](#-raspberry-pi-player-setup)
-9. [Pricing & Business Model](#-pricing--business-model)
-10. [Infrastructure Costs](#-infrastructure-costs)
-11. [Current Limitations](#-current-limitations)
-12. [Future Roadmap](#-future-roadmap)
+9. [Security Architecture](#-security-architecture)
+10. [Device Management](#-device-management)
+11. [Screen Tag Generation](#-screen-tag-generation)
+12. [Frontend Architecture](#-frontend-architecture)
+13. [Developer Guidelines](#-developer-guidelines)
+14. [Pricing & Business Model](#-pricing--business-model)
+15. [Infrastructure Costs](#-infrastructure-costs)
+16. [Current Limitations](#-current-limitations)
+17. [Future Roadmap](#-future-roadmap)
 
 ---
 
@@ -507,7 +512,265 @@ sudo systemctl start ccms-player
 
 ---
 
-## 💰 Pricing & Business Model
+## � Security Architecture
+
+### Security Layers
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                       SECURITY LAYERS                            │
+├──────────────────────────────────────────────────────────────────┤
+│  ┌──────────┐     TLS 1.3/HTTPS          ┌──────────────┐       │
+│  │  Player  │◄──────────────────────────►│    Server    │       │
+│  │(Rasp Pi) │  + HMAC Signed Requests    │  (.NET API)  │       │
+│  └──────────┘  + Session Tokens          └──────────────┘       │
+│       │                                         ▲                │
+│       │ Device Fingerprint                      │ JWT Tokens     │
+│       ▼                                         │                │
+│  ┌──────────┐                            ┌──────────────┐       │
+│  │  Local   │                            │   Client     │       │
+│  │ Config   │                            │ (Dashboard)  │       │
+│  └──────────┘                            └──────────────┘       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### Player Handshake Flow
+
+```
+Player                              Server
+  │  1. Handshake Request              │
+  │  ─────────────────────────────────►│
+  │  {screenId, apiKeyHash, nonce,     │
+  │   deviceFingerprint, timestamp}    │
+  │                                    │
+  │  2. Handshake Response             │
+  │  ◄─────────────────────────────────│
+  │  {sessionToken, serverSalt,        │
+  │   expiresAt, signature}            │
+  │                                    │
+  │  3. Subsequent Requests            │
+  │  ─────────────────────────────────►│
+  │  Headers: X-Screen-Id,            │
+  │  X-Session-Token, X-Timestamp,    │
+  │  X-Signature (HMAC-SHA256)        │
+```
+
+### Security Headers
+
+| Header | Purpose |
+|--------|---------|
+| `X-Screen-Id` | Identifies the player device |
+| `X-Session-Token` | Proves authenticated session |
+| `X-Timestamp` | Prevents replay attacks (±5 min window) |
+| `X-Signature` | HMAC-SHA256 of payload + timestamp + token |
+
+### Dashboard Authentication
+
+| Feature | Implementation |
+|---------|----------------|
+| Auth Method | JWT (JSON Web Tokens) |
+| Token Expiry | 60 minutes |
+| Refresh | Sliding window |
+| Claims | userId, role, email |
+| API Key Storage | BCrypt hash (work factor 12) on server |
+
+### Rate Limiting
+
+| Endpoint Type | Limit |
+|---------------|-------|
+| API General | 10 requests/second |
+| Login | 5 requests/minute |
+| Streaming | 1 request/second per connection |
+
+### Impression Integrity
+
+Each impression includes a tamper-proof HMAC hash computed from impression data + screen ID + session token. The server validates the hash, timestamp window, session token, and screen ID match.
+
+---
+
+## 🔗 Device Management
+
+### Device Binding
+
+Each screen is bound to a specific hardware device via a **SHA-256 fingerprint hash**. Device binding ensures only authorized hardware can play content.
+
+**Fingerprint Generation:**
+- **Raspberry Pi**: `SHA256(cpu_serial | disk_serial | mac_address | hostname)`
+- **Android**: `SHA256(ANDROID_ID | Build.FINGERPRINT | mac_address | model_manufacturer)`
+
+### Binding Lifecycle
+
+1. **First Registration** — First device to handshake gets bound automatically
+2. **Device Verification** — Subsequent handshakes verify fingerprint match
+3. **Device Override** — Owner requests a 30-minute window for replacement device
+4. **Binding Clear** — Admin-only full reset of device association
+
+### Device API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/api/devices/{screenId}/binding` | GET | ScreenOwner, Admin | Get binding status |
+| `/api/devices/{screenId}/override` | POST | ScreenOwner, Admin | Request 30-min override window |
+| `/api/devices/{screenId}/clear` | POST | Admin | Clear device binding |
+| `/api/devices/{screenId}/history` | GET | ScreenOwner, Admin | Audit trail of binding changes |
+
+---
+
+## 🏷️ Screen Tag Generation
+
+### Overview
+
+When a screen is registered with coordinates, the system auto-generates location-aware tags via Google Places API.
+
+### 6-Phase Pipeline
+
+```
+Screen (lat, lng)
+  → Google Places API (500m radius, 7 type groups)
+  → Phase 1: Proximity Tags (single POI within threshold)
+  → Phase 2: Density Tags (≥N POIs of same type)
+  → Phase 3: Composite Tags (lifestyle: multiple conditions)
+  → Phase 4: Audience Tags (derived from existing tags)
+  → Phase 5: Time Tags (rush hour, weekend, 24/7)
+  → Phase 6: Economic Tags (avg price level of nearby POIs)
+  → Deduplicate & Rank → Top 5 → IsPrimary = true
+```
+
+- Cached for 48 hours per location
+- Auto-retags every 90 days or on coordinate change
+- Tags allow advertisers to target by context (e.g., "near metro", "foodie zone", "corporate hub")
+
+---
+
+## 🖥️ Frontend Architecture
+
+### Tech Stack
+
+| Technology | Purpose |
+|------------|---------|
+| React 18 + TypeScript | UI Framework + Type Safety |
+| Vite | Build Tool & Dev Server |
+| Material UI v6 | Component Library (Dark Theme) |
+| React Router DOM v6 | Client-side Routing |
+| TanStack React Query | Server State Management |
+| Zustand + persist | Client State (Auth) |
+| react-hook-form + Zod | Forms & Schema Validation |
+| Axios | HTTP Client with Interceptors |
+| @microsoft/signalr | WebSocket Real-time |
+| Recharts | Charts & Analytics |
+| Leaflet + react-leaflet | Interactive Maps |
+| notistack | Toast Notifications |
+
+### Routing Structure
+
+| Route | Page | Access |
+|-------|------|--------|
+| `/login`, `/register` | Auth Pages | Public |
+| `/dashboard` | Role-based Dashboard | Protected |
+| `/campaigns/*` | Campaign CRUD | Advertiser, Admin |
+| `/screens/*` | Screen Management | ScreenOwner, Admin |
+| `/bookings/*` | Booking Management | All Roles |
+| `/creatives/*` | Creative Upload | Advertiser, Admin |
+| `/analytics` | Analytics Dashboard | All Roles |
+| `/reports` | Report Generation | All Roles |
+| `/explore` | Public Screen Explorer | Public |
+
+### State Management
+
+- **Server State**: TanStack Query (caching, refetching, optimistic updates)
+- **Client State**: Zustand with localStorage persistence for auth tokens
+- **Real-time**: SignalR connections via PlaybackHub for live impression counters
+
+### Key Frontend Patterns
+
+- Server-side pagination on all list pages
+- React Error Boundaries for fault isolation
+- Axios interceptors for JWT auto-refresh & rate limit handling
+- Drag-and-drop file upload via react-dropzone
+
+---
+
+## 👨‍💻 Developer Guidelines
+
+### DateTime Handling
+
+**Rule:** ALWAYS use UTC, NEVER local time
+
+```csharp
+// ✅ Correct
+var now = DateTime.UtcNow;
+var startDate = request.StartDate.ToUtc();
+
+// ❌ NEVER
+var now = DateTime.Now;
+var date = DateTime.Today;
+```
+
+### Timezone Support
+
+Screens store an IANA timezone string (e.g., `"Asia/Kolkata"`). Players convert UTC to local time for operating hours enforcement. DST is handled automatically.
+
+### Navigation Properties
+
+Always use `.Include()` or projections — never access navigation properties without explicit loading:
+
+```csharp
+// ✅ Correct
+var bookings = await _context.Bookings
+    .Include(b => b.Creative)
+    .Include(b => b.Campaign)
+    .Where(b => b.ScreenId == screenId)
+    .ToListAsync();
+```
+
+### Status Checks
+
+Use `BookingStatusHelper` — don't hardcode status checks:
+
+```csharp
+var activeStatuses = BookingStatusHelper.GetActiveStatuses();
+var bookings = await _repo.FindAsync(b => activeStatuses.Contains(b.Status));
+```
+
+### Entity Creation
+
+Use factory methods — never construct entities manually:
+
+```csharp
+var booking = BookingFactory.CreateWithDailyAssignments(
+    screenId, campaignId, creativeId,
+    startDate, endDate, slotNumbers, price);
+```
+
+### DailySlotAssignmentsJson Format
+
+```json
+{
+  "2026-01-09": [1, 2, 3],
+  "2026-01-10": [2, 4]
+}
+```
+
+**Rules:** Date keys use `yyyy-MM-dd` (no timestamp). Values are always arrays. Empty days are omitted. Use `DailySlotAssignmentsHelper` for all creation/parsing.
+
+### Date Format Standards
+
+| Layer | Format | Example |
+|-------|--------|---------|
+| Database | UTC timestamps | `2026-01-09T00:00:00Z` |
+| API Response | ISO 8601 with Z | `"2026-01-09T00:00:00.000Z"` |
+| API Request (dates) | YYYY-MM-DD string | `"2026-01-09"` |
+| Frontend display | Localized via `date-fns` | `"Jan 09, 2026 05:30 AM"` |
+| Player | UTC via `datetime.now(timezone.utc)` | — |
+
+### Key Migrations
+
+- **DateOnlyAndIndiaDefaults**: Booking/Campaign dates changed from `DateTime` to `DateOnly`. Default timezone set to `"Asia/Kolkata"`, currency to `"INR"`.
+- **AddTimezoneToScreen**: Screen entity timezone field for local operating hours.
+
+---
+
+## �💰 Pricing & Business Model
 
 ### Revenue Model: Hybrid (SaaS + Commission)
 

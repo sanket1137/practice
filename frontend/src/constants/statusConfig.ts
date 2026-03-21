@@ -6,9 +6,10 @@ import {
     Cancel as RejectedIcon,
     Edit as DraftIcon,
     DoNotDisturbOn as CancelledIcon,
+    Payment as PaymentPendingIcon,
 } from '@mui/icons-material';
 
-export type BookingStatus = 'Pending' | 'Approved' | 'Active' | 'Completed' | 'Rejected' | 'Draft' | 'Cancelled';
+export type BookingStatus = 'Pending' | 'Approved' | 'Active' | 'Completed' | 'Rejected' | 'Draft' | 'Cancelled' | 'PaymentPending';
 export type CampaignStatus = 'Draft' | 'Active' | 'Paused' | 'Completed';
 
 export interface StatusConfig {
@@ -60,6 +61,12 @@ export const BOOKING_STATUS_CONFIG: Record<BookingStatus, StatusConfig> = {
         color: 'error',
         icon: CancelledIcon,
         description: 'Booking was cancelled',
+    },
+    PaymentPending: {
+        label: 'Awaiting Payment',
+        color: 'warning',
+        icon: PaymentPendingIcon,
+        description: 'Payment required within 24 hours',
     },
 };
 

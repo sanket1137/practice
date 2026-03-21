@@ -16,12 +16,15 @@ using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Screens;
 using CCMS.Shared.DTOs.OwnerContent;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
 [Authorize]
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [EnableRateLimiting(RateLimitingExtensions.ApiPolicy)]
 public class ScreensController : ControllerBase
 {
@@ -974,10 +977,12 @@ public class ScreensController : ControllerBase
     {
         try
         {
-            // Build base query - only active screens for public view
+            // Build base query - only active screens for public view, filtered by owner visibility
             var query = _context.Screens
                 .AsNoTracking()
-                .Where(s => !s.IsDeleted && s.Status == ScreenStatus.Active);
+                .Where(s => !s.IsDeleted && s.Status == ScreenStatus.Active)
+                .Where(s => s.Owner.AccountVisibility == ScreenVisibility.Public)
+                .Where(s => s.VerificationStatus == ScreenVerificationStatus.Verified);
             
             // Text search
             if (!string.IsNullOrEmpty(request.SearchText))
@@ -1135,7 +1140,9 @@ public class ScreensController : ControllerBase
             // Build base query WITHOUT Include - use projection instead for performance
             var query = _context.Screens
                 .AsNoTracking()
-                .Where(s => !s.IsDeleted && s.Status == ScreenStatus.Active);
+                .Where(s => !s.IsDeleted && s.Status == ScreenStatus.Active)
+                .Where(s => s.Owner.AccountVisibility == ScreenVisibility.Public)
+                .Where(s => s.VerificationStatus == ScreenVerificationStatus.Verified);
             
             // Text search - use EF.Functions.ILike for case-insensitive search on PostgreSQL
             if (!string.IsNullOrEmpty(request.SearchText))

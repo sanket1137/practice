@@ -54,10 +54,10 @@ public class Screen : BaseEntity
     public DateTime? DeviceOverrideAt { get; set; }
     public Guid? DeviceOverrideByUserId { get; set; }
     
-    // Live streaming (WebRTC) - Commented out until database migration is applied
-    // public bool LiveStreamingEnabled { get; set; } = false;
-    // public DateTime? LastStreamedAt { get; set; }
-    // public int CurrentViewerCount { get; set; } = 0;
+    // Live streaming (WebRTC)
+    public bool LiveStreamingEnabled { get; set; } = false;
+    public DateTime? LastStreamedAt { get; set; }
+    public int CurrentViewerCount { get; set; } = 0;
     public int MaxViewers { get; set; } = 5; // Maximum concurrent live stream viewers
     
     // Default video for empty ad slots
@@ -69,10 +69,19 @@ public class Screen : BaseEntity
     // Pricing
     public decimal PricePerSlot { get; set; }
     public string Currency { get; set; } = "INR";
+    public decimal CommissionPercentage { get; set; } = 15m; // Platform commission %
     
     // Calculated fields (can be computed properties)
     public int ImpressionsPerSlot => CalculateImpressionsPerSlot();
     public int DailyTotalImpressions => ImpressionsPerSlot * SlotsPerFrame;
+    
+    // Screen verification (QR-based physical verification)
+    public ScreenVerificationStatus VerificationStatus { get; set; } = ScreenVerificationStatus.Unverified;
+    public DateTime? VerifiedAt { get; set; }
+    public Guid? VerifiedByAdminUserId { get; set; }
+    public string? ActiveQrChallengeCode { get; set; }
+    public DateTime? QrChallengeExpiresAt { get; set; }
+    public Guid? LastVerificationId { get; set; }
     
     // Tagging system - Last auto-tag generation timestamp
     public DateTime? LastTaggedAt { get; set; }
@@ -85,6 +94,8 @@ public class Screen : BaseEntity
     public virtual ICollection<Impression> Impressions { get; set; } = new List<Impression>();
     public virtual ICollection<ScreenTagAssignment> TagAssignments { get; set; } = new List<ScreenTagAssignment>();
     public virtual ICollection<ScreenImage> Images { get; set; } = new List<ScreenImage>();
+    public virtual ICollection<ScreenVerification> Verifications { get; set; } = new List<ScreenVerification>();
+    public virtual ScreenVerification? LastVerification { get; set; }
     
     private int CalculateImpressionsPerSlot()
     {

@@ -84,6 +84,17 @@ public interface IEmailService
         string? rejectionReason);
 
     /// <summary>
+    /// Send email notification when a booking is cancelled
+    /// </summary>
+    Task<bool> SendBookingCancelledEmailAsync(
+        string email, 
+        string firstName, 
+        Guid bookingId,
+        string campaignName,
+        string screenName,
+        string? cancellationReason);
+
+    /// <summary>
     /// Send email notification to screen owner when a new booking request is received
     /// </summary>
     /// <param name="email">Screen owner's email address</param>

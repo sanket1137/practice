@@ -39,10 +39,10 @@ public static class RateLimitingExtensions
             });
 
             // Authentication rate limit - strict to prevent brute force
-            // Max 10 login attempts per 5 minutes per IP
+            // Max 30 attempts per 5 minutes per IP (allows burst of refresh retries)
             options.AddSlidingWindowLimiter(AuthPolicy, opt =>
             {
-                opt.PermitLimit = 10;
+                opt.PermitLimit = 30;
                 opt.Window = TimeSpan.FromMinutes(5);
                 opt.SegmentsPerWindow = 5;
                 opt.QueueLimit = 0;  // No queuing for auth

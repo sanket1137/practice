@@ -31,8 +31,12 @@ public class PlaylistGeneratorService
         _creativeRepository = creativeRepository;
         _ownerContentRepository = ownerContentRepository;
         _logger = logger;
-        _universalFallbackUrl = configuration["DefaultVideo:UniversalFallbackUrl"] 
-            ?? "https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/Pixel_Universal.mp4";
+        
+        // Use IsNullOrWhiteSpace — the base appsettings.json may have "" which bypasses ?? null-coalesce
+        var configuredUrl = configuration["DefaultVideo:UniversalFallbackUrl"];
+        _universalFallbackUrl = string.IsNullOrWhiteSpace(configuredUrl)
+            ? "https://pub-8b275ed0704741b798c135d2ba0f55f9.r2.dev/Pixel_Universal.mp4"
+            : configuredUrl;
     }
 
     public async Task<PlaylistResponse?> GeneratePlaylistAsync(Guid screenId, DateTime date, CancellationToken cancellationToken = default)
@@ -45,21 +49,11 @@ public class PlaylistGeneratorService
         // Get operating hours for the specific day
         var daySchedule = screen.Schedule.GetScheduleForDay(date.DayOfWeek);
         
-        if (!daySchedule.IsOperating)
-        {
-            // Screen not operating on this day
-            return new PlaylistResponse
-            {
-                ScreenId = screenId,
-                ScreenName = screen.Name,
-                Date = date,
-                OperatingStart = "00:00",
-                OperatingEnd = "00:00",
-                TimeFrameMinutes = screen.TimeFrameMinutes,
-                SlotsPerFrame = screen.SlotsPerFrame,
-                Playlist = new List<PlaylistItemResponse>()
-            };
-        }
+        // Even on non-operating days, we populate the playlist with filler content.
+        // Both Android and Pi players enforce operating hours client-side via the
+        // operatingHours map — returning an empty playlist prevents the player from
+        // having any content ready when operating hours begin.
+        var isOperating = daySchedule.IsOperating;
 
         // Fetch owner content for this screen
         var allOwnerContent = await _ownerContentRepository.GetAllAsync(cancellationToken);
@@ -182,8 +176,8 @@ public class PlaylistGeneratorService
             ScreenId = screenId,
             ScreenName = screen.Name,
             Date = date,
-            OperatingStart = daySchedule.StartTime.ToString(@"hh\:mm"),
-            OperatingEnd = daySchedule.EndTime.ToString(@"hh\:mm"),
+            OperatingStart = isOperating ? daySchedule.StartTime.ToString(@"hh\:mm") : "00:00",
+            OperatingEnd = isOperating ? daySchedule.EndTime.ToString(@"hh\:mm") : "00:00",
             TimeFrameMinutes = screen.TimeFrameMinutes,
             SlotsPerFrame = screen.SlotsPerFrame,
             Playlist = playlist,

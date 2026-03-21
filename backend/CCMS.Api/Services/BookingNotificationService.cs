@@ -1,6 +1,7 @@
 using CCMS.Api.Hubs;
 using CCMS.Application.Interfaces;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
 using Microsoft.AspNetCore.SignalR;
@@ -16,17 +17,20 @@ public class BookingNotificationService : IBookingNotificationService
     private readonly IHubContext<PlaybackHub> _hubContext;
     private readonly IEmailService _emailService;
     private readonly IRepository<User> _userRepository;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<BookingNotificationService> _logger;
 
     public BookingNotificationService(
         IHubContext<PlaybackHub> hubContext,
         IEmailService emailService,
         IRepository<User> userRepository,
+        INotificationService notificationService,
         ILogger<BookingNotificationService> logger)
     {
         _hubContext = hubContext;
         _emailService = emailService;
         _userRepository = userRepository;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -62,11 +66,23 @@ public class BookingNotificationService : IBookingNotificationService
 
         _logger.LogInformation("[SignalR] BookingCreated broadcast complete");
 
+        // Persist in-app notification for screen owner
+        await _notificationService.CreateNotificationAsync(
+            screenOwnerId,
+            "New Booking Request",
+            $"New booking request for {booking.ScreenName} from campaign '{booking.CampaignName}'",
+            NotificationType.BookingCreated,
+            $"/bookings/{booking.Id}",
+            booking.Id,
+            "Booking");
+
         // Send email notification to screen owner
         try
         {
             var screenOwner = await _userRepository.GetByIdAsync(screenOwnerId);
-            var advertiser = await _userRepository.GetByIdAsync(booking.AdvertiserId);
+            var advertiser = booking.AdvertiserId.HasValue 
+                ? await _userRepository.GetByIdAsync(booking.AdvertiserId.Value) 
+                : null;
             var advertiserName = advertiser != null 
                 ? $"{advertiser.FirstName} {advertiser.LastName}".Trim() 
                 : "Advertiser";
@@ -118,6 +134,16 @@ public class BookingNotificationService : IBookingNotificationService
         });
 
         _logger.LogInformation("[SignalR] BookingApproved broadcast complete");
+
+        // Persist in-app notification for advertiser
+        await _notificationService.CreateNotificationAsync(
+            advertiserId,
+            "Booking Approved",
+            $"Your booking for {booking.ScreenName} has been approved!",
+            NotificationType.BookingApproved,
+            $"/bookings/{booking.Id}",
+            booking.Id,
+            "Booking");
 
         // Send email notification to advertiser
         try
@@ -173,6 +199,19 @@ public class BookingNotificationService : IBookingNotificationService
 
         _logger.LogInformation("[SignalR] BookingRejected broadcast complete");
 
+        // Persist in-app notification for advertiser
+        var rejectionMsg = string.IsNullOrEmpty(reason)
+            ? $"Your booking for {booking.ScreenName} was not approved"
+            : $"Your booking for {booking.ScreenName} was not approved: {reason}";
+        await _notificationService.CreateNotificationAsync(
+            advertiserId,
+            "Booking Rejected",
+            rejectionMsg,
+            NotificationType.BookingRejected,
+            $"/bookings/{booking.Id}",
+            booking.Id,
+            "Booking");
+
         // Send email notification to advertiser
         try
         {
@@ -225,5 +264,96 @@ public class BookingNotificationService : IBookingNotificationService
         });
 
         _logger.LogInformation("[SignalR] BookingUpdated broadcast complete");
+    }
+
+    public async Task NotifyBookingCancelledAsync(BookingDto booking, Guid screenOwnerId, Guid advertiserId, string? reason)
+    {
+        _logger.LogInformation(
+            "[SignalR] Broadcasting BookingCancelled for booking {BookingId}",
+            booking.Id.ToString()[..8]);
+
+        var payload = new
+        {
+            Booking = booking,
+            Reason = reason,
+            Timestamp = DateTime.UtcNow,
+            Message = $"Booking for {booking.ScreenName} has been cancelled"
+        };
+
+        // Send to screen owner
+        await _hubContext.Clients.Group($"user_{screenOwnerId}")
+            .SendAsync("BookingCancelled", payload);
+
+        // Send to advertiser
+        await _hubContext.Clients.Group($"user_{advertiserId}")
+            .SendAsync("BookingCancelled", payload);
+
+        // Broadcast to all
+        await _hubContext.Clients.All.SendAsync("BookingCancelled", new
+        {
+            Booking = booking,
+            Timestamp = DateTime.UtcNow
+        });
+
+        _logger.LogInformation("[SignalR] BookingCancelled broadcast complete");
+
+        // Persist in-app notifications for both parties
+        var cancelMsg = $"Booking for {booking.ScreenName} has been cancelled" +
+            (string.IsNullOrEmpty(reason) ? "" : $": {reason}");
+        await _notificationService.CreateNotificationAsync(
+            screenOwnerId,
+            "Booking Cancelled",
+            cancelMsg,
+            NotificationType.BookingCancelled,
+            $"/bookings/{booking.Id}",
+            booking.Id,
+            "Booking");
+        await _notificationService.CreateNotificationAsync(
+            advertiserId,
+            "Booking Cancelled",
+            cancelMsg,
+            NotificationType.BookingCancelled,
+            $"/bookings/{booking.Id}",
+            booking.Id,
+            "Booking");
+
+        // Send email notifications to both parties
+        try
+        {
+            var advertiser = await _userRepository.GetByIdAsync(advertiserId);
+            if (advertiser != null && !string.IsNullOrEmpty(advertiser.Email))
+            {
+                await _emailService.SendBookingCancelledEmailAsync(
+                    advertiser.Email,
+                    advertiser.FirstName ?? "Advertiser",
+                    booking.Id,
+                    booking.CampaignName,
+                    booking.ScreenName,
+                    reason);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Email] Failed to send booking cancelled email to advertiser");
+        }
+
+        try
+        {
+            var screenOwner = await _userRepository.GetByIdAsync(screenOwnerId);
+            if (screenOwner != null && !string.IsNullOrEmpty(screenOwner.Email))
+            {
+                await _emailService.SendBookingCancelledEmailAsync(
+                    screenOwner.Email,
+                    screenOwner.FirstName ?? "Screen Owner",
+                    booking.Id,
+                    booking.CampaignName,
+                    booking.ScreenName,
+                    reason);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Email] Failed to send booking cancelled email to screen owner");
+        }
     }
 }

@@ -209,7 +209,7 @@ public class ScreenAccessInfo
     public Guid ScreenId { get; set; }
     public string ScreenName { get; set; } = string.Empty;
     public Guid BookingId { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public string CampaignName { get; set; } = string.Empty;
     public bool IsPreviewAccess { get; set; }
     public DateTime AccessExpiresAt { get; set; }
@@ -222,7 +222,7 @@ public class AdvertiserAccessInfo
     public Guid AdvertiserId { get; set; }
     public string AdvertiserEmail { get; set; } = string.Empty;
     public Guid BookingId { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public DateTime AccessExpiresAt { get; set; }
     public bool IsPreviewAccess { get; set; }
 }
@@ -232,7 +232,7 @@ public class ExpiredAccessInfo
     public Guid BookingId { get; set; }
     public Guid ScreenId { get; set; }
     public Guid AdvertiserId { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public DateTime ExpiredAt { get; set; }
 }
 

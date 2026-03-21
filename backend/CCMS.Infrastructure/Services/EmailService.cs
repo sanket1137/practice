@@ -395,6 +395,49 @@ public class EmailService : IEmailService
         return await SendEmailAsync(email, subject, htmlBody, textBody);
     }
 
+    public async Task<bool> SendBookingCancelledEmailAsync(
+        string email, 
+        string firstName, 
+        Guid bookingId,
+        string campaignName,
+        string screenName,
+        string? cancellationReason)
+    {
+        var dashboardLink = $"{_appBaseUrl}/bookings";
+        var subject = $"Booking Cancelled - {campaignName}";
+        var reasonText = string.IsNullOrEmpty(cancellationReason) ? "" : $"Reason: {cancellationReason}\n\n";
+        var textBody = $"Hi {firstName},\n\nA booking for campaign '{campaignName}' on screen '{screenName}' has been cancelled.\n\n" +
+                      reasonText +
+                      $"View your bookings: {dashboardLink}\n\n" +
+                      $"Best regards,\nThe PixelSpot Team";
+        var htmlBody = $@"
+<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0'>
+<tr><td align='center' style='padding: 40px 0;'>
+<table role='presentation' width='600' cellspacing='0' cellpadding='0' border='0' style='background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
+<tr><td style='padding: 40px 40px 20px 40px; text-align: center; background-color: #EF4444; border-radius: 8px 8px 0 0;'>
+<h1 style='margin: 0; color: #ffffff; font-size: 28px;'>Booking Cancelled</h1>
+</td></tr>
+<tr><td style='padding: 40px;'>
+<p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>Hi {firstName},</p>
+<p style='margin: 0 0 20px 0; color: #666666; font-size: 16px; line-height: 1.5;'>A booking has been cancelled.</p>
+<table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
+<tr><td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'><strong>Campaign</strong></td><td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'>{campaignName}</td></tr>
+<tr><td style='padding: 12px; border-bottom: 1px solid #eee;'><strong>Screen</strong></td><td style='padding: 12px; border-bottom: 1px solid #eee;'>{screenName}</td></tr>
+{(string.IsNullOrEmpty(cancellationReason) ? "" : $"<tr><td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'><strong>Reason</strong></td><td style='padding: 12px; background-color: #f8f8f8; border-bottom: 1px solid #eee;'>{cancellationReason}</td></tr>")}
+</table>
+<a href='{dashboardLink}' style='display: inline-block; padding: 14px 30px; background-color: #3B82F6; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px;'>View Bookings</a>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>";
+
+        return await SendEmailAsync(email, subject, htmlBody, textBody);
+    }
+
     private string GetBookingApprovedEmailTemplate(string firstName, string campaignName, string screenName, DateTime startDate, DateTime endDate, decimal totalPrice, string currency, string bookingLink)
     {
         return $@"

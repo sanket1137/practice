@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- First-run setup screen: server URL, screen ID, API key -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="48dp"
+    android:background="@android:color/black">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_title"
+        android:textColor="@android:color/white"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/setup_subtitle"
+        android:textColor="#AAAAAA"
+        android:textSize="16sp"
+        android:layout_marginBottom="32dp" />
+
+    <!-- Server URL -->
+    <EditText
+        android:id="@+id/server_url_input"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/hint_server_url"
+        android:text="https://ccms.pixelspot.in"
+        android:inputType="textUri"
+        android:textColor="@android:color/white"
+        android:textColorHint="#888888"
+        android:backgroundTint="#4CAF50"
+        android:layout_marginBottom="16dp"
+        android:focusable="true"
+        android:nextFocusDown="@+id/screen_id_input" />
+
+    <!-- Screen ID -->
+    <EditText
+        android:id="@+id/screen_id_input"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/hint_screen_id"
+        android:inputType="text"
+        android:textColor="@android:color/white"
+        android:textColorHint="#888888"
+        android:backgroundTint="#4CAF50"
+        android:layout_marginBottom="16dp"
+        android:focusable="true"
+        android:nextFocusUp="@+id/server_url_input"
+        android:nextFocusDown="@+id/api_key_input" />
+
+    <!-- API Key -->
+    <EditText
+        android:id="@+id/api_key_input"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/hint_api_key"
+        android:inputType="textPassword"
+        android:textColor="@android:color/white"
+        android:textColorHint="#888888"
+        android:backgroundTint="#4CAF50"
+        android:layout_marginBottom="24dp"
+        android:focusable="true"
+        android:nextFocusUp="@+id/screen_id_input"
+        android:nextFocusDown="@+id/connect_button" />
+
+    <!-- Status text -->
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:textColor="#FFAB40"
+        android:textSize="14sp"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Progress bar -->
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Connect button -->
+    <Button
+        android:id="@+id/connect_button"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_connect"
+        android:textSize="18sp"
+        android:backgroundTint="#4CAF50"
+        android:focusable="true"
+        android:nextFocusUp="@+id/api_key_input" />
+
+</LinearLayout>

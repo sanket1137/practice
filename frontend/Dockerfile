@@ -15,7 +15,7 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Build arguments for environment variables
-ARG VITE_API_URL=/api
+ARG VITE_API_URL=/api/v1
 ARG VITE_SIGNALR_URL=
 
 # Set environment variables for build

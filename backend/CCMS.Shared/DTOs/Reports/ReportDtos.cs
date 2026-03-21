@@ -6,7 +6,7 @@ namespace CCMS.Shared.DTOs.Reports;
 public class BookingImpressionReport
 {
     public Guid BookingId { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public string CampaignName { get; set; } = string.Empty;
     public Guid ScreenId { get; set; }
     public string ScreenName { get; set; } = string.Empty;
@@ -170,4 +170,35 @@ public class ExportRequest
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public bool IncludeDetailedLogs { get; set; } = false;
+}
+
+/// <summary>
+/// Delivery summary for admin review before final payout release
+/// </summary>
+public class DeliverySummaryDto
+{
+    public Guid BookingId { get; set; }
+    public string ScreenName { get; set; } = string.Empty;
+    public string? CampaignName { get; set; }
+    public string StartDate { get; set; } = string.Empty;
+    public string EndDate { get; set; } = string.Empty;
+    public int ExpectedImpressions { get; set; }
+    public int DeliveredImpressions { get; set; }
+    public int VerifiedImpressions { get; set; }
+    public decimal DeliveryRate { get; set; } // Percentage
+    public int TotalDays { get; set; }
+    public int ActiveDays { get; set; } // Days with at least 1 impression
+    public decimal TotalPrice { get; set; }
+    public string Currency { get; set; } = "INR";
+    public decimal AdvancePaid { get; set; }
+    public decimal RemainingAmount { get; set; }
+    public List<DailyDeliveryEntry> DailyBreakdown { get; set; } = new();
+}
+
+public class DailyDeliveryEntry
+{
+    public string Date { get; set; } = string.Empty;
+    public int Impressions { get; set; }
+    public int VerifiedImpressions { get; set; }
+    public bool HasData { get; set; }
 }

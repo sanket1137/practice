@@ -42,6 +42,11 @@ public class HandshakeResponse
     
     // Device binding status
     public string? DeviceBindingStatus { get; set; } // "bound", "new_binding", "override", "not_provided"
+    
+    // Screen verification (QR-based physical verification)
+    public bool VerificationMode { get; set; }
+    public string? VerificationStatus { get; set; }
+    public string? QrChallengeUrl { get; set; }
 }
 
 public class PlaylistDto

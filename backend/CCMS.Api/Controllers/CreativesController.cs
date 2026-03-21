@@ -8,12 +8,15 @@ using CCMS.Domain.Interfaces;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Creatives;
 using CCMS.Application.Helpers;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
 [Authorize]
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class CreativesController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -38,7 +41,7 @@ public class CreativesController : ControllerBase
     [ApiExplorerSettings(IgnoreApi = true)] // Hide from Swagger due to IFormFile limitation
     public async Task<ActionResult<ApiResponse<CreativeDto>>> Upload(
         [FromForm] IFormFile file, 
-        [FromForm] Guid campaignId, 
+        [FromForm] Guid? campaignId, 
         [FromForm] string name, 
         [FromForm] int duration = 10,
         [FromForm] int? width = null,
@@ -118,6 +121,40 @@ public class CreativesController : ControllerBase
         {
             return StatusCode(500,
                 ApiResponse<CreativeDto>.ErrorResponse($"Error retrieving creative: {ex.Message}"));
+        }
+    }
+
+    // GET /api/creatives/my — owner's creatives (uploaded without a campaign)
+    [HttpGet("my")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<CreativeDto>>>> GetMyCreatives()
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var creatives = await _creativeRepository.FindAsync(c => c.UploadedById == userId);
+            var result = creatives.Select(c => new CreativeDto
+            {
+                Id = c.Id,
+                CampaignId = c.CampaignId,
+                Name = c.Name,
+                FileUrl = MediaUrlHelper.ToProxyUrl(c.FileUrl, _r2PublicUrlBase) ?? c.FileUrl,
+                FileName = c.FileName,
+                MimeType = c.MimeType,
+                FileSize = c.FileSize,
+                Width = c.Width,
+                Height = c.Height,
+                Duration = c.Duration,
+                ThumbnailUrl = MediaUrlHelper.ToProxyUrl(c.ThumbnailUrl, _r2PublicUrlBase),
+                CreatedAt = c.CreatedAt
+            });
+
+            return Ok(ApiResponse<IEnumerable<CreativeDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500,
+                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse($"Error retrieving creatives: {ex.Message}"));
         }
     }
 

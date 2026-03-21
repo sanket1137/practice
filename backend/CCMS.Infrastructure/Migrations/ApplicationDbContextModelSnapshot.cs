@@ -22,6 +22,114 @@ namespace CCMS.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("CCMS.Domain.Entities.AdminAuthorizedMachine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorizedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MachineDetails")
+                        .HasColumnType("text");
+
+                    b.Property<string>("MachineFingerprintHash")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MachineName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminUserId")
+                        .HasDatabaseName("IX_AdminMachines_AdminUserId");
+
+                    b.HasIndex("AuthorizedByUserId");
+
+                    b.HasIndex("AdminUserId", "MachineFingerprintHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_AdminMachines_User_Fingerprint")
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("AdminAuthorizedMachines");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.BankAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BeneficiaryName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IfscCode")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BankAccounts_UserId");
+
+                    b.ToTable("BankAccounts");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Booking", b =>
                 {
                     b.Property<Guid>("Id")
@@ -34,8 +142,23 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<Guid?>("ApprovedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("CampaignId")
+                    b.Property<Guid?>("CampaignId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CancelledBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ClientContact")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClientName")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -59,8 +182,32 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<int>("ExpectedImpressions")
                         .HasColumnType("integer");
 
+                    b.Property<string>("InternalNotes")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("IsInternalPayment")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PaymentExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasColumnType("text");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RazorpayOrderId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RazorpayPaymentId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RazorpayRefundId")
+                        .HasColumnType("text");
 
                     b.Property<string>("RejectionReason")
                         .HasColumnType("text");
@@ -71,6 +218,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<string>("SlotNumbers")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer");
 
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
@@ -84,6 +234,12 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VirtualAccountIfsc")
+                        .HasColumnType("text");
+
+                    b.Property<string>("VirtualAccountNumber")
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
@@ -152,7 +308,7 @@ namespace CCMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("CampaignId")
+                    b.Property<Guid?>("CampaignId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -204,6 +360,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("UploadedById")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Width")
                         .HasColumnType("integer");
 
@@ -211,7 +370,67 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.HasIndex("CampaignId");
 
+                    b.HasIndex("UploadedById");
+
                     b.ToTable("Creatives");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.DeviceOverrideHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsPending")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NewFingerprintHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OldFingerprintHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("RequestedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("ScreenId")
+                        .HasDatabaseName("IX_DeviceOverrideHistory_Screen");
+
+                    b.HasIndex("ScreenId", "IsPending")
+                        .HasDatabaseName("IX_DeviceOverrideHistory_Screen_Pending");
+
+                    b.ToTable("DeviceOverrideHistories");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.EmailVerificationToken", b =>
@@ -472,6 +691,65 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("Memberships");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReferenceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_Notifications_CreatedAt");
+
+                    b.HasIndex("UserId", "IsRead")
+                        .HasDatabaseName("IX_Notifications_UserId_IsRead");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -611,6 +889,164 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("PasswordResetTokens");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("GatewayResponse")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RazorpayOrderId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RazorpayPaymentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("RazorpaySignature")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<decimal?>("RefundAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId")
+                        .HasDatabaseName("IX_Payments_BookingId");
+
+                    b.HasIndex("RazorpayOrderId")
+                        .HasDatabaseName("IX_Payments_RazorpayOrderId");
+
+                    b.HasIndex("RazorpayPaymentId")
+                        .HasDatabaseName("IX_Payments_RazorpayPaymentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.Payout", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdminNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<decimal>("AdvancePercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<string>("BankAccountDetails")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("BookingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CommissionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CommissionPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<decimal>("GrossAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("NetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateOnly?>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RazorpayPayoutId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ScreenOwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId")
+                        .HasDatabaseName("IX_Payouts_BookingId");
+
+                    b.HasIndex("ScreenOwnerId")
+                        .HasDatabaseName("IX_Payouts_ScreenOwnerId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_Payouts_Status");
+
+                    b.ToTable("Payouts");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.PhoneVerificationOtp", b =>
                 {
                     b.Property<Guid>("Id")
@@ -713,8 +1149,17 @@ namespace CCMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ActiveQrChallengeCode")
+                        .HasColumnType("text");
+
                     b.Property<string>("ApiKeyHash")
                         .HasColumnType("text");
+
+                    b.Property<decimal>("CommissionPercentage")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(15m);
 
                     b.Property<string>("ConnectedDeviceId")
                         .HasColumnType("text");
@@ -725,6 +1170,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<string>("Currency")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("CurrentViewerCount")
+                        .HasColumnType("integer");
 
                     b.Property<long?>("DefaultVideoSizeBytes")
                         .HasColumnType("bigint");
@@ -778,6 +1226,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<DateTime?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTime?>("LastStreamedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("LastSyncAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -792,9 +1243,15 @@ namespace CCMS.Infrastructure.Migrations
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
 
+                    b.Property<Guid?>("LastVerificationId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("Latitude")
                         .HasPrecision(9, 6)
                         .HasColumnType("decimal(9,6)");
+
+                    b.Property<bool>("LiveStreamingEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<decimal>("Longitude")
                         .HasPrecision(9, 6)
@@ -826,6 +1283,9 @@ namespace CCMS.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<DateTime?>("QrChallengeExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("ResolutionHeight")
                         .HasColumnType("integer");
 
@@ -848,9 +1308,20 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("VerificationStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("VerifiedByAdminUserId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DeviceId");
+
+                    b.HasIndex("LastVerificationId");
 
                     b.HasIndex("OwnerId")
                         .HasDatabaseName("IX_Screens_Owner");
@@ -860,6 +1331,9 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_Screens_Status");
+
+                    b.HasIndex("VerificationStatus")
+                        .HasDatabaseName("IX_Screens_VerificationStatus");
 
                     b.HasIndex("Latitude", "Longitude")
                         .HasDatabaseName("IX_Screens_Location");
@@ -1061,6 +1535,84 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("ScreenTagAssignments");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.ScreenVerification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AdminReviewedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AdminReviewedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeviceFingerprintHash")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DeviceType")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PlayerIpAddress")
+                        .HasMaxLength(45)
+                        .HasColumnType("character varying(45)");
+
+                    b.Property<string>("QrChallengeCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("RequestedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("ScanGpsLatitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("ScanGpsLongitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VideoUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminReviewedByUserId");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("ScreenId", "Status")
+                        .HasDatabaseName("IX_ScreenVerifications_Screen_Status");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("IX_ScreenVerifications_Status_CreatedAt");
+
+                    b.ToTable("ScreenVerifications");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.SlotAvailability", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1111,6 +1663,13 @@ namespace CCMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AccountVisibility")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CompanyName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1123,6 +1682,10 @@ namespace CCMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("GstNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -1162,6 +1725,13 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasDefaultValue("dark");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1173,13 +1743,142 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Wallet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Balance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastTopUpAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Wallets_UserId");
+
+                    b.ToTable("Wallets");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.WalletTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BalanceAfter")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BalanceBefore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ReferenceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReferenceType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("WalletId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReferenceId")
+                        .HasDatabaseName("IX_WalletTransactions_ReferenceId");
+
+                    b.HasIndex("WalletId")
+                        .HasDatabaseName("IX_WalletTransactions_WalletId");
+
+                    b.ToTable("WalletTransactions");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.AdminAuthorizedMachine", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "AdminUser")
+                        .WithMany("AuthorizedMachines")
+                        .HasForeignKey("AdminUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.User", "AuthorizedByUser")
+                        .WithMany()
+                        .HasForeignKey("AuthorizedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AdminUser");
+
+                    b.Navigation("AuthorizedByUser");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.BankAccount", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "User")
+                        .WithOne("BankAccount")
+                        .HasForeignKey("CCMS.Domain.Entities.BankAccount", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Booking", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.Campaign", "Campaign")
                         .WithMany("Bookings")
                         .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("CCMS.Domain.Entities.Creative", "Creative")
                         .WithMany("Bookings")
@@ -1216,10 +1915,35 @@ namespace CCMS.Infrastructure.Migrations
                     b.HasOne("CCMS.Domain.Entities.Campaign", "Campaign")
                         .WithMany("Creatives")
                         .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("CCMS.Domain.Entities.User", "UploadedBy")
+                        .WithMany()
+                        .HasForeignKey("UploadedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("UploadedBy");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.DeviceOverrideHistory", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany()
+                        .HasForeignKey("ScreenId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Campaign");
+                    b.Navigation("RequestedByUser");
+
+                    b.Navigation("Screen");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.EmailVerificationToken", b =>
@@ -1330,6 +2054,17 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Organization", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.User", "Owner")
@@ -1363,6 +2098,43 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Booking", "Booking")
+                        .WithMany("Payments")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.User", "User")
+                        .WithMany("Payments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.Payout", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Booking", "Booking")
+                        .WithMany("Payouts")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("CCMS.Domain.Entities.User", "ScreenOwner")
+                        .WithMany("Payouts")
+                        .HasForeignKey("ScreenOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("ScreenOwner");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.PhoneVerificationOtp", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.User", "User")
@@ -1387,6 +2159,11 @@ namespace CCMS.Infrastructure.Migrations
 
             modelBuilder.Entity("CCMS.Domain.Entities.Screen", b =>
                 {
+                    b.HasOne("CCMS.Domain.Entities.ScreenVerification", "LastVerification")
+                        .WithMany()
+                        .HasForeignKey("LastVerificationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("CCMS.Domain.Entities.User", "Owner")
                         .WithMany("Screens")
                         .HasForeignKey("OwnerId")
@@ -1619,6 +2396,8 @@ namespace CCMS.Infrastructure.Migrations
                                 .IsRequired();
                         });
 
+                    b.Navigation("LastVerification");
+
                     b.Navigation("Location")
                         .IsRequired();
 
@@ -1665,6 +2444,32 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Tag");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.ScreenVerification", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "AdminReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("AdminReviewedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("CCMS.Domain.Entities.User", "RequestedByUser")
+                        .WithMany()
+                        .HasForeignKey("RequestedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany("Verifications")
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdminReviewedByUser");
+
+                    b.Navigation("RequestedByUser");
+
+                    b.Navigation("Screen");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.SlotAvailability", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
@@ -1676,9 +2481,35 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Screen");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Wallet", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "User")
+                        .WithOne()
+                        .HasForeignKey("CCMS.Domain.Entities.Wallet", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.WalletTransaction", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Wallet", "Wallet")
+                        .WithMany("Transactions")
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Wallet");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Booking", b =>
                 {
                     b.Navigation("Impressions");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("Payouts");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.Campaign", b =>
@@ -1712,6 +2543,8 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Impressions");
 
                     b.Navigation("TagAssignments");
+
+                    b.Navigation("Verifications");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.ScreenTag", b =>
@@ -1721,17 +2554,32 @@ namespace CCMS.Infrastructure.Migrations
 
             modelBuilder.Entity("CCMS.Domain.Entities.User", b =>
                 {
+                    b.Navigation("AuthorizedMachines");
+
+                    b.Navigation("BankAccount");
+
                     b.Navigation("Campaigns");
 
                     b.Navigation("EmailVerificationTokens");
 
                     b.Navigation("Memberships");
 
+                    b.Navigation("Notifications");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("Payouts");
+
                     b.Navigation("PhoneVerificationOtps");
 
                     b.Navigation("RefreshTokens");
 
                     b.Navigation("Screens");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.Wallet", b =>
+                {
+                    b.Navigation("Transactions");
                 });
 #pragma warning restore 612, 618
         }

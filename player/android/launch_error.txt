@@ -1,0 +1,2 @@
+Error type 3
+Error: Activity class {com.pixelspot.ccms.player/com.pixelspot.ccms.player.MainActivity} does not exist.

@@ -4,11 +4,14 @@ using CCMS.Api.Extensions;
 using CCMS.Api.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [EnableRateLimiting(RateLimitingExtensions.StreamingPolicy)]
 public class StreamingController : ControllerBase
 {

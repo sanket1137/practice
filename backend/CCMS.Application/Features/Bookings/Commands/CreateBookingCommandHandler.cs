@@ -2,6 +2,7 @@ using AutoMapper;
 using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
 using MediatR;
@@ -14,6 +15,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
     private readonly IRepository<Screen> _screenRepository;
     private readonly IRepository<Campaign> _campaignRepository;
     private readonly IRepository<Creative> _creativeRepository;
+    private readonly IRepository<User> _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly BookingCalculationService _calculationService;
@@ -26,6 +28,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         IRepository<Screen> screenRepository,
         IRepository<Campaign> campaignRepository,
         IRepository<Creative> creativeRepository,
+        IRepository<User> userRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
         BookingCalculationService calculationService,
@@ -37,6 +40,7 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         _screenRepository = screenRepository;
         _campaignRepository = campaignRepository;
         _creativeRepository = creativeRepository;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _calculationService = calculationService;
@@ -58,6 +62,21 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         var screen = await _screenRepository.GetByIdAsync(request.Request.ScreenId, cancellationToken);
         if (screen == null)
             throw new KeyNotFoundException("Screen not found");
+
+        // Block bookings on unverified screens
+        if (screen.VerificationStatus != ScreenVerificationStatus.Verified)
+            throw new InvalidOperationException(
+                "This screen has not been verified yet. Only verified screens can accept bookings.");
+
+        // Check screen owner visibility — private owners reject public bookings
+        var screenOwner = await _userRepository.GetByIdAsync(screen.OwnerId, cancellationToken);
+        if (screenOwner != null && screenOwner.AccountVisibility == ScreenVisibility.Private)
+        {
+            // Allow if the booking creator is the screen owner themselves
+            var campaign2 = await _campaignRepository.GetByIdAsync(request.Request.CampaignId, cancellationToken);
+            if (campaign2 == null || campaign2.AdvertiserId != screen.OwnerId)
+                throw new InvalidOperationException("This screen owner is not accepting public bookings");
+        }
 
         var campaign = await _campaignRepository.GetByIdAsync(request.Request.CampaignId, cancellationToken);
         if (campaign == null)

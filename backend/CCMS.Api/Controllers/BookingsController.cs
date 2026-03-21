@@ -8,14 +8,18 @@ using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Interfaces;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Shared.DTOs.Bookings;
 using System.Security.Claims;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
 [Authorize]
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class BookingsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -261,6 +265,13 @@ public class BookingsController : ControllerBase
                     return StatusCode(403, new { message = "You can only approve bookings for screens you own" });
             }
             
+            // Date guard: reject approval if booking end date has already passed
+            if (DateOnly.TryParse(booking.EndDate, out var endDate) && 
+                DateOnly.FromDateTime(DateTime.Today) > endDate)
+            {
+                return BadRequest(new { message = "Cannot approve a booking whose period has already ended" });
+            }
+
             var command = new ApproveBookingCommand(id, userGuid);
             var result = await _mediator.Send(command);
             return Ok(result);
@@ -387,7 +398,9 @@ public class BookingsController : ControllerBase
             }
 
             // Get advertiser details
-            var advertiser = await _userRepository.GetByIdAsync(booking.AdvertiserId);
+            var advertiser = booking.AdvertiserId.HasValue
+                ? await _userRepository.GetByIdAsync(booking.AdvertiserId.Value)
+                : null;
             var advertiserName = advertiser != null
                 ? $"{advertiser.FirstName} {advertiser.LastName}".Trim()
                 : "Advertiser";
@@ -420,6 +433,141 @@ public class BookingsController : ControllerBase
         {
             _logger.LogError(ex, "Error generating invoice for booking {BookingId}", id);
             return StatusCode(500, new { message = "Failed to generate invoice" });
+        }
+    }
+
+    [HttpPut("{id}/update-dates")]
+    public async Task<IActionResult> UpdateBookingDates(Guid id, [FromBody] UpdateBookingDatesRequest request)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var userGuid = Guid.Parse(userId);
+
+            var command = new UpdateBookingDatesCommand
+            {
+                BookingId = id,
+                UserId = userGuid,
+                Request = request
+            };
+            var result = await _mediator.Send(command);
+            return Ok(CCMS.Shared.Common.ApiResponse<BookingDto>.SuccessResponse(result, "Booking dates updated and re-submitted for approval"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating booking dates {BookingId}", id);
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("Failed to update booking dates"));
+        }
+    }
+
+    [HttpPost("{id}/cancel")]
+    public async Task<IActionResult> CancelBooking(Guid id, [FromBody] CancelBookingRequest? request)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var userGuid = Guid.Parse(userId);
+
+            var command = new CancelBookingCommand(id, userGuid, request?.Reason);
+            var result = await _mediator.Send(command);
+            return Ok(CCMS.Shared.Common.ApiResponse<BookingDto>.SuccessResponse(result, "Booking cancelled successfully"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling booking {BookingId}", id);
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("Failed to cancel booking"));
+        }
+    }
+
+    [HttpPost("self-reserve")]
+    [Authorize(Roles = "ScreenOwner")]
+    public async Task<IActionResult> SelfReserveSlot([FromBody] SelfReserveSlotRequest request)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var command = new SelfReserveSlotCommand { UserId = Guid.Parse(userId), Request = request };
+            var result = await _mediator.Send(command);
+            return Ok(CCMS.Shared.Common.ApiResponse<BookingDto>.SuccessResponse(result, "Slot self-reserved successfully"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error self-reserving slot");
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("Failed to self-reserve slot"));
+        }
+    }
+
+    [HttpGet("self-reserved")]
+    [Authorize(Roles = "ScreenOwner")]
+    public async Task<IActionResult> GetSelfReservedBookings([FromQuery] Guid? screenId = null)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            var userGuid = Guid.Parse(userId);
+
+            var query = new GetBookingsQuery
+            {
+                ScreenOwnerId = userGuid,
+                ScreenId = screenId ?? Guid.Empty
+            };
+
+            var result = await _mediator.Send(query);
+            var selfReserved = result.Where(b => b.Source == BookingSource.SelfReserved.ToString()).ToList();
+            return Ok(CCMS.Shared.Common.ApiResponse<List<BookingDto>>.SuccessResponse(selfReserved));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching self-reserved bookings");
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<List<BookingDto>>.ErrorResponse("Failed to fetch self-reserved bookings"));
         }
     }
 }

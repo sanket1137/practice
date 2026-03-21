@@ -7,11 +7,14 @@ using CCMS.Domain.Interfaces;
 using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Reports;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/reports")]
+[Route("api/v{version:apiVersion}/reports")]
 [Authorize]
 public class ReportsController : ControllerBase
 {
@@ -676,6 +679,95 @@ public class ReportsController : ControllerBase
         {
             _logger.LogError(ex, "Error exporting impression logs for {BookingId}", bookingId);
             return StatusCode(500, "Error generating export");
+        }
+    }
+
+    /// <summary>
+    /// Get delivery summary for admin review before final payout release.
+    /// Shows impression delivery stats, advance paid, remaining amount.
+    /// </summary>
+    [HttpGet("bookings/{bookingId}/delivery-summary")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<ApiResponse<DeliverySummaryDto>>> GetDeliverySummary(Guid bookingId)
+    {
+        try
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Screen)
+                .Include(b => b.Campaign)
+                .Include(b => b.Payouts)
+                .FirstOrDefaultAsync(b => b.Id == bookingId);
+
+            if (booking == null)
+                return NotFound(ApiResponse<DeliverySummaryDto>.ErrorResponse("Booking not found"));
+
+            var from = DateTime.SpecifyKind(booking.StartDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+            var to = DateTime.SpecifyKind(booking.EndDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
+
+            // Get daily impression counts
+            var dailyData = await _context.Impressions
+                .Where(i => i.BookingId == bookingId && i.PlayedAt >= from && i.PlayedAt <= to)
+                .GroupBy(i => i.PlayedAt.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    Count = g.Count(),
+                    Verified = g.Count(i => i.IsVerified)
+                })
+                .ToListAsync();
+
+            var totalImpressions = dailyData.Sum(d => d.Count);
+            var verifiedImpressions = dailyData.Sum(d => d.Verified);
+
+            var totalDays = (booking.EndDate.ToDateTime(TimeOnly.MinValue) - booking.StartDate.ToDateTime(TimeOnly.MinValue)).Days + 1;
+            var activeDays = dailyData.Count;
+
+            var advancePaid = booking.Payouts?
+                .Where(p => p.Type == Domain.Enums.PayoutType.Advance && p.Status == Domain.Enums.PayoutStatus.Completed)
+                .Sum(p => p.NetAmount) ?? 0m;
+
+            // Build daily breakdown for the full booking period
+            var dailyBreakdown = new List<DailyDeliveryEntry>();
+            for (var date = booking.StartDate; date <= booking.EndDate; date = date.AddDays(1))
+            {
+                var dayData = dailyData.FirstOrDefault(d => DateOnly.FromDateTime(d.Date) == date);
+                dailyBreakdown.Add(new DailyDeliveryEntry
+                {
+                    Date = date.ToString("yyyy-MM-dd"),
+                    Impressions = dayData?.Count ?? 0,
+                    VerifiedImpressions = dayData?.Verified ?? 0,
+                    HasData = dayData != null
+                });
+            }
+
+            var summary = new DeliverySummaryDto
+            {
+                BookingId = bookingId,
+                ScreenName = booking.Screen?.Name ?? "Unknown",
+                CampaignName = booking.Campaign?.Name,
+                StartDate = booking.StartDate.ToString("yyyy-MM-dd"),
+                EndDate = booking.EndDate.ToString("yyyy-MM-dd"),
+                ExpectedImpressions = booking.ExpectedImpressions,
+                DeliveredImpressions = totalImpressions,
+                VerifiedImpressions = verifiedImpressions,
+                DeliveryRate = booking.ExpectedImpressions > 0
+                    ? Math.Round((decimal)totalImpressions / booking.ExpectedImpressions * 100, 2)
+                    : 0,
+                TotalDays = totalDays,
+                ActiveDays = activeDays,
+                TotalPrice = booking.TotalPrice,
+                Currency = booking.Currency,
+                AdvancePaid = advancePaid,
+                RemainingAmount = booking.TotalPrice - advancePaid,
+                DailyBreakdown = dailyBreakdown
+            };
+
+            return Ok(ApiResponse<DeliverySummaryDto>.SuccessResponse(summary));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating delivery summary for {BookingId}", bookingId);
+            return StatusCode(500, ApiResponse<DeliverySummaryDto>.ErrorResponse("Error generating delivery summary"));
         }
     }
 

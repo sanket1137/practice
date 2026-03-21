@@ -1,14 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CCMS.Infrastructure.Data;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
 /// <summary>
 /// Health check endpoint for container orchestration and load balancers
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class HealthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

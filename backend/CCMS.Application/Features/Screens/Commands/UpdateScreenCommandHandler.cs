@@ -65,6 +65,23 @@ public class UpdateScreenCommandHandler : IRequestHandler<UpdateScreenCommand, S
             screen.TimeFrameMinutes = request.Request.TimeFrameMinutes.Value;
         if (request.Request.SlotsPerFrame.HasValue)
             screen.SlotsPerFrame = request.Request.SlotsPerFrame.Value;
+
+        // Validate even-division: frame time (seconds) must divide evenly by slots.
+        // FluentValidation handles the case where both fields are in the request.
+        // Here we handle partial updates where only one field changed
+        // (the other comes from the current DB entity — already applied above).
+        if (screen.TimeFrameMinutes > 0 && screen.SlotsPerFrame > 0)
+        {
+            var totalSeconds = screen.TimeFrameMinutes * 60;
+            if (totalSeconds % screen.SlotsPerFrame != 0)
+            {
+                var slotSec = totalSeconds / (double)screen.SlotsPerFrame;
+                throw new InvalidOperationException(
+                    $"Frame time ({screen.TimeFrameMinutes} min = {totalSeconds}s) must divide evenly by " +
+                    $"{screen.SlotsPerFrame} slots. Current slot duration would be {slotSec:F2}s — must be a whole number of seconds.");
+            }
+        }
+
         if (request.Request.PricePerSlot.HasValue)
             screen.PricePerSlot = request.Request.PricePerSlot.Value;
         if (request.Request.Status != null)

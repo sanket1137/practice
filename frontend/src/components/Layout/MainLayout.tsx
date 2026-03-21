@@ -15,10 +15,14 @@ import {
     Avatar,
     Menu,
     MenuItem,
+    Badge,
+    Popover,
+    Chip,
 } from '@mui/material';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useNotifications } from '../../hooks/useNotifications';
 import ConnectionStatus from '../common/ConnectionStatus';
 import MobileBottomNav from './MobileBottomNav';
 import BreadcrumbNavigation from '../common/BreadcrumbNavigation';
@@ -36,6 +40,11 @@ import {
     Logout as LogoutIcon,
     Search as SearchIcon,
     Explore as ExploreIcon,
+    Payments as PayoutsIcon,
+    Notifications as NotificationsIcon,
+    DoneAll as DoneAllIcon,
+    Settings as SettingsIcon,
+    Security as SecurityIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -45,8 +54,10 @@ const MainLayout = () => {
     const location = useLocation();
     const { user, logout } = useAuthStore();
     const { connectionState } = useWebSocket();
+    const { unreadCount, notifications: recentNotifications, markAsRead, markAllAsRead } = useNotifications();
     const [mobileOpen, setMobileOpen] = useState(false);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
     const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
     const { open: shortcutsOpen, setOpen: setShortcutsOpen } = useKeyboardShortcuts();
 
@@ -76,7 +87,9 @@ const MainLayout = () => {
                 { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
                 { text: 'My Screens', icon: <ScreenIcon />, path: '/screens' },
                 { text: 'Booking Requests', icon: <BookingIcon />, path: '/bookings' },
+                { text: 'Payouts', icon: <PayoutsIcon />, path: '/payouts' },
                 { text: 'Earnings & Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+                { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
             ];
         }
 
@@ -87,6 +100,7 @@ const MainLayout = () => {
                 { text: 'Discover Screens', icon: <ExploreIcon />, path: '/screens/discover' },
                 { text: 'My Bookings', icon: <BookingIcon />, path: '/bookings' },
                 { text: 'Campaign Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+                { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
             ];
         }
 
@@ -96,7 +110,10 @@ const MainLayout = () => {
             { text: 'All Campaigns', icon: <CampaignIcon />, path: '/campaigns' },
             { text: 'All Screens', icon: <ScreenIcon />, path: '/screens' },
             { text: 'All Bookings', icon: <BookingIcon />, path: '/bookings' },
+            { text: 'Payouts', icon: <PayoutsIcon />, path: '/admin/payouts' },
+            { text: 'Machines', icon: <SecurityIcon />, path: '/admin/machines' },
             { text: 'Platform Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+            { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
         ];
     };
 
@@ -166,6 +183,16 @@ const MainLayout = () => {
                             <SearchIcon />
                         </IconButton>
 
+                        {/* Notification Bell */}
+                        <IconButton
+                            color="inherit"
+                            onClick={(e) => setNotifAnchorEl(e.currentTarget)}
+                        >
+                            <Badge badgeContent={unreadCount} color="error" max={99}>
+                                <NotificationsIcon />
+                            </Badge>
+                        </IconButton>
+
                         <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
                             {user?.firstName} {user?.lastName}
                         </Typography>
@@ -213,6 +240,104 @@ const MainLayout = () => {
                     Logout
                 </MenuItem>
             </Menu>
+
+            {/* Notification Popover */}
+            <Popover
+                open={Boolean(notifAnchorEl)}
+                anchorEl={notifAnchorEl}
+                onClose={() => setNotifAnchorEl(null)}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                slotProps={{
+                    paper: {
+                        sx: { width: 360, maxHeight: 480 },
+                    },
+                }}
+            >
+                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                        Notifications
+                    </Typography>
+                    {unreadCount > 0 && (
+                        <IconButton
+                            size="small"
+                            onClick={() => { markAllAsRead(); }}
+                            title="Mark all as read"
+                        >
+                            <DoneAllIcon fontSize="small" />
+                        </IconButton>
+                    )}
+                </Box>
+                <Divider />
+                {recentNotifications.length === 0 ? (
+                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            No notifications yet
+                        </Typography>
+                    </Box>
+                ) : (
+                    <List disablePadding sx={{ maxHeight: 340, overflow: 'auto' }}>
+                        {recentNotifications.map((notif) => (
+                            <ListItem
+                                key={notif.id}
+                                disablePadding
+                                sx={{
+                                    bgcolor: notif.isRead ? 'transparent' : 'action.hover',
+                                }}
+                            >
+                                <ListItemButton
+                                    onClick={() => {
+                                        if (!notif.isRead) markAsRead(notif.id);
+                                        setNotifAnchorEl(null);
+                                        if (notif.actionUrl) navigate(notif.actionUrl);
+                                    }}
+                                    sx={{ py: 1.5 }}
+                                >
+                                    <ListItemText
+                                        primary={notif.title}
+                                        secondary={
+                                            <Box component="span">
+                                                <Typography variant="caption" component="span" display="block" color="text.secondary">
+                                                    {notif.message}
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                                    <Chip
+                                                        label={notif.type.replace(/([A-Z])/g, ' $1').trim()}
+                                                        size="small"
+                                                        variant="outlined"
+                                                        sx={{ height: 20, fontSize: '0.65rem' }}
+                                                    />
+                                                    <Typography variant="caption" color="text.disabled">
+                                                        {new Date(notif.createdAt).toLocaleDateString()}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        }
+                                        primaryTypographyProps={{
+                                            variant: 'body2',
+                                            fontWeight: notif.isRead ? 'normal' : 'bold',
+                                        }}
+                                    />
+                                </ListItemButton>
+                            </ListItem>
+                        ))}
+                    </List>
+                )}
+                <Divider />
+                <Box sx={{ p: 1, textAlign: 'center' }}>
+                    <ListItemButton
+                        onClick={() => {
+                            setNotifAnchorEl(null);
+                            navigate('/notifications');
+                        }}
+                        sx={{ justifyContent: 'center', borderRadius: 1 }}
+                    >
+                        <Typography variant="body2" color="primary">
+                            View All Notifications
+                        </Typography>
+                    </ListItemButton>
+                </Box>
+            </Popover>
 
             <Box
                 component="nav"

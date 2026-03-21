@@ -1,0 +1,513 @@
+--------- beginning of system
+02-18 14:26:34.387  5834 11826 W ActivityTaskManager: callingPackage for (uid=2000, pid=12613) has no WPC
+--------- beginning of main
+02-18 14:26:34.423  5834 11826 I system_server: AssetManager2(0x8888af94) locale list changing from [] to [en-US]
+02-18 14:26:34.441  5834 11826 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@1af50af5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+02-18 14:26:34.451  5834 11826 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+02-18 14:26:34.454  5834 11826 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+02-18 14:26:34.475  5834 11826 E CellBroadcastUtils: getDefaultCellBroadcastReceiverPackageName: no package found
+02-18 14:26:34.527  5834 11826 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
+02-18 14:26:34.591  5834 11826 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x5 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+02-18 14:26:34.627  5834  5873 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@1af50af5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+02-18 14:26:34.636  6066  6201 V WindowManagerShell: Transition requested (#33): android.os.BinderProxy@50778fb TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=21 effectiveUid=10094 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity } baseActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} topActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} origActivity=null realActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} numActivities=1 lastActiveTime=47215583 supportsMultiWindow=false resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@82d2d18} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=true launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{789b371 com.pixelspot.ccms.player.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(840, 473 - 3000, 1688) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 3840, 2160) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive}} topActivityMainWindowFrame=null}, pipChange = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 33 }
+02-18 14:26:34.684   522   522 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+02-18 14:26:34.688  5834  5950 I InputDispatcher: Waiting because 22c5ff4 com.google.android.tvlauncher/com.google.android.tvlauncher.MainActivity is paused
+02-18 14:26:34.725  5834  5991 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 2, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 14:26:34.744  5834  5991 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 2, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 14:26:34.788  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:34.813  5834  5950 W InputDispatcher: Waiting because no window has focus but ActivityRecord{180416028 u0 com.google.android.tvlauncher/.MainActivity t15} may eventually add a window when it finishes starting up. Will wait for 5000ms
+02-18 14:26:34.819 11960 11960 W Glide   : Load failed for [null] with dimensions [0x0]
+02-18 14:26:34.819 11960 11960 W Glide   : class cwo: Received null model
+02-18 14:26:34.872  6066  6201 D WindowManagerShell: TvPipController: onTaskStackChanged()
+02-18 14:26:34.904  5834  5922 D ActivityManager: sync unfroze 6719 com.android.providers.tv for 7
+02-18 14:26:34.908  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:34.912  5834  5922 W ContentProviderHelper: Slow operation: 92ms so far, now at getContentProviderImpl: after updateOomAdj
+02-18 14:26:34.915  5834  5922 W ContentProviderHelper: Slow operation: 94ms so far, now at getContentProviderImpl: done!
+02-18 14:26:34.956  6719  6719 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 14:26:34.957  6719  6719 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 14:26:35.003 11960 11960 W View    : requestLayout() improperly called by android.widget.FrameLayout{c4ec423 V.E...... ......ID 0,0-3840,2160 #7f0b009b app:id/background_image_container} during layout: running second layout pass
+02-18 14:26:35.005 11960 11960 W View    : requestLayout() improperly called by android.widget.FrameLayout{9932532 V.E...... ......I. 1280,0-3840,1440 #7f0b039e app:id/old_image} during layout: running second layout pass
+02-18 14:26:35.005 11960 11960 W View    : requestLayout() improperly called by android.widget.FrameLayout{3cc393d I.E...... ......ID 1280,0-3840,1440 #7f0b0133 app:id/current_image} during layout: running second layout pass
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: Writing exception to parcel
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: android.database.sqlite.SQLiteDoneException
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.database.sqlite.SQLiteConnection.nativeExecuteForBlobFileDescriptor(Native Method)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.database.sqlite.SQLiteConnection.executeForBlobFileDescriptor(SQLiteConnection.java:890)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.database.sqlite.SQLiteSession.executeForBlobFileDescriptor(SQLiteSession.java:757)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.database.sqlite.SQLiteStatement.simpleQueryForBlobFileDescriptor(SQLiteStatement.java:152)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.database.DatabaseUtils.blobFileDescriptorForQuery(DatabaseUtils.java:1092)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.database.DatabaseUtils.blobFileDescriptorForQuery(DatabaseUtils.java:1077)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at com.android.providers.tv.TvProvider.openLogoFile(TvProvider.java:2497)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at com.android.providers.tv.TvProvider.openFile(TvProvider.java:2469)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.content.ContentProvider.openAssetFile(ContentProvider.java:2268)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.content.ContentProvider.openTypedAssetFile(ContentProvider.java:2446)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.content.ContentProvider.openTypedAssetFile(ContentProvider.java:2513)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.content.ContentProvider$Transport.openTypedAssetFile(ContentProvider.java:677)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:341)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.os.Binder.execTransactInternal(Binder.java:1421)
+02-18 14:26:35.005  6719 12473 E DatabaseUtils: 	at android.os.Binder.execTransact(Binder.java:1365)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: Request threw uncaught throwable
+02-18 14:26:35.023 11960 12497 E GlideExecutor: android.database.sqlite.SQLiteException
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:197)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2045)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1860)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at android.content.ContentResolver.openInputStream(ContentResolver.java:1530)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cvh.b(PG:16)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cvd.f(PG:5)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cww.c(PG:261)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cvw.l(PG:23)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cvw.run(PG:69)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cio.run(PG:909)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at java.lang.Thread.run(Thread.java:1119)
+02-18 14:26:35.023 11960 12497 E GlideExecutor: 	at cxy.run(PG:6)
+02-18 14:26:35.029 11960 11960 W Choreographer: Frame time is 0.105681 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:35.029 11960 11960 W Glide   : Load failed for [content://android.media.tv/channel/1000000/logo?t=1771404994813] with dimensions [240x240]
+02-18 14:26:35.029 11960 11960 W Glide   : class cwo: Failed to load resource
+02-18 14:26:35.029 11960 11960 W Glide   : There was 1 root cause:
+02-18 14:26:35.029 11960 11960 W Glide   : android.database.sqlite.SQLiteException(null)
+02-18 14:26:35.029 11960 11960 W Glide   :  call GlideException#logRootCauses(String) for more detail
+02-18 14:26:35.029 11960 11960 W Glide   :   Cause (1 of 1): class android.database.sqlite.SQLiteException: 
+02-18 14:26:35.041 11960 11960 W VRI[MainActivity]: Cancelling event (no window focus):KeyEvent { action=ACTION_UP, keyCode=KEYCODE_UNKNOWN, scanCode=125, metaState=0, flags=0x28, repeatCount=0, eventTime=47215804517676, downTime=44810052574000, deviceId=0, source=0x301, displayId=-1 }
+02-18 14:26:35.042 11960 11960 W VRI[MainActivity]: Cancelling event (no window focus):KeyEvent { action=ACTION_UP, keyCode=KEYCODE_UNKNOWN, scanCode=125, metaState=0, flags=0x28, repeatCount=0, eventTime=47215804517676, downTime=44810052574000, deviceId=0, source=0x301, displayId=-1 }
+02-18 14:26:35.042 11960 11960 W VRI[MainActivity]: Cancelling event (no window focus):KeyEvent { action=ACTION_UP, keyCode=KEYCODE_UNKNOWN, scanCode=125, metaState=0, flags=0x28, repeatCount=0, eventTime=47215804517676, downTime=44810052574000, deviceId=0, source=0x301, displayId=-1 }
+02-18 14:26:35.042 11960 11960 W VRI[MainActivity]: Cancelling event (no window focus):KeyEvent { action=ACTION_UP, keyCode=KEYCODE_UNKNOWN, scanCode=125, metaState=0, flags=0x228, repeatCount=0, eventTime=47215804517676, downTime=44810052574000, deviceId=0, source=0x301, displayId=-1 }
+02-18 14:26:35.042 11960 11960 W VRI[MainActivity]: Cancelling event (no window focus):KeyEvent { action=ACTION_UP, keyCode=KEYCODE_UNKNOWN, scanCode=125, metaState=0, flags=0x228, repeatCount=0, eventTime=47215804517676, downTime=44810052574000, deviceId=0, source=0x301, displayId=-1 }
+02-18 14:26:35.042 11960 11960 W VRI[MainActivity]: Cancelling event (no window focus):KeyEvent { action=ACTION_UP, keyCode=KEYCODE_UNKNOWN, scanCode=125, metaState=0, flags=0x228, repeatCount=0, eventTime=47215804517676, downTime=44810052574000, deviceId=0, source=0x301, displayId=-1 }
+02-18 14:26:35.115  5754  5754 D Zygote  : Forked child process 12619
+02-18 14:26:35.117  5834  5887 W ActivityManager: Slow operation: 489ms so far, now at startProcess: returned from zygote!
+02-18 14:26:35.118  5834  5887 W ActivityManager: Slow operation: 490ms so far, now at startProcess: done updating battery stats
+02-18 14:26:35.118  5834  5887 W ActivityManager: Slow operation: 490ms so far, now at startProcess: building log message
+02-18 14:26:35.118  5834  5887 I ActivityManager: Start proc 12619:com.pixelspot.ccms.player.debug/u0a94 for next-top-activity {com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity}
+02-18 14:26:35.118  5834  5887 W ActivityManager: Slow operation: 490ms so far, now at startProcess: starting to update pids map
+02-18 14:26:35.118  5834  5887 I ActivityManager: ProcessObserver broadcast disabled
+02-18 14:26:35.118  5834  5887 W ActivityManager: Slow operation: 490ms so far, now at startProcess: done updating pids map
+02-18 14:26:35.359 12619 12619 I ms.player.debug: Late-enabling -Xcheck:jni
+02-18 14:26:35.469  5834  5942 D ActivityManager: freezing 6546 com.google.android.gms
+02-18 14:26:35.526  7041  7041 I cast_shell: [0218/142635.524928:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 14:26:35.527  7041  7041 I cast_shell: [0218/142635.526677:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 14:26:35.528  7041  7041 I cast_shell: [0218/142635.528129:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+02-18 14:26:36.004 12619 12619 I ms.player.debug: Using CollectorTypeCMC GC.
+02-18 14:26:36.016 12619 12619 W ms.player.debug: Unexpected CPU variant for x86: x86.
+02-18 14:26:36.016 12619 12619 W ms.player.debug: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, alderlake, default
+02-18 14:26:36.049  5834  5991 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 14:26:36.052  5834  5991 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 14:26:36.143  1801  1812 I adbd    : jdwp connection from 12619
+02-18 14:26:36.226  5834  5991 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 14:26:36.236  5834  5991 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 14:26:36.333 12619 12619 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+02-18 14:26:36.533  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:36.630 12619 12619 D nativeloader: Load libstats_jni.so using APEX ns com_android_os_statsd for caller /apex/com.android.os.statsd/javalib/framework-statsd.jar: ok
+02-18 14:26:36.634 12619 12619 D CompatChangeReporter: Compat change id reported: 242716250; UID 10094; state: ENABLED
+02-18 14:26:37.294 12619 12619 D nativeloader: Configuring clns-7 for other apk /data/app/~~7YRzKmF9Q3dp0lhEhR-IYg==/com.pixelspot.ccms.player.debug-NOnDWoKzXKO9QfcxXibpEg==/base.apk. target_sdk_version=34, uses_libraries=, library_path=/data/app/~~7YRzKmF9Q3dp0lhEhR-IYg==/com.pixelspot.ccms.player.debug-NOnDWoKzXKO9QfcxXibpEg==/lib/x86, permitted_path=/data:/mnt/expand:/data/user/0/com.pixelspot.ccms.player.debug
+02-18 14:26:37.350 12619 12619 I ms.player.debug: AssetManager2(0xebc406d4) locale list changing from [] to [en-US]
+02-18 14:26:37.421 12619 12619 V GraphicsEnvironment: Currently set values for:
+02-18 14:26:37.421 12619 12619 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+02-18 14:26:37.421 12619 12619 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+02-18 14:26:37.421 12619 12619 V GraphicsEnvironment: com.pixelspot.ccms.player.debug is not listed in per-application setting
+02-18 14:26:37.423 12619 12619 V GraphicsEnvironment: ANGLE allowlist from config: 
+02-18 14:26:37.423 12619 12619 V GraphicsEnvironment: com.pixelspot.ccms.player.debug is not listed in ANGLE allowlist or settings, returning default
+02-18 14:26:37.424 12619 12619 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+02-18 14:26:37.557 12619 12619 I CrashRecovery: Crash recovery installed, safe_mode=false
+02-18 14:26:37.576  5834  5950 W InputDispatcher: Waiting because no window has focus but ActivityRecord{42434172 u0 com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity t21} may eventually add a window when it finishes starting up. Will wait for 5000ms
+02-18 14:26:37.578 11960 11960 W Choreographer: Frame time is 0.499034 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:37.598  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:37.598  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:37.603 12619 12619 I BootReceiver: Boot completed, starting PlayerService
+02-18 14:26:37.610  5834  5922 I ActivityManager: Background started FGS: Allowed [callingPackage: com.pixelspot.ccms.player.debug; callingUid: 10094; uidState: TOP ; uidBFSL: [BFSL]; intent: Intent { act=com.pixelspot.ccms.player.START xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; allowWiu:12; targetSdkVersion:34; callerTargetSdkVersion:34; startForegroundCount:0; bindFromPackage:null: isBindService:false]
+02-18 14:26:37.612 11960 11960 W Choreographer: Frame time is 0.495454 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:37.632  5834 11826 I BroadcastQueue: BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:1 completeLatency:1101 dispatchRealLatency:1 completeRealLatency:1101 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
+02-18 14:26:37.667 12619 12619 I ms.player.debug: AssetManager2(0xebc44ed4) locale list changing from [] to [en-US]
+02-18 14:26:37.673 12619 12635 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+02-18 14:26:37.679  5834 11826 V DisplayManagerService: FrozenStateChangeCallback not supported for pid 12619
+02-18 14:26:37.719 12619 12619 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+02-18 14:26:37.721 12619 12619 I ms.player.debug: AssetManager2(0xebc43f14) locale list changing from [] to [en-US]
+02-18 14:26:37.744 12619 12619 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+02-18 14:26:37.907 12619 12635 I EGL_emulation: Opening libGLESv1_CM_emulation.so
+02-18 14:26:37.912 12619 12635 I EGL_emulation: Opening libGLESv2_emulation.so
+02-18 14:26:37.981 12619 12635 W HWUI    : Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
+02-18 14:26:37.982 12619 12635 W HWUI    : Failed to initialize 101010-2 format, error = EGL_SUCCESS
+02-18 14:26:38.121  5834  6462 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+02-18 14:26:38.558 12619 12619 D DesktopModeFlags: Toggle override initialized to: OVERRIDE_UNSET
+02-18 14:26:38.627 12619 12619 I ms.player.debug: hiddenapi: Accessing hidden method Landroid/view/View;->computeFitSystemWindows(Landroid/graphics/Rect;Landroid/graphics/Rect;)Z (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/appcompat/widget/ViewUtils; (domain=app) using reflection: allowed
+02-18 14:26:38.627 12619 12619 I ms.player.debug: hiddenapi: Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/appcompat/widget/ViewUtils; (domain=app) using reflection: allowed
+02-18 14:26:38.777 12619 12619 W HWUI    : Image decoding logging dropped!
+02-18 14:26:38.840  7041  7451 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 14:26:38.842  7041  7451 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 14:26:38.842  7041  7451 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 14:26:38.842  7041  7451 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 14:26:38.959 12619 12619 I ExoPlayerImpl: Init 40e47df [AndroidXMedia3/1.2.1] [emulator_x86_arm, AOSP TV on x86, Google, 36]
+02-18 14:26:38.996  5834 11826 D CompatChangeReporter: Compat change id reported: 161145287; UID 10094; state: ENABLED
+02-18 14:26:39.015 12619 12619 D AudioSystem: onNewService: media.audio_policy service obtained 0xde902cb0
+02-18 14:26:39.028 12619 12619 D AudioSystem: getService: checking for service media.audio_policy: 0xde902cb0
+02-18 14:26:39.061  5755 11418 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 14:26:39.084  5755 11418 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 14:26:39.105  6277 12602 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] threadEnabled=%b, internetReady=%b
+02-18 14:26:39.142  5755 11418 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 14:26:39.147  5755 11418 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 14:26:39.149  6277 12602 I GmsThreadNetwork: [ThreadNetworkAgent] Thread network sync starting [CONTEXT service_id=305 ]
+02-18 14:26:39.150  6277 12602 I GmsThreadNetwork: [ThreadNetworkAgent] Checking cast auth registration status [CONTEXT service_id=305 ]
+02-18 14:26:39.185  5834 11826 D ActivityManager: sync unfroze 6546 com.google.android.gms for 6
+02-18 14:26:39.198  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:39.202  6546  6546 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 14:26:39.202  6546  6546 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 14:26:39.219  6546  8095 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 14:26:39.220  6546  8095 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 14:26:39.235  6546  8095 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 14:26:39.236  6546  8095 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: [ThreadNetworkAgent] Failed to do network sync, waiting for CastAuth registration [CONTEXT service_id=305 ]
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: m.mg: 17: API: CastAuth.API is not available on this device. Connection failed with: kr{statusCode=API_UNAVAILABLE, resolution=null, message=null}
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.qk.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):13)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.ng.c(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.oi.t(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):48)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.oi.f(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):10)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.oi.j(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):184)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.oi.i(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):2)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.rh.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.qs.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):7)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.ql.d(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):81)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.qm.handleMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):280)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at m.fke.dispatchMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):138)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at android.os.Looper.loop(Looper.java:338)
+02-18 14:26:39.241  6277 12602 W GmsThreadNetwork: 	at android.os.HandlerThread.run(HandlerThread.java:85)
+02-18 14:26:39.242  6277 12602 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Schedule retry network sync on failure in %d ms
+02-18 14:26:39.245  6277 12602 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Network sync completed: %s
+02-18 14:26:39.241 12619 12619 I ms.player.debug: hiddenapi: Accessing hidden method Landroid/media/AudioTrack;->getLatency()I (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/media3/exoplayer/audio/AudioTrackPositionTracker; (domain=app) using reflection: allowed
+02-18 14:26:39.260 12619 12619 W libc    : Access denied finding property "vendor.display-size"
+02-18 14:26:39.332 12619 12619 D AudioSystem: onNewServiceWithAdapter: media.audio_flinger service obtained 0xec2e6f10
+02-18 14:26:39.447 12619 12619 D AudioSystem: getService: checking for service media.audio_flinger: 0xde90c400
+02-18 14:26:39.466  5834  5873 W BLASTSyncEngine: Sync group 33 timeout
+02-18 14:26:39.467  5834  5873 I BLASTSyncEngine: Unfinished container: Task{c22d305 #21 type=standard A=10094:com.pixelspot.ccms.player.debug}
+02-18 14:26:39.468  5834  5873 I BLASTSyncEngine: Unfinished container: ActivityRecord{42434172 u0 com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity t21}
+02-18 14:26:39.532  5834  5870 V WindowManager: Sent Transition (#33) createdAt=02-18 14:26:34.462 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=21 effectiveUid=10094 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity } baseActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} topActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} origActivity=null realActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} numActivities=1 lastActiveTime=47215583 supportsMultiWindow=false resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{RemoteToken{ba970d1 Task{c22d305 #21 type=standard A=10094:com.pixelspot.ccms.player.debug}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=true launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{a2ae736 com.pixelspot.ccms.player.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(840, 473 - 3000, 1688) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 3840, 2160) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive}} topActivityMainWindowFrame=null}, pipChange = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 33 }
+02-18 14:26:39.533  5834  5870 V WindowManager:     startWCT=WindowContainerTransaction { changes= {} hops= [] errorCallbackToken=null taskFragmentOrganizer=null }
+02-18 14:26:39.534  5834  5870 V WindowManager:     info={id=33 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[
+02-18 14:26:39.534  5834  5870 V WindowManager:         {WCT{RemoteToken{ba970d1 Task{c22d305 #21 type=standard A=10094:com.pixelspot.ccms.player.debug}}} m=OPEN f=NONE leash=Surface(name=Task=21)/@0x1a7df5b sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1},
+02-18 14:26:39.534  5834  5870 V WindowManager:         {WCT{RemoteToken{a331b4c Task{23d7c3 #1 type=home}}} m=TO_BACK f=NONE leash=Surface(name=Task=1)/@0xfc07423 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}
+02-18 14:26:39.534  5834  5870 V WindowManager:     ]}
+02-18 14:26:39.545 11960 11960 W Choreographer: Frame time is 0.3663 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.565  6066  6088 V WindowManagerShell: onTransitionReady(transaction=25056839206483)
+02-18 14:26:39.573  6066  6201 V WindowManagerShell: onTransitionReady (#33) android.os.BinderProxy@50778fb: {id=33 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[
+02-18 14:26:39.573  6066  6201 V WindowManagerShell:         {m=OPEN f=NONE leash=Surface(name=Task=21)/@0x4b40556 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1},
+02-18 14:26:39.573  6066  6201 V WindowManagerShell:         {m=TO_BACK f=NONE leash=Surface(name=Task=1)/@0xcaa9d7 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}
+02-18 14:26:39.573  6066  6201 V WindowManagerShell:     ]}
+02-18 14:26:39.586  6066  6201 V WindowManagerShell: Playing animation for (#33) android.os.BinderProxy@50778fb@0
+02-18 14:26:39.594  6066  6201 V WindowManagerShell: Transition doesn't have explicit remote, search filters for match for {id=33 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{m=OPEN f=NONE leash=Surface(name=Task=21)/@0x4b40556 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1},{m=TO_BACK f=NONE leash=Surface(name=Task=1)/@0xcaa9d7 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}]}
+02-18 14:26:39.609  6066  6201 V WindowManagerShell:  Delegate animation for (#33) to null
+02-18 14:26:39.612  6066  6201 V WindowManagerShell: start default transition animation, info = {id=33 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{m=OPEN f=NONE leash=Surface(name=Task=21)/@0x4b40556 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1},{m=TO_BACK f=NONE leash=Surface(name=Task=1)/@0xcaa9d7 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}]}
+02-18 14:26:39.626 12619 12619 W KioskManager: Not device owner, kiosk mode unavailable. Run: adb shell dpm set-device-owner com.pixelspot.ccms.player/.kiosk.AdminReceiver
+02-18 14:26:39.628 11960 11960 W Choreographer: Frame time is 0.809077 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.673  6066  6201 V WindowManagerShell: loadAnimation: anim=android.view.animation.AlphaAnimation@b260c73 animAttr=0x9 type=OPEN isEntrance=false
+02-18 14:26:39.692  6066  6201 V WindowManagerShell: loadAnimation: anim=android.view.animation.AlphaAnimation@ba5fa9 animAttr=0x8 type=OPEN isEntrance=true
+02-18 14:26:39.720  6066  6201 V WindowManagerShell:  animated by com.android.wm.shell.transition.DefaultTransitionHandler@8ef7328
+02-18 14:26:39.716 12619 12619 W HWUI    : Unknown dataspace 0
+02-18 14:26:39.728 11960 11960 W Choreographer: Frame time is 0.809076 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.752 12619 12619 D InsetsController: Setting requestedVisibleTypes to -528 (was -9)
+02-18 14:26:39.756  5834 11826 W WindowManager: Failed looking up window session=Session{b3640c2 12619:u0a10094} callers=com.android.server.wm.WindowManagerService.windowForClientLocked:6410 com.android.server.wm.Session.updateRequestedVisibleTypes:700 android.view.IWindowSession$Stub.onTransact:1023 
+02-18 14:26:39.762 11960 11960 W Choreographer: Frame time is 0.186217 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.778 11960 11960 W Choreographer: Frame time is 0.34604 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.793  6066  6226 W Choreographer: Frame time is 0.755782 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.813  5834  5874 W Choreographer: Frame time is 0.218039 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.812 11960 11960 W Choreographer: Frame time is 0.142409 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.827 11960 11960 W Choreographer: Frame time is 1.590871 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.843 12619 12619 I ms.player.debug: hiddenapi: Accessing hidden method Ljava/lang/invoke/MethodHandles$Lookup;-><init>(Ljava/lang/Class;I)V (runtime_flags=0, domain=core-platform, api=unsupported) from Lretrofit2/Platform; (domain=app) using reflection: allowed
+02-18 14:26:39.845 11960 11960 W Choreographer: Frame time is 0.44289 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.861 11960 11960 W Choreographer: Frame time is 1.203572 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.912 11960 11960 W Choreographer: Frame time is 0.142408 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.928 11960 11960 W Choreographer: Frame time is 0.762672 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:39.944 11960 11960 W Choreographer: Frame time is 1.475741 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:40.014  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:40.046 12619 12619 D PlayerService: WakeLock acquired
+02-18 14:26:40.126  5834 11826 D CoreBackPreview: Window{aa86909 u0 com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@fe25b28, mPriority=0, mIsAnimationCallback=false, mOverrideBehavior=0}
+02-18 14:26:40.165  6066  6201 V WindowManagerShell: Transition animation finished (aborted=false), notifying core (#33) android.os.BinderProxy@50778fb@0
+02-18 14:26:40.200  5834  5870 V WindowManager: Finish Transition (#33): created at 02-18 14:26:34.462 collect-started=1.765ms request-sent=125.892ms started=199.568ms ready=3128.807ms sent=5027.714ms commit=234.433ms finished=5727.139ms
+02-18 14:26:40.205 11960 11960 D VRI[MainActivity]: visibilityChanged oldVisibility=true newVisibility=false
+02-18 14:26:40.212  6066  6201 V WindowManagerShell: Track 0 became idle
+02-18 14:26:40.212  6066  6201 V WindowManagerShell: All active transition animations finished
+02-18 14:26:40.278  5834  5874 W Choreographer: Frame time is 1.213503 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:40.384  5834  5870 I ActivityTaskManager: Displayed com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity for user 0: +5s986ms
+02-18 14:26:40.395  5834  5874 W Choreographer: Frame time is 0.108568 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 14:26:40.416 12619 12619 D DeviceFingerprint: Fingerprint generated (components: cpu=effab7a005ecb241, disk=google/sdk_google_at..., mac=00:00:00:00:00:00, host=AOSP TV on x86_Google)
+02-18 14:26:40.472 12619 12648 I okhttp.OkHttpClient: --> POST https://ccms.pixelspot.in/api/player/handshake
+02-18 14:26:40.474 12619 12648 I okhttp.OkHttpClient: Content-Type: application/json; charset=UTF-8
+02-18 14:26:40.474 12619 12648 I okhttp.OkHttpClient: Content-Length: 363
+02-18 14:26:40.474 12619 12648 I okhttp.OkHttpClient: X-Screen-Id: 3dc5af04-81b4-4ec3-8af7-5577a6573859
+02-18 14:26:40.475 12619 12648 I okhttp.OkHttpClient: {"apiKey":"NEEDS_REGENERATION","apiKeyHash":"9f60951904bec152d02449ada0b94ad2d46888b611aaaa56a27477e0d55defc5","deviceFingerprint":"i6lhrDoTx+a8BRWPZwsS9jgACurQKxn2drUs9XSHvjo\u003d","nonce":"0bc6065dca9d87c3d001b148bb956ed258559e00b067a8272bf8ad3479180b69","playerVersion":"1.0.0-android","screenId":"3dc5af04-81b4-4ec3-8af7-5577a6573859","timestamp":1771405000}
+02-18 14:26:40.475 12619 12648 I okhttp.OkHttpClient: --> END POST (363-byte body)
+02-18 14:26:40.477  5834  5955 I ImeTracker: com.pixelspot.ccms.player.debug:2ad31b01: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+02-18 14:26:40.493 12619 12619 D InsetsController: hide(ime(), fromIme=false)
+02-18 14:26:40.498 12619 12619 I ImeTracker: com.pixelspot.ccms.player.debug:2ad31b01: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+02-18 14:26:40.549  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:40.549  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:40.565  6277  6469 I FontLog : (REDACTED) Received query %s, URI %s
+02-18 14:26:40.569  6277  6469 I FontLog : (REDACTED) Query [%s] resolved to %s
+02-18 14:26:40.580  5834 11826 I ImeTracker: system_server:91c533b3: onRequestHide at ORIGIN_SERVER reason IME_REQUESTED_CHANGED_LISTENER fromUser false
+02-18 14:26:40.595  6277  6469 I FontLog : (REDACTED) Fetch %s end status %s
+02-18 14:26:40.598  5834  5873 I ImeTracker: system_server:91c533b3: onCancelled at PHASE_SERVER_SHOULD_HIDE
+02-18 14:26:40.626  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 14:26:40.630  6277  6469 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+02-18 14:26:40.643  6337  6337 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2084 
+02-18 14:26:40.660  6277  6469 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+02-18 14:26:40.748  6337  6337 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():101 repeatCheckTimes = 0, locked = false
+02-18 14:26:40.748  6337  6337 W NotificationCenter: NotificationCenter$NotificationQueue.notifyPendingNotificationsOnExecutor():877 Heavy notify work detected on UI thread: [eam->byd, eam->dzo, eam->dpa] takes 35ms
+02-18 14:26:40.784  6337  6337 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1345 onStartInput(EditorInfo{EditorInfo{packageName=com.pixelspot.ccms.player.debug, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+02-18 14:26:40.824  6337  6337 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():101 repeatCheckTimes = 1, locked = false
+02-18 14:26:40.833  5834 11826 W PackageConfigPersister: App-specific configuration not found for packageName: com.pixelspot.ccms.player.debug and userId: 0
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: <-- 200 https://ccms.pixelspot.in/api/player/handshake (1434ms)
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: server: nginx/1.24.0 (Ubuntu)
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: date: Wed, 18 Feb 2026 08:57:05 GMT
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: content-type: application/json; charset=utf-8
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: vary: Accept-Encoding
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: strict-transport-security: max-age=31536000; includeSubDomains
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: x-frame-options: SAMEORIGIN
+02-18 14:26:41.910 12619 12648 I okhttp.OkHttpClient: x-content-type-options: nosniff
+02-18 14:26:41.911 12619 12648 I okhttp.OkHttpClient: referrer-policy: strict-origin-when-cross-origin
+02-18 14:26:41.911 12619 12648 I okhttp.OkHttpClient: x-xss-protection: 1; mode=block
+02-18 14:26:41.912 12619 12648 I okhttp.OkHttpClient: {"success":true,"message":"Success","data":{"success":true,"message":"Handshake successful","serverTime":"2026-02-18T08:57:05.9065786Z","playlist":{"screenId":"3dc5af04-81b4-4ec3-8af7-5577a6573859","screenName":"Restro_TV_Screen","date":"2026-02-18T00:00:00","operatingStart":"09:00","operatingEnd":"20:00","timeFrameMinutes":1,"slotsPerFrame":3,"playlist":[{"startTime":"09:00","endTime":"20:00","slotNumber":1,"bookingId":null,"campaignId":null,"creativeId":null,"creativeUrl":"https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/Screens/3dc5af04-81b4-4ec3-8af7-5577a6573859/owner/slot1_6bbf84ad-3ff9-4293-93ea-3d468bac729e.mp4","creativeMimeType":"video/mp4","durationSeconds":10,"impressionId":"72d424c0-5ea2-4e02-9902-1550a2b8b47f","isFillerContent":false,"ownerContentId":"7c57b59a-c8e1-4186-9df8-c8826a5fff95"},{"startTime":"09:00","endTime":"20:00","slotNumber":2,"bookingId":null,"campaignId":null,"creativeId":null,"creativeUrl":"https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/Screens/3dc5af04-81b4-4ec3-8af7-5577a6573859/owner/slot2_7e4be18c-9e1d-4f41-bbbd-12022f96c84d.mp4","creativeMimeType":"video/mp4","durationSeconds":10,"impressionId":"b8c6d237-0419-4805-9e92-877bddbb3ae6","isFillerContent":false,"ownerContentId":"97b45337-eb15-49af-926c-3078d49b4be9"},{"startTime":"09:00","endTime":"20:00","slotNumber":3,"bookingId":null,"campaignId":null,"creativeId":null,"creativeUrl":"https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/default-videos/screen_3dc5af04-81b4-4ec3-8af7-5577a6573859.mp4","creativeMimeType":"video/mp4","durationSeconds":20,"impressionId":"13591f2f-e1e4-49d4-9e4c-548b4b3e6645","isFillerContent":true,"ownerContentId":null}],"totalSlots":3,"bookedSlots":0,"fillerSlots":1},"syncIntervalMinutes":10,"screenTimezone":"Asia/Calcutta","operatingHours":{"Monday":"09:00-20:00","Tuesday":"09:00-20:00","Wednesday":"09:00-20:00","Thursday":"09:00-20:00","Friday":"09:00-20:00","Saturday":"10:00-20:00","Sunday":"10:00-20:00"},"verificationSalt":"iL0HR1iOMCO2CiB0eK4acg==","sessionToken":"ceYbGLsKYDfJFXYofKT9rHVqR1veAh81vG0eYCwtcM4=","serverSalt":"p3Vuo3YRCyFJ/oH71AomkA==","sessionExpiresAt":"2026-02-19T08:57:05.9065758Z","deviceBindingStatus":"bound"},"errors":[]}
+02-18 14:26:41.913 12619 12648 I okhttp.OkHttpClient: <-- END HTTP (2228-byte body)
+02-18 14:26:41.934 12619 12619 I SecurityManager: Session initialized, expires at 2026-02-19T08:57:05.9065758Z
+02-18 14:26:41.935 12619 12619 D PlayerRepo: Playlist response: screenId=3dc5af04-81b4-4ec3-8af7-5577a6573859, totalSlots=3, itemsCount=3
+02-18 14:26:41.935 12619 12619 D PlayerRepo: Playlist[0]: url=https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/Screens/3dc5af04-81b4-4ec3-8af7-5577a6573859/owner/slot1_6bbf84ad-3ff9-4293-93ea-3d468bac729e.mp4, duration=10s, isFiller=false
+02-18 14:26:41.936 12619 12619 D PlayerRepo: Playlist[1]: url=https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/Screens/3dc5af04-81b4-4ec3-8af7-5577a6573859/owner/slot2_7e4be18c-9e1d-4f41-bbbd-12022f96c84d.mp4, duration=10s, isFiller=false
+02-18 14:26:41.936 12619 12619 D PlayerRepo: Playlist[2]: url=https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/default-videos/screen_3dc5af04-81b4-4ec3-8af7-5577a6573859.mp4, duration=20s, isFiller=true
+02-18 14:26:41.936 12619 12619 I PlayerRepo: Handshake OK: device=bound, sync=10min, playlist=3 items
+02-18 14:26:41.936 12619 12619 I PlayerService: Handshake successful, 3 items
+02-18 14:26:41.945 12619 12619 D PlaylistManager: Video URLs to load: https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/Screens/3dc5af04-81b4-4ec3-8af7-5577a6573859/owner/slot1_6bbf84ad-3ff9-4293-93ea-3d468bac729e.mp4, https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/Screens/3dc5af04-81b4-4ec3-8af7-5577a6573859/owner/slot2_7e4be18c-9e1d-4f41-bbbd-12022f96c84d.mp4, https://pub-c37d8aeca6e04cb7bb13a43d90d86fd6.r2.dev/uploads/default-videos/screen_3dc5af04-81b4-4ec3-8af7-5577a6573859.mp4
+02-18 14:26:41.957 12619 12619 D ExoPlayerManager: Item transition: 2 -> 0 (reason=3)
+02-18 14:26:41.960 12619 12619 D ExoPlayerManager: Buffering...
+02-18 14:26:41.962 12619 12619 I ExoPlayerManager: Loaded 3 items into playlist
+02-18 14:26:41.962 12619 12619 I PlaylistManager: Loaded 3 items for screen 3dc5af04-81b4-4ec3-8af7-5577a6573859
+02-18 14:26:41.975 12619 12619 D DeviceFingerprint: Fingerprint generated (components: cpu=effab7a005ecb241, disk=google/sdk_google_at..., mac=00:00:00:00:00:00, host=AOSP TV on x86_Google)
+02-18 14:26:41.990 12619 12619 W System.err: SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+02-18 14:26:41.991 12619 12619 W System.err: SLF4J: Defaulting to no-operation (NOP) logger implementation
+02-18 14:26:41.991 12619 12619 W System.err: SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+02-18 14:26:42.051 12619 12648 I okhttp.OkHttpClient: --> POST https://ccms.pixelspot.in/api/player/heartbeat
+02-18 14:26:42.060 12619 12648 I okhttp.OkHttpClient: Content-Type: application/json; charset=UTF-8
+02-18 14:26:42.064 12619 12648 I okhttp.OkHttpClient: Content-Length: 51
+02-18 14:26:42.064 12619 12648 I okhttp.OkHttpClient: X-Screen-Id: 3dc5af04-81b4-4ec3-8af7-5577a6573859
+02-18 14:26:42.064 12619 12648 I okhttp.OkHttpClient: {"screenId":"3dc5af04-81b4-4ec3-8af7-5577a6573859"}
+02-18 14:26:42.064 12619 12648 I okhttp.OkHttpClient: --> END POST (51-byte body)
+02-18 14:26:42.180 12619 12641 W VideoCapabilities: Unrecognized profile/level 0/3 for video/mpeg2
+02-18 14:26:42.253 12619 12641 W VideoCapabilities: Unrecognized profile/level 0/3 for video/mpeg2
+02-18 14:26:42.254 12619 12641 W VideoCapabilities: Unrecognized profile/level 0/3 for video/mpeg2
+02-18 14:26:42.280 12619 12641 I DMCodecAdapterFactory: Creating an asynchronous MediaCodec adapter for track type video
+02-18 14:26:42.306 12619 12648 I okhttp.OkHttpClient: <-- 200 https://ccms.pixelspot.in/api/player/heartbeat (242ms)
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: server: nginx/1.24.0 (Ubuntu)
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: date: Wed, 18 Feb 2026 08:57:06 GMT
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: content-type: application/json; charset=utf-8
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: vary: Accept-Encoding
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: strict-transport-security: max-age=31536000; includeSubDomains
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: x-frame-options: SAMEORIGIN
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: x-content-type-options: nosniff
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: referrer-policy: strict-origin-when-cross-origin
+02-18 14:26:42.307 12619 12648 I okhttp.OkHttpClient: x-xss-protection: 1; mode=block
+02-18 14:26:42.308 12619 12648 I okhttp.OkHttpClient: {"success":true,"message":"Success","data":{"success":true,"serverTime":"2026-02-18T08:57:06.3008946Z"},"errors":[]}
+02-18 14:26:42.308 12619 12648 I okhttp.OkHttpClient: <-- END HTTP (116-byte body)
+02-18 14:26:42.326 12619 12619 D PlayerRepo: Heartbeat OK, server time: null
+02-18 14:26:42.402 12619 12667 D CCodec  : allocate(c2.goldfish.h264.decoder)
+02-18 14:26:42.454 12619 12667 I ApexCodecsLazy: Failed to load libcom.android.media.swcodec.apexcodecs.so: dlopen failed: library "libcom.android.media.swcodec.apexcodecs.so" not found
+02-18 14:26:42.458 12619 12667 I Codec2Client: Available Codec2 services: "default" "software"
+02-18 14:26:42.532 12619 12667 I CCodec  : setting up 'default' as default (vendor) store
+02-18 14:26:42.568   472  9828 I GoldfishComponentStore: in init
+02-18 14:26:42.569   472  9828 I GoldfishComponentStore: loading dll of path libcodec2_goldfish_avcdec.so
+02-18 14:26:42.602   472  9828 I GoldfishComponentStore: Create()
+02-18 14:26:42.660   472  9828 I GoldfishComponentStore: created interface
+02-18 14:26:42.673   472  9828 I GoldfishComponentStore: created component
+02-18 14:26:42.712 12619 12667 I CCodec  : Created component [c2.goldfish.h264.decoder] for [c2.goldfish.h264.decoder]
+02-18 14:26:42.722 12619 12667 D CCodecConfig: read media type: video/avc
+02-18 14:26:42.756 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: algo.buffers.max-count.values
+02-18 14:26:42.759 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: output.subscribed-indices.values
+02-18 14:26:42.759 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: input.buffers.allocator-ids.values
+02-18 14:26:42.760 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: output.buffers.allocator-ids.values
+02-18 14:26:42.761 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: algo.buffers.allocator-ids.values
+02-18 14:26:42.761 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: output.buffers.pool-ids.values
+02-18 14:26:42.762 12619 12667 D ReflectedParamUpdater: extent() != 1 for single value type: algo.buffers.pool-ids.values
+02-18 14:26:42.780 12619 12667 D ReflectedParamUpdater: ignored struct field coded.color-format.locations
+02-18 14:26:42.784 12619 12667 D CCodecConfig: ignoring local param raw.size (0xd2001800) as it is already supported
+02-18 14:26:42.785 12619 12667 D CCodecConfig: ignoring local param default.color (0x5200180b) as it is already supported
+02-18 14:26:42.786 12619 12667 D ReflectedParamUpdater: ignored struct field raw.hdr-static-info.mastering
+02-18 14:26:42.801 12619 12667 I CCodecConfig: query failed after returning 12 values (BAD_INDEX)
+02-18 14:26:42.803 12619 12667 D CCodecConfig: c2 config diff is Dict {
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 coded.pl.level = 20496
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 coded.pl.profile = 20481
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 coded.vui.color.matrix = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 coded.vui.color.primaries = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 coded.vui.color.range = 2
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 coded.vui.color.transfer = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 default.color.matrix = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 default.color.primaries = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 default.color.range = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 default.color.transfer = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 input.buffers.max-size.value = 6291456
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 input.delay.value = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   string input.media-type.value = "video/avc"
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 output.delay.value = 8
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   string output.media-type.value = "video/raw"
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.color.matrix = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.color.primaries = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.color.range = 2
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.color.transfer = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.max-size.height = 240
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.max-size.width = 320
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.pixel-format.value = 35
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::i32 raw.rotation.flip = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::i32 raw.rotation.value = 0
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.sar.height = 1
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.sar.width = 1
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.size.height = 240
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2::u32 raw.size.width = 320
+02-18 14:26:42.803 12619 12667 D CCodecConfig:   c2:
+02-18 14:26:42.808 12619 12667 W ColorUtils: expected specified color aspects (2:0:0:0)
+02-18 14:26:42.836 12619 12665 I MediaCodec: MediaCodec will operate in async mode
+02-18 14:26:42.843 12619 12641 E MediaCodec: Media Quality Service not found.
+02-18 14:26:42.848 12619 12665 D SurfaceUtils: connecting to surface 0xe4786e58, reason connectToSurface
+02-18 14:26:42.849 12619 12665 I MediaCodec: [c2.goldfish.h264.decoder] setting surface generation to 12921857
+02-18 14:26:42.849 12619 12665 D SurfaceUtils: disconnecting from surface 0xe4786e58, reason connectToSurface(reconnect)
+02-18 14:26:42.849 12619 12665 D SurfaceUtils: connecting to surface 0xe4786e50, reason connectToSurface(reconnect-with-listener)
+02-18 14:26:42.858 12619 12667 I CCodecBufferChannel: Using latch times for frame rendered signals - present fences not supported
+02-18 14:26:42.858 12619 12667 D CCodec  : [c2.goldfish.h264.decoder] buffers are bound to CCodec for this session
+02-18 14:26:42.860 12619 12667 D CCodecConfig: no c2 equivalents for log-session-id
+02-18 14:26:42.861 12619 12667 D CCodecConfig: no c2 equivalents for color-standard
+02-18 14:26:42.861 12619 12667 D CCodecConfig: no c2 equivalents for csd-1
+02-18 14:26:42.861 12619 12667 D CCodecConfig: no c2 equivalents for native-window
+02-18 14:26:42.861 12619 12667 D CCodecConfig: no c2 equivalents for native-window-generation
+02-18 14:26:42.861 12619 12667 D CCodecConfig: no c2 equivalents for flags
+02-18 14:26:42.863 12619 12667 D CCodecConfig: config failed => CORRUPTED
+02-18 14:26:42.863 12619 12667 D CCodecConfig: c2 config diff is   c2::u32 default.color.matrix = 1
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 default.color.primaries = 1
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 default.color.range = 2
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 default.color.transfer = 3
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 input.buffers.max-size.value = 6635520
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 raw.max-size.height = 2160
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 raw.max-size.width = 4096
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 raw.size.height = 2160
+02-18 14:26:42.863 12619 12667 D CCodecConfig:   c2::u32 raw.size.width = 4096
+02-18 14:26:42.865 12619 12667 W Codec2Client: query -- param skipped: index = 1107298332.
+02-18 14:26:42.865 12619 12667 D CCodec  : client requested max input size 489981, which is smaller than what component recommended (6635520); overriding with component recommendation.
+02-18 14:26:42.865 12619 12667 W CCodec  : This behavior is subject to change. It is recommended that app developers double check whether the requested max input size is in reasonable range.
+02-18 14:26:42.865 12619 12667 D CCodec  : encoding statistics level = 0
+02-18 14:26:42.865 12619 12667 D CCodec  : setup formats input: AMessage(what = 0x00000000) = {
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t height = 2160
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t level = 65536
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t max-input-size = 6635520
+02-18 14:26:42.865 12619 12667 D CCodec  :   string mime = "video/avc"
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t profile = 65536
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t width = 4096
+02-18 14:26:42.865 12619 12667 D CCodec  :   Rect crop(0, 0, 4095, 2159)
+02-18 14:26:42.865 12619 12667 D CCodec  : }
+02-18 14:26:42.865 12619 12667 D CCodec  : setup formats output: AMessage(what = 0x00000000) = {
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t android._color-format = 2135033992
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t android._video-scaling = 1
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t rotation-degrees = 0
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t color-standard = 6
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t color-range = 2
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t color-transfer = 3
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t sar-height = 1
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t sar-width = 1
+02-18 14:26:42.865 12619 12667 D CCodec  :   Rect crop(0, 0, 4095, 2159)
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t width = 4096
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t height = 2160
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t max-height = 2160
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t max-width = 4096
+02-18 14:26:42.865 12619 12667 D CCodec  :   string mime = "video/raw"
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t android._dataspace = 281411584
+02-18 14:26:42.865 12619 12667 D CCodec  :   int32_t color-format = 2130708361
+02-18 14:26:42.865 12619 12667 D CCodec  : }
+02-18 14:26:42.865 12619 12667 I CCodecConfig: query failed after returning 12 values (BAD_INDEX)
+02-18 14:26:42.866 12619 12667 D CCodecConfig: c2 config diff is   c2::u32 raw.color.matrix = 1
+02-18 14:26:42.866 12619 12667 D CCodecConfig:   c2::u32 raw.color.primaries = 1
+02-18 14:26:42.866 12619 12667 D CCodecConfig:   c2::u32 raw.color.transfer = 3
+02-18 14:26:42.866 12619 12667 E ms.player.debug: Failed to query component interface for required system resources: 6
+02-18 14:26:42.876 12619 12641 D MediaCodec: keep callback message for reclaim
+02-18 14:26:42.888   472 12672 D C2GoldfishAvcDec: calling onInit
+02-18 14:26:42.889 12619 12667 W Codec2Client: query -- param skipped: index = 1342179345.
+02-18 14:26:42.889 12619 12667 W Codec2Client: query -- param skipped: index = 2415921170.
+02-18 14:26:42.889 12619 12667 W Codec2Client: query -- param skipped: index = 1610614798.
+02-18 14:26:42.891 12619 12667 W Codec2Client: query -- param skipped: index = 2684356609.
+02-18 14:26:42.894 12619 12667 D C2Store : Using DMABUF Heaps
+02-18 14:26:42.912 12619 12667 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Created input block pool with allocatorID 16 => poolID 17 - OK (0)
+02-18 14:26:42.914 12619 12667 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Query output surface allocator returned 0 params => BAD_INDEX (6)
+02-18 14:26:42.918 12619 12667 I CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Created output block pool with allocatorID 18 => poolID 160 - OK
+02-18 14:26:42.919 12619 12667 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Configured output block pool ids 160 => OK
+02-18 14:26:42.922 12619 12667 D Codec2-OutputBufferQueue: remote graphic buffer migration 0/0
+02-18 14:26:42.922 12619 12667 D Codec2Client: setOutputSurface -- failed to set consumer usage (6/BAD_INDEX)
+02-18 14:26:42.922 12619 12667 D Codec2Client: setOutputSurface -- generation=12921857 consumer usage=0x900
+02-18 14:26:42.952 12619 12680 D ProfileInstaller: Installing profile for com.pixelspot.ccms.player.debug
+02-18 14:26:42.973   472 10837 D C2BqBuffer: local generation change 12921857 , bqId: 54198192308225 migrated buffers # 0
+02-18 14:26:42.972 12619 12667 D Codec2Client: Surface configure completed
+02-18 14:26:42.984 12619 12667 I DMABUFHEAPS: Using DMA-BUF heap named: system
+02-18 14:26:43.012  5758  5791 W ResourceManagerServiceUtils: Ignoring request to add new resource entry with value <= 0
+02-18 14:26:43.060   472 12672 D SimpleC2Component: Using output block pool with poolID 160 => got 160 - 0
+02-18 14:26:43.316 12619 12671 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Ignoring stale input buffer done callback: last flush index = 0, frameIndex = 0
+02-18 14:26:43.805 12619 12667 D CCodecConfig: c2 config diff is   c2::u32 raw.crop.height = 2160
+02-18 14:26:43.805 12619 12667 D CCodecConfig:   c2::u32 raw.crop.left = 0
+02-18 14:26:43.805 12619 12667 D CCodecConfig:   c2::u32 raw.crop.top = 0
+02-18 14:26:43.805 12619 12667 D CCodecConfig:   c2::u32 raw.crop.width = 4096
+02-18 14:26:44.231 12619 12619 D ExoPlayerManager: Player ready
+02-18 14:26:44.539  6546  6546 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 14:26:44.563 12619 12661 I SignalRClient: Connected to SignalR hub
+02-18 14:26:44.669   222   222 I lowmemorykiller: Kill 'com.google.android.healthconnect.controller' (7273), uid 10076, oom_score_adj 985 to free 73224kB rss, 20444kB swap; reason: device is not responding
+02-18 14:26:44.873 12619 12661 I SignalRClient: Registered device i6lhrDoTx+a8BRWP for screen 3dc5af04-81b4-4ec3-8af7-5577a6573859
+02-18 14:26:45.103 12619 12685 D SignalRClient: ScreenStatusChanged event received
+02-18 14:26:45.542  5834  5942 D ActivityManager: freezing 6472 com.android.keychain
+02-18 14:26:45.546  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 14:26:45.547  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 14:26:45.547  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={10051} in 2ms
+02-18 14:26:45.547  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 14:26:45.547  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 14:26:45.547  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={20051} in 0ms
+02-18 14:26:45.713  5754  5754 I Zygote  : Process 7273 exited due to signal 9 (Killed)
+02-18 14:26:45.753  5834 10493 I ActivityManager: Process com.google.android.healthconnect.controller (pid 7273) has died: cch+85 CEM 
+02-18 14:26:45.779  5834  5888 I libprocessgroup: Removed cgroup /sys/fs/cgroup/apps/uid_10076/pid_7273
+02-18 14:26:46.829 12619 12625 I ms.player.debug: Background concurrent mark compact GC freed 5914KB AllocSpace bytes, 16(528KB) LOS objects, 49% free, 12MB/24MB, paused 341us,47.104ms total 400.234ms
+02-18 14:26:47.067  5834  5834 W Looper  : Slow dispatch took 100ms main app=system_server main=true group=FOREGROUND h=com.android.server.power.Notifier$NotifierHandler c=null m=1
+02-18 14:26:47.326  5834  5834 W Looper  : Slow dispatch took 113ms main app=system_server main=true group=FOREGROUND h=com.android.server.power.Notifier$NotifierHandler c=null m=1
+02-18 14:26:47.358 12619 12641 D MediaCodec: keep callback message for reclaim
+02-18 14:26:47.360 12619 12665 I CCodecConfig: query failed after returning 12 values (BAD_INDEX)
+02-18 14:26:47.360 12619 12665 D CCodecConfig: c2 config diff is   c2::u32 coded.vui.color.matrix = 1
+02-18 14:26:47.360 12619 12665 D CCodecConfig:   c2::u32 coded.vui.color.primaries = 1
+02-18 14:26:47.360 12619 12665 D CCodecConfig:   c2::u32 coded.vui.color.transfer = 3
+02-18 14:26:47.362 12619 12665 W Codec2Client: query -- param skipped: index = 1342179345.
+02-18 14:26:47.362 12619 12665 W Codec2Client: query -- param skipped: index = 2415921170.
+02-18 14:26:47.362 12619 12665 W Codec2Client: query -- param skipped: index = 1610614798.
+02-18 14:26:47.553 12619 12671 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Ignoring stale input buffer done callback: last flush index = 47, frameIndex = 47
+02-18 14:26:47.630  5834  5873 I DisplayDeviceRepository: Display device same: DisplayDeviceInfo{"Built-in Screen": uniqueId="local:4619827259835644672", 3840 x 2160, modeId 1, renderFrameRate 60.000004, hasArrSupport false, frameRateCategoryRate FrameRateCategoryRate {normal=60.0, high=90.0}, supportedRefreshRates [60.000004], defaultModeId 1, userPreferredModeId -1, supportedModes [{id=1, width=3840, height=2160, fps=60.000004, vsync=60.000004, synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}], colorMode 0, supportedColorModes [0], hdrCapabilities HdrCapabilities{mSupportedHdrTypes=[], mMaxLuminance=500.0, mMaxAverageLuminance=500.0, mMinLuminance=0.0}, isForceSdr false, allmSupported false, gameContentTypeSupported false, density 640, 640.0 x 640.0 dpi, appVsyncOff 1000000, presDeadline 16666666, touch INTERNAL, rotation 0, type INTERNAL, address {port=0, model=0x401cec6a7a2b7b}, deviceProductInfo DeviceProductInfo{name=EMU_display_0, manufacturerPnpId=GGL, productId=1, modelYear=null, manufactureDate=ManufactureDate{week=27, year=2006}, connectionToSinkType=1}, state ON, committedState ON, frameRateOverride , brightnessMinimum 0.035433073, brightnessMaximum 1.0, brightnessDefault 0.39763778, brightnessDim 0.05, hdrSdrRatio NaN, FLAG_ALLOWED_TO_BE_DEFAULT_DISPLAY, FLAG_ROTATES_WITH_CONTENT, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, FLAG_TRUSTED, installOrientation 0, displayShape DisplayShape{ spec=-545313861 displayWidth=3840 displayHeight=2160 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}}
+02-18 14:26:47.778  5834  5873 I DisplayDeviceRepository: Display device changed render timings: "Built-in Screen", renderFrameRate=60.000004, presentationDeadlineNanos=16666666, appVsyncOffsetNanos=1000000, frameRateOverrides=[{uid=10094 frameRateHz=60.000004}]
+02-18 14:26:47.785 12619 12665 W VideoRenderQualityTracker: Rendered frame is earlier than the next expected frame (1000001560000, 1000003040000)
+02-18 14:26:47.784  5834  5873 I DisplayDeviceRepository: Display device changed render timings: "Built-in Screen", renderFrameRate=60.000004, presentationDeadlineNanos=16666666, appVsyncOffsetNanos=1000000, frameRateOverrides=[]
+02-18 14:26:47.784  5834  5873 I DisplayDeviceRepository: Display device same: DisplayDeviceInfo{"Built-in Screen": uniqueId="local:4619827259835644672", 3840 x 2160, modeId 1, renderFrameRate 60.000004, hasArrSupport false, frameRateCategoryRate FrameRateCategoryRate {normal=60.0, high=90.0}, supportedRefreshRates [60.000004], defaultModeId 1, userPreferredModeId -1, supportedModes [{id=1, width=3840, height=2160, fps=60.000004, vsync=60.000004, synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}], colorMode 0, supportedColorModes [0], hdrCapabilities HdrCapabilities{mSupportedHdrTypes=[], mMaxLuminance=500.0, mMaxAverageLuminance=500.0, mMinLuminance=0.0}, isForceSdr false, allmSupported false, gameContentTypeSupported false, density 640, 640.0 x 640.0 dpi, appVsyncOff 1000000, presDeadline 16666666, touch INTERNAL, rotation 0, type INTERNAL, address {port=0, model=0x401cec6a7a2b7b}, deviceProductInfo DeviceProductInfo{name=EMU_display_0, manufacturerPnpId=GGL, productId=1, modelYear=null, manufactureDate=ManufactureDate{week=27, year=2006}, connectionToSinkType=1}, state ON, committedState ON, frameRateOverride , brightnessMinimum 0.035433073, brightnessMaximum 1.0, brightnessDefault 0.39763778, brightnessDim 0.05, hdrSdrRatio NaN, FLAG_ALLOWED_TO_BE_DEFAULT_DISPLAY, FLAG_ROTATES_WITH_CONTENT, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, FLAG_TRUSTED, installOrientation 0, displayShape DisplayShape{ spec=-545313861 displayWidth=3840 displayHeight=2160 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}}
+02-18 14:26:48.212 12619 12671 D BufferPoolAccessor2.0: bufferpool2 0xebd8ac48 : 5(33177600 size) total buffers - 5(33177600 size) used buffers - 57/62 (recycle/alloc) - 5/56 (fetch/transfer)
+02-18 14:26:48.288 12619 12665 W VideoRenderQualityTracker: Rendered frame is earlier than the next expected frame (1000003040000, 1000003160000)
+02-18 14:26:48.573   252 12637 I keystore2: system/security/keystore2/watchdog/src/lib.rs:377 - Watchdog thread idle -> terminating. Have a great day.
+02-18 14:26:48.714  5834  5873 I DisplayDeviceRepository: Display device same: DisplayDeviceInfo{"Built-in Screen": uniqueId="local:4619827259835644672", 3840 x 2160, modeId 1, renderFrameRate 60.000004, hasArrSupport false, frameRateCategoryRate FrameRateCategoryRate {normal=60.0, high=90.0}, supportedRefreshRates [60.000004], defaultModeId 1, userPreferredModeId -1, supportedModes [{id=1, width=3840, height=2160, fps=60.000004, vsync=60.000004, synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}], colorMode 0, supportedColorModes [0], hdrCapabilities HdrCapabilities{mSupportedHdrTypes=[], mMaxLuminance=500.0, mMaxAverageLuminance=500.0, mMinLuminance=0.0}, isForceSdr false, allmSupported false, gameContentTypeSupported false, density 640, 640.0 x 640.0 dpi, appVsyncOff 1000000, presDeadline 16666666, touch INTERNAL, rotation 0, type INTERNAL, address {port=0, model=0x401cec6a7a2b7b}, deviceProductInfo DeviceProductInfo{name=EMU_display_0, manufacturerPnpId=GGL, productId=1, modelYear=null, manufactureDate=ManufactureDate{week=27, year=2006}, connectionToSinkType=1}, state ON, committedState ON, frameRateOverride , brightnessMinimum 0.035433073, brightnessMaximum 1.0, brightnessDefault 0.39763778, brightnessDim 0.05, hdrSdrRatio NaN, FLAG_ALLOWED_TO_BE_DEFAULT_DISPLAY, FLAG_ROTATES_WITH_CONTENT, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, FLAG_TRUSTED, installOrientation 0, displayShape DisplayShape{ spec=-545313861 displayWidth=3840 displayHeight=2160 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}}
+02-18 14:26:48.715  5834  5873 I DisplayDeviceRepository: Display device same: DisplayDeviceInfo{"Built-in Screen": uniqueId="local:4619827259835644672", 3840 x 2160, modeId 1, renderFrameRate 60.000004, hasArrSupport false, frameRateCategoryRate FrameRateCategoryRate {normal=60.0, high=90.0}, supportedRefreshRates [60.000004], defaultModeId 1, userPreferredModeId -1, supportedModes [{id=1, width=3840, height=2160, fps=60.000004, vsync=60.000004, synthetic=false, alternativeRefreshRates=[], supportedHdrTypes=[]}], colorMode 0, supportedColorModes [0], hdrCapabilities HdrCapabilities{mSupportedHdrTypes=[], mMaxLuminance=500.0, mMaxAverageLuminance=500.0, mMinLuminance=0.0}, isForceSdr false, allmSupported false, gameContentTypeSupported false, density 640, 640.0 x 640.0 dpi, appVsyncOff 1000000, presDeadline 16666666, touch INTERNAL, rotation 0, type INTERNAL, address {port=0, model=0x401cec6a7a2b7b}, deviceProductInfo DeviceProductInfo{name=EMU_display_0, manufacturerPnpId=GGL, productId=1, modelYear=null, manufactureDate=ManufactureDate{week=27, year=2006}, connectionToSinkType=1}, state ON, committedState ON, frameRateOverride , brightnessMinimum 0.035433073, brightnessMaximum 1.0, brightnessDefault 0.39763778, brightnessDim 0.05, hdrSdrRatio NaN, FLAG_ALLOWED_TO_BE_DEFAULT_DISPLAY, FLAG_ROTATES_WITH_CONTENT, FLAG_SECURE, FLAG_SUPPORTS_PROTECTED_BUFFERS, FLAG_TRUSTED, installOrientation 0, displayShape DisplayShape{ spec=-545313861 displayWidth=3840 displayHeight=2160 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}}
+02-18 14:26:48.961 12619 12665 D CCodecBufferChannel: no latch time for frame 16
+02-18 14:26:49.840 12619 12665 D CCodecBufferChannel: no latch time for frame 19
+02-18 14:26:49.847  5834  5873 I DisplayDeviceRepository: Display device changed render timings: "Built-in Screen", renderFrameRate=60.000004, presentationDeadlineNanos=16666666, appVsyncOffsetNanos=1000000, frameRateOverrides=[{uid=10094 frameRateHz=60.000004}]
+02-18 14:26:49.855  5834  5873 I DisplayDeviceRepository: Display device changed render timings: "Built-in Screen", renderFrameRate=60.000004, presentationDeadlineNanos=16666666, appVsyncOffsetNanos=1000000, frameRateOverrides=[]
+02-18 14:26:50.423 12619 12665 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] MediaCodec discarded an unknown buffer
+02-18 14:26:50.423 12619 12641 D MediaCodec: keep callback message for reclaim
+02-18 14:26:50.425 12619 12665 I CCodecConfig: query failed after returning 12 values (BAD_INDEX)
+02-18 14:26:50.429 12619 12665 W Codec2Client: query -- param skipped: index = 1342179345.
+02-18 14:26:50.430 12619 12665 W Codec2Client: query -- param skipped: index = 2415921170.
+02-18 14:26:50.430 12619 12665 W Codec2Client: query -- param skipped: index = 1610614798.
+02-18 14:26:50.584 12619 12671 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] Ignoring stale input buffer done callback: last flush index = 82, frameIndex = 82
+02-18 14:26:50.832 12619 12665 W VideoRenderQualityTracker: Rendered frame is earlier than the next expected frame (1000004240000, 1000006080000)
+02-18 14:26:50.983 12619 12665 W VideoRenderQualityTracker: Rendered frame is earlier than the next expected frame (1000006080000, 1000006120000)
+02-18 14:26:52.481 12619 12665 D CCodecBufferChannel: no latch time for frame 29
+02-18 14:26:52.828 12619 12665 D CCodecBufferChannel: no latch time for frame 31
+02-18 14:26:53.113 12619 12665 D CCodecBufferChannel: no latch time for frame 32
+02-18 14:26:53.513 12619 12665 D BufferPoolAccessor2.0: bufferpool2 0xebd8ac48 : 5(33177600 size) total buffers - 4(26542080 size) used buffers - 126/131 (recycle/alloc) - 5/121 (fetch/transfer)
+02-18 14:26:53.596 12619 12665 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] MediaCodec discarded an unknown buffer
+02-18 14:26:53.596 12619 12665 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] MediaCodec discarded an unknown buffer
+02-18 14:26:53.596 12619 12665 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] MediaCodec discarded an unknown buffer
+02-18 14:26:53.596 12619 12665 D CCodecBufferChannel: [c2.goldfish.h264.decoder#375] MediaCodec discarded an unknown buffer
+02-18 14:26:53.602 12619 12641 D MediaCodec: keep callback message for reclaim
+02-18 14:26:53.604 12619 12665 I CCodecConfig: query failed after returning 12 values (BAD_INDEX)
+02-18 14:26:53.608 12619 12665 W Codec2Client: query -- param skipped: index = 1342179345.
+02-18 14:26:53.608 12619 12665 W Codec2Client: query -- param skipped: index = 2415921170.
+02-18 14:26:53.608 12619 12665 W Codec2Client: query -- param skipped: index = 1610614798.

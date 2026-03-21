@@ -3,11 +3,14 @@ using Microsoft.AspNetCore.Authorization;
 using CCMS.Application.Services;
 using CCMS.Shared.Common;
 using CCMS.Application.DTOs;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Authorize]
 public class PlaylistsController : ControllerBase
 {

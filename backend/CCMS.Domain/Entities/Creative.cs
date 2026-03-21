@@ -2,7 +2,8 @@ namespace CCMS.Domain.Entities;
 
 public class Creative : BaseEntity
 {
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
+    public Guid? UploadedById { get; set; }
     public string Name { get; set; } = string.Empty;
     public string FileUrl { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;
@@ -27,6 +28,7 @@ public class Creative : BaseEntity
     public string? LockedReason { get; set; }
     
     // Navigation properties
-    public virtual Campaign Campaign { get; set; } = null!;
+    public virtual Campaign? Campaign { get; set; }
+    public virtual User? UploadedBy { get; set; }
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 }

@@ -1,5 +1,6 @@
 using CCMS.Application.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -11,10 +12,16 @@ namespace CCMS.Infrastructure.Services;
 public class InvoiceService : IInvoiceService
 {
     private readonly ILogger<InvoiceService> _logger;
+    private readonly string _gstin;
+    private readonly string _hsn;
+    private readonly decimal _taxRate;
 
-    public InvoiceService(ILogger<InvoiceService> logger)
+    public InvoiceService(ILogger<InvoiceService> logger, IConfiguration configuration)
     {
         _logger = logger;
+        _gstin = configuration["Platform:GSTIN"] ?? "";
+        _hsn = configuration["Platform:HSN"] ?? "998366";
+        _taxRate = decimal.TryParse(configuration["Platform:TaxRate"], out var rate) ? rate : 18m;
         // Set QuestPDF license (Community license is free for small businesses)
         QuestPDF.Settings.License = LicenseType.Community;
     }
@@ -298,29 +305,61 @@ public class InvoiceService : IInvoiceService
                 });
             }
 
-            // Total Section
+            // Total Section with GST breakdown
             column.Item().AlignRight().PaddingTop(10).Row(row =>
             {
-                row.ConstantItem(200).Column(totalCol =>
+                row.ConstantItem(250).Column(totalCol =>
                 {
                     totalCol.Item().Row(r =>
                     {
                         r.RelativeItem().Text("Subtotal:").AlignRight();
-                        r.ConstantItem(100).Text($"{booking.Currency} {booking.TotalPrice:N2}").AlignRight();
+                        r.ConstantItem(120).Text($"{booking.Currency} {booking.TotalPrice:N2}").AlignRight();
                     });
 
-                    totalCol.Item().Row(r =>
+                    var halfTax = _taxRate / 2m;
+                    var cgst = booking.TotalPrice * halfTax / 100m;
+                    var sgst = cgst;
+                    var totalWithTax = booking.TotalPrice + cgst + sgst;
+
+                    if (!string.IsNullOrEmpty(_gstin))
                     {
-                        r.RelativeItem().Text("Tax (0%):").AlignRight().FontColor(Colors.Grey.Darken1);
-                        r.ConstantItem(100).Text($"{booking.Currency} 0.00").AlignRight().FontColor(Colors.Grey.Darken1);
-                    });
+                        totalCol.Item().PaddingTop(2).Row(r =>
+                        {
+                            r.RelativeItem().Text($"CGST ({halfTax:N1}%):").AlignRight().FontColor(Colors.Grey.Darken1);
+                            r.ConstantItem(120).Text($"{booking.Currency} {cgst:N2}").AlignRight().FontColor(Colors.Grey.Darken1);
+                        });
+
+                        totalCol.Item().PaddingTop(2).Row(r =>
+                        {
+                            r.RelativeItem().Text($"SGST ({halfTax:N1}%):").AlignRight().FontColor(Colors.Grey.Darken1);
+                            r.ConstantItem(120).Text($"{booking.Currency} {sgst:N2}").AlignRight().FontColor(Colors.Grey.Darken1);
+                        });
+                    }
+                    else
+                    {
+                        totalCol.Item().Row(r =>
+                        {
+                            r.RelativeItem().Text("Tax (0%):").AlignRight().FontColor(Colors.Grey.Darken1);
+                            r.ConstantItem(120).Text($"{booking.Currency} 0.00").AlignRight().FontColor(Colors.Grey.Darken1);
+                        });
+                        totalWithTax = booking.TotalPrice;
+                    }
 
                     totalCol.Item().PaddingTop(5).BorderTop(2).BorderColor(Colors.Blue.Darken2).PaddingTop(5).Row(r =>
                     {
                         r.RelativeItem().Text("TOTAL DUE:").Bold().FontSize(12).AlignRight();
-                        r.ConstantItem(100).Text($"{booking.Currency} {booking.TotalPrice:N2}")
+                        r.ConstantItem(120).Text($"{booking.Currency} {totalWithTax:N2}")
                             .Bold().FontSize(12).FontColor(Colors.Blue.Darken2).AlignRight();
                     });
+
+                    if (!string.IsNullOrEmpty(_gstin))
+                    {
+                        totalCol.Item().PaddingTop(5).Row(r =>
+                        {
+                            r.RelativeItem().Text($"GSTIN: {_gstin}  |  HSN: {_hsn}")
+                                .FontSize(8).FontColor(Colors.Grey.Darken1).AlignRight();
+                        });
+                    }
                 });
             });
 

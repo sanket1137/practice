@@ -1,0 +1,85 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  SERVER_IP: ${{ secrets.SERVER_IP }}
+  SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+  REMOTE_USER: root
+  REMOTE_PATH: /opt/ccms
+
+jobs:
+  ci:
+    name: Run CI checks
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Hetzner
+    runs-on: ubuntu-latest
+    needs: ci
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Create backend archive
+        run: |
+          tar -cf backend-src.tar \
+            --exclude="bin" --exclude="obj" --exclude="publish" \
+            --exclude="uploads" --exclude="wwwroot" --exclude=".vs" \
+            --exclude="*.user" --exclude="TempClean" --exclude="TempDbCreate" \
+            backend
+
+      - name: Create frontend archive
+        run: |
+          tar -cf frontend-src.tar \
+            --exclude="node_modules" --exclude="dist" --exclude=".vite" \
+            frontend
+
+      - name: Create infra archive
+        run: tar -cf infra.tar docker-compose.yml docker-compose.production.yml nginx/
+
+      - name: Upload archives to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            backend-src.tar frontend-src.tar infra.tar \
+            ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }}:${{ env.REMOTE_PATH }}/
+
+      - name: Deploy on server
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} << 'DEPLOY_SCRIPT'
+            set -e
+            cd ${{ env.REMOTE_PATH }}
+
+            # Extract archives
+            tar -xf backend-src.tar
+            tar -xf frontend-src.tar
+            tar -xf infra.tar
+            rm -f backend-src.tar frontend-src.tar infra.tar
+
+            # Rebuild and restart containers
+            docker compose -f docker-compose.yml -f docker-compose.production.yml build --no-cache
+            docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+
+            # Cleanup old images
+            docker image prune -f
+
+            echo "Deployment complete!"
+          DEPLOY_SCRIPT
+
+      - name: Verify deployment
+        run: |
+          sleep 15
+          ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} \
+            "curl -sf http://localhost:5000/api/v1/health || echo 'Health check failed'"

@@ -6,11 +6,14 @@ using CCMS.Shared.DTOs.Auth;
 using MediatR;
 using CCMS.Application.Features.Auth.Commands;
 using CCMS.Api.Extensions;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
 public class AuthController : ControllerBase
 {
@@ -69,6 +72,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
+    [DisableRateLimiting]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Refresh([FromBody] RefreshTokenRequest request)
     {
         try

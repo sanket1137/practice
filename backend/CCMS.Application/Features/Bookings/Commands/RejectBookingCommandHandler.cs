@@ -72,7 +72,7 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
         // Notify advertiser that their booking has been rejected
         try
         {
-            var campaign = await _campaignRepository.GetByIdAsync(booking.CampaignId, cancellationToken);
+            var campaign = booking.CampaignId.HasValue ? await _campaignRepository.GetByIdAsync(booking.CampaignId.Value, cancellationToken) : null;
             if (campaign != null)
             {
                 await _notificationService.NotifyBookingRejectedAsync(bookingDto, campaign.AdvertiserId, request.RejectionReason);

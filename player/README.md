@@ -1,132 +1,54 @@
-# CCMS Raspberry Pi Player
+# CCMS Player
 
-Digital signage content player for Raspberry Pi devices.
+The CCMS player runs on digital signage hardware to display scheduled ad content, track impressions, and communicate with the CCMS backend in real-time.
 
-## Quick Install (Raspberry Pi 5 - Single Command)
+## Player Implementations
 
-**Tested on:** Raspberry Pi 5 with Raspberry Pi OS (Debian Trixie/Bookworm)
+| Platform | Technology | Status |
+|----------|-----------|--------|
+| [Raspberry Pi](raspberrypi/) | Python 3.11+, MPV/VLC, systemd | ✅ Production |
+| [Android TV](android/) | Kotlin, ExoPlayer (Media3), Foreground Service | ✅ Complete |
+| [ChromeOS](chromeos/) | TypeScript, Vite PWA, SignalR, HTML5 Video | ✅ Complete |
 
-### Fully Automated Installation (Recommended)
+## Shared Architecture
 
-```bash
-# Copy setup script to Pi and run with all parameters
-sudo ./setup-raspberry-pi.sh \
-  --screen-id YOUR_SCREEN_ID \
-  --api-key YOUR_API_KEY \
-  --server http://your-ccms-server.com \
-  --no-confirm \
-  --auto-start
+Both implementations follow the same protocol:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    CCMS Backend                      │
+│  REST: /api/player/handshake, /sync, /heartbeat     │
+│  SignalR: /hubs/playback (real-time events)          │
+└──────────┬──────────────────┬──────────────┬─────────┘
+           │                  │              │
+   ┌───────▼───────┐  ┌──────▼──────┐ ┌─────▼─────────┐
+   │ Raspberry Pi  │  │ Android TV  │ │  ChromeOS     │
+   │  Python/MPV   │  │ Kotlin/ExoP │ │  TS/Vite PWA  │
+   │  SQLite       │  │ Room(SQLite)│ │  IndexedDB    │
+   │  systemd      │  │ FG Service  │ │  Service Wkr  │
+   └───────────────┘  └─────────────┘ └───────────────┘
 ```
 
-### Interactive Installation
+### Protocol Flow
 
-```bash
-# Will prompt for Screen ID, API Key, and Server URL
-sudo ./setup-raspberry-pi.sh
-```
+1. **Handshake** (`POST /api/player/handshake`) — Authenticate with `screen_id` + `api_key`, receive playlist + session token + operating hours
+2. **Heartbeat Loop** (every 30s, `POST /api/player/heartbeat`) — Keep-alive, update `LastSeenAt`
+3. **Playback Loop** — Play playlist items sequentially, record impressions locally
+4. **Sync Loop** (every 1–10 min, `POST /api/player/sync`) — Batch upload pending impressions with `SlotPlayKey` deduplication
+5. **SignalR Events** — Real-time `PlaylistUpdated`, `SlotStatusChanged`, `SetSyncMode` from backend
 
-### Remote Installation (from URL)
+### Configuration Required
 
-```bash
-# Interactive
-curl -sSL https://your-server.com/player/setup-raspberry-pi.sh | sudo bash
+| Field | Description |
+|-------|-------------|
+| `screen_id` | GUID assigned when screen is created in CCMS dashboard |
+| `api_key` | API key generated for the screen (hashed server-side via BCrypt) |
+| `server_url` | Backend URL (production: `https://ccms.pixelspot.in`) |
 
-# Fully automated
-curl -sSL https://your-server.com/player/setup-raspberry-pi.sh | sudo bash -s -- \
-  --screen-id YOUR_SCREEN_ID \
-  --api-key YOUR_API_KEY \
-  --server http://your-ccms-server.com \
-  -y --auto-start
-```
+### Security
 
-### Setup Script Options
-
-| Option | Description |
-|--------|-------------|
-| `--screen-id ID` | Screen ID from CCMS dashboard (required) |
-| `--api-key KEY` | API key for authentication (required) |
-| `--server URL` | CCMS server URL (default: http://localhost:5257) |
-| `--user USER` | Linux user to run player (default: pi) |
-| `--install-dir DIR` | Installation directory (default: /home/pi/ccms-player) |
-| `--no-confirm`, `-y` | Skip confirmation prompts (for automated installs) |
-| `--auto-start` | Automatically start the player after installation |
-| `--help` | Show help message |
-
-## After Installation
-
-### Management Commands
-
-```bash
-# Start player
-sudo systemctl start ccms-player
-
-# Stop player
-sudo systemctl stop ccms-player
-
-# Restart player
-sudo systemctl restart ccms-player
-
-# View status
-sudo systemctl status ccms-player
-
-# View logs
-tail -f /home/pi/ccms-player/logs/player.log
-```
-
-### Configuration
-
-Config file location: `/home/pi/ccms-player/config.json`
-
-```json
-{
-    "screen_id": "YOUR_SCREEN_ID",
-    "api_key": "YOUR_API_KEY",
-    "server_url": "http://your-server.com",
-    "cache_dir": "./cache",
-    "log_level": "INFO"
-}
-```
-
-To update configuration:
-```bash
-/home/pi/ccms-player/update-config.sh
-```
-
-## Manual Installation
-
-```bash
-# Install system dependencies (Raspberry Pi OS Trixie/Bookworm)
-sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv vlc ffmpeg libopencv-dev libopenblas-dev
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-## Features
-
-- Automatic playlist download and caching
-- Video playback using VLC (Raspberry Pi optimized)
-- Real-time impression reporting
-- WebRTC live streaming support
-- File integrity verification (SHA256)
-- Automatic reconnection on network issues
-- Kiosk mode (screen blanking disabled, cursor hidden)
-- Auto-start on boot via systemd
-- Logging to file and console
-
-## Troubleshooting
-
-View logs:
-```bash
-tail -f player.log
-```
-
-Check service status:
-```bash
-sudo systemctl status ccms-player
-```
+- **Device Fingerprinting**: Hardware-based fingerprint (SHA-256) bound to screen on first handshake
+- **HMAC-SHA256 Signing**: All API requests signed with `api_key + server_salt`
+- **Session Tokens**: 24-hour expiry, renewed on handshake
+- **Impression Verification**: Each impression includes a verification hash to prevent tampering
+- **SlotPlayKey Dedup**: `SHA256(screen_id|date|slot_number|timestamp)` prevents duplicate impression recording

@@ -1,3 +1,4 @@
+using CCMS.Application.Interfaces;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
@@ -13,17 +14,20 @@ public class BookingStatusUpdateService
 {
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Screen> _screenRepository;
+    private readonly IRazorpayService _razorpayService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<BookingStatusUpdateService> _logger;
 
     public BookingStatusUpdateService(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
+        IRazorpayService razorpayService,
         IUnitOfWork unitOfWork,
         ILogger<BookingStatusUpdateService> logger)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
+        _razorpayService = razorpayService;
         _unitOfWork = unitOfWork;
         _logger = logger;
     }
@@ -45,10 +49,13 @@ public class BookingStatusUpdateService
         {
             // Get all bookings that might need status updates
             var bookingsToCheck = await _bookingRepository.GetAllAsync(cancellationToken);
+            var todayDate = DateOnly.FromDateTime(now);
             
-            // Filter to only Approved and Active bookings
+            // Filter to Pending, Approved, and Active bookings
             var relevantBookings = bookingsToCheck
-                .Where(b => b.Status == BookingStatus.Approved || b.Status == BookingStatus.Active)
+                .Where(b => b.Status == BookingStatus.Pending || 
+                            b.Status == BookingStatus.Approved || 
+                            b.Status == BookingStatus.Active)
                 .ToList();
 
             _logger.LogInformation("Found {Count} bookings to check for status updates", relevantBookings.Count);
@@ -57,6 +64,31 @@ public class BookingStatusUpdateService
             {
                 try
                 {
+                    var oldStatus = booking.Status;
+
+                    // Handle Pending bookings separately — auto-cancel if entire period has passed
+                    if (booking.Status == BookingStatus.Pending)
+                    {
+                        if (todayDate > booking.EndDate)
+                        {
+                            booking.Status = BookingStatus.Cancelled;
+                            booking.CancellationReason = "Auto-expired: booking period ended without approval or payment";
+                            booking.CancelledAt = now;
+                            booking.UpdatedAt = now;
+
+                            await _bookingRepository.UpdateAsync(booking, cancellationToken);
+                            updatedCount++;
+
+                            _logger.LogInformation(
+                                "Booking {BookingId} auto-expired: {OldStatus} → Cancelled " +
+                                "(EndDate {EndDate} has passed)",
+                                booking.Id, oldStatus, booking.EndDate);
+                        }
+                        // If startDate passed but endDate still future, keep Pending — user can re-request with updated dates
+                        continue;
+                    }
+
+                    // For Approved/Active bookings, determine status based on schedule
                     var screen = await _screenRepository.GetByIdAsync(booking.ScreenId, cancellationToken);
                     if (screen == null)
                     {
@@ -65,7 +97,6 @@ public class BookingStatusUpdateService
                         continue;
                     }
 
-                    var oldStatus = booking.Status;
                     var newStatus = DetermineBookingStatus(booking, screen, now);
 
                     if (oldStatus != newStatus)
@@ -85,6 +116,72 @@ public class BookingStatusUpdateService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error updating booking {BookingId}", booking.Id);
+                }
+            }
+
+            // --- Payment expiry check ---
+            // Cancel bookings where payment window has expired (OrderCreated + PaymentExpiresAt passed)
+            var expiredPaymentBookings = bookingsToCheck
+                .Where(b => b.PaymentStatus == PaymentStatus.OrderCreated
+                         && b.PaymentExpiresAt.HasValue
+                         && DateTime.UtcNow > b.PaymentExpiresAt.Value)
+                .ToList();
+
+            foreach (var booking in expiredPaymentBookings)
+            {
+                try
+                {
+                    booking.Status = BookingStatus.Cancelled;
+                    booking.PaymentStatus = PaymentStatus.Expired;
+                    booking.CancellationReason = "Auto-cancelled: payment window expired";
+                    booking.CancelledAt = now;
+                    booking.UpdatedAt = now;
+
+                    await _bookingRepository.UpdateAsync(booking, cancellationToken);
+                    updatedCount++;
+
+                    _logger.LogInformation(
+                        "Booking {BookingId} auto-cancelled: payment expired at {ExpiresAt}",
+                        booking.Id, booking.PaymentExpiresAt);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error expiring payment for booking {BookingId}", booking.Id);
+                }
+            }
+
+            // --- Refund status polling ---
+            // Check refund status for bookings with RefundInitiated > 1 hour ago
+            var refundBookings = bookingsToCheck
+                .Where(b => b.PaymentStatus == PaymentStatus.RefundInitiated
+                         && !string.IsNullOrEmpty(b.RazorpayRefundId)
+                         && !string.IsNullOrEmpty(b.RazorpayPaymentId)
+                         && b.CancelledAt.HasValue
+                         && DateTime.UtcNow > b.CancelledAt.Value.AddHours(1))
+                .ToList();
+
+            foreach (var booking in refundBookings)
+            {
+                try
+                {
+                    var refundStatus = await _razorpayService.GetRefundStatusAsync(
+                        booking.RazorpayPaymentId!, booking.RazorpayRefundId!);
+
+                    if (refundStatus.Status == "processed")
+                    {
+                        booking.PaymentStatus = PaymentStatus.Refunded;
+                        booking.UpdatedAt = now;
+                        await _bookingRepository.UpdateAsync(booking, cancellationToken);
+                        updatedCount++;
+
+                        _logger.LogInformation(
+                            "Booking {BookingId} refund confirmed: {RefundId} status={Status}",
+                            booking.Id, booking.RazorpayRefundId, refundStatus.Status);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error checking refund status for booking {BookingId}", booking.Id);
                 }
             }
 

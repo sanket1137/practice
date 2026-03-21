@@ -1,0 +1,93 @@
+/**
+ * First-run setup screen for entering Screen ID, API key, and server URL.
+ */
+import { saveConfig, type PlayerConfig } from '../config';
+
+export class SetupScreen {
+  private readonly container: HTMLElement;
+  private onComplete: ((config: PlayerConfig) => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.container = container;
+  }
+
+  show(): Promise<PlayerConfig> {
+    return new Promise((resolve) => {
+      this.onComplete = resolve;
+      this.render();
+    });
+  }
+
+  private render(): void {
+    this.container.innerHTML = '';
+    this.container.style.cssText =
+      'display:flex;align-items:center;justify-content:center;width:100%;height:100%;' +
+      'background:#0f172a;font-family:system-ui,sans-serif;';
+
+    const form = document.createElement('form');
+    form.style.cssText =
+      'background:#1e293b;padding:2rem;border-radius:0.75rem;width:400px;';
+
+    const title = document.createElement('h2');
+    title.textContent = 'PixelSpot CCMS Player Setup';
+    title.style.cssText = 'color:#f8fafc;margin-bottom:1.5rem;text-align:center;';
+    form.appendChild(title);
+
+    const serverInput = this.createInput('Server URL', 'https://ccms.pixelspot.in');
+    const screenInput = this.createInput('Screen ID', 'Enter screen ID...');
+    const apiKeyInput = this.createInput('API Key', 'Enter API key...');
+
+    form.appendChild(serverInput.wrapper);
+    form.appendChild(screenInput.wrapper);
+    form.appendChild(apiKeyInput.wrapper);
+
+    const btn = document.createElement('button');
+    btn.type = 'submit';
+    btn.textContent = 'Connect';
+    btn.style.cssText =
+      'width:100%;padding:0.75rem;background:#6366f1;color:#fff;border:none;' +
+      'border-radius:0.5rem;font-size:1rem;cursor:pointer;margin-top:1rem;';
+
+    form.appendChild(btn);
+
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const config: PlayerConfig = {
+        serverUrl: serverInput.input.value.trim(),
+        screenId: screenInput.input.value.trim(),
+        apiKey: apiKeyInput.input.value.trim(),
+      };
+      if (config.serverUrl && config.screenId && config.apiKey) {
+        saveConfig(config);
+        this.onComplete?.(config);
+      }
+    };
+
+    this.container.appendChild(form);
+  }
+
+  private createInput(
+    label: string,
+    placeholder: string
+  ): { wrapper: HTMLDivElement; input: HTMLInputElement } {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'margin-bottom:1rem;';
+
+    const lbl = document.createElement('label');
+    lbl.textContent = label;
+    lbl.style.cssText = 'display:block;color:#94a3b8;font-size:0.875rem;margin-bottom:0.25rem;';
+    wrapper.appendChild(lbl);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = placeholder;
+    input.required = true;
+    input.style.cssText =
+      'width:100%;padding:0.5rem 0.75rem;background:#0f172a;color:#f8fafc;' +
+      'border:1px solid rgba(255,255,255,0.1);border-radius:0.375rem;font-size:1rem;' +
+      'box-sizing:border-box;';
+    wrapper.appendChild(input);
+
+    return { wrapper, input };
+  }
+}

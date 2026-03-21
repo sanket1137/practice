@@ -80,6 +80,7 @@ export default function BookingFiltersBar({
                         <MenuItem value="Active">Active</MenuItem>
                         <MenuItem value="Completed">Completed</MenuItem>
                         <MenuItem value="Rejected">Rejected</MenuItem>
+                        <MenuItem value="Cancelled">Cancelled</MenuItem>
                     </Select>
                 </FormControl>
 

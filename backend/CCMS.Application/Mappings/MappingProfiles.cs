@@ -75,8 +75,8 @@ public class MappingProfiles : Profile
         // Booking mappings
         CreateMap<Booking, BookingDto>()
             .ForMember(dest => dest.ScreenName, opt => opt.MapFrom(src => src.Screen.Name))
-            .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Campaign.Name))
-            .ForMember(dest => dest.AdvertiserId, opt => opt.MapFrom(src => src.Campaign.AdvertiserId))
+            .ForMember(dest => dest.CampaignName, opt => opt.MapFrom(src => src.Campaign != null ? src.Campaign.Name : string.Empty))
+            .ForMember(dest => dest.AdvertiserId, opt => opt.MapFrom(src => src.Campaign != null ? (Guid?)src.Campaign.AdvertiserId : null))
             .ForMember(dest => dest.CreativeId, opt => opt.MapFrom(src => src.Creative.Id))
             .ForMember(dest => dest.CreativeName, opt => opt.MapFrom(src => src.Creative.FileName))
             .ForMember(dest => dest.CreativeFileUrl, opt => opt.MapFrom(src => src.Creative.FileUrl))
@@ -84,6 +84,7 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.ExpectedImpressions, opt => opt.Ignore())
             .ForMember(dest => dest.DeliveredImpressions, opt => opt.Ignore())
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.Source, opt => opt.MapFrom(src => src.Source.ToString()))
             .ForMember(dest => dest.StartDate, opt => opt.MapFrom(src => src.StartDate.ToString("yyyy-MM-dd")))
             .ForMember(dest => dest.EndDate, opt => opt.MapFrom(src => src.EndDate.ToString("yyyy-MM-dd")))
             .ForMember(dest => dest.BookedDates, opt => opt.MapFrom(src => 

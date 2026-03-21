@@ -1,6 +1,7 @@
 using MediatR;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
+using CCMS.Application.Interfaces;
 using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 
@@ -12,18 +13,20 @@ public class RequestPasswordResetCommandHandler : IRequestHandler<RequestPasswor
     private readonly IRepository<PasswordResetToken> _tokenRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RequestPasswordResetCommandHandler> _logger;
-    // TODO: Add IEmailService when email functionality is implemented
+    private readonly IEmailService _emailService;
 
     public RequestPasswordResetCommandHandler(
         IRepository<User> userRepository,
         IRepository<PasswordResetToken> tokenRepository,
         IUnitOfWork unitOfWork,
-        ILogger<RequestPasswordResetCommandHandler> logger)
+        ILogger<RequestPasswordResetCommandHandler> logger,
+        IEmailService emailService)
     {
         _userRepository = userRepository;
         _tokenRepository = tokenRepository;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _emailService = emailService;
     }
 
     public async Task<bool> Handle(RequestPasswordResetCommand request, CancellationToken cancellationToken)
@@ -55,11 +58,11 @@ public class RequestPasswordResetCommandHandler : IRequestHandler<RequestPasswor
 
         _logger.LogInformation("Password reset token created for user: {Email}", request.Email);
 
-        // TODO: Send email with reset link
-        // var resetLink = $"http://yourapp.com/reset-password?token={token}";
-        // await _emailService.SendPasswordResetEmailAsync(user.Email, resetLink);
-
-        _logger.LogWarning("Email service not implemented - Token: {Token} (DO NOT LOG IN PRODUCTION)", token);
+        var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, token);
+        if (!emailSent)
+        {
+            _logger.LogWarning("Failed to send password reset email to {Email}", request.Email);
+        }
 
         return true;
     }

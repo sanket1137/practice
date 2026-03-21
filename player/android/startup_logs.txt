@@ -1,0 +1,38 @@
+--------- beginning of main
+02-18 21:15:44.954  1475  1475 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 21:15:46.354  1983  1983 I cast_shell: [0218/211546.354701:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:15:46.355  1983  1983 I cast_shell: [0218/211546.355000:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:15:46.355  1983  1983 I cast_shell: [0218/211546.355132:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+--------- beginning of system
+02-18 21:15:54.989   684   791 D ActivityManager: freezing 1475 com.google.android.gms
+02-18 21:16:06.005   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:16:06.014   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:16:06.233   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 2, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:16:06.235   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 2, additionalAnswers: 0, knownAnswers: 0, sendDelayMs 0}
+02-18 21:16:06.707   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /10.0.2.15:5353 to /224.0.0.251:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:16:06.712   684   847 I MdnsReplySender: Sending {MdnsReplyInfo: /[fe80::78de:3fcc:da9c:1892%eth0]:5353 to /[ff02::fb]:5353, answers: 1, additionalAnswers: 4, knownAnswers: 0, sendDelayMs 0}
+02-18 21:16:11.445  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:16:11.446  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:16:11.447  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:16:11.447  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:16:39.030  1288  2033 W native  : W0000 00:00:1771429599.030555    2033 publisher.cc:35] [FTL] No subscribers for event "assistant.api.events.MetricEvent" from publisher "UmaMetricsForwarder"
+02-18 21:16:40.854  1983  1983 I cast_shell: [0218/211640.854533:INFO:grpc_manager_impl.cc(881)] GRPC[uri=localhost:10042]: num_pending_calls=0, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:40.856  1983  1983 I cast_shell: [0218/211640.854777:INFO:grpc_manager_impl.cc(891)] GRPC[uri=localhost:10042]: service_name=chromecast.user_auth.proto.UserAuthService, rpc_name=AuthTokenChannel, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:40.856  1983  1983 I cast_shell: [0218/211640.856678:INFO:grpc_manager_impl.cc(881)] GRPC[uri=localhost:10042]: num_pending_calls=0, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:40.856  1983  1983 I cast_shell: [0218/211640.856740:INFO:grpc_manager_impl.cc(891)] GRPC[uri=localhost:10042]: service_name=chromecast.user_auth.proto.UserAuthService, rpc_name=AuthTokenChannel, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:40.856  1983  1983 I cast_shell: [0218/211640.856834:INFO:grpc_manager_impl.cc(881)] GRPC[uri=]: num_pending_calls=0, num_active_handlers=0, num_free_handlers=0
+02-18 21:16:40.886  1983  1983 I cast_shell: [0218/211640.886823:INFO:grpc_manager_impl.cc(881)] GRPC[uri=]: num_pending_calls=0, num_active_handlers=0, num_free_handlers=0
+02-18 21:16:41.325  1983  1983 I cast_shell: [0218/211641.325891:INFO:grpc_manager_impl.cc(881)] GRPC[uri=[::]:0]: num_pending_calls=0, num_active_handlers=4, num_free_handlers=0
+02-18 21:16:41.326  1983  1983 I cast_shell: [0218/211641.326031:INFO:grpc_manager_impl.cc(891)] GRPC[uri=[::]:0]: service_name=chromecast.LocalCloudcastService, rpc_name=ExecuteActionScript, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:41.326  1983  1983 I cast_shell: [0218/211641.326116:INFO:grpc_manager_impl.cc(891)] GRPC[uri=[::]:0]: service_name=chromecast.LocalCloudcastService, rpc_name=GetDeviceStatus, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:41.326  1983  1983 I cast_shell: [0218/211641.326145:INFO:grpc_manager_impl.cc(891)] GRPC[uri=[::]:0]: service_name=chromecast.LocalCloudcastService, rpc_name=ObserveDeviceStatus, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:41.326  1983  1983 I cast_shell: [0218/211641.326191:INFO:grpc_manager_impl.cc(891)] GRPC[uri=[::]:0]: service_name=chromecast.LocalCloudcastService, rpc_name=UnblockMediaStarting, num_active_handlers=1, num_free_handlers=0
+02-18 21:16:46.356  1983  1983 I cast_shell: [0218/211646.356577:INFO:service_base.h(78)] Size of the map for type AuthTokenResponse is 0
+02-18 21:16:46.356  1983  1983 I cast_shell: [0218/211646.356862:INFO:service_base.h(246)] Container sizes for type CloudSetting are (session_info_map: 0), (topic_info_map: 21), (pending_events: 0).
+02-18 21:16:46.357  1983  1983 I cast_shell: [0218/211646.357016:INFO:metrics_stat_logger.cc(38)] Metrics stat for the past 60 secs : total=0
+02-18 21:16:58.782   684   950 W ActivityManager: Invalid packageName: com.pixelspot.ccms.player
+02-18 21:17:11.448  1983  2176 I cast_ClientAuthCredsProvisioning: Loading factory credentials for 1P device.
+02-18 21:17:11.449  1983  2176 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+02-18 21:17:11.449  1983  2176 E cast_ClientAuthCredsFactoryProvisioned: Cannot get device credentials
+02-18 21:17:11.449  1983  2176 I cast_ClientAuthCredsProvisioning: Retry loading factory credentials
+02-18 21:17:15.832   684   950 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x4 cmp=com.pixelspot.ccms.player/.MainActivity} with LAUNCH_MULTIPLE from uid 2000 result code=-92

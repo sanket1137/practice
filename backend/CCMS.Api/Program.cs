@@ -22,6 +22,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// API Versioning
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new Asp.Versioning.ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = new Asp.Versioning.UrlSegmentApiVersionReader();
+})
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
 // Add SignalR for real-time connectivity
 builder.Services.AddSignalR();
 
@@ -183,6 +197,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISmsService, SmsService>();
 builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+builder.Services.AddScoped<IRazorpayService, RazorpayService>();
+builder.Services.AddScoped<INotificationService, CCMS.Api.Services.NotificationService>();
 builder.Services.AddHttpClient("ComBirds"); // HttpClient for SMS API
 
 // File Storage Service - configurable via appsettings
@@ -248,6 +264,7 @@ Xabe.FFmpeg.FFmpeg.SetExecutablesPath(ffmpegPath);
 builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
+builder.Services.AddScoped<ScreenVerificationService>();
 
 // Report export service
 builder.Services.AddScoped<ReportExportService>();
@@ -368,6 +385,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapHub<PlaybackHub>("/hubs/playback").AllowAnonymous();
 app.MapHub<PlayerHub>("/playerhub").AllowAnonymous();
 app.MapHub<StreamingHub>("/hubs/streaming"); // WebRTC signaling hub (requires auth)
+app.MapHub<NotificationHub>("/hubs/notifications"); // Notification push (requires auth)
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using CCMS.Application.Services;
 using CCMS.Shared.Common;
 using System.Security.Claims;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
@@ -14,8 +16,9 @@ public class StreamAccessDto
 }
 
 [Authorize]
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/screens/{screenId}/streaming")]
+[Route("api/v{version:apiVersion}/screens/{screenId}/streaming")]
 public class StreamAccessController : ControllerBase
 {
     private readonly IStreamAccessService _streamAccessService;

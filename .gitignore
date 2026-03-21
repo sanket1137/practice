@@ -30,6 +30,18 @@ backend/TempDbCreate/
 backend/TempClean/
 backend/TempClean.csx
 
+# Temp/debug artifacts
+build_errors.txt
+build_output.txt
+backend-errors.log
+login.json
+temp_token.txt
+screen12_id.txt
+temp_nginx.conf
+__azurite_db_table__.json
+*.tar
+player.zip
+
 # Deployment
 backups/
 certbot/
@@ -518,11 +530,33 @@ dist/
 .env
 .DS_Store
 
-# Player
-player/logs/
-player/video_cache/
-player/cache/
-player/default_videos/
-player/mpv_lib/*.dll
-player/mpv_lib/*.so
-player/*.log
+# Azurite local dev artifacts
+__azurite_db_*.json
+AzuriteConfig
+__blobstorage__/
+__queuestorage__/
+
+# Player - Raspberry Pi
+player/raspberrypi/logs/
+player/raspberrypi/video_cache/
+player/raspberrypi/cache/
+player/raspberrypi/default_videos/
+player/raspberrypi/data/
+player/raspberrypi/mpv_lib/*.dll
+player/raspberrypi/mpv_lib/*.so
+player/raspberrypi/*.log
+player/raspberrypi/*.db
+player/raspberrypi/__pycache__/
+
+# Player - Android
+player/android/.gradle/
+player/android/build/
+player/android/app/build/
+player/android/local.properties
+player/android/.idea/
+player/android/app/release/
+player/android/output/
+
+# Player - ChromeOS
+player/chromeos/node_modules/
+player/chromeos/dist/

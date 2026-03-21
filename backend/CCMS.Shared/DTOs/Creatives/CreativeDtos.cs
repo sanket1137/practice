@@ -3,7 +3,7 @@ namespace CCMS.Shared.DTOs.Creatives;
 public class CreativeDto
 {
     public Guid Id { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string FileUrl { get; set; } = string.Empty;
     public string FileName { get; set; } = string.Empty;

@@ -137,8 +137,18 @@ export default function UpdateScreenPage() {
         });
     };
 
+    // Calculate ad duration per slot
+    const adDurationSeconds = formData.timeFrameMinutes && formData.slotsPerFrame
+        ? (parseInt(formData.timeFrameMinutes) * 60) / parseInt(formData.slotsPerFrame)
+        : 0;
+    const isEvenDivision = adDurationSeconds === 0 || Number.isInteger(adDurationSeconds);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!isEvenDivision) {
+            enqueueSnackbar('Frame time must divide evenly by slots — ad duration must be a whole number of seconds.', { variant: 'error' });
+            return;
+        }
         updateScreenMutation.mutate({ ...formData, schedule });
     };
 
@@ -318,6 +328,26 @@ export default function UpdateScreenPage() {
                                 inputProps={{ step: '0.01' }}
                             />
                         </Grid>
+
+                        {adDurationSeconds > 0 && (
+                            <Grid size={12}>
+                                <Alert severity={isEvenDivision ? 'info' : 'error'}>
+                                    <strong>Ad Duration per Slot:</strong> {adDurationSeconds.toFixed(1)} seconds
+                                    {!isEvenDivision && (
+                                        <>
+                                            <br />
+                                            <Typography variant="caption" color="error">
+                                                ⚠ Slot duration must be a whole number of seconds. Adjust Time Frame or Slots Per Frame.
+                                            </Typography>
+                                        </>
+                                    )}
+                                    <br />
+                                    <Typography variant="caption">
+                                        Each ad will play for {adDurationSeconds.toFixed(1)} seconds in the {formData.timeFrameMinutes}-minute cycle
+                                    </Typography>
+                                </Alert>
+                            </Grid>
+                        )}
 
                         {/* Status */}
                         <Grid

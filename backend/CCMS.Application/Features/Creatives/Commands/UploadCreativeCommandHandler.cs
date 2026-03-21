@@ -40,13 +40,16 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
 
     public async Task<CreativeDto> Handle(UploadCreativeCommand request, CancellationToken cancellationToken)
     {
-        // Verify campaign exists and user owns it
-        var campaign = await _campaignRepository.GetByIdAsync(request.CampaignId, cancellationToken);
-        if (campaign == null)
-            throw new KeyNotFoundException("Campaign not found");
+        // Verify campaign exists and user owns it (only for campaign-based uploads)
+        if (request.CampaignId.HasValue)
+        {
+            var campaign = await _campaignRepository.GetByIdAsync(request.CampaignId.Value, cancellationToken);
+            if (campaign == null)
+                throw new KeyNotFoundException("Campaign not found");
 
-        if (campaign.AdvertiserId != request.UserId)
-            throw new UnauthorizedAccessException("You can only upload creatives to your own campaigns");
+            if (campaign.AdvertiserId != request.UserId)
+                throw new UnauthorizedAccessException("You can only upload creatives to your own campaigns");
+        }
 
         // Extract video metadata BEFORE upload
         VideoMetadata metadata;
@@ -106,7 +109,8 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             
             // Generate storage path: Creatives/{campaignId}/{guid}_{filename}
             var fileExtension = Path.GetExtension(request.FileName);
-            var storagePath = $"Creatives/{request.CampaignId}/{Guid.NewGuid()}{fileExtension}";
+            var folder = request.CampaignId.HasValue ? request.CampaignId.Value.ToString() : $"owner-{request.UserId}";
+            var storagePath = $"Creatives/{folder}/{Guid.NewGuid()}{fileExtension}";
             
             fileUrl = await _fileStorageService.UploadFileAsync(
                 stream,
@@ -124,6 +128,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
         var creative = new Creative
         {
             CampaignId = request.CampaignId,
+            UploadedById = request.UserId,
             Name = request.Name,
             FileUrl = fileUrl,
             FileName = request.FileName,

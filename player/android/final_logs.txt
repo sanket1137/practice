@@ -1,0 +1,689 @@
+﻿--------- beginning of main
+02-18 16:12:04.846  7134 24889 I Finsky:background: [159] Wrote row to frosting DB: 134
+02-18 16:12:04.872  5834  7747 I system_server: AssetManager2(0x88882654) locale list changing from [] to [en-US]
+02-18 16:12:04.877  5834  5956 I system_server: AssetManager2(0x88887e14) locale list changing from [] to [en-US]
+02-18 16:12:04.882 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > OnDeviceAppInfo > cacheHitCount=1, cacheMissCount=0. Missed  in cache (limit 10) : []
+02-18 16:12:04.882 24749 24789 I Finsky  : [60] AIM: Got app ownership map. App counts: . Unique apps: 0
+02-18 16:12:04.883 24749 24789 E Finsky  : [60] [Counters] attempted to use a non-positive increment for: 4752
+02-18 16:12:04.883 24749 24789 E Finsky  : [60] [Counters] attempted to use a non-positive increment for: 4753
+02-18 16:12:04.887  7134 24889 I Finsky:background: [159] Wrote row to frosting DB: 135
+02-18 16:12:04.904 24749 24749 I Finsky  : [2] pvf - Received: android.intent.action.PACKAGE_ADDED, [oqhgZEH2QI8G4vCPqNlrgAlFmZSmuKAi7fsy7vjkRlI]
+02-18 16:12:04.916 24749 24749 I Finsky  : [2] pvf - Deduping intent android.intent.action.PACKAGE_ADDED
+02-18 16:12:04.920 24749 24749 I Finsky  : [2] pvf - Received: android.intent.action.PACKAGE_ADDED, [oqhgZEH2QI8G4vCPqNlrgAlFmZSmuKAi7fsy7vjkRlI]
+02-18 16:12:04.942  5834  7747 W SignedPackage: Cannot get ApplicationInfo for package: com.google.android.gms.supervision
+02-18 16:12:04.956 24749 24793 I Finsky  : [64] SCH: Scheduling phonesky job Id: 1-1337, CT: 1771384598728, Constraints: [{ L: 38794251, D: 81994251, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+02-18 16:12:04.956 24749 24793 I Finsky  : [64] SCH: Scheduling phonesky job Id: 10-79, CT: 1771384597722, Constraints: [{ L: 0, D: 86400000, C: CHARGING_NONE, I: IDLE_REQUIRED, N: NET_ANY, B: BATTERY_ANY }]
+02-18 16:12:04.956 24749 24793 I Finsky  : [64] SCH: Scheduling phonesky job Id: 12-1, CT: 1771386229384, Constraints: [{ L: 15000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+02-18 16:12:04.956 24749 24793 I Finsky  : [64] SCH: Scheduling phonesky job Id: 24-77777777, CT: 1771357884488, Constraints: [{ L: 1, D: 82800000, C: CHARGING_NONE, I: IDLE_REQUIRED, N: NET_NONE, B: BATTERY_ANY }]
+02-18 16:12:04.956 24749 24793 I Finsky  : [64] SCH: Scheduling phonesky job Id: 26-1414141414, CT: 1771402174232, Constraints: [{ L: 43199998, D: 44099998, C: CHARGING_NONE, I: IDLE_NONE, N: NET_NONE, B: BATTERY_ANY }]
+02-18 16:12:04.957  7134 24901 I Finsky:background: [161] IQ: handled package removed
+02-18 16:12:04.998  6427  6427 W MediaProvider: WorkProfileOwnerApps cache is empty
+02-18 16:12:05.012  5834  7747 W SignedPackage: Cannot get ApplicationInfo for package: com.android.gallery3d
+02-18 16:12:05.024 24749 24749 I Finsky  : [2] pvf - Deduping intent android.intent.action.PACKAGE_ADDED
+02-18 16:12:05.032 24749 24777 I Finsky  : [48] RECEIVER_PACKAGE_MONITOR#logWorkEndAndFinishGoAsync: SUCCESS
+02-18 16:12:05.114  5834  5885 I system_server: AssetManager2(0x88882894) locale list changing from [] to [en-US]
+02-18 16:12:05.125  6277 24846 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 53605978]
+02-18 16:12:05.136  7134 24889 I Finsky:background: [159] Wrote row to frosting DB: 136
+02-18 16:12:05.240  5834  5834 D AppSearchAppsIndexerManagerS: userid in package receiver: 10094
+02-18 16:12:05.256  5834  6438 I system_server: AssetManager2(0x8888b654) locale list changing from [] to [en-US]
+02-18 16:12:05.260  5834  7747 I system_server: AssetManager2(0x888845d4) locale list changing from [] to [en-US]
+02-18 16:12:05.265  6427  6427 D PickerSyncLockManager: Trying to acquire lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@75a6f42[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+02-18 16:12:05.266  6427  6427 D CloseableReentrantLock: Successfully acquired lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@75a6f42[Locked by thread main]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+02-18 16:12:05.267  6427  6427 D CloseableReentrantLock: Successfully released lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@75a6f42[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+02-18 16:12:05.278  5834  7747 W SignedPackage: Cannot get ApplicationInfo for package: com.google.android.devicelockcontroller
+02-18 16:12:05.350 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > ItemModel > CacheSize=1, cacheHitCount=1, cacheMissCount=0, total appsWithNoServerDataCount=1. Missed  in cache (limit 10) : []
+02-18 16:12:05.380 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > getApps > data collection finished
+02-18 16:12:05.380 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > maybeDestroyAppInfoManager is called. actives = 1
+02-18 16:12:05.392 24749 24788 I Finsky  : [59] AIM: AppInfoManager-Perf > ItemModel > CacheSize=1, cacheHitCount=1, cacheMissCount=0, total appsWithNoServerDataCount=1. Missed  in cache (limit 10) : []
+02-18 16:12:05.394 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > ItemModel > CacheSize=1, cacheHitCount=1, cacheMissCount=0, total appsWithNoServerDataCount=1. Missed  in cache (limit 10) : []
+02-18 16:12:05.396 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > getApps > data collection finished
+02-18 16:12:05.396 24749 24789 I Finsky  : [60] AIM: AppInfoManager-Perf > maybeDestroyAppInfoManager is called. actives = 0
+02-18 16:12:05.397  7134 24889 I Finsky:background: [159] Wrote row to frosting DB: 137
+02-18 16:12:05.436  7134 24889 I Finsky:background: [159] Wrote row to frosting DB: 138
+02-18 16:12:05.442 24749 24788 I Finsky  : [59] SCH: Scheduling 1 system job(s)
+02-18 16:12:05.445 24749 24788 D CompatChangeReporter: Compat change id reported: 311402873; UID 10053; state: ENABLED
+02-18 16:12:05.445 24749 24788 D CompatChangeReporter: Compat change id reported: 323349338; UID 10053; state: ENABLED
+02-18 16:12:05.445 24749 24788 I Finsky  : [59] SCH: Scheduling system job Id: 9132, L: 0, D: 55267537, C: false, I: false, N: 1
+02-18 16:12:05.464  7507  7860 I PermissionControllerServiceImpl: Updating user sensitive for uid 10094
+02-18 16:12:05.554  6546 24909 I Blockstore: [PackageIntentOperation] Feature flags not enabled, skipping. [CONTEXT service_id=258 ]
+02-18 16:12:05.562  5834  5885 I system_server: AssetManager2(0x88889d94) locale list changing from [] to [en-US]
+02-18 16:12:05.572 23971 23978 I roid.tvlauncher: Background concurrent mark compact GC freed 1916KB AllocSpace bytes, 54(4968KB) LOS objects, 49% free, 9205KB/17MB, paused 2.184ms,45.792ms total 2.409s
+02-18 16:12:05.752 24749 24753 W android.vending: Suspending all threads took: 6.967ms
+02-18 16:12:05.773  6546 24909 W SQLiteLog: (28) double-quoted string literal: "com.pixelspot.ccms.player.debug"
+02-18 16:12:05.778 24749 24749 I Finsky  : [2] SCH: job service start with id 9132.
+02-18 16:12:05.810  7134  7144 W ding:background: Reducing the number of considered missed Gc histogram windows from 636 to 100
+02-18 16:12:05.813 24749 24890 I Finsky  : [101] [ContentSync] finished, scheduled=false
+02-18 16:12:05.814 24749 24890 I Finsky  : [101] [ContentSync] finished, scheduled=false
+02-18 16:12:05.840  6277 24846 W WakeLock: GCM_HB_ALARM release without a matched acquire! [CONTEXT service_id=259 ]
+02-18 16:12:05.847 24749 24890 I Finsky  : [101] SCH: Satisfied jobs for 9132 are: 12-1
+02-18 16:12:05.861  6277 24007 V NativeCrypto: Read error: ssl=0xebeaea98: I/O error during system call, Connection reset by peer
+02-18 16:12:05.924  6546  6546 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS xflg=0x4 pkg=com.google.android.gms }
+02-18 16:12:05.924  6546  6546 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS xflg=0x4 pkg=com.google.android.gms }
+02-18 16:12:05.949  6546 24906 I Blockstore: [PackageIntentOperation] Feature flags not enabled, skipping. [CONTEXT service_id=258 ]
+02-18 16:12:05.955  6546 24910 I Auth    : (REDACTED) [SupervisedAccountIntentOperationV2] onHandleIntent: %s
+02-18 16:12:05.953 24749 24919 I Finsky  : [106] SCH: Job 12-1 starting
+02-18 16:12:05.988  6433  6433 I katniss_interactor_PackageCache: Rebuilding package cache for Intent { act=android.intent.action.PACKAGE_REMOVED dat=package: flg=0x4000010 (has extras) }
+02-18 16:12:05.984 24749 24749 I Finsky  : [2] WM::SCH: Logging work start for 12-1
+02-18 16:12:05.988 24749 24749 I Finsky  : [2] [ContentSync] job started
+02-18 16:12:05.996 24749 24924 I Finsky  : [107] PSR: Package cache is empty, setup cache.
+02-18 16:12:06.024  6433  6433 I katniss_interactor_PackageCache: Rebuilding package cache for Intent { act=android.intent.action.PACKAGE_ADDED dat=package: flg=0x4000010 (has extras) }
+--------- beginning of system
+02-18 16:12:06.025  6433  6433 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 16:12:06.027  6433  6433 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 16:12:06.029  6433  6433 I katniss_interactor_PackageCache: Rebuilding package cache for Intent { act=android.intent.action.PACKAGE_REPLACED dat=package: flg=0x4000010 (has extras) }
+02-18 16:12:06.034  6277 24920 V NativeCrypto: SSL shutdown failed: ssl=0xebeaea98: I/O error during system call, Broken pipe
+02-18 16:12:06.043  6277 24920 W WakeLock: GCM_HB_ALARM release without a matched acquire! [CONTEXT service_id=259 ]
+02-18 16:12:06.043  6277 24920 W WakeLock: GCM_HB_ALARM counter does not exist
+02-18 16:12:06.098  6277 24917 I FontLog : (REDACTED) Package %s has no metadata
+02-18 16:12:06.106 20571 20580 W oid.tv.settings: Reducing the number of considered missed Gc histogram windows from 122 to 100
+02-18 16:12:06.120  6433  6776 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_LAUNCHER] }: [AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0), AppInfo(enabled=true, longVersionCode=999999999, packageName=com.android.tv, versionCode=999999999, versionName=1.24-asop), AppInfo(enabled=true, longVersionCode=84801518, packageName=com.android.vending, versionCode=84801518, versionName=48.0.15-31 [8] [PR] 809095290), AppInfo(enabled=true, longVersionCode=530301360, packageName=com.google.android.youtube.tv, versionCode=530301360, versionName=5.30.301), AppInfo(enabled=true, longVersionCode=111003360, packageName=com.google.android.youtube.tvmusic, versionCode=111003360, versionName=1.11.03), AppInfo(enabled=true, longVersionCode=612035470, packageName=com.google.android.play.games, versionCode=612035470, versionName=2025.04.61203 (799029564.799029564-040700)), AppInfo(enabled=true, longVersionCode=1, packageName=com.pixelspot.ccms.player.debug, versionCode=1, versionName=1.0.0)]
+02-18 16:12:06.119  6433  6771 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_LAUNCHER] }: [AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0), AppInfo(enabled=true, longVersionCode=999999999, packageName=com.android.tv, versionCode=999999999, versionName=1.24-asop), AppInfo(enabled=true, longVersionCode=84801518, packageName=com.android.vending, versionCode=84801518, versionName=48.0.15-31 [8] [PR] 809095290), AppInfo(enabled=true, longVersionCode=530301360, packageName=com.google.android.youtube.tv, versionCode=530301360, versionName=5.30.301), AppInfo(enabled=true, longVersionCode=111003360, packageName=com.google.android.youtube.tvmusic, versionCode=111003360, versionName=1.11.03), AppInfo(enabled=true, longVersionCode=612035470, packageName=com.google.android.play.games, versionCode=612035470, versionName=2025.04.61203 (799029564.799029564-040700)), AppInfo(enabled=true, longVersionCode=1, packageName=com.pixelspot.ccms.player.debug, versionCode=1, versionName=1.0.0)]
+02-18 16:12:06.123  6433  6776 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_SETTINGS] }: [AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0), AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0)]
+02-18 16:12:06.126  6433  6771 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_SETTINGS] }: [AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0), AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0)]
+02-18 16:12:06.130  6433  6776 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] }: [AppInfo(enabled=true, longVersionCode=1010932689, packageName=com.google.android.tvlauncher, versionCode=1010932689, versionName=7.1.7-787904429-f), AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0)]
+02-18 16:12:06.133  6433  6771 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] }: [AppInfo(enabled=true, longVersionCode=1010932689, packageName=com.google.android.tvlauncher, versionCode=1010932689, versionName=7.1.7-787904429-f), AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0)]
+02-18 16:12:06.135  6433  6771 I katniss_interactor_PackageCache: Apps for Intent { act=com.google.assistant.DATA_SHARING_CONSENT }: [AppInfo(enabled=true, longVersionCode=15019467, packageName=com.google.android.katniss, versionCode=15019467, versionName=7.39.14+813970283.02)]
+02-18 16:12:06.135  6433  6771 I katniss_interactor_PackageCache: Apps for experience type WATSON: [AppInfo(enabled=true, longVersionCode=250834120, packageName=com.google.android.gms, versionCode=250834120, versionName=25.08.34 (180706-739221510)), AppInfo(enabled=true, longVersionCode=530301360, packageName=com.google.android.youtube.tv, versionCode=530301360, versionName=5.30.301)]
+02-18 16:12:06.137  6433  6776 I katniss_interactor_PackageCache: Apps for Intent { act=com.google.assistant.DATA_SHARING_CONSENT }: [AppInfo(enabled=true, longVersionCode=15019467, packageName=com.google.android.katniss, versionCode=15019467, versionName=7.39.14+813970283.02)]
+02-18 16:12:06.137  6433  6776 I katniss_interactor_PackageCache: Apps for experience type WATSON: [AppInfo(enabled=true, longVersionCode=250834120, packageName=com.google.android.gms, versionCode=250834120, versionName=25.08.34 (180706-739221510)), AppInfo(enabled=true, longVersionCode=530301360, packageName=com.google.android.youtube.tv, versionCode=530301360, versionName=5.30.301)]
+02-18 16:12:06.135 24749 24924 W Finsky  : [107] SLM: no metadata property com.android.vending.derived.apk.id found for shared library com.google.android.trichromelibrary_694313736:
+02-18 16:12:06.135 24749 24924 W Finsky  : [107] SLM: no metadata property com.android.vending.sdk.version.patch found for shared library com.google.android.trichromelibrary_694313736:
+02-18 16:12:06.145  6546 11764 I gle.android.gms: AssetManager2(0xebc4f9d4) locale list changing from [] to [en-US]
+02-18 16:12:06.153  5834  5959 I system_server: AssetManager2(0x88884814) locale list changing from [] to [en-US]
+02-18 16:12:06.163  6433  6681 I katniss_interactor_KatnissAccountManagerImpl: Read invalid search account from PDS
+02-18 16:12:06.168  6433  6768 I katniss_interactor_KatnissAccountManagerImpl: Read invalid search account from PDS
+02-18 16:12:06.196  6277 24926 I TrafficStats: tagSocketFd(-1, 805307399, -1) failed with errno-9
+02-18 16:12:06.202  6433  6681 I katniss_interactor_KatnissAccountManagerImpl: Read invalid search account from PDS
+02-18 16:12:06.204  6433  6768 I katniss_interactor_KatnissAccountManagerImpl: Read invalid search account from PDS
+02-18 16:12:06.272  6433  6775 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_LAUNCHER] }: [AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0), AppInfo(enabled=true, longVersionCode=999999999, packageName=com.android.tv, versionCode=999999999, versionName=1.24-asop), AppInfo(enabled=true, longVersionCode=84801518, packageName=com.android.vending, versionCode=84801518, versionName=48.0.15-31 [8] [PR] 809095290), AppInfo(enabled=true, longVersionCode=530301360, packageName=com.google.android.youtube.tv, versionCode=530301360, versionName=5.30.301), AppInfo(enabled=true, longVersionCode=111003360, packageName=com.google.android.youtube.tvmusic, versionCode=111003360, versionName=1.11.03), AppInfo(enabled=true, longVersionCode=612035470, packageName=com.google.android.play.games, versionCode=612035470, versionName=2025.04.61203 (799029564.799029564-040700)), AppInfo(enabled=true, longVersionCode=1, packageName=com.pixelspot.ccms.player.debug, versionCode=1, versionName=1.0.0)]
+02-18 16:12:06.273  6433  6775 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_SETTINGS] }: [AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0), AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0)]
+02-18 16:12:06.273  6433  6775 I katniss_interactor_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] }: [AppInfo(enabled=true, longVersionCode=1010932689, packageName=com.google.android.tvlauncher, versionCode=1010932689, versionName=7.1.7-787904429-f), AppInfo(enabled=true, longVersionCode=1, packageName=com.android.tv.settings, versionCode=1, versionName=1.0)]
+02-18 16:12:06.274  6433  6775 I katniss_interactor_PackageCache: Apps for Intent { act=com.google.assistant.DATA_SHARING_CONSENT }: [AppInfo(enabled=true, longVersionCode=15019467, packageName=com.google.android.katniss, versionCode=15019467, versionName=7.39.14+813970283.02)]
+02-18 16:12:06.274  6433  6775 I katniss_interactor_PackageCache: Apps for experience type WATSON: [AppInfo(enabled=true, longVersionCode=250834120, packageName=com.google.android.gms, versionCode=250834120, versionName=25.08.34 (180706-739221510)), AppInfo(enabled=true, longVersionCode=530301360, packageName=com.google.android.youtube.tv, versionCode=530301360, versionName=5.30.301)]
+02-18 16:12:06.276  6433  6681 I katniss_interactor_KatnissAccountManagerImpl: Read invalid search account from PDS
+02-18 16:12:06.278  6433  6681 I katniss_interactor_KatnissAccountManagerImpl: Read invalid search account from PDS
+02-18 16:12:06.386  5834  5959 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+02-18 16:12:06.418  5834  5959 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+02-18 16:12:06.421  6277 24920 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 53907421]
+02-18 16:12:06.441  6546  6796 I Icing   : IndexChimeraService.getServiceInterface callingPackage=com.google.android.gms componentName=AppsCorpus serviceId=36
+02-18 16:12:06.476  6546  6546 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.feedback.internal.IFeedbackService dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+02-18 16:12:06.476  6546  6546 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.feedback.internal.IFeedbackService dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+02-18 16:12:06.489 14327 24771 W android.hardware.audio@7.1-impl.ranchu: pcmWrite:259 pcm_writei failed with 'cannot read/write stream data: I/O error' (-1)
+02-18 16:12:06.492 14327 24771 E android.hardware.audio@7.1-impl.ranchu: pcmWrite:260 failure: -1
+02-18 16:12:06.492 14327 24771 D android.hardware.audio@7.1-impl.ranchu: consumeThread: exiting
+02-18 16:12:06.493 14327 14367 D android.hardware.audio@7.1-impl.ranchu: ~TinyalsaSink: stopping PCM stream
+02-18 16:12:06.521  6277 19446 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 53907521]
+02-18 16:12:06.523  6277 19446 W WakeLock: GCM_CONN_ALARM release without a matched acquire! [CONTEXT service_id=259 ]
+02-18 16:12:06.552  6277 19446 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 53907552]
+02-18 16:12:06.554  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:06.614  6546  6796 I Icing   : IndexChimeraService.getServiceInterface callingPackage=com.google.android.gms componentName=null serviceId=30
+02-18 16:12:06.656  5834  9829 W ActivityTaskManager: callingPackage for (uid=2000, pid=24935) has no WPC
+02-18 16:12:06.702  5834  9829 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@1af50af5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+02-18 16:12:06.712  5834  9829 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+02-18 16:12:06.715  5834  9829 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+02-18 16:12:06.727  5834  9829 E CellBroadcastUtils: getDefaultCellBroadcastReceiverPackageName: no package found
+02-18 16:12:06.774  5834  9829 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
+02-18 16:12:06.796  6546  8145 I gle.android.gms: AssetManager2(0xebc4da54) locale list changing from [] to [en-US]
+02-18 16:12:06.819  5834  9829 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x5 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+02-18 16:12:06.824  5834  5873 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@1af50af5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+02-18 16:12:06.848  5754  5754 D Zygote  : Forked child process 24940
+02-18 16:12:06.858  5834  5887 I ActivityManager: Start proc 24940:com.pixelspot.ccms.player.debug/u0a94 for next-top-activity {com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity}
+02-18 16:12:06.858  5834  5887 I ActivityManager: ProcessObserver broadcast disabled
+02-18 16:12:06.863  6066  6201 V WindowManagerShell: Transition requested (#62): android.os.BinderProxy@66e29e4 TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=31 effectiveUid=10094 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity } baseActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} topActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} origActivity=null realActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} numActivities=1 lastActiveTime=53547817 supportsMultiWindow=false resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@8037e4d} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=true launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{6866d02 com.pixelspot.ccms.player.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(840, 473 - 3000, 1688) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 3840, 2160) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive}} topActivityMainWindowFrame=null}, pipChange = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 62 }
+02-18 16:12:06.884   522   522 I BpBinder: onLastStrongRef automatically unlinking death recipients: 
+02-18 16:12:06.888  6546  6559 W gle.android.gms: Reducing the number of considered missed Gc histogram windows from 125 to 100
+02-18 16:12:06.908 24940 24940 I ms.player.debug: Late-enabling -Xcheck:jni
+02-18 16:12:06.915 24749 24924 I Finsky  : [107] App states replicator found 2 unowned apps
+02-18 16:12:06.933 24749 24788 I Finsky  : [59] Completed 0 account content syncs with 0 successful.
+02-18 16:12:06.936 24749 24749 I Finsky  : [2] [ContentSync] Installation state replication succeeded.
+02-18 16:12:06.936 24749 24749 I Finsky  : [2] SCH: jobFinished: 12-1. TimeElapsed: 954ms.
+02-18 16:12:06.936 24749 24749 I Finsky  : [2] WM::SCH: Logging work end for 12-1
+02-18 16:12:06.989  6546  8145 I gle.android.gms: AssetManager2(0xebc4f9d4) locale list changing from [] to [en-US]
+02-18 16:12:07.000 24749 24789 I Finsky  : [60] SCH: Scheduling phonesky job Id: 1-1337, CT: 1771384598728, Constraints: [{ L: 38794251, D: 81994251, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+02-18 16:12:07.009 24749 24793 I Finsky  : [64] SCH: Scheduling 1 system job(s)
+02-18 16:12:07.010 24749 24793 I Finsky  : [64] SCH: Scheduling system job Id: 9137, L: 12065969, D: 55265969, C: false, I: false, N: 1
+02-18 16:12:07.036 24749 24919 I Finsky  : [106] SCH: job service finished with id 9132.
+02-18 16:12:07.041  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:07.048  6066  6264 W Looper  : Drained
+02-18 16:12:07.077 23971 23971 W Glide   : Load failed for [null] with dimensions [0x0]
+02-18 16:12:07.077 23971 23971 W Glide   : class cwo: Received null model
+02-18 16:12:07.102  5834  5834 I system_server: AssetManager2(0x888818d4) locale list changing from [] to [en-US]
+02-18 16:12:07.130 23971 23971 W Glide   : Load failed for [null] with dimensions [0x0]
+02-18 16:12:07.130 23971 23971 W Glide   : class cwo: Received null model
+02-18 16:12:07.144  5834 13176 D ActivityManager: sync unfroze 6719 com.android.providers.tv for 7
+02-18 16:12:07.148  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:07.177  6066  6201 D WindowManagerShell: TvPipController: onTaskStackChanged()
+02-18 16:12:07.185  6719  6719 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 16:12:07.191  6719  6719 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 16:12:07.195  6546  8145 I gle.android.gms: AssetManager2(0xebc4f0d4) locale list changing from [] to [en-US]
+02-18 16:12:07.200  6546  8145 I Icing   : Usage reports ok 8, Failed Usage reports 0, indexed 0, rejected 0
+02-18 16:12:07.232 24940 24940 I ms.player.debug: Using CollectorTypeCMC GC.
+02-18 16:12:07.236 23971 23971 W View    : requestLayout() improperly called by android.widget.FrameLayout{bb49b8e V.E...... ......ID 0,0-3840,2160 #7f0b009b app:id/background_image_container} during layout: running second layout pass
+02-18 16:12:07.236 23971 23971 W View    : requestLayout() improperly called by android.widget.FrameLayout{55b09ed V.E...... ......I. 1280,0-3840,1440 #7f0b039e app:id/old_image} during layout: running second layout pass
+02-18 16:12:07.236 23971 23971 W View    : requestLayout() improperly called by android.widget.FrameLayout{dc42004 I.E...... ......ID 1280,0-3840,1440 #7f0b0133 app:id/current_image} during layout: running second layout pass
+02-18 16:12:07.236 24940 24940 W ms.player.debug: Unexpected CPU variant for x86: x86.
+02-18 16:12:07.236 24940 24940 W ms.player.debug: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, alderlake, default
+02-18 16:12:07.269  1801  1812 I adbd    : jdwp connection from 24940
+02-18 16:12:07.322 24940 24940 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+02-18 16:12:07.328  6546  6546 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.safetynet.service.START xflg=0x4 pkg=com.google.android.gms }
+02-18 16:12:07.431  5834 13176 W ActivityManager: Slow operation: 51ms so far, now at attachApplicationLocked: immediately after bindApplication
+02-18 16:12:07.432  5834 13176 W ActivityManager: Slow operation: 52ms so far, now at attachApplicationLocked: after updateLruProcessLocked
+02-18 16:12:07.433  5834 13176 W ActivityManager: Slow operation: 53ms so far, now at attachApplicationLocked: after updateOomAdjLocked
+02-18 16:12:07.491  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: Writing exception to parcel
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: android.database.sqlite.SQLiteDoneException
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.database.sqlite.SQLiteConnection.nativeExecuteForBlobFileDescriptor(Native Method)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.database.sqlite.SQLiteConnection.executeForBlobFileDescriptor(SQLiteConnection.java:890)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.database.sqlite.SQLiteSession.executeForBlobFileDescriptor(SQLiteSession.java:757)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.database.sqlite.SQLiteStatement.simpleQueryForBlobFileDescriptor(SQLiteStatement.java:152)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.database.DatabaseUtils.blobFileDescriptorForQuery(DatabaseUtils.java:1092)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.database.DatabaseUtils.blobFileDescriptorForQuery(DatabaseUtils.java:1077)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at com.android.providers.tv.TvProvider.openLogoFile(TvProvider.java:2497)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at com.android.providers.tv.TvProvider.openFile(TvProvider.java:2469)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.content.ContentProvider.openAssetFile(ContentProvider.java:2268)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.content.ContentProvider.openTypedAssetFile(ContentProvider.java:2446)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.content.ContentProvider.openTypedAssetFile(ContentProvider.java:2513)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.content.ContentProvider$Transport.openTypedAssetFile(ContentProvider.java:677)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:341)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.os.Binder.execTransactInternal(Binder.java:1421)
+02-18 16:12:07.541  6719 10761 E DatabaseUtils: 	at android.os.Binder.execTransact(Binder.java:1365)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: Writing exception to parcel
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: android.database.sqlite.SQLiteDoneException
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.database.sqlite.SQLiteConnection.nativeExecuteForBlobFileDescriptor(Native Method)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.database.sqlite.SQLiteConnection.executeForBlobFileDescriptor(SQLiteConnection.java:890)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.database.sqlite.SQLiteSession.executeForBlobFileDescriptor(SQLiteSession.java:757)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.database.sqlite.SQLiteStatement.simpleQueryForBlobFileDescriptor(SQLiteStatement.java:152)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.database.DatabaseUtils.blobFileDescriptorForQuery(DatabaseUtils.java:1092)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.database.DatabaseUtils.blobFileDescriptorForQuery(DatabaseUtils.java:1077)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at com.android.providers.tv.TvProvider.openLogoFile(TvProvider.java:2497)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at com.android.providers.tv.TvProvider.openFile(TvProvider.java:2469)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.content.ContentProvider.openAssetFile(ContentProvider.java:2268)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.content.ContentProvider.openTypedAssetFile(ContentProvider.java:2446)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.content.ContentProvider.openTypedAssetFile(ContentProvider.java:2513)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.content.ContentProvider$Transport.openTypedAssetFile(ContentProvider.java:677)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:341)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.os.Binder.execTransactInternal(Binder.java:1421)
+02-18 16:12:07.544  6719  6772 E DatabaseUtils: 	at android.os.Binder.execTransact(Binder.java:1365)
+02-18 16:12:07.650 23971 23971 W Glide   : Load failed for [content://android.media.tv/channel/1000044/logo?t=1771410427284] with dimensions [240x240]
+02-18 16:12:07.650 23971 23971 W Glide   : class cwo: Failed to load resource
+02-18 16:12:07.650 23971 23971 W Glide   : There was 1 root cause:
+02-18 16:12:07.650 23971 23971 W Glide   : android.database.sqlite.SQLiteException(null)
+02-18 16:12:07.650 23971 23971 W Glide   :  call GlideException#logRootCauses(String) for more detail
+02-18 16:12:07.650 23971 23971 W Glide   :   Cause (1 of 1): class android.database.sqlite.SQLiteException: 
+02-18 16:12:07.657 23971 24941 E GlideExecutor: Request threw uncaught throwable
+02-18 16:12:07.657 23971 24941 E GlideExecutor: android.database.sqlite.SQLiteException
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:197)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2045)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1860)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at android.content.ContentResolver.openInputStream(ContentResolver.java:1530)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cvh.b(PG:16)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cvd.f(PG:5)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cww.c(PG:261)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cvw.l(PG:23)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cvw.run(PG:69)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cio.run(PG:909)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at java.lang.Thread.run(Thread.java:1119)
+02-18 16:12:07.657 23971 24941 E GlideExecutor: 	at cxy.run(PG:6)
+02-18 16:12:07.658 24940 24940 I ActivityThread: Relaunch all activities: onCoreSettingsChange
+02-18 16:12:07.675 24940 24940 D nativeloader: Load libstats_jni.so using APEX ns com_android_os_statsd for caller /apex/com.android.os.statsd/javalib/framework-statsd.jar: ok
+02-18 16:12:07.678 24940 24940 D CompatChangeReporter: Compat change id reported: 242716250; UID 10094; state: ENABLED
+02-18 16:12:07.708 23971 23971 W Glide   : Load failed for [content://android.media.tv/channel/1000000/logo?t=1771410427148] with dimensions [240x240]
+02-18 16:12:07.708 23971 23971 W Glide   : class cwo: Failed to load resource
+02-18 16:12:07.708 23971 23971 W Glide   : There was 1 root cause:
+02-18 16:12:07.708 23971 23971 W Glide   : android.database.sqlite.SQLiteException(null)
+02-18 16:12:07.708 23971 23971 W Glide   :  call GlideException#logRootCauses(String) for more detail
+02-18 16:12:07.708 23971 23971 W Glide   :   Cause (1 of 1): class android.database.sqlite.SQLiteException: 
+02-18 16:12:07.718 23971 24943 E GlideExecutor: Request threw uncaught throwable
+02-18 16:12:07.718 23971 24943 E GlideExecutor: android.database.sqlite.SQLiteException
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:197)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at android.database.DatabaseUtils.readExceptionWithFileNotFoundExceptionFromParcel(DatabaseUtils.java:164)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at android.content.ContentProviderProxy.openTypedAssetFile(ContentProviderNative.java:814)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at android.content.ContentResolver.openTypedAssetFileDescriptor(ContentResolver.java:2045)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at android.content.ContentResolver.openAssetFileDescriptor(ContentResolver.java:1860)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at android.content.ContentResolver.openInputStream(ContentResolver.java:1530)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cvh.b(PG:16)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cvd.f(PG:5)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cww.c(PG:261)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cvw.l(PG:23)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cvw.run(PG:69)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cio.run(PG:909)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at java.lang.Thread.run(Thread.java:1119)
+02-18 16:12:07.718 23971 24943 E GlideExecutor: 	at cxy.run(PG:6)
+02-18 16:12:07.848  6546  8145 I Icing   : Usage reports ok 0, Failed Usage reports 0, indexed 0, rejected 0
+02-18 16:12:07.976  6546  8145 I Icing   : Indexing com.google.android.gms-apps from com.google.android.gms
+02-18 16:12:08.028  6546  8145 I Icing   : Indexing done com.google.android.gms-apps
+02-18 16:12:08.048   557   616 D BufferPoolAccessor2.0: evictor expired: 1, evicted: 0
+02-18 16:12:08.536 24940 24940 D nativeloader: Configuring clns-7 for other apk /data/app/~~tMcG5gJDaEBBlZIqxF5BZw==/com.pixelspot.ccms.player.debug-GqFZmjvx-2YdsOXvc4hvdA==/base.apk. target_sdk_version=34, uses_libraries=, library_path=/data/app/~~tMcG5gJDaEBBlZIqxF5BZw==/com.pixelspot.ccms.player.debug-GqFZmjvx-2YdsOXvc4hvdA==/lib/x86:/data/app/~~tMcG5gJDaEBBlZIqxF5BZw==/com.pixelspot.ccms.player.debug-GqFZmjvx-2YdsOXvc4hvdA==/base.apk!/lib/x86, permitted_path=/data:/mnt/expand:/data/user/0/com.pixelspot.ccms.player.debug
+02-18 16:12:08.552 24940 24940 I ms.player.debug: AssetManager2(0xebc406d4) locale list changing from [] to [en-US]
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment: Currently set values for:
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment: com.pixelspot.ccms.player.debug is not listed in per-application setting
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment: ANGLE allowlist from config: 
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment: com.pixelspot.ccms.player.debug is not listed in ANGLE allowlist or settings, returning default
+02-18 16:12:08.576 24940 24940 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+02-18 16:12:08.653  5834  5859 I system_server: Background concurrent mark compact GC freed 22MB AllocSpace bytes, 56(3712KB) LOS objects, 49% free, 18MB/37MB, paused 1.089ms,18.879ms total 1.095s
+02-18 16:12:08.672 24940 24940 I CrashRecovery: Crash recovery installed, safe_mode=false
+02-18 16:12:08.690  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:08.691  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:08.689 24940 24940 I BootReceiver: Boot completed, starting PlayerService
+02-18 16:12:08.696  5834  5923 I ActivityManager: Background started FGS: Allowed [callingPackage: com.pixelspot.ccms.player.debug; callingUid: 10094; uidState: TOP ; uidBFSL: [BFSL]; intent: Intent { act=com.pixelspot.ccms.player.START xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; allowWiu:12; targetSdkVersion:34; callerTargetSdkVersion:34; startForegroundCount:0; bindFromPackage:null: isBindService:false]
+02-18 16:12:08.699  5834  5923 I BroadcastQueue: BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:24 completeLatency:1236 dispatchRealLatency:24 completeRealLatency:1236 receiversSize:1 userId:0 userType:android.os.usertype.full.SYSTEM
+02-18 16:12:08.711 24940 24962 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+02-18 16:12:08.713  5834 13176 V DisplayManagerService: FrozenStateChangeCallback not supported for pid 24940
+02-18 16:12:08.719  5834  5861 W System  : A resource failed to call close. 
+02-18 16:12:08.719 24940 24940 I ms.player.debug: AssetManager2(0xebc44ed4) locale list changing from [] to [en-US]
+02-18 16:12:08.780 24940 24940 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+02-18 16:12:08.786 24940 24940 I ms.player.debug: AssetManager2(0xebc43f14) locale list changing from [] to [en-US]
+02-18 16:12:08.800 24940 24940 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+02-18 16:12:08.851 24940 24962 I EGL_emulation: Opening libGLESv1_CM_emulation.so
+02-18 16:12:08.852 24940 24962 I EGL_emulation: Opening libGLESv2_emulation.so
+02-18 16:12:08.894 24940 24962 W HWUI    : Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
+02-18 16:12:08.894 24940 24962 W HWUI    : Failed to initialize 101010-2 format, error = EGL_SUCCESS
+02-18 16:12:09.212 24940 24940 I ms.player.debug: hiddenapi: Accessing hidden method Ljava/lang/invoke/MethodHandles$Lookup;-><init>(Ljava/lang/Class;I)V (runtime_flags=0, domain=core-platform, api=unsupported) from Lretrofit2/Platform; (domain=app) using reflection: allowed
+02-18 16:12:09.288 24940 24940 E ms.player.debug: Invalid resource ID 0x00000000.
+02-18 16:12:09.309 24940 24940 D DesktopModeFlags: Toggle override initialized to: OVERRIDE_UNSET
+02-18 16:12:09.352 24940 24940 I ms.player.debug: hiddenapi: Accessing hidden method Landroid/view/View;->computeFitSystemWindows(Landroid/graphics/Rect;Landroid/graphics/Rect;)Z (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/appcompat/widget/ViewUtils; (domain=app) using reflection: allowed
+02-18 16:12:09.352 24940 24940 I ms.player.debug: hiddenapi: Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/appcompat/widget/ViewUtils; (domain=app) using reflection: allowed
+02-18 16:12:09.494 24940 24940 W HWUI    : Image decoding logging dropped!
+02-18 16:12:09.660 23971 23971 W Choreographer: Frame time is 2.082239 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:09.676 23971 23971 W Choreographer: Frame time is 2.748906 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:09.692 23971 23971 W Choreographer: Frame time is 3.415572 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:09.733 24940 24940 I ExoPlayerImpl: Init a6d1756 [AndroidXMedia3/1.2.1] [emulator_x86_arm, AOSP TV on x86, Google, 36]
+02-18 16:12:09.766  5834 13176 D CompatChangeReporter: Compat change id reported: 161145287; UID 10094; state: ENABLED
+02-18 16:12:09.776 24940 24940 D AudioSystem: onNewService: media.audio_policy service obtained 0xdb8088f0
+02-18 16:12:09.781 24940 24940 D AudioSystem: getService: checking for service media.audio_policy: 0xdb8088f0
+02-18 16:12:09.781 14326 14326 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 16:12:09.782 14326 14326 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 16:12:09.797 14326 14326 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 16:12:09.799 14326 14379 D NativePermissionController: checkPermission: missing 13 for 10094
+02-18 16:12:09.827 24940 24940 I ms.player.debug: hiddenapi: Accessing hidden method Landroid/media/AudioTrack;->getLatency()I (runtime_flags=0, domain=platform, api=unsupported) from Landroidx/media3/exoplayer/audio/AudioTrackPositionTracker; (domain=app) using reflection: allowed
+02-18 16:12:09.843 24940 24940 W libc    : Access denied finding property "vendor.display-size"
+02-18 16:12:09.884 24940 24940 D AudioSystem: onNewServiceWithAdapter: media.audio_flinger service obtained 0xec2e6990
+02-18 16:12:09.884 24940 24940 D AudioSystem: getService: checking for service media.audio_flinger: 0xdb80c550
+02-18 16:12:09.944 23971 23971 W Choreographer: Frame time is 1.41557 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:09.960 23971 23971 W Choreographer: Frame time is 2.082237 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:09.976 23971 23971 W Choreographer: Frame time is 2.748903 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:09.984  5834 13175 I system_server: AssetManager2(0x888818d4) locale list changing from [] to [en-US]
+02-18 16:12:09.990  5834 13175 E CellBroadcastUtils: getDefaultCellBroadcastReceiverPackageName: no package found
+02-18 16:12:09.991  5834 13175 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+02-18 16:12:09.992  5834 13175 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE
+02-18 16:12:09.992  5834 13175 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+02-18 16:12:09.992 23971 23971 W Choreographer: Frame time is 3.41557 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.002  5834 13175 I ActivityTaskManager: START u0 {xflg=0x4 cmp=com.android.systemui/.mediaprojection.permission.MediaProjectionPermissionActivity} with LAUNCH_SINGLE_TOP from uid 10094 (rr=151667730) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+02-18 16:12:10.004 24940 24940 I MainActivity: MainActivity created, screen=3dc5af04-81b4-4ec3-8af7-5577a6573859
+02-18 16:12:10.036 24940 24940 W KioskManager: Not device owner, kiosk mode unavailable. Run: adb shell dpm set-device-owner com.pixelspot.ccms.player/.kiosk.AdminReceiver
+02-18 16:12:10.080 24940 24940 W HWUI    : Unknown dataspace 0
+02-18 16:12:10.084 24749 24749 I Finsky  : [2] setup::RES: shouldRecoverRestoredPackages: versionCodeSystem 84801518
+02-18 16:12:10.092 24749 24749 I Finsky  : [2] Detected restoreservicev2://recovery not needed, will not run
+02-18 16:12:10.107 24940 24940 D InsetsController: Setting requestedVisibleTypes to -528 (was -9)
+02-18 16:12:10.114  5834 13175 W WindowManager: Failed looking up window session=Session{111e20e 24940:u0a10094} callers=com.android.server.wm.WindowManagerService.windowForClientLocked:6410 com.android.server.wm.Session.updateRequestedVisibleTypes:700 android.view.IWindowSession$Stub.onTransact:1023 
+02-18 16:12:10.183  5834 13175 D CompatChangeReporter: Compat change id reported: 254662522; UID 10094; state: ENABLED
+02-18 16:12:10.190 24940 24940 D AndroidRuntime: Shutting down VM
+--------- beginning of crash
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: FATAL EXCEPTION: main
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: Process: com.pixelspot.ccms.player.debug, PID: 24940
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: java.lang.RuntimeException: Unable to start service com.pixelspot.ccms.player.service.PlayerService@6ac688e with Intent { act=com.pixelspot.ccms.player.START xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService }: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{2eebf8f 24940:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5471)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.ActivityThread.-$$Nest$mhandleServiceArgs(Unknown Source:0)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2647)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:338)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:9067)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: Caused by: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{2eebf8f 24940:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3340)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Parcel.createException(Parcel.java:3324)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Parcel.readException(Parcel.java:3307)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.os.Parcel.readException(Parcel.java:3249)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.IActivityManager$Stub$Proxy.setServiceForeground(IActivityManager.java:7274)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.Service.startForeground(Service.java:776)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.pixelspot.ccms.player.service.PlayerService.onStartCommand(PlayerService.kt:94)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5453)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	... 9 more
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: Caused by: android.os.RemoteException: Remote stack trace:
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.android.server.am.ActiveServices.validateForegroundServiceType(ActiveServices.java:2920)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.android.server.am.ActiveServices.setServiceForegroundInnerLocked(ActiveServices.java:2596)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.android.server.am.ActiveServices.setServiceForegroundLocked(ActiveServices.java:1850)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at com.android.server.am.ActivityManagerService.setServiceForeground(ActivityManagerService.java:13842)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:3640)
+02-18 16:12:10.197 24940 24940 E AndroidRuntime: 
+02-18 16:12:10.200 24940 24940 E CrashRecovery: Uncaught exception on main
+02-18 16:12:10.200 24940 24940 E CrashRecovery: java.lang.RuntimeException: Unable to start service com.pixelspot.ccms.player.service.PlayerService@6ac688e with Intent { act=com.pixelspot.ccms.player.START xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService }: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{2eebf8f 24940:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5471)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.ActivityThread.-$$Nest$mhandleServiceArgs(Unknown Source:0)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2647)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Looper.loop(Looper.java:338)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.ActivityThread.main(ActivityThread.java:9067)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at java.lang.reflect.Method.invoke(Native Method)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: Caused by: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{2eebf8f 24940:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3340)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Parcel.createException(Parcel.java:3324)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Parcel.readException(Parcel.java:3307)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.os.Parcel.readException(Parcel.java:3249)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.IActivityManager$Stub$Proxy.setServiceForeground(IActivityManager.java:7274)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.Service.startForeground(Service.java:776)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.pixelspot.ccms.player.service.PlayerService.onStartCommand(PlayerService.kt:94)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5453)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	... 9 more
+02-18 16:12:10.200 24940 24940 E CrashRecovery: Caused by: android.os.RemoteException: Remote stack trace:
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.android.server.am.ActiveServices.validateForegroundServiceType(ActiveServices.java:2920)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.android.server.am.ActiveServices.setServiceForegroundInnerLocked(ActiveServices.java:2596)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.android.server.am.ActiveServices.setServiceForegroundLocked(ActiveServices.java:1850)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at com.android.server.am.ActivityManagerService.setServiceForeground(ActivityManagerService.java:13842)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:3640)
+02-18 16:12:10.200 24940 24940 E CrashRecovery: 
+02-18 16:12:10.206 24940 24940 I CrashRecovery: Restart scheduled in 5000ms
+02-18 16:12:10.217  5834 24977 I DropBoxManagerService: add tag=data_app_crash isTagEnabled=true flags=0x2
+02-18 16:12:10.228 24940 24940 I Process : Sending signal. PID: 24940 SIG: 9
+02-18 16:12:10.243  5834  6302 I ActivityManager: Process com.pixelspot.ccms.player.debug (pid 24940) has died: fg  TOP 
+02-18 16:12:10.248  5834  6056 I WindowManager: WIN DEATH: Window{b8143c5 u0 com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity}
+02-18 16:12:10.251  1801  1801 I adbd    : Remote process closed the socket (on MSG_PEEK)
+02-18 16:12:10.256  5834  6302 W ActivityManager: Scheduling restart of crashed service com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService in 3118ms for start-requested
+02-18 16:12:10.256  5754  5754 I Zygote  : Process 24940 exited due to signal 9 (Killed)
+02-18 16:12:10.260  5834  5888 I libprocessgroup: Removed cgroup /sys/fs/cgroup/apps/uid_10094/pid_24940
+02-18 16:12:10.272  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 16:12:10.271  5834  6302 W ActivityTaskManager: Force removing ActivityRecord{151667730 u0 com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity t31}: app died, no saved state
+02-18 16:12:10.277  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 16:12:10.277  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={10094} in 8ms
+02-18 16:12:10.282  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 16:12:10.289  5834  5873 W ActivityManager: setHasOverlayUi called on unknown pid: 24940
+02-18 16:12:10.289  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 16:12:10.289  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={20094} in 9ms
+02-18 16:12:10.299  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:10.300  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:10.300  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:10.297  6066  6296 I EGL_emulation: Opening libGLESv1_CM_emulation.so
+02-18 16:12:10.315  6066  6066 I ndroid.systemui: AssetManager2(0xebc4a8d4) locale list changing from [] to [en-US]
+02-18 16:12:10.320  6066  6296 I EGL_emulation: Opening libGLESv2_emulation.so
+02-18 16:12:10.345  6066  6296 W HWUI    : Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
+02-18 16:12:10.346  6066  6296 W HWUI    : Failed to initialize 101010-2 format, error = EGL_SUCCESS
+02-18 16:12:10.444 23971 23971 W Choreographer: Frame time is 1.415565 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.463  6066  6066 I ndroid.systemui: AssetManager2(0xebc4b894) locale list changing from [] to [en-US]
+02-18 16:12:10.476 23971 23971 W Choreographer: Frame time is 2.546786 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.493 23971 23971 W Choreographer: Frame time is 2.729667 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.500  5834  5873 W ActivityTaskManager: Activity top resumed state loss timeout for ActivityRecord{151667730 u0 com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity t-1 f}}
+02-18 16:12:10.512 23971 23971 W Choreographer: Frame time is 0.082231 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.523  6066  6066 D CompatChangeReporter: Compat change id reported: 379365266; UID 10066; state: ENABLED
+02-18 16:12:10.527  5834  6302 D MediaProjectionMetricsLogger: logInitiated
+02-18 16:12:10.528 23971 23971 W Choreographer: Frame time is 0.74889797 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.544  6066  6066 E ndroid.systemui: Invalid resource ID 0x00000000.
+02-18 16:12:10.544 23971 23971 W Choreographer: Frame time is 1.415564 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.560 23971 23971 W Choreographer: Frame time is 2.082231 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.609 23971 23971 W Choreographer: Frame time is 3.102824 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.614  6066  6066 D CompatChangeReporter: Compat change id reported: 376561342; UID 10066; state: ENABLED
+02-18 16:12:10.628 23971 23971 W Choreographer: Frame time is 0.748897 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.644 23971 23971 W Choreographer: Frame time is 1.415563 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.660 23971 23971 W Choreographer: Frame time is 2.08223 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:10.688  5834  6302 D MediaProjectionMetricsLogger: logPermissionRequestDisplayed
+02-18 16:12:10.693  6066  6066 E ndroid.systemui: Invalid resource ID 0x00000000.
+02-18 16:12:10.719  5834  6056 D CoreBackPreview: Window{f6eaa6c u0 com.android.systemui}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@ce392b1, mPriority=-1, mIsAnimationCallback=false, mOverrideBehavior=0}
+02-18 16:12:10.736 24749 24891 I Finsky  : [102] registerListener
+02-18 16:12:10.737 24749 24891 I Finsky  : [102] getDownloads()
+02-18 16:12:10.745 24749 24891 I Finsky  : [102] Initialized AssetModuleDownloader.
+02-18 16:12:10.748  7134  7261 I Finsky:background: [56] DS: getDownloads()
+02-18 16:12:10.868  5834  6462 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+02-18 16:12:11.003  5834  6302 D CoreBackPreview: Window{c25f63b u0 com.android.systemui/com.android.systemui.mediaprojection.permission.MediaProjectionPermissionActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@ce00e46, mPriority=-1, mIsAnimationCallback=false, mOverrideBehavior=0}
+02-18 16:12:11.049  6066  9734 V WindowManagerShell: onTransitionReady(transaction=25056839207112)
+02-18 16:12:11.054  6066  6201 V WindowManagerShell: onTransitionReady (#62) android.os.BinderProxy@66e29e4: {id=62 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[
+02-18 16:12:11.054  6066  6201 V WindowManagerShell:         {m=OPEN f=TRANSLUCENT leash=Surface(name=Task=31)/@0x6c45a3c sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}
+02-18 16:12:11.054  6066  6201 V WindowManagerShell:     ]}
+02-18 16:12:11.058  6066  6201 V WindowManagerShell: Playing animation for (#62) android.os.BinderProxy@66e29e4@0
+02-18 16:12:11.057  5834  5870 I ActivityTaskManager: Displayed com.android.systemui/.mediaprojection.permission.MediaProjectionPermissionActivity for user 0: +4s383ms
+02-18 16:12:11.059  6066  6201 V WindowManagerShell: Transition doesn't have explicit remote, search filters for match for {id=62 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{m=OPEN f=TRANSLUCENT leash=Surface(name=Task=31)/@0x6c45a3c sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}]}
+02-18 16:12:11.060  6066  6201 V WindowManagerShell:  Delegate animation for (#62) to null
+02-18 16:12:11.060  6066  6201 V WindowManagerShell: start default transition animation, info = {id=62 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{m=OPEN f=TRANSLUCENT leash=Surface(name=Task=31)/@0x6c45a3c sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}]}
+02-18 16:12:11.060  5834  5870 V WindowManager: Sent Transition (#62) createdAt=02-18 16:12:06.721 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=31 effectiveUid=10094 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity } baseActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} topActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} origActivity=null realActivity=ComponentInfo{com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} numActivities=1 lastActiveTime=53547817 supportsMultiWindow=false resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{RemoteToken{1ed80ff Task{208a7e3 #31 type=standard A=10094:com.pixelspot.ccms.player.debug}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=true launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{3a7cecc com.pixelspot.ccms.player.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(840, 473 - 3000, 1688) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducation= false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 3840, 2160) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive}} topActivityMainWindowFrame=null}, pipChange = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 62 }
+02-18 16:12:11.060  5834  5870 V WindowManager:     startWCT=WindowContainerTransaction { changes= {} hops= [] errorCallbackToken=null taskFragmentOrganizer=null }
+02-18 16:12:11.060  5834  5870 V WindowManager:     info={id=62 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[
+02-18 16:12:11.060  5834  5870 V WindowManager:         {WCT{RemoteToken{1ed80ff Task{208a7e3 #31 type=standard A=10094:com.pixelspot.ccms.player.debug}}} m=OPEN f=TRANSLUCENT leash=Surface(name=Task=31)/@0xf17ada3 sb=Rect(0, 0 - 3840, 2160) eb=Rect(0, 0 - 3840, 2160) epz=Point(3840, 2160) d=0 taskParent=-1}
+02-18 16:12:11.060  5834  5870 V WindowManager:     ]}
+02-18 16:12:11.069  6066  6201 V WindowManagerShell: loadAnimation: anim=android.view.animation.AlphaAnimation@c309a27 animAttr=0x4 type=OPEN isEntrance=true
+02-18 16:12:11.078  6066  6201 V WindowManagerShell:  animated by com.android.wm.shell.transition.DefaultTransitionHandler@8ef7328
+02-18 16:12:11.212  6066  6226 W Choreographer: Frame time is 0.082225 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.228  6066  6226 W Choreographer: Frame time is 0.748891 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.229  5834  5875 W Choreographer: Frame time is 0.05933 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.261  6066  6226 W Choreographer: Frame time is 0.96276 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.360  6066  6226 W Choreographer: Frame time is 2.082223 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.393  6066  6226 W Choreographer: Frame time is 2.338255 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.412  6066  6226 W Choreographer: Frame time is 0.082223 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.428  6066  6226 W Choreographer: Frame time is 0.74888897 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.444  6066  6226 W Choreographer: Frame time is 1.415556 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+02-18 16:12:11.483  6066  6201 V WindowManagerShell: Transition animation finished (aborted=false), notifying core (#62) android.os.BinderProxy@66e29e4@0
+02-18 16:12:11.488  5834  5870 V WindowManager: Finish Transition (#62): created at 02-18 16:12:06.721 collect-started=0.958ms request-sent=97.117ms started=153.222ms ready=3559.801ms sent=4317.172ms commit=46.096ms finished=4763.058ms
+02-18 16:12:11.492  6066  6201 V WindowManagerShell: Track 0 became idle
+02-18 16:12:11.492  6066  6201 V WindowManagerShell: All active transition animations finished
+02-18 16:12:13.379  5834  5886 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@1af50af5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+02-18 16:12:13.396  5754  5754 D Zygote  : Forked child process 24987
+02-18 16:12:13.402  5834  5887 I ActivityManager: Start proc 24987:com.pixelspot.ccms.player.debug/u0a94 for service {com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService}
+02-18 16:12:13.402  5834  5887 I ActivityManager: ProcessObserver broadcast disabled
+02-18 16:12:13.478 24987 24987 I ms.player.debug: Late-enabling -Xcheck:jni
+02-18 16:12:13.517 24987 24987 I ms.player.debug: Using CollectorTypeCMC GC.
+02-18 16:12:13.518 24987 24987 W ms.player.debug: Unexpected CPU variant for x86: x86.
+02-18 16:12:13.518 24987 24987 W ms.player.debug: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, goldmont-without-sha-xsaves, tremont, kabylake, alderlake, default
+02-18 16:12:13.529  1801  1812 I adbd    : jdwp connection from 24987
+02-18 16:12:13.576 24987 24987 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+02-18 16:12:13.635 24987 24987 I ActivityThread: Relaunch all activities: onCoreSettingsChange
+02-18 16:12:13.641 24987 24987 D nativeloader: Load libstats_jni.so using APEX ns com_android_os_statsd for caller /apex/com.android.os.statsd/javalib/framework-statsd.jar: ok
+02-18 16:12:13.643 24987 24987 D CompatChangeReporter: Compat change id reported: 242716250; UID 10094; state: ENABLED
+02-18 16:12:14.341 24987 24987 D nativeloader: Configuring clns-7 for other apk /data/app/~~tMcG5gJDaEBBlZIqxF5BZw==/com.pixelspot.ccms.player.debug-GqFZmjvx-2YdsOXvc4hvdA==/base.apk. target_sdk_version=34, uses_libraries=, library_path=/data/app/~~tMcG5gJDaEBBlZIqxF5BZw==/com.pixelspot.ccms.player.debug-GqFZmjvx-2YdsOXvc4hvdA==/lib/x86:/data/app/~~tMcG5gJDaEBBlZIqxF5BZw==/com.pixelspot.ccms.player.debug-GqFZmjvx-2YdsOXvc4hvdA==/base.apk!/lib/x86, permitted_path=/data:/mnt/expand:/data/user/0/com.pixelspot.ccms.player.debug
+02-18 16:12:14.357 24987 24987 I ms.player.debug: AssetManager2(0xebc47994) locale list changing from [] to [en-US]
+02-18 16:12:14.372 24987 24987 V GraphicsEnvironment: Currently set values for:
+02-18 16:12:14.372 24987 24987 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+02-18 16:12:14.372 24987 24987 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+02-18 16:12:14.373 24987 24987 V GraphicsEnvironment: com.pixelspot.ccms.player.debug is not listed in per-application setting
+02-18 16:12:14.373 24987 24987 V GraphicsEnvironment: ANGLE allowlist from config: 
+02-18 16:12:14.373 24987 24987 V GraphicsEnvironment: com.pixelspot.ccms.player.debug is not listed in ANGLE allowlist or settings, returning default
+02-18 16:12:14.373 24987 24987 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+02-18 16:12:14.437 24987 24987 I CrashRecovery: Crash recovery installed, safe_mode=false
+02-18 16:12:14.696 24987 24987 I ms.player.debug: hiddenapi: Accessing hidden method Ljava/lang/invoke/MethodHandles$Lookup;-><init>(Ljava/lang/Class;I)V (runtime_flags=0, domain=core-platform, api=unsupported) from Lretrofit2/Platform; (domain=app) using reflection: allowed
+02-18 16:12:14.746  5834  8418 D CompatChangeReporter: Compat change id reported: 254662522; UID 10094; state: ENABLED
+02-18 16:12:14.749 24987 24987 D AndroidRuntime: Shutting down VM
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: FATAL EXCEPTION: main
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: Process: com.pixelspot.ccms.player.debug, PID: 24987
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: java.lang.RuntimeException: Unable to start service com.pixelspot.ccms.player.service.PlayerService@ff1a34d with Intent { act=com.pixelspot.ccms.player.START xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService }: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{b2ea02a 24987:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5471)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.ActivityThread.-$$Nest$mhandleServiceArgs(Unknown Source:0)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2647)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:338)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:9067)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: Caused by: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{b2ea02a 24987:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3340)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Parcel.createException(Parcel.java:3324)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Parcel.readException(Parcel.java:3307)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.os.Parcel.readException(Parcel.java:3249)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.IActivityManager$Stub$Proxy.setServiceForeground(IActivityManager.java:7274)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.Service.startForeground(Service.java:776)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.pixelspot.ccms.player.service.PlayerService.onStartCommand(PlayerService.kt:94)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5453)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	... 9 more
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: Caused by: android.os.RemoteException: Remote stack trace:
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.android.server.am.ActiveServices.validateForegroundServiceType(ActiveServices.java:2920)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.android.server.am.ActiveServices.setServiceForegroundInnerLocked(ActiveServices.java:2596)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.android.server.am.ActiveServices.setServiceForegroundLocked(ActiveServices.java:1850)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at com.android.server.am.ActivityManagerService.setServiceForeground(ActivityManagerService.java:13842)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:3640)
+02-18 16:12:14.750 24987 24987 E AndroidRuntime: 
+02-18 16:12:14.751 24987 24987 E CrashRecovery: Uncaught exception on main
+02-18 16:12:14.751 24987 24987 E CrashRecovery: java.lang.RuntimeException: Unable to start service com.pixelspot.ccms.player.service.PlayerService@ff1a34d with Intent { act=com.pixelspot.ccms.player.START xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService }: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{b2ea02a 24987:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5471)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.ActivityThread.-$$Nest$mhandleServiceArgs(Unknown Source:0)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2647)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Looper.loop(Looper.java:338)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.ActivityThread.main(ActivityThread.java:9067)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at java.lang.reflect.Method.invoke(Native Method)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: Caused by: java.lang.SecurityException: Starting FGS with type mediaProjection callerApp=ProcessRecord{b2ea02a 24987:com.pixelspot.ccms.player.debug/u0a94} targetSDK=34 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION] any of the permissions allOf=false [android.permission.CAPTURE_VIDEO_OUTPUT, android:project_media] 
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Parcel.createExceptionOrNull(Parcel.java:3340)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Parcel.createException(Parcel.java:3324)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Parcel.readException(Parcel.java:3307)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.os.Parcel.readException(Parcel.java:3249)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.IActivityManager$Stub$Proxy.setServiceForeground(IActivityManager.java:7274)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.Service.startForeground(Service.java:776)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.pixelspot.ccms.player.service.PlayerService.onStartCommand(PlayerService.kt:94)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.ActivityThread.handleServiceArgs(ActivityThread.java:5453)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	... 9 more
+02-18 16:12:14.751 24987 24987 E CrashRecovery: Caused by: android.os.RemoteException: Remote stack trace:
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.android.server.am.ActiveServices.validateForegroundServiceType(ActiveServices.java:2920)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.android.server.am.ActiveServices.setServiceForegroundInnerLocked(ActiveServices.java:2596)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.android.server.am.ActiveServices.setServiceForegroundLocked(ActiveServices.java:1850)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at com.android.server.am.ActivityManagerService.setServiceForeground(ActivityManagerService.java:13842)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:3640)
+02-18 16:12:14.751 24987 24987 E CrashRecovery: 
+02-18 16:12:14.757 24987 24987 I CrashRecovery: Restart scheduled in 5000ms
+02-18 16:12:14.808  5834 25002 I DropBoxManagerService: add tag=data_app_crash isTagEnabled=true flags=0x2
+02-18 16:12:14.810 24987 24987 I Process : Sending signal. PID: 24987 SIG: 9
+02-18 16:12:14.832  1801  1801 I adbd    : Remote process closed the socket (on MSG_PEEK)
+02-18 16:12:14.834  5834  8418 I ActivityManager: Process com.pixelspot.ccms.player.debug (pid 24987) has died: fg  SVC 
+02-18 16:12:14.835  5834  8418 W ActivityManager: Scheduling restart of crashed service com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.service.PlayerService in 1800000ms for start-requested
+02-18 16:12:14.836  5754  5754 I Zygote  : Process 24987 exited due to signal 9 (Killed)
+02-18 16:12:14.836  5834  5888 I libprocessgroup: Removed cgroup /sys/fs/cgroup/apps/uid_10094/pid_24987
+02-18 16:12:14.848  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 16:12:14.848  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 16:12:14.848  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={10094} in 0ms
+02-18 16:12:14.848  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 16:12:14.852  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 16:12:14.852  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={20094} in 4ms
+02-18 16:12:16.176  7134  7134 I Finsky:background: [2] Memory trim requested to level 40
+02-18 16:12:16.184 24749 24749 I Finsky  : [2] Memory trim requested to level 40
+02-18 16:12:16.184 24749 24749 I Finsky  : [2] Flushing in-memory image cache
+02-18 16:12:19.760  5834  5945 W ActivityTaskManager: callingPackage for (uid=1000, pid=5834) is ambiguous: [android, com.android.providers.settings, com.android.location.fused]
+02-18 16:12:19.772  5834  5945 E ActivityTaskManager: Background activity launch blocked! goo.gle/android-bal [callingPackage: com.pixelspot.ccms.player.debug; callingPackageTargetSdk: 34; callingUid: 10094; callingPid: -1; appSwitchState: 2; callingUidHasVisibleActivity: false; callingUidHasNonAppVisibleWindow: false; callingUidProcState: NONEXISTENT; isCallingUidPersistentSystemProcess: false; allowBalExemptionForSystemProcess: false; intent: Intent { flg=0x10008000 xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity }; callerApp: null; balAllowedByPiCreator: BSP.ALLOW_BAL; resultIfPiCreatorAllowsBal: BAL_BLOCK; callerStartMode: MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED; hasRealCaller: true; isCallForResult: false; isPendingIntent: true; autoOptInReason: null; realCallingPackage: android.uid.system:1000[debugOnly]; realCallingPackageTargetSdk: -1; realCallingUid: 1000; realCallingPid: 5834; realCallingUidHasVisibleActivity: false; realCallingUidHasNonAppVisibleWindow: false; realCallingUidProcState: PERSISTENT; isRealCallingUidPersistentSystemProcess: true; originatingPendingIntent: PendingIntentRecord{ee0183d com.pixelspot.ccms.player.debug startActivity}; realCallerApp: null; balAllowedByPiSender: BSP.NONE; resultIfPiSenderAllowsBal: BAL_BLOCK; realCallerStartMode: MODE_BACKGROUND_ACTIVITY_START_DENIED; balRequireOptInByPendingIntentCreator: true; balDontBringExistingBackgroundTaskStackToFg: true]
+02-18 16:12:19.780  5834  5945 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@1af50af5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+02-18 16:12:19.784  5834  5945 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES
+02-18 16:12:19.784  5834  5945 W OptProp : Cannot read opt property android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE
+02-18 16:12:19.788  5834  5945 E ActivityTaskManager: Abort background activity starts from 10094
+02-18 16:12:19.800  5834  5945 I ActivityTaskManager: START u0 {flg=0x10008000 xflg=0x4 cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity} with LAUNCH_SINGLE_TASK from uid 10094 (realCallingUid=1000) (BAL_BLOCK) result code=102
+02-18 16:12:19.830   522   522 E BpTransactionCompletedListener: Failed to transact (-32)
+02-18 16:12:19.836   522   522 E BpTransactionCompletedListener: Failed to transact (-32)
+02-18 16:12:19.842   522   522 E BpTransactionCompletedListener: Failed to transact (-32)
+02-18 16:12:19.846   522   522 E BpTransactionCompletedListener: Failed to transact (-32)
+02-18 16:12:19.865  6277 25004 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+02-18 16:12:19.879  6277 25004 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+02-18 16:12:19.940  6277  6277 D BoundBrokerSvc: onRebind: Intent { act=com.google.android.contextmanager.service.ContextManagerLogsUploadBoundService.ACTION_TASK_READY dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.PersistentInternalBoundBrokerService }
+02-18 16:12:19.940  6277 25005 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+02-18 16:12:19.948  6277 25005 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+02-18 16:12:19.952  6277 25005 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+02-18 16:12:19.956  6277  6277 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.contextmanager.service.ContextManagerLogsUploadBoundService.ACTION_TASK_READY dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.PersistentInternalBoundBrokerService }
+02-18 16:12:20.016  5834 11008 D ActivityManager: sync unfroze 7123 com.google.android.gms.unstable for 6
+02-18 16:12:20.025  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:20.063  5834  6056 W ProcessStats: Tracking association SourceState{dd260c7 com.google.android.gms.persistent/10054 BTop #5445} whose proc state 2 is better than process ProcessState{44342e9 com.google.android.gms.unstable/10054 pkg=com.google.android.gms} proc state 15 (36 skipped)
+02-18 16:12:20.072  7123  7123 I ActivityThread: Relaunch all activities: onCoreSettingsChange
+02-18 16:12:20.074  7123  7123 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 16:12:20.078  7123  7123 D ActivityThread: Package [com.pixelspot.ccms.player.debug] reported as REPLACED, but missing application info. Assuming REMOVED.
+02-18 16:12:20.088  6277 25004 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+02-18 16:12:20.092  6277 25004 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+02-18 16:12:20.293  5834  6056 D FileUtils: Rounded bytes from 2068742144 to 4000000000
+02-18 16:12:20.419  7123 13009 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+02-18 16:12:20.419  7123 13009 W libc    : Access denied finding property "service.adb.tls.port"
+02-18 16:12:20.416  7123  7123 W binder:7123_D: type=1400 audit(0.0:992): avc:  denied  { read } for  name="u:object_r:system_adbd_prop:s0" dev="tmpfs" ino=335 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:system_adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+02-18 16:12:20.416  7123  7123 W binder:7123_D: type=1400 audit(0.0:993): avc:  denied  { read } for  name="u:object_r:adbd_prop:s0" dev="tmpfs" ino=59 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+02-18 16:12:20.453  6277  6417 W GmsUrlRequestImpl: Content-Type header is overwritten.
+02-18 16:12:20.796  6277  6417 W GLSUser : [AppCertManager] Exception while requesting key: 
+02-18 16:12:20.796  6277  6417 W GLSUser : java.util.concurrent.ExecutionException: armw: Parse Proto Exception with response code 400
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cfji.s(:com.google.android.gms@250834120@25.08.34 (180706-739221510):21)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cfji.get(:com.google.android.gms@250834120@25.08.34 (180706-739221510):10)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at upy.b(:com.google.android.gms@250834120@25.08.34 (180706-739221510):454)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at upw.b(:com.google.android.gms@250834120@25.08.34 (180706-739221510):31)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at upr.a(:com.google.android.gms@250834120@25.08.34 (180706-739221510):1)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at upu.a(:com.google.android.gms@250834120@25.08.34 (180706-739221510):58)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at qxx.call(:com.google.android.gms@250834120@25.08.34 (180706-739221510):56)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at abln.c(:com.google.android.gms@250834120@25.08.34 (180706-739221510):50)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at abln.run(:com.google.android.gms@250834120@25.08.34 (180706-739221510):76)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1156)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:651)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at abqv.run(:com.google.android.gms@250834120@25.08.34 (180706-739221510):8)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at java.lang.Thread.run(Thread.java:1119)
+02-18 16:12:20.796  6277  6417 W GLSUser : Caused by: armw: Parse Proto Exception with response code 400
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at arnx.c(:com.google.android.gms@250834120@25.08.34 (180706-739221510):80)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at arqd.f(:com.google.android.gms@250834120@25.08.34 (180706-739221510):18)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at arqr.onSucceeded(:com.google.android.gms@250834120@25.08.34 (180706-739221510):7)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at m.li.onSucceeded(:com.google.android.gms.dynamite_cronetdynamite@250834120@25.08.34 (180706-0):3)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at m.kg.run(:com.google.android.gms.dynamite_cronetdynamite@250834120@25.08.34 (180706-0):25)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at m.ka.run(:com.google.android.gms.dynamite_cronetdynamite@250834120@25.08.34 (180706-0):31)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	... 6 more
+02-18 16:12:20.796  6277  6417 W GLSUser : Caused by: cpoc: Protocol message contained an invalid tag (zero).
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cpll.k(:com.google.android.gms@250834120@25.08.34 (180706-739221510):43)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cppb.c(:com.google.android.gms@250834120@25.08.34 (180706-739221510):399)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cppb.i(:com.google.android.gms@250834120@25.08.34 (180706-739221510):8)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cpnl.y(:com.google.android.gms@250834120@25.08.34 (180706-739221510):23)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cpng.f(:com.google.android.gms@250834120@25.08.34 (180706-739221510):3)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cplh.d(:com.google.android.gms@250834120@25.08.34 (180706-739221510):1)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cplh.c(:com.google.android.gms@250834120@25.08.34 (180706-739221510):3)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at cplh.n(:com.google.android.gms@250834120@25.08.34 (180706-739221510):1)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at arnx.g(:com.google.android.gms@250834120@25.08.34 (180706-739221510):69)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	at arnx.c(:com.google.android.gms@250834120@25.08.34 (180706-739221510):11)
+02-18 16:12:20.796  6277  6417 W GLSUser : 	... 11 more
+02-18 16:12:20.807  6277 19446 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+02-18 16:12:21.620  6546  6546 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.feedback.internal.IFeedbackService dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+02-18 16:12:21.636  5834 11826 W ActivityManager: Service done with onDestroy, but executeNesting=2: ServiceRecord{4090d18 u0 com.google.android.gms/.icing.service.AppIndexingService c:com.google.android.gms}
+02-18 16:12:24.796  5834  5873 E BLASTSyncEngine: WM sent Transaction (#63, Transition-OPEN, tx=25056839207136) to organizer, but never received commit callback. Application ANR likely to follow.
+02-18 16:12:25.188   252 24964 I keystore2: system/security/keystore2/watchdog/src/lib.rs:377 - Watchdog thread idle -> terminating. Have a great day.
+02-18 16:12:25.945  5834  5942 D ActivityManager: freezing 7507 com.google.android.permissioncontroller
+02-18 16:12:25.952  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 16:12:25.956  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 16:12:25.956  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={10071} in 4ms
+02-18 16:12:26.176  5834  5942 D ActivityManager: freezing 24749 com.android.vending
+02-18 16:12:26.177  5834  5942 D ActivityManager: freezing 7134 com.android.vending:background
+02-18 16:12:26.372  5834  5987 D InetDiagMessage: Destroyed 2 sockets, proto=IPPROTO_TCP, family=AF_INET, states=14
+02-18 16:12:26.372  5834  5987 D InetDiagMessage: Destroyed 0 sockets, proto=IPPROTO_TCP, family=AF_INET6, states=14
+02-18 16:12:26.372  5834  5987 D InetDiagMessage: Destroyed live tcp sockets for uids={10053} in 4ms
+02-18 16:12:29.322  6277 19446 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] threadEnabled=%b, internetReady=%b
+02-18 16:12:29.329  6277 19446 I GmsThreadNetwork: [ThreadNetworkAgent] Thread network sync starting [CONTEXT service_id=305 ]
+02-18 16:12:29.329  6277 19446 I GmsThreadNetwork: [ThreadNetworkAgent] Checking cast auth registration status [CONTEXT service_id=305 ]
+02-18 16:12:29.339  5834  6030 D BackgroundInstallControlService: Package event received: 0
+02-18 16:12:29.343  6546  6546 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 16:12:29.343  6546  6546 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 16:12:29.357  6546  8212 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 16:12:29.358  6546  8212 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: [ThreadNetworkAgent] Failed to do network sync, waiting for CastAuth registration [CONTEXT service_id=305 ]
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: m.mg: 17: API: CastAuth.API is not available on this device. Connection failed with: kr{statusCode=API_UNAVAILABLE, resolution=null, message=null}
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.qk.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):13)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.ng.c(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.oi.t(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):48)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.oi.f(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):10)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.oi.j(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):184)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.oi.i(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):2)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.rh.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):3)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.qs.a(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):7)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.ql.d(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):81)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.qm.handleMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):280)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at m.fke.dispatchMessage(:com.google.android.gms.optional_threadnetwork@250834234@25.08.34 (180006-0):138)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at android.os.Looper.loopOnce(Looper.java:248)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at android.os.Looper.loop(Looper.java:338)
+02-18 16:12:29.360  6277 19446 W GmsThreadNetwork: 	at android.os.HandlerThread.run(HandlerThread.java:85)
+02-18 16:12:29.361  6277 19446 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Schedule retry network sync on failure in %d ms
+02-18 16:12:29.361  6277 19446 I GmsThreadNetwork: (REDACTED) [ThreadNetworkAgent] Network sync completed: %s
+02-18 16:12:29.364  6546  8212 I CastAuth: [CastAuthAllUserChimeraService] CastAuthAllUserChimeraService starts... [CONTEXT service_id=360 ]
+02-18 16:12:29.364  6546  8212 E CastAuth: [CastAuthAllUserChimeraService] Feature is not available, reason = CastAuth feature is disabled on this 1p device.. [CONTEXT service_id=360 ]
+02-18 16:12:34.372  6546  6546 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }
+02-18 16:12:35.176  7041  7041 I cast_shell: [0218/161235.176307:INFO:grpc_manager_impl.cc(881)] GRPC[uri=localhost:10042]: num_pending_calls=0, num_active_handlers=1, num_free_handlers=0
+02-18 16:12:35.178  7041  7041 I cast_shell: [0218/161235.178222:INFO:grpc_manager_impl.cc(881)] GRPC[uri=localhost:10042]: num_pending_calls=0, num_active_handlers=1, num_free_handlers=0
+02-18 16:12:35.180  7041  7041 I cast_shell: [0218/161235.178559:INFO:grpc_manager_impl.cc(881)] GRPC[uri=]: num_pending_calls=0, num_active_handlers=0, num_free_handlers=0
+02-18 16:12:35.462  5834  5942 D ActivityManager: freezing 7123 com.google.android.gms.unstable
+02-18 16:12:35.664  7041  7041 I cast_shell: [0218/161235.664307:INFO:grpc_manager_impl.cc(881)] GRPC[uri=]: num_pending_calls=0, num_active_handlers=0, num_free_handlers=0
+02-18 16:12:35.692  7041  7041 I cast_shell: [0218/161235.692307:INFO:grpc_manager_impl.cc(881)] GRPC[uri=[::]:0]: num_pending_calls=0, num_active_handlers=4, num_free_handlers=0
+02-18 16:12:35.693  6433  7623 W native  : W0000 00:00:1771411355.687776    7623 publisher.cc:35] [FTL] No subscribers for event "assistant.api.events.MetricEvent" from publisher "UmaMetricsForwarder"

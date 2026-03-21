@@ -18,6 +18,14 @@ public class User : BaseEntity
     // User preferences (with India defaults)
     public string PreferredTimezone { get; set; } = "Asia/Kolkata";
     public string PreferredCurrency { get; set; } = "INR";
+
+    // Profile settings
+    public string? CompanyName { get; set; }
+    public string? GstNumber { get; set; }
+    public string ThemePreference { get; set; } = "dark";
+
+    // Screen visibility (account-level: applies to ALL screens)
+    public ScreenVisibility AccountVisibility { get; set; } = ScreenVisibility.Public;
     
     // Navigation properties
     public virtual ICollection<Screen> Screens { get; set; } = new List<Screen>();
@@ -26,4 +34,9 @@ public class User : BaseEntity
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public virtual ICollection<EmailVerificationToken> EmailVerificationTokens { get; set; } = new List<EmailVerificationToken>();
     public virtual ICollection<PhoneVerificationOtp> PhoneVerificationOtps { get; set; } = new List<PhoneVerificationOtp>();
+    public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    public virtual BankAccount? BankAccount { get; set; }
+    public virtual ICollection<Payout> Payouts { get; set; } = new List<Payout>();
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public virtual ICollection<AdminAuthorizedMachine> AuthorizedMachines { get; set; } = new List<AdminAuthorizedMachine>();
 }

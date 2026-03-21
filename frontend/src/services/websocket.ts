@@ -1,9 +1,9 @@
 import * as signalR from '@microsoft/signalr';
 
 // Use same fallback pattern as API service
-// When VITE_API_URL is not set, use '/api' which Vite will proxy to backend
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-const BASE_URL = API_URL.replace('/api', '');  // Remove /api suffix for hub URLs
+// When VITE_API_URL is not set, use '/api/v1' which Vite will proxy to backend
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const BASE_URL = API_URL.replace(/\/api(\/v\d+)?/, '');  // Remove /api or /api/v1 suffix for hub URLs
 
 class WebSocketService {
     private connection: signalR.HubConnection | null = null;

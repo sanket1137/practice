@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import {
     Container,
@@ -12,12 +13,29 @@ import {
     Card,
     CardContent,
     LinearProgress,
+    Alert,
 } from '@mui/material';
-import { ArrowBack as BackIcon, Assessment as ReportIcon } from '@mui/icons-material';
+import {
+    ArrowBack as BackIcon,
+    Assessment as ReportIcon,
+    Payment as PaymentIcon,
+    Timer as TimerIcon,
+} from '@mui/icons-material';
+import { formatDistanceToNow } from 'date-fns';
+import { useAuthStore } from '../../store/authStore';
+import { createPaymentOrder } from '../../services/paymentApi';
+import PaymentScreen from '../../components/bookings/PaymentScreen';
+import type { CreateOrderResponse } from '../../types/payment';
+import { useSnackbar } from 'notistack';
 
 export default function BookingDetailPage() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
+    const { user } = useAuthStore();
+    const { enqueueSnackbar } = useSnackbar();
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [paymentOrderDetails, setPaymentOrderDetails] = useState<CreateOrderResponse | null>(null);
 
     const { data: booking, isLoading } = useQuery({
         queryKey: ['booking', id],
@@ -26,6 +44,19 @@ export default function BookingDetailPage() {
             return response.data.data;
         },
     });
+
+    const isPaymentPending = booking?.status === 'Approved' && booking?.paymentStatus === 'OrderCreated';
+
+    const handlePayNow = async () => {
+        if (!id) return;
+        try {
+            const order = await createPaymentOrder(id);
+            setPaymentOrderDetails(order);
+            setPaymentDialogOpen(true);
+        } catch {
+            enqueueSnackbar('Failed to initiate payment', { variant: 'error' });
+        }
+    };
 
     if (isLoading) {
         return (
@@ -82,6 +113,36 @@ export default function BookingDetailPage() {
                         )}
                     </Box>
                 </Box>
+
+                {/* Payment Callout for awaiting payment */}
+                {isPaymentPending && user?.role === 'Advertiser' && (
+                    <Alert
+                        severity="warning"
+                        icon={<PaymentIcon />}
+                        sx={{ mb: 3 }}
+                        action={
+                            <Button
+                                color="warning"
+                                variant="contained"
+                                size="small"
+                                startIcon={<PaymentIcon />}
+                                onClick={handlePayNow}
+                            >
+                                Pay Now
+                            </Button>
+                        }
+                    >
+                        <Typography variant="subtitle2" fontWeight={600}>
+                            Payment Required — {booking.currency} {booking.totalPrice?.toLocaleString()}
+                        </Typography>
+                        {booking.paymentExpiresAt && (
+                            <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                                <TimerIcon sx={{ fontSize: 14 }} />
+                                Expires {formatDistanceToNow(new Date(booking.paymentExpiresAt), { addSuffix: true })}
+                            </Typography>
+                        )}
+                    </Alert>
+                )}
 
                 <Grid container spacing={3}>
                     <Grid
@@ -185,6 +246,23 @@ export default function BookingDetailPage() {
                     </Grid>
                 </Grid>
             </Paper>
+
+            {/* Payment Screen Dialog */}
+            <PaymentScreen
+                open={paymentDialogOpen}
+                onClose={() => {
+                    setPaymentDialogOpen(false);
+                    setPaymentOrderDetails(null);
+                }}
+                orderDetails={paymentOrderDetails}
+                bookingId={id || ''}
+                onPaymentConfirmed={() => {
+                    setPaymentDialogOpen(false);
+                    setPaymentOrderDetails(null);
+                    queryClient.invalidateQueries({ queryKey: ['booking', id] });
+                    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+                }}
+            />
         </Container>
     );
 }

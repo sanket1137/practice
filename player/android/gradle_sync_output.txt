@@ -1,0 +1,8 @@
+﻿.\gradlew.bat : Error: Unable to initialize main class org.gradle.wrapper.GradleWrapperMain
+At line:1 char:198
++ ... ilot\practice\player\android"; .\gradlew.bat tasks --all 2>&1 | Out-F ...
++                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Error: Unable t...adleWrapperMain:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Caused by: java.lang.NoClassDefFoundError: org/gradle/wrapper/IDownload

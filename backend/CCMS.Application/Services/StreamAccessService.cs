@@ -74,7 +74,7 @@ public class StreamAccessService : IStreamAccessService
         var previewThresholdDate = DateOnly.FromDateTime(previewThreshold);
         var nowDate = DateOnly.FromDateTime(now);
         var accessGrantingBookings = await _bookingRepository.FindAsync(b =>
-            campaignIds.Contains(b.CampaignId) &&
+            b.CampaignId.HasValue && campaignIds.Contains(b.CampaignId.Value) &&
             b.ScreenId == screenId &&
             !b.IsDeleted &&
             (

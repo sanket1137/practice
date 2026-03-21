@@ -23,7 +23,7 @@ import * as signalR from '@microsoft/signalr';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
-const BASE_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
+const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/api(\/v\d+)?/, '') || '';
 
 // IST Logging utility - format timestamp in Indian Standard Time
 const getISTTimestamp = (): string => {
@@ -101,6 +101,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 streamingHubRef.current.off('OnIceCandidate');
                 streamingHubRef.current.off('OnStreamEnded');
                 streamingHubRef.current.off('OnStreamError');
+                streamingHubRef.current.off('OnStreamAvailable');
             }
 
             // Stop watching on server
@@ -366,6 +367,20 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             streamingHubRef.current.on('OnIceCandidate', handleIceCandidate);
             streamingHubRef.current.on('OnStreamEnded', handleStreamEnded);
             streamingHubRef.current.on('OnStreamError', handleStreamError);
+
+            // Auto-retry: when a player registers after the viewer connected,
+            // the hub sends OnStreamAvailable — automatically request the stream
+            streamingHubRef.current.off('OnStreamAvailable');
+            streamingHubRef.current.on('OnStreamAvailable', (availableScreenId: string) => {
+                if (availableScreenId === screenId && peerConnectionRef.current?.connectionState !== 'connected') {
+                    logIST('[WebRTC]', 'Stream became available, auto-requesting...');
+                    setError(null);
+                    setStatus('connecting');
+                    streamingHubRef.current?.invoke('RequestStream', screenId).catch((err: any) => {
+                        logErrorIST('[WebRTC]', 'Auto-retry RequestStream failed:', err);
+                    });
+                }
+            });
 
             // Request stream from player
             logIST('[WebRTC]', 'Requesting stream for screen:', screenId);

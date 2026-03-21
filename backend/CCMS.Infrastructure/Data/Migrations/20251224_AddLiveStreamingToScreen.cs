@@ -13,20 +13,20 @@ namespace CCMS.Infrastructure.Data.Migrations
             migrationBuilder.AddColumn<bool>(
                 name: "LiveStreamingEnabled",
                 table: "Screens",
-                type: "bit",
+                type: "boolean",
                 nullable: false,
                 defaultValue: false);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "LastStreamedAt",
                 table: "Screens",
-                type: "datetime2",
+                type: "timestamp with time zone",
                 nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "CurrentViewerCount",
                 table: "Screens",
-                type: "int",
+                type: "integer",
                 nullable: false,
                 defaultValue: 0);
         }

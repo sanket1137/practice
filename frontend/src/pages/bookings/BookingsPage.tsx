@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Box,
     Container,
@@ -21,23 +21,33 @@ import {
     CardContent,
     Grid,
     Tooltip,
+    Tabs,
+    Tab,
+    Badge,
+    Chip,
 } from '@mui/material';
 import {
     CheckCircle as ApproveIcon,
     Cancel as RejectIcon,
     Warning as WarningIcon,
+    Payment as PaymentIcon,
+    Edit as EditIcon,
+    Timer as TimerIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import BookingFiltersBar from '../../components/bookings/BookingFiltersBar';
 import StatusChip from '../../components/common/StatusChip';
 import { TableSkeleton } from '../../components/common/LoadingSkeletons';
 import EmptyState from '../../components/common/EmptyState';
 import type { BookingStatus } from '../../constants/statusConfig';
 import { websocketService } from '../../services/websocket';
+import { createPaymentOrder } from '../../services/paymentApi';
+import PaymentScreen from '../../components/bookings/PaymentScreen';
+import type { CreateOrderResponse } from '../../types/payment';
 
 interface BookingDateBreakdown {
     requestedDates: string[];
@@ -65,6 +75,11 @@ interface Booking {
     expectedImpressions: number;
     bookedDates?: string[];
     dateBreakdown?: BookingDateBreakdown;
+    paymentStatus?: string;
+    razorpayOrderId?: string;
+    paymentExpiresAt?: string;
+    virtualAccountNumber?: string;
+    virtualAccountIfsc?: string;
 }
 
 export default function BookingsPage() {
@@ -75,6 +90,34 @@ export default function BookingsPage() {
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
     const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
     const [rejectNote, setRejectNote] = useState('');
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [cancelReason, setCancelReason] = useState('');
+    const [activeTab, setActiveTab] = useState(0);
+    const [updateDatesDialogOpen, setUpdateDatesDialogOpen] = useState(false);
+    const [newStartDate, setNewStartDate] = useState('');
+    const [newEndDate, setNewEndDate] = useState('');
+    const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+    const [paymentOrderDetails, setPaymentOrderDetails] = useState<CreateOrderResponse | null>(null);
+    const [paymentBookingId, setPaymentBookingId] = useState<string>('');
+    // Date lifecycle helpers
+    const today = useMemo(() => {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }, []);
+
+    const isExpired = (booking: Booking) => new Date(booking.endDate + 'T23:59:59') < today;
+    const isStartDatePassed = (booking: Booking) => new Date(booking.startDate) < today;
+
+    const isActiveLifecycle = (booking: Booking) => {
+        const activeStatuses = ['Pending', 'Approved', 'Active'];
+        return activeStatuses.includes(booking.status) && !isExpired(booking);
+    };
+
+    const isHistoryLifecycle = (booking: Booking) => {
+        const terminalStatuses = ['Completed', 'Rejected', 'Cancelled'];
+        return terminalStatuses.includes(booking.status) || isExpired(booking);
+    };
 
     // Filter state
     const [filters, setFilters] = useState({
@@ -139,11 +182,21 @@ export default function BookingsPage() {
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
         };
 
+        // Handle booking cancelled event
+        const handleBookingCancelled = (data: { Booking: Booking; Reason?: string; Message?: string }) => {
+            console.log('[BookingsPage] Received BookingCancelled event:', data);
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            if (data.Message) {
+                enqueueSnackbar(data.Message, { variant: 'warning' });
+            }
+        };
+
         // Register event handlers
         websocketService.on('BookingCreated', handleBookingCreated);
         websocketService.on('BookingApproved', handleBookingApproved);
         websocketService.on('BookingRejected', handleBookingRejected);
         websocketService.on('BookingUpdated', handleBookingUpdated);
+        websocketService.on('BookingCancelled', handleBookingCancelled);
 
         // Cleanup on unmount
         return () => {
@@ -151,6 +204,7 @@ export default function BookingsPage() {
             websocketService.off('BookingApproved', handleBookingApproved);
             websocketService.off('BookingRejected', handleBookingRejected);
             websocketService.off('BookingUpdated', handleBookingUpdated);
+            websocketService.off('BookingCancelled', handleBookingCancelled);
             // Use invokeIfConnected for cleanup to avoid errors when connection failed
             if (user?.id) {
                 websocketService.invokeIfConnected('UnsubscribeFromBookings', user.id);
@@ -235,6 +289,59 @@ export default function BookingsPage() {
         },
     });
 
+    // Cancel booking mutation
+    const cancelMutation = useMutation({
+        mutationFn: async ({ bookingId, reason }: { bookingId: string; reason?: string }) => {
+            await api.post(`/bookings/${bookingId}/cancel`, { reason });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            enqueueSnackbar('Booking cancelled successfully', { variant: 'info' });
+            setCancelDialogOpen(false);
+            setSelectedBooking(null);
+            setCancelReason('');
+        },
+        onError: () => {
+            enqueueSnackbar('Failed to cancel booking', { variant: 'error' });
+        },
+    });
+
+    // Update booking dates mutation (re-request)
+    const updateDatesMutation = useMutation({
+        mutationFn: async ({ bookingId, startDate, endDate }: { bookingId: string; startDate: string; endDate: string }) => {
+            await api.put(`/bookings/${bookingId}/update-dates`, {
+                newStartDate: startDate,
+                newEndDate: endDate,
+            });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['bookings'] });
+            enqueueSnackbar('Booking dates updated and re-submitted for approval', { variant: 'success' });
+            setUpdateDatesDialogOpen(false);
+            setSelectedBooking(null);
+            setNewStartDate('');
+            setNewEndDate('');
+        },
+        onError: () => {
+            enqueueSnackbar('Failed to update booking dates', { variant: 'error' });
+        },
+    });
+
+    // Pay for booking — open PaymentScreen dialog
+    const handlePayNow = async (booking: Booking) => {
+        try {
+            const order = await createPaymentOrder(booking.id);
+            setPaymentOrderDetails(order);
+            setPaymentBookingId(booking.id);
+            setPaymentDialogOpen(true);
+        } catch {
+            enqueueSnackbar('Failed to initiate payment', { variant: 'error' });
+        }
+    };
+
+    const isPaymentPending = (booking: Booking) =>
+        booking.status === 'Approved' && booking.paymentStatus === 'OrderCreated';
+
     const handleOpenApprove = (booking: Booking) => {
         setSelectedBooking(booking);
         setApproveDialogOpen(true);
@@ -243,6 +350,21 @@ export default function BookingsPage() {
     const handleOpenReject = (booking: Booking) => {
         setSelectedBooking(booking);
         setRejectDialogOpen(true);
+    };
+
+    const handleOpenCancel = (booking: Booking) => {
+        setSelectedBooking(booking);
+        setCancelDialogOpen(true);
+    };
+
+    const handleOpenUpdateDates = (booking: Booking) => {
+        setSelectedBooking(booking);
+        // Pre-fill with tomorrow as default start date
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setNewStartDate(tomorrow.toISOString().split('T')[0]);
+        setNewEndDate(booking.endDate);
+        setUpdateDatesDialogOpen(true);
     };
 
     const renderBookingsTable = (bookingsList: Booking[], showActions: boolean = false) => {
@@ -383,11 +505,24 @@ export default function BookingsPage() {
                                     {booking.currency} {booking.totalPrice.toLocaleString()}
                                 </TableCell>
                                 <TableCell>
-                                    <StatusChip status={booking.status} type="booking" />
+                                    {isPaymentPending(booking) ? (
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                            <StatusChip status="PaymentPending" type="booking" />
+                                            {booking.paymentExpiresAt && (
+                                                <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'warning.main' }}>
+                                                    <TimerIcon sx={{ fontSize: 14 }} />
+                                                    {formatDistanceToNow(new Date(booking.paymentExpiresAt), { addSuffix: true })}
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    ) : (
+                                        <StatusChip status={booking.status} type="booking" />
+                                    )}
                                 </TableCell>
                                 {showActions && (
                                     <TableCell align="right">
-                                        {booking.status === 'Pending' ? (
+                                        {/* ScreenOwner: Approve/Reject for Pending bookings that haven't expired */}
+                                        {booking.status === 'Pending' && user?.role === 'ScreenOwner' && !isExpired(booking) ? (
                                             <Box display="flex" gap={1} justifyContent="flex-end">
                                                 <Button
                                                     size="small"
@@ -408,9 +543,63 @@ export default function BookingsPage() {
                                                     Reject
                                                 </Button>
                                             </Box>
-                                        ) : (
+                                        ) : /* Advertiser: Pay Now (only if start date not passed) + Cancel + Update Dates */
+                                        (booking.status === 'Pending' || booking.status === 'Approved' || booking.status === 'Active') && !isExpired(booking) ? (
+                                            <Box display="flex" gap={1} justifyContent="flex-end" flexWrap="wrap">
+                                                {/* Pay Now: only for Advertiser, only Approved with OrderCreated payment, only if start date hasn't passed */}
+                                                {user?.role === 'Advertiser' && booking.status === 'Approved' && !isStartDatePassed(booking) && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        startIcon={<PaymentIcon />}
+                                                        color={isPaymentPending(booking) ? 'warning' : 'primary'}
+                                                        onClick={() => handlePayNow(booking)}
+                                                    >
+                                                        Pay Now
+                                                    </Button>
+                                                )}
+                                                {/* Update Dates: for Advertiser when start date has passed but booking not expired */}
+                                                {user?.role === 'Advertiser' && (booking.status === 'Pending' || booking.status === 'Approved') && isStartDatePassed(booking) && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        startIcon={<EditIcon />}
+                                                        color="warning"
+                                                        onClick={() => handleOpenUpdateDates(booking)}
+                                                    >
+                                                        Update Dates
+                                                    </Button>
+                                                )}
+                                                {/* Cancel: available if not expired */}
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    startIcon={<RejectIcon />}
+                                                    color="error"
+                                                    onClick={() => handleOpenCancel(booking)}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </Box>
+                                        ) : /* Rejected: show Re-request for Advertiser */
+                                        booking.status === 'Rejected' && user?.role === 'Advertiser' ? (
+                                            <Box display="flex" gap={1} justifyContent="flex-end">
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    startIcon={<EditIcon />}
+                                                    color="warning"
+                                                    onClick={() => handleOpenUpdateDates(booking)}
+                                                >
+                                                    Re-request
+                                                </Button>
+                                            </Box>
+                                        ) : /* Expired/Terminal: show status label */
+                                        (
                                             <Typography variant="body2" color="text.secondary">
-                                                {booking.status === 'Approved' && '✓ Approved'}
+                                                {isExpired(booking) && (booking.status === 'Pending' || booking.status === 'Approved') && (
+                                                    <Chip label="Expired" size="small" color="default" />
+                                                )}
                                                 {booking.status === 'Rejected' && '✗ Rejected'}
                                                 {booking.status === 'Cancelled' && '⊗ Cancelled'}
                                                 {booking.status === 'Active' && '▶ Active'}
@@ -503,9 +692,37 @@ export default function BookingsPage() {
                     })
                 }
             />
+
+            {/* Active / History Tabs */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+                <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+                    <Tab
+                        label={
+                            <Badge badgeContent={filteredBookings.filter(isActiveLifecycle).length} color="primary" max={999}>
+                                <Box sx={{ pr: 2 }}>Active</Box>
+                            </Badge>
+                        }
+                    />
+                    <Tab
+                        label={
+                            <Badge badgeContent={filteredBookings.filter(isHistoryLifecycle).length} color="default" max={999}>
+                                <Box sx={{ pr: 2 }}>History</Box>
+                            </Badge>
+                        }
+                    />
+                </Tabs>
+            </Box>
+
             <Paper>
                 <Box p={3}>
-                    {renderBookingsTable(filteredBookings, user?.role === 'ScreenOwner')}
+                    {activeTab === 0 && renderBookingsTable(
+                        filteredBookings.filter(isActiveLifecycle),
+                        user?.role === 'ScreenOwner' || user?.role === 'Advertiser'
+                    )}
+                    {activeTab === 1 && renderBookingsTable(
+                        filteredBookings.filter(isHistoryLifecycle),
+                        user?.role === 'Advertiser' // Advertiser can re-request rejected bookings
+                    )}
                 </Box>
             </Paper>
             {/* Approve Dialog */}
@@ -632,6 +849,131 @@ export default function BookingsPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+            {/* Cancel Dialog */}
+            <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)}>
+                <DialogTitle>Cancel Booking</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                        Are you sure you want to cancel this booking? This will release the booked slots and unlock the creative.
+                    </Typography>
+                    {selectedBooking && (
+                        <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="body2"><strong>Campaign:</strong> {selectedBooking.campaignName}</Typography>
+                            <Typography variant="body2"><strong>Screen:</strong> {selectedBooking.screenName}</Typography>
+                            <Typography variant="body2"><strong>Period:</strong> {new Date(selectedBooking.startDate).toLocaleDateString()} - {new Date(selectedBooking.endDate).toLocaleDateString()}</Typography>
+                        </Box>
+                    )}
+                    <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        label="Cancellation Reason (optional)"
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        placeholder="Enter reason for cancellation..."
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setCancelDialogOpen(false)}>Back</Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={() =>
+                            selectedBooking &&
+                            cancelMutation.mutate({
+                                bookingId: selectedBooking.id,
+                                reason: cancelReason || undefined,
+                            })
+                        }
+                        disabled={cancelMutation.isPending}
+                    >
+                        {cancelMutation.isPending ? 'Cancelling...' : 'Cancel Booking'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+            {/* Update Dates / Re-request Dialog */}
+            <Dialog open={updateDatesDialogOpen} onClose={() => setUpdateDatesDialogOpen(false)}>
+                <DialogTitle>
+                    {selectedBooking?.status === 'Rejected' ? 'Re-request Booking' : 'Update Booking Dates'}
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                        {selectedBooking?.status === 'Rejected'
+                            ? 'Update the dates and resubmit this booking for approval. The screen owner will review the new request.'
+                            : 'The original start date has passed. Update the dates to resubmit for approval.'}
+                    </Typography>
+                    {selectedBooking && (
+                        <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                            <Typography variant="body2"><strong>Campaign:</strong> {selectedBooking.campaignName}</Typography>
+                            <Typography variant="body2"><strong>Screen:</strong> {selectedBooking.screenName}</Typography>
+                            <Typography variant="body2"><strong>Original Period:</strong> {new Date(selectedBooking.startDate).toLocaleDateString()} - {new Date(selectedBooking.endDate).toLocaleDateString()}</Typography>
+                            {selectedBooking.status === 'Rejected' && selectedBooking.dateBreakdown && (
+                                <Typography variant="body2" color="error"><strong>Rejection reason available in booking details</strong></Typography>
+                            )}
+                        </Box>
+                    )}
+                    <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                        <TextField
+                            fullWidth
+                            label="New Start Date"
+                            type="date"
+                            value={newStartDate}
+                            onChange={(e) => setNewStartDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{
+                                min: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+                            }}
+                        />
+                        <TextField
+                            fullWidth
+                            label="New End Date"
+                            type="date"
+                            value={newEndDate}
+                            onChange={(e) => setNewEndDate(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            inputProps={{
+                                min: newStartDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
+                            }}
+                        />
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setUpdateDatesDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() =>
+                            selectedBooking &&
+                            updateDatesMutation.mutate({
+                                bookingId: selectedBooking.id,
+                                startDate: newStartDate,
+                                endDate: newEndDate,
+                            })
+                        }
+                        disabled={updateDatesMutation.isPending || !newStartDate || !newEndDate || newEndDate < newStartDate}
+                    >
+                        {updateDatesMutation.isPending ? 'Updating...' : selectedBooking?.status === 'Rejected' ? 'Re-request Booking' : 'Update & Resubmit'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Payment Screen Dialog */}
+            <PaymentScreen
+                open={paymentDialogOpen}
+                onClose={() => {
+                    setPaymentDialogOpen(false);
+                    setPaymentOrderDetails(null);
+                    setPaymentBookingId('');
+                }}
+                orderDetails={paymentOrderDetails}
+                bookingId={paymentBookingId}
+                onPaymentConfirmed={() => {
+                    setPaymentDialogOpen(false);
+                    setPaymentOrderDetails(null);
+                    setPaymentBookingId('');
+                    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+                }}
+            />
         </Container>
     );
 }

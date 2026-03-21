@@ -6,11 +6,14 @@ using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Analytics;
 using System.Security.Claims;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/analytics")]
+[Route("api/v{version:apiVersion}/analytics")]
 [Authorize]
 public class AnalyticsController : ControllerBase
 {
@@ -371,7 +374,7 @@ public class AnalyticsController : ControllerBase
 
             // Get bookings for advertiser's campaigns
             var bookings = await _context.Bookings
-                .Where(b => campaignIds.Contains(b.CampaignId))
+                .Where(b => b.CampaignId.HasValue && campaignIds.Contains(b.CampaignId.Value))
                 .ToListAsync();
 
             var bookingIds = bookings.Select(b => b.Id).ToList();
@@ -484,6 +487,69 @@ public class AnalyticsController : ControllerBase
         {
             _logger.LogError(ex, "Error getting advertiser analytics summary");
             return StatusCode(500, ApiResponse<AdvertiserAnalyticsSummaryDto>.ErrorResponse("Error fetching analytics"));
+        }
+    }
+
+    /// <summary>
+    /// Get analytics summary for a specific campaign
+    /// </summary>
+    [HttpGet("campaigns/{id}/summary")]
+    public async Task<ActionResult<ApiResponse<CampaignPerformanceSummaryDto>>> GetCampaignSummary(Guid id)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var role = GetCurrentUserRole();
+
+            var campaign = await _context.Campaigns.FindAsync(id);
+            if (campaign == null)
+                return NotFound(ApiResponse<CampaignPerformanceSummaryDto>.ErrorResponse("Campaign not found"));
+
+            // Verify ownership (unless admin)
+            if (role != "Admin" && campaign.AdvertiserId != userId)
+                return StatusCode(403, ApiResponse<CampaignPerformanceSummaryDto>.ErrorResponse("You do not own this campaign"));
+
+            var bookings = await _context.Bookings
+                .Where(b => b.CampaignId == campaign.Id)
+                .ToListAsync();
+
+            var approvedBookings = bookings.Where(b =>
+                b.Status == BookingStatus.Approved ||
+                b.Status == BookingStatus.Active ||
+                b.Status == BookingStatus.Completed).ToList();
+
+            var deliveredImpressions = await _context.Impressions
+                .Where(i => i.CampaignId == campaign.Id)
+                .CountAsync();
+
+            var expectedImpressions = approvedBookings.Sum(b => b.ExpectedImpressions);
+            var spent = approvedBookings.Sum(b => b.TotalPrice);
+
+            var deliveryPercent = expectedImpressions > 0
+                ? Math.Round((decimal)deliveredImpressions / expectedImpressions * 100, 1)
+                : 0;
+
+            var result = new CampaignPerformanceSummaryDto
+            {
+                CampaignId = campaign.Id,
+                CampaignName = campaign.Name,
+                Status = campaign.Status.ToString(),
+                DeliveredImpressions = deliveredImpressions,
+                ExpectedImpressions = expectedImpressions,
+                DeliveryPercent = deliveryPercent,
+                Spent = spent,
+                TotalBookings = bookings.Count,
+                ApprovedBookings = approvedBookings.Count,
+                StartDate = campaign.StartDate.ToDateTime(TimeOnly.MinValue),
+                EndDate = campaign.EndDate?.ToDateTime(TimeOnly.MinValue)
+            };
+
+            return Ok(ApiResponse<CampaignPerformanceSummaryDto>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting campaign summary for {CampaignId}", id);
+            return StatusCode(500, ApiResponse<CampaignPerformanceSummaryDto>.ErrorResponse("Error fetching campaign analytics"));
         }
     }
 
@@ -602,7 +668,7 @@ public class AnalyticsController : ControllerBase
 
             // Get bookings created per day
             var bookingsQuery = _context.Bookings
-                .Where(b => campaignIds.Contains(b.CampaignId) && b.CreatedAt >= startDate);
+                .Where(b => b.CampaignId.HasValue && campaignIds.Contains(b.CampaignId.Value) && b.CreatedAt >= startDate);
             var bookingsByDate = await bookingsQuery
                 .GroupBy(b => b.CreatedAt.Date)
                 .Select(g => new { Date = g.Key, Count = g.Count() })

@@ -22,15 +22,15 @@ public class BookingStatusUpdateFunction
     }
 
     /// <summary>
-    /// Timer trigger function that runs every 1 minute.
-    /// Hardcoded schedule to ensure reliable execution.
+    /// Timer trigger function that runs every 15 minutes.
+    /// Handles booking status transitions, payment expiry, and refund status polling.
     /// Schedule format: "seconds minutes hours day month day-of-week"
-    /// "0 */1 * * * *" = every 1 minute
+    /// "0 */15 * * * *" = every 15 minutes
     /// </summary>
     /// <param name="timer">Timer information</param>
     [Function("BookingStatusUpdateFunction")]
     public async Task Run(
-        [TimerTrigger("0 */1 * * * *")] TimerInfo timer)
+        [TimerTrigger("0 */15 * * * *")] TimerInfo timer)
     {
         _logger.LogInformation("Booking status update function triggered at: {Time}", DateTime.Now);
 

@@ -5,11 +5,15 @@ using CCMS.Domain.Interfaces;
 using CCMS.Application.Interfaces;
 using CCMS.Shared.Common;
 using CCMS.Application.Helpers;
+using System.Security.Claims;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/screens")]
+[Route("api/v{version:apiVersion}/screens")]
 public class ScreenDefaultVideoController : ControllerBase
 {
     private readonly IRepository<Screen> _screenRepository;
@@ -52,8 +56,18 @@ public class ScreenDefaultVideoController : ControllerBase
                 return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
             }
 
-            // Validate ownership (simplified for MVP)
-            // TODO: Add proper ownership validation when auth is fully implemented
+            // Validate ownership
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(ApiResponse<object>.ErrorResponse("User not authenticated"));
+            }
+
+            var userGuid = Guid.Parse(userId);
+            if (screen.OwnerId != userGuid && !User.IsInRole("Admin"))
+            {
+                return StatusCode(403, ApiResponse<object>.ErrorResponse("You do not own this screen"));
+            }
 
             // Validate video file
             if (video == null || video.Length == 0)

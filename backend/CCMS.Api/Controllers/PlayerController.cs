@@ -6,14 +6,18 @@ using CCMS.Api.Hubs;
 using CCMS.Api.Services;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Player;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/player")]
+[Route("api/v{version:apiVersion}/player")]
 [EnableRateLimiting(RateLimitingExtensions.PlayerPolicy)]
 public class PlayerController : ControllerBase
 {
@@ -161,20 +165,26 @@ public class PlayerController : ControllerBase
 
             _logger.LogInformation($"Handshake successful for screen {request.ScreenId} (device: {deviceBindingStatus})");
 
+            // Check if screen requires QR verification
+            var isVerified = screen.VerificationStatus == ScreenVerificationStatus.Verified;
+            var verificationMode = !isVerified;
+
             var response = new HandshakeResponse
             {
                 Success = true,
                 ServerTime = DateTime.UtcNow,
-                Playlist = playlist,
+                Playlist = verificationMode ? null : playlist,
                 SyncIntervalMinutes = 10,
-                Message = "Handshake successful",
+                Message = verificationMode ? "Screen requires verification" : "Handshake successful",
                 ScreenTimezone = screen.Timezone,
                 OperatingHours = operatingHours,
                 VerificationSalt = verificationSalt,
                 SessionToken = sessionToken,
                 ServerSalt = serverSalt,
                 SessionExpiresAt = sessionExpiresAt,
-                DeviceBindingStatus = deviceBindingStatus
+                DeviceBindingStatus = deviceBindingStatus,
+                VerificationMode = verificationMode,
+                VerificationStatus = screen.VerificationStatus.ToString()
             };
 
             return Ok(ApiResponse<HandshakeResponse>.SuccessResponse(response));
@@ -207,6 +217,14 @@ public class PlayerController : ControllerBase
             if (screen == null)
             {
                 return NotFound(ApiResponse<SyncResponse>.ErrorResponse("Screen not found"));
+            }
+
+            // Reject sync for unverified screens
+            if (screen.VerificationStatus != ScreenVerificationStatus.Verified)
+            {
+                return StatusCode(403, ApiResponse<SyncResponse>.ErrorResponse(
+                    "Screen requires verification before it can sync impressions. " +
+                    "Please complete the QR verification process."));
             }
 
             // Update screen status

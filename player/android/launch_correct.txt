@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.ui.setup.SetupActivity
+TotalTime: 7115
+WaitTime: 7172
+Complete

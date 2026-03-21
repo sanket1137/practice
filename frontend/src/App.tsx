@@ -30,15 +30,27 @@ import UploadCreativePage from './pages/creatives/UploadCreativePage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import AdvertiserReportPage from './pages/reports/AdvertiserReportPage';
 import CampaignReportPage from './pages/reports/CampaignReportPage';
+import PayoutsPage from './pages/payouts/PayoutsPage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
 import MainLayout from './components/Layout/MainLayout';
 import DemoPage from './pages/demo/DemoPage';
 import ExploreScreensPage from './pages/public/ExploreScreensPage';
+import LandingPage from './pages/public/LandingPage';
+import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
+import AdminPayoutsPage from './pages/payouts/AdminPayoutsPage';
+import AdminMachinesPage from './pages/admin/AdminMachinesPage';
 
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
+
+// Shows landing page for guests; redirects authenticated users into the app
+const SmartRoot: React.FC = () => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
 };
 
 // Component that initializes global handlers (must be inside SnackbarProvider)
@@ -62,6 +74,8 @@ function App() {
             <AppGlobalHandlers>
               <BrowserRouter>
                 <Routes>
+                {/* Landing page — public for guests, redirects to dashboard if authenticated */}
+                <Route path="/" element={<SmartRoot />} />
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
@@ -78,7 +92,6 @@ function App() {
                     </ProtectedRoute>
                   }
                 >
-                  <Route index element={<Navigate to="/dashboard" replace />} />
                   <Route path="dashboard" element={<DashboardPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
                   <Route path="campaigns/new" element={<CreateCampaignPage />} />
@@ -97,6 +110,11 @@ function App() {
                   <Route path="reports/bookings/:bookingId" element={<AdvertiserReportPage />} />
                   <Route path="reports/campaigns/:campaignId" element={<CampaignReportPage />} />
                   <Route path="analytics" element={<AnalyticsPage />} />
+                  <Route path="payouts" element={<PayoutsPage />} />
+                  <Route path="notifications" element={<NotificationsPage />} />
+                  <Route path="profile" element={<ProfileSettingsPage />} />
+                  <Route path="admin/payouts" element={<AdminPayoutsPage />} />
+                  <Route path="admin/machines" element={<AdminMachinesPage />} />
                 </Route>
               </Routes>
               </BrowserRouter>

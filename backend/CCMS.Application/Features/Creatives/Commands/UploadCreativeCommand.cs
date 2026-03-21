@@ -5,7 +5,7 @@ namespace CCMS.Application.Features.Creatives.Commands;
 
 public class UploadCreativeCommand : IRequest<CreativeDto>
 {
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public Guid UserId { get; set; }
     public Stream FileStream { get; set; } = null!;
     public string FileName { get; set; } = string.Empty;

@@ -1,0 +1,5 @@
+
+ERROR: JAVA_HOME is set to an invalid directory: C:\Users\Sanket\Downloads\OpenJDK21U-jdk_x64_windows_hotspot_21.0.10_7\jdk-21.0.10+7 
+
+Please set the JAVA_HOME variable in your environment to match the
+location of your Java installation.

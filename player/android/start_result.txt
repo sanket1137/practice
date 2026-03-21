@@ -1,0 +1,3 @@
+Starting: Intent { cmp=com.pixelspot.ccms.player.debug/.MainActivity }
+Error type 3
+Error: Activity class {com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.debug.MainActivity} does not exist.

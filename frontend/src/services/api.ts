@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios';
 import type { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -62,6 +62,27 @@ api.interceptors.request.use(
     (error: AxiosError) => Promise.reject(error)
 );
 
+// Refresh token deduplication — only one refresh in-flight at a time
+let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | null = null;
+
+const doRefresh = (): Promise<{ accessToken: string; refreshToken: string }> => {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+        const refreshToken = useAuthStore.getState().refreshToken;
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        useAuthStore.getState().setTokens(accessToken, newRefreshToken);
+        return { accessToken, refreshToken: newRefreshToken };
+    })().finally(() => {
+        refreshPromise = null;
+    });
+
+    return refreshPromise;
+};
+
 // Response interceptor to handle token refresh and rate limiting
 api.interceptors.response.use(
     (response: AxiosResponse) => response,
@@ -87,22 +108,9 @@ api.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refreshToken = useAuthStore.getState().refreshToken;
-                if (!refreshToken) {
-                    throw new Error('No refresh token');
-                }
+                const { accessToken } = await doRefresh();
 
-                // Call refresh endpoint directly to avoid infinite loop
-                const response = await axios.post(`${API_URL}/auth/refresh`, {
-                    refreshToken,
-                });
-
-                const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-
-                // Update store
-                useAuthStore.getState().setTokens(accessToken, newRefreshToken);
-
-                // Retry original request
+                // Retry original request with new token
                 if (originalRequest.headers) {
                     originalRequest.headers.Authorization = `Bearer ${accessToken}`;
                 }

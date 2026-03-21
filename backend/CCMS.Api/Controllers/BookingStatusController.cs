@@ -2,12 +2,15 @@ using CCMS.Application.Services;
 using CCMS.Shared.Common;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
 [Authorize(Roles = "Admin,ScreenOwner")]
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class BookingStatusController : ControllerBase
 {
     private readonly BookingStatusUpdateService _bookingStatusService;

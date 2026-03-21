@@ -189,7 +189,11 @@ export default function DashboardPage() {
                     <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                         <EnhancedStatCard
                             title="Active Bookings"
-                            value={bookings?.filter(b => b.status === 'Approved' || b.status === 'Active').length || 0}
+                            value={bookings?.filter(b => {
+                                const isActive = b.status === 'Approved' || b.status === 'Active';
+                                const notExpired = new Date(b.endDate + 'T23:59:59') >= new Date(new Date().setHours(0,0,0,0));
+                                return isActive && notExpired;
+                            }).length || 0}
                             subtitle="Currently running"
                             icon={<TrendingUpIcon />}
                             color="success.main"

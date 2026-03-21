@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Domain.ValueObjects;
 using System.Text.Json;
 
@@ -31,6 +32,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<ScreenTag> ScreenTags => Set<ScreenTag>();
     public DbSet<ScreenTagAssignment> ScreenTagAssignments => Set<ScreenTagAssignment>();
     public DbSet<ScreenImage> ScreenImages => Set<ScreenImage>();
+    public DbSet<DeviceOverrideHistory> DeviceOverrideHistories => Set<DeviceOverrideHistory>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<Wallet> Wallets => Set<Wallet>();
+    public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
+    public DbSet<Payout> Payouts => Set<Payout>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+    public DbSet<AdminAuthorizedMachine> AdminAuthorizedMachines => Set<AdminAuthorizedMachine>();
+    public DbSet<ScreenVerification> ScreenVerifications => Set<ScreenVerification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,6 +55,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.PasswordHash).IsRequired();
+            entity.Property(e => e.CompanyName).HasMaxLength(200);
+            entity.Property(e => e.GstNumber).HasMaxLength(20);
+            entity.Property(e => e.ThemePreference).HasMaxLength(10).HasDefaultValue("dark");
             
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
@@ -138,6 +151,11 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.PricePerSlot)
                 .HasColumnType("decimal(18,2)")
                 .HasPrecision(18, 2);
+                
+            entity.Property(e => e.CommissionPercentage)
+                .HasColumnType("decimal(5,2)")
+                .HasPrecision(5, 2)
+                .HasDefaultValue(15m);
                 
             entity.Property(e => e.Latitude)
                 .HasColumnType("decimal(9,6)")
@@ -278,6 +296,36 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // DeviceOverrideHistory configuration
+        modelBuilder.Entity<DeviceOverrideHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.HasIndex(e => e.ScreenId)
+                .HasDatabaseName("IX_DeviceOverrideHistory_Screen");
+            
+            // Index for finding active pending overrides efficiently
+            entity.HasIndex(e => new { e.ScreenId, e.IsPending })
+                .HasDatabaseName("IX_DeviceOverrideHistory_Screen_Pending");
+            
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.OldFingerprintHash).HasMaxLength(100);
+            entity.Property(e => e.NewFingerprintHash).HasMaxLength(100);
+            
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.RequestedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.RequestedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
         // Campaign configuration
         modelBuilder.Entity<Campaign>(entity =>
         {
@@ -308,7 +356,14 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Campaign)
                 .WithMany(c => c.Creatives)
                 .HasForeignKey(e => e.CampaignId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+
+            entity.HasOne(e => e.UploadedBy)
+                .WithMany()
+                .HasForeignKey(e => e.UploadedById)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
                 
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
@@ -341,7 +396,8 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Campaign)
                 .WithMany(c => c.Bookings)
                 .HasForeignKey(e => e.CampaignId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
                 
             entity.HasOne(e => e.Creative)
                 .WithMany(c => c.Bookings)
@@ -541,6 +597,295 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
                 
             entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // Payment configuration
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.RazorpayOrderId)
+                .HasDatabaseName("IX_Payments_RazorpayOrderId");
+
+            entity.HasIndex(e => e.RazorpayPaymentId)
+                .HasDatabaseName("IX_Payments_RazorpayPaymentId");
+
+            entity.HasIndex(e => e.BookingId)
+                .HasDatabaseName("IX_Payments_BookingId");
+
+            entity.Property(e => e.Amount)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.RefundAmount)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.RazorpayOrderId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RazorpayPaymentId).HasMaxLength(100);
+            entity.Property(e => e.RazorpaySignature).HasMaxLength(500);
+            entity.Property(e => e.Currency).HasMaxLength(10);
+            entity.Property(e => e.GatewayResponse).HasColumnType("text");
+
+            entity.HasOne(e => e.Booking)
+                .WithMany(b => b.Payments)
+                .HasForeignKey(e => e.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Payments)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // Wallet configuration
+        modelBuilder.Entity<Wallet>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("IX_Wallets_UserId");
+
+            entity.Property(e => e.Balance)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.Currency).HasMaxLength(10);
+
+            entity.Property(e => e.RowVersion)
+                .HasColumnName("xmin")
+                .HasColumnType("xid")
+                .ValueGeneratedOnAddOrUpdate()
+                .IsConcurrencyToken();
+
+            entity.HasOne(e => e.User)
+                .WithOne()
+                .HasForeignKey<Wallet>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // WalletTransaction configuration
+        modelBuilder.Entity<WalletTransaction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.WalletId)
+                .HasDatabaseName("IX_WalletTransactions_WalletId");
+
+            entity.HasIndex(e => e.ReferenceId)
+                .HasDatabaseName("IX_WalletTransactions_ReferenceId");
+
+            entity.Property(e => e.Amount)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.BalanceBefore)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.BalanceAfter)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.ReferenceType).HasMaxLength(50);
+
+            entity.HasOne(e => e.Wallet)
+                .WithMany(w => w.Transactions)
+                .HasForeignKey(e => e.WalletId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // Payout configuration
+        modelBuilder.Entity<Payout>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.ScreenOwnerId)
+                .HasDatabaseName("IX_Payouts_ScreenOwnerId");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_Payouts_Status");
+
+            entity.Property(e => e.GrossAmount)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.CommissionPercentage)
+                .HasColumnType("decimal(5,2)")
+                .HasPrecision(5, 2);
+
+            entity.Property(e => e.CommissionAmount)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.NetAmount)
+                .HasColumnType("decimal(18,2)")
+                .HasPrecision(18, 2);
+
+            entity.Property(e => e.Currency).HasMaxLength(10);
+            entity.Property(e => e.RazorpayPayoutId).HasMaxLength(100);
+            entity.Property(e => e.BankAccountDetails).HasColumnType("text");
+            entity.Property(e => e.AdminNotes).HasMaxLength(1000);
+
+            entity.Property(e => e.AdvancePercentage)
+                .HasColumnType("decimal(5,2)")
+                .HasPrecision(5, 2);
+
+            entity.HasIndex(e => e.BookingId)
+                .HasDatabaseName("IX_Payouts_BookingId");
+
+            entity.HasOne(e => e.ScreenOwner)
+                .WithMany(u => u.Payouts)
+                .HasForeignKey(e => e.ScreenOwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Booking)
+                .WithMany(b => b.Payouts)
+                .HasForeignKey(e => e.BookingId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Notification ──
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.UserId, e.IsRead })
+                .HasDatabaseName("IX_Notifications_UserId_IsRead");
+
+            entity.HasIndex(e => e.CreatedAt)
+                .HasDatabaseName("IX_Notifications_CreatedAt");
+
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Message).HasMaxLength(1000).IsRequired();
+            entity.Property(e => e.ActionUrl).HasMaxLength(500);
+            entity.Property(e => e.ReferenceType).HasMaxLength(50);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Notifications)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── BankAccount (one-to-one with User) ──
+        modelBuilder.Entity<BankAccount>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.UserId)
+                .IsUnique()
+                .HasDatabaseName("IX_BankAccounts_UserId");
+
+            entity.Property(e => e.BeneficiaryName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.AccountNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.IfscCode).IsRequired().HasMaxLength(11);
+            entity.Property(e => e.BankName).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(e => e.User)
+                .WithOne(u => u.BankAccount)
+                .HasForeignKey<BankAccount>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── AdminAuthorizedMachine ──
+        modelBuilder.Entity<AdminAuthorizedMachine>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.AdminUserId, e.MachineFingerprintHash })
+                .IsUnique()
+                .HasDatabaseName("IX_AdminMachines_User_Fingerprint")
+                .HasFilter("\"IsDeleted\" = false");
+
+            entity.HasIndex(e => e.AdminUserId)
+                .HasDatabaseName("IX_AdminMachines_AdminUserId");
+
+            entity.Property(e => e.MachineFingerprintHash).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.MachineName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.MachineDetails).HasColumnType("text");
+
+            entity.HasOne(e => e.AdminUser)
+                .WithMany(u => u.AuthorizedMachines)
+                .HasForeignKey(e => e.AdminUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AuthorizedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.AuthorizedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── ScreenVerification (QR-based physical verification) ──
+        modelBuilder.Entity<ScreenVerification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            // Admin queue: filter by status, sort by date
+            entity.HasIndex(e => new { e.Status, e.CreatedAt })
+                .HasDatabaseName("IX_ScreenVerifications_Status_CreatedAt");
+
+            // Screen history: all verifications for a screen
+            entity.HasIndex(e => new { e.ScreenId, e.Status })
+                .HasDatabaseName("IX_ScreenVerifications_Screen_Status");
+
+            entity.Property(e => e.QrChallengeCode).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.VideoUrl).HasMaxLength(1000);
+            entity.Property(e => e.DeviceFingerprintHash).HasMaxLength(100);
+            entity.Property(e => e.DeviceType).HasMaxLength(20);
+            entity.Property(e => e.PlayerIpAddress).HasMaxLength(45); // IPv6 max length
+            entity.Property(e => e.RejectionReason).HasMaxLength(500);
+
+            entity.Property(e => e.ScanGpsLatitude)
+                .HasColumnType("decimal(9,6)")
+                .HasPrecision(9, 6);
+
+            entity.Property(e => e.ScanGpsLongitude)
+                .HasColumnType("decimal(9,6)")
+                .HasPrecision(9, 6);
+
+            entity.HasOne(e => e.Screen)
+                .WithMany(s => s.Verifications)
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.RequestedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.RequestedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.AdminReviewedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.AdminReviewedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── Screen verification fields index ──
+        modelBuilder.Entity<Screen>(entity =>
+        {
+            entity.HasIndex(e => e.VerificationStatus)
+                .HasDatabaseName("IX_Screens_VerificationStatus");
+
+            entity.HasOne(e => e.LastVerification)
+                .WithMany()
+                .HasForeignKey(e => e.LastVerificationId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 

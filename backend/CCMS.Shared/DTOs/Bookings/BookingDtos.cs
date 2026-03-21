@@ -5,9 +5,9 @@ public class BookingDto
     public Guid Id { get; set; }
     public Guid ScreenId { get; set; }
     public string ScreenName { get; set; } = string.Empty;
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public string CampaignName { get; set; } = string.Empty;
-    public Guid AdvertiserId { get; set; } // For authorization checks
+    public Guid? AdvertiserId { get; set; }
     public Guid CreativeId { get; set; }
     public string CreativeName { get; set; } = string.Empty;
     public string? CreativeFileUrl { get; set; }
@@ -23,16 +23,26 @@ public class BookingDto
     public string Currency { get; set; } = "INR";
     public DateTime CreatedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
+    public Guid? CancelledBy { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public string? CancellationReason { get; set; }
     
-    // NEW: Actual booked dates (for partial bookings)
+    // Actual booked dates (for partial bookings)
     public List<string>? BookedDates { get; set; } // YYYY-MM-DD format
     public BookingDateBreakdown? DateBreakdown { get; set; }
     
-    // NEW: Real-time analytics
+    // Real-time analytics
     public int PlaysToday { get; set; }
     public int PlaysTotal { get; set; }
     public bool IsLive { get; set; }
     public DateTime? LastPlayed { get; set; }
+    
+    // Self-reserve fields
+    public string Source { get; set; } = "Platform";
+    public string? ClientName { get; set; }
+    public string? ClientContact { get; set; }
+    public string? InternalNotes { get; set; }
+    public bool IsInternalPayment { get; set; }
 }
 
 public class BookingDateBreakdown
@@ -65,4 +75,15 @@ public class RejectBookingRequest
 {
     public Guid BookingId { get; set; }
     public string Reason { get; set; } = string.Empty;
+}
+
+public class CancelBookingRequest
+{
+    public string? Reason { get; set; }
+}
+
+public class UpdateBookingDatesRequest
+{
+    public string NewStartDate { get; set; } = string.Empty; // YYYY-MM-DD format
+    public string NewEndDate { get; set; } = string.Empty;   // YYYY-MM-DD format
 }

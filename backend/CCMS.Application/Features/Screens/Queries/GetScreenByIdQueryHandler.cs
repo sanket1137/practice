@@ -11,15 +11,18 @@ public class GetScreenByIdQueryHandler : IRequestHandler<GetScreenByIdQuery, Scr
 {
     private readonly IRepository<Screen> _screenRepository;
     private readonly IScreenImageService _screenImageService;
+    private readonly IRevenueCalculationService _revenueCalculationService;
     private readonly IMapper _mapper;
 
     public GetScreenByIdQueryHandler(
         IRepository<Screen> screenRepository,
         IScreenImageService screenImageService,
+        IRevenueCalculationService revenueCalculationService,
         IMapper mapper)
     {
         _screenRepository = screenRepository;
         _screenImageService = screenImageService;
+        _revenueCalculationService = revenueCalculationService;
         _mapper = mapper;
     }
 
@@ -32,6 +35,9 @@ public class GetScreenByIdQueryHandler : IRequestHandler<GetScreenByIdQuery, Scr
         }
         
         var screenDto = _mapper.Map<ScreenDto>(screen);
+        
+        // Calculate revenue estimate with slot/frame breakdown
+        screenDto.RevenueEstimate = _revenueCalculationService.CalculateRevenueEstimate(screen);
         
         // Fetch images separately since the repository doesn't include them
         var images = await _screenImageService.GetImagesAsync(request.ScreenId, cancellationToken);

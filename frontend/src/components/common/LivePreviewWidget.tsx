@@ -26,6 +26,7 @@ interface LivePreviewWidgetProps {
     screenId?: string;
     campaignId?: string;
     mode: 'screen' | 'campaign';
+    isScreenOnline?: boolean;
 }
 
 interface PlayEvent {
@@ -52,7 +53,7 @@ interface Stats {
     lastUpdated: string;
 }
 
-export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePreviewWidgetProps) {
+export default function LivePreviewWidget({ screenId, campaignId, mode, isScreenOnline }: LivePreviewWidgetProps) {
     const [nowPlaying, setNowPlaying] = useState<PlayEvent | null>(null);
     const [realtimeCount, setRealtimeCount] = useState(0);
     const [stats, setStats] = useState<Stats>({
@@ -240,6 +241,17 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
     }, [screenId, campaignId, mode]);
 
     const getConnectionChip = () => {
+        // For screen mode, use actual screen online status if provided
+        if (mode === 'screen' && isScreenOnline !== undefined) {
+            if (!isScreenOnline) {
+                return <Chip label="Offline" color="default" size="small" />;
+            }
+            if (!connectionStatus.isConnected) {
+                return <Chip label="Connecting" color="warning" size="small" />;
+            }
+            return <Chip label="Live" color="success" size="small" icon={<SignalIcon />} />;
+        }
+        // Fallback for campaign mode or when isScreenOnline not provided
         if (!connectionStatus.isConnected) {
             return <Chip label="Disconnected" color="error" size="small" />;
         }
@@ -424,9 +436,11 @@ export default function LivePreviewWidget({ screenId, campaignId, mode }: LivePr
                             No activity yet
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                            {connectionStatus.isConnected
-                                ? 'Waiting for playback events...'
-                                : 'Connecting to live feed...'
+                            {mode === 'screen' && isScreenOnline === false
+                                ? 'Screen is offline'
+                                : connectionStatus.isConnected
+                                    ? 'Waiting for playback events...'
+                                    : 'Connecting to live feed...'
                             }
                         </Typography>
                     </Box>

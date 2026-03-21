@@ -2,11 +2,14 @@ using Microsoft.AspNetCore.Mvc;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.Common;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/player")]
+[Route("api/v{version:apiVersion}/player")]
 public class CacheCleanupController : ControllerBase
 {
     private readonly IRepository<Booking> _bookingRepository;
@@ -105,7 +108,7 @@ public class ExpiredCacheResponse
 public class ExpiredBookingInfo
 {
     public Guid BookingId { get; set; }
-    public Guid CampaignId { get; set; }
+    public Guid? CampaignId { get; set; }
     public DateTime EndDate { get; set; }
     public bool SafeToDelete { get; set; }
 }

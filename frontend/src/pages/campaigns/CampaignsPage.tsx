@@ -30,6 +30,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
+import { getAdvertiserCampaigns } from '../../services/analyticsApi';
+import type { CampaignPerformanceSummary } from '../../services/analyticsApi';
 import EnhancedCampaignCard from '../../components/campaigns/EnhancedCampaignCard';
 import { CardSkeleton } from '../../components/common/LoadingSkeletons';
 import EmptyState from '../../components/common/EmptyState';
@@ -66,6 +68,17 @@ export default function CampaignsPage() {
             return response.data.data;
         },
     });
+
+    // Fetch campaign analytics
+    const { data: campaignAnalytics } = useQuery<CampaignPerformanceSummary[]>({
+        queryKey: ['campaignAnalytics'],
+        queryFn: getAdvertiserCampaigns,
+        enabled: !!campaigns?.length,
+    });
+
+    // Build analytics lookup map
+    const analyticsMap = new Map<string, CampaignPerformanceSummary>();
+    campaignAnalytics?.forEach((a) => analyticsMap.set(a.campaignId, a));
 
     // Delete mutation
     const deleteMutation = useMutation({
@@ -182,9 +195,9 @@ export default function CampaignsPage() {
                             <EnhancedCampaignCard
                                 campaign={{
                                     ...campaign,
-                                    spent: campaign.budget * 0.65, // TODO: Get from actual data
-                                    impressions: 50000, // TODO: Fetch from analytics
-                                    expectedImpressions: 100000, // TODO: Calculate
+                                    spent: analyticsMap.get(campaign.id)?.spent ?? 0,
+                                    impressions: analyticsMap.get(campaign.id)?.deliveredImpressions ?? 0,
+                                    expectedImpressions: analyticsMap.get(campaign.id)?.expectedImpressions ?? 0,
                                 }}
                                 onClick={() => navigate(`/campaigns/${campaign.id}`)}
                             />

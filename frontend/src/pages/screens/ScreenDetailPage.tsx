@@ -37,6 +37,7 @@ import {
     LiveTv as LiveTvIcon,
     VideoSettings as VideoSettingsIcon,
     ShowChart as ActivityIcon,
+    DevicesOther as DevicesIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -52,6 +53,9 @@ import ScreenTagsTab from '../../components/screens/ScreenTagsTab';
 import ScreenTagChip from '../../components/screens/ScreenTagChip';
 import ScreenImageUpload from '../../components/screens/ScreenImageUpload';
 import ScreenImageGallery from '../../components/screens/ScreenImageGallery';
+import DeviceManagementTab from '../../components/screens/DeviceManagementTab';
+import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
+import SelfReserveDialog from '../../components/bookings/SelfReserveDialog';
 import { useState, useMemo } from 'react';
 import { getScreenTags } from '../../services/screenTagsService';
 import type { ScreenTagDetail, ScreenImage } from '../../types/screen';
@@ -83,6 +87,7 @@ interface Screen {
     };
     images?: ScreenImage[];
     primaryImage?: ScreenImage;
+    isOnline?: boolean;
 }
 
 export default function ScreenDetailPage() {
@@ -92,6 +97,7 @@ export default function ScreenDetailPage() {
     const { enqueueSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [selfReserveOpen, setSelfReserveOpen] = useState(false);
     const [activeTab, setActiveTab] = useState(0);
 
     // Fetch screen details
@@ -153,6 +159,7 @@ export default function ScreenDetailPage() {
                 { id: 'bookings', label: 'Bookings', icon: <CalendarIcon /> },
                 { id: 'live-activity', label: 'Live Activity', icon: <ActivityIcon /> },
                 { id: 'default-video', label: 'Default Video', icon: <VideoSettingsIcon /> },
+                { id: 'device', label: 'Device', icon: <DevicesIcon /> },
                 { id: 'live-stream', label: 'Live Stream', icon: <LiveTvIcon /> },
             ];
         } else {
@@ -251,6 +258,18 @@ export default function ScreenDetailPage() {
                                 Delete
                             </Button>
                         </>
+                    )}
+                    {/* Self-reserve button for Screen Owners */}
+                    {user?.role === 'ScreenOwner' && (
+                        <Button
+                            variant="contained"
+                            size="large"
+                            startIcon={<BookIcon />}
+                            onClick={() => setSelfReserveOpen(true)}
+                            disabled={screen.status !== 'Active'}
+                        >
+                            Reserve Slot
+                        </Button>
                     )}
                     {/* Only show Book button for Advertisers and Admins, not Screen Owners */}
                     {user?.role !== 'ScreenOwner' && (
@@ -553,6 +572,16 @@ export default function ScreenDetailPage() {
                                 </Card>
                             )}
                         </Grid>
+
+                        {/* Revenue Estimate - Full Width */}
+                        {screen.revenueEstimate && (
+                            <Grid size={12}>
+                                <RevenueEstimateCard
+                                    estimate={screen.revenueEstimate}
+                                    currency={screen.currency}
+                                />
+                            </Grid>
+                        )}
                     </Grid>
                 )
             }
@@ -603,6 +632,11 @@ export default function ScreenDetailPage() {
                 <DefaultVideoSettings screenId={id!} />
             )}
 
+            {/* Device Management Tab (Owner only) */}
+            {currentTabId === 'device' && isOwner && (
+                <DeviceManagementTab screenId={id!} />
+            )}
+
             {/* Live Stream Tab (Owner or Advertiser with access) */}
             {currentTabId === 'live-stream' && (isOwner || streamAccess?.hasAccess) && (
                     <Box>
@@ -632,12 +666,21 @@ export default function ScreenDetailPage() {
                                     xs: 12,
                                     md: 4
                                 }}>
-                                <LivePreviewWidget screenId={id!} mode="screen" />
+                                <LivePreviewWidget screenId={id!} mode="screen" isScreenOnline={screen?.isOnline} />
                             </Grid>
                         </Grid>
                     </Box>
                 )
             }
+            {/* Self-Reserve Dialog */}
+            {screen && (
+                <SelfReserveDialog
+                    open={selfReserveOpen}
+                    onClose={() => setSelfReserveOpen(false)}
+                    screenId={screen.id}
+                    screenName={screen.name}
+                />
+            )}
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
                 <DialogTitle>Delete Screen?</DialogTitle>
