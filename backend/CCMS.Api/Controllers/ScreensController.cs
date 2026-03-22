@@ -643,7 +643,48 @@ public class ScreensController : ControllerBase
             return StatusCode(500, ApiResponse<GenerateApiKeyResponse>.ErrorResponse($"Error: {ex.Message}"));
         }
     }
-    
+
+    /// <summary>
+    /// Revoke API key for player authentication
+    /// The player device will no longer be able to authenticate
+    /// </summary>
+    [HttpDelete("{id}/api-key")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> RevokeApiKey(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+
+            var ownershipQuery = new CheckScreenOwnershipQuery { ScreenId = id };
+            var ownership = await _mediator.Send(ownershipQuery);
+
+            if (!ownership.Exists)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+            }
+
+            if (!isAdmin && ownership.OwnerId != userId)
+            {
+                return StatusCode(403, ApiResponse<object>.ErrorResponse(
+                    "Only the screen owner can revoke API keys"));
+            }
+
+            var revokeCommand = new RevokeScreenApiKeyCommand { ScreenId = id };
+            await _mediator.Send(revokeCommand);
+
+            return Ok(ApiResponse<object>.SuccessResponse(
+                new { ScreenId = id },
+                "API key revoked. Player will no longer be able to authenticate."));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+
     /// <summary>
     /// Request device override to allow a new player device to connect
     /// Creates a 30-minute window for the new device to connect

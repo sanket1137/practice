@@ -43,6 +43,7 @@ public class GetScreenByIdQueryHandler : IRequestHandler<GetScreenByIdQuery, Scr
         var images = await _screenImageService.GetImagesAsync(request.ScreenId, cancellationToken);
         screenDto.Images = images;
         screenDto.PrimaryImage = images.FirstOrDefault(i => i.IsPrimary);
+        screenDto.HasApiKey = screen.ApiKeyHash != null;
         
         return screenDto;
     }

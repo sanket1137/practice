@@ -20,6 +20,7 @@ import {
     TableRow,
     Divider,
     Tooltip,
+    IconButton,
 } from '@mui/material';
 import {
     DevicesOther as DeviceIcon,
@@ -30,6 +31,10 @@ import {
     Cancel as UnboundIcon,
     Timer as PendingIcon,
     Warning as WarningIcon,
+    Key as KeyIcon,
+    ContentCopy as CopyIcon,
+    Refresh as RegenerateIcon,
+    DeleteOutline as RevokeIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
@@ -68,9 +73,10 @@ interface DeviceOverrideHistoryItem {
 
 interface DeviceManagementTabProps {
     screenId: string;
+    hasApiKey: boolean;
 }
 
-export default function DeviceManagementTab({ screenId }: DeviceManagementTabProps) {
+export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManagementTabProps) {
     const { enqueueSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
     const user = useAuthStore((state) => state.user);
@@ -78,6 +84,9 @@ export default function DeviceManagementTab({ screenId }: DeviceManagementTabPro
 
     const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
     const [clearDialogOpen, setClearDialogOpen] = useState(false);
+    const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
+    const [revokeDialogOpen, setRevokeDialogOpen] = useState(false);
+    const [generatedApiKey, setGeneratedApiKey] = useState<string | null>(null);
     const [overrideReason, setOverrideReason] = useState('');
 
     // Fetch binding status
@@ -139,6 +148,58 @@ export default function DeviceManagementTab({ screenId }: DeviceManagementTabPro
         },
     });
 
+    // Generate API key mutation
+    const generateApiKeyMutation = useMutation<{ apiKey: string }>({
+        mutationFn: async () => {
+            const response = await api.post(`/screens/${screenId}/generate-api-key`);
+            return response.data.data;
+        },
+        onSuccess: (data) => {
+            setGeneratedApiKey(data.apiKey);
+            setRegenerateDialogOpen(false);
+            enqueueSnackbar('API key generated successfully', { variant: 'success' });
+            queryClient.invalidateQueries({ queryKey: ['screen', screenId] });
+        },
+        onError: (error: any) => {
+            enqueueSnackbar(
+                error.response?.data?.message || 'Failed to generate API key',
+                { variant: 'error' }
+            );
+        },
+    });
+
+    // Revoke API key mutation
+    const revokeApiKeyMutation = useMutation({
+        mutationFn: async () => {
+            await api.delete(`/screens/${screenId}/api-key`);
+        },
+        onSuccess: () => {
+            setRevokeDialogOpen(false);
+            setGeneratedApiKey(null);
+            enqueueSnackbar('API key revoked', { variant: 'success' });
+            queryClient.invalidateQueries({ queryKey: ['screen', screenId] });
+        },
+        onError: (error: any) => {
+            enqueueSnackbar(
+                error.response?.data?.message || 'Failed to revoke API key',
+                { variant: 'error' }
+            );
+        },
+    });
+
+    const handleCopyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text);
+        enqueueSnackbar(`${label} copied to clipboard`, { variant: 'info' });
+    };
+
+    const handleGenerateClick = () => {
+        if (hasApiKey) {
+            setRegenerateDialogOpen(true);
+        } else {
+            generateApiKeyMutation.mutate();
+        }
+    };
+
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return '—';
         return new Date(dateStr).toLocaleString();
@@ -179,6 +240,121 @@ export default function DeviceManagementTab({ screenId }: DeviceManagementTabPro
                 Manage the player device bound to this screen. Each screen is locked to a
                 specific hardware device for security.
             </Typography>
+
+            {/* Player Credentials Card */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                    <KeyIcon color="primary" />
+                    <Typography variant="h6">Player Credentials</Typography>
+                </Box>
+
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Use these credentials when setting up a player device (Raspberry Pi, ChromeOS, Android).
+                </Typography>
+
+                {/* Screen ID */}
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <Typography variant="subtitle2" sx={{ minWidth: 140 }}>Screen ID:</Typography>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            bgcolor: 'background.default',
+                            px: 1.5,
+                            py: 0.5,
+                            borderRadius: 1,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            flex: 1,
+                            maxWidth: 420,
+                        }}
+                    >
+                        <Typography
+                            variant="body2"
+                            fontFamily="monospace"
+                            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                            {screenId}
+                        </Typography>
+                        <Tooltip title="Copy Screen ID">
+                            <IconButton size="small" onClick={() => handleCopyToClipboard(screenId, 'Screen ID')}>
+                                <CopyIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Box>
+                </Box>
+
+                {/* API Key Status */}
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <Typography variant="subtitle2" sx={{ minWidth: 140 }}>API Key:</Typography>
+                    {hasApiKey ? (
+                        <Chip icon={<BoundIcon />} label="Configured" color="success" size="small" />
+                    ) : (
+                        <Chip icon={<WarningIcon />} label="Not configured" color="warning" size="small" />
+                    )}
+                </Box>
+
+                {/* Generated API Key Display (shown once after generation) */}
+                {generatedApiKey && (
+                    <Alert
+                        severity="success"
+                        sx={{ mb: 2 }}
+                        action={
+                            <Tooltip title="Copy API Key">
+                                <IconButton
+                                    size="small"
+                                    color="inherit"
+                                    onClick={() => handleCopyToClipboard(generatedApiKey, 'API Key')}
+                                >
+                                    <CopyIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        }
+                    >
+                        <Typography variant="subtitle2" gutterBottom>
+                            Your new API Key:
+                        </Typography>
+                        <Typography variant="body2" fontFamily="monospace" sx={{ wordBreak: 'break-all' }}>
+                            {generatedApiKey}
+                        </Typography>
+                        <Typography variant="caption" display="block" sx={{ mt: 1, fontWeight: 600 }}>
+                            Copy this key now — it cannot be retrieved again.
+                        </Typography>
+                    </Alert>
+                )}
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Actions */}
+                <Box display="flex" gap={2} flexWrap="wrap">
+                    <Button
+                        variant={hasApiKey ? 'outlined' : 'contained'}
+                        color={hasApiKey ? 'warning' : 'primary'}
+                        startIcon={hasApiKey ? <RegenerateIcon /> : <KeyIcon />}
+                        onClick={handleGenerateClick}
+                        disabled={generateApiKeyMutation.isPending}
+                    >
+                        {generateApiKeyMutation.isPending
+                            ? 'Generating...'
+                            : hasApiKey
+                                ? 'Regenerate API Key'
+                                : 'Generate API Key'}
+                    </Button>
+
+                    {hasApiKey && (
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<RevokeIcon />}
+                            onClick={() => setRevokeDialogOpen(true)}
+                            disabled={revokeApiKeyMutation.isPending}
+                        >
+                            Revoke API Key
+                        </Button>
+                    )}
+                </Box>
+            </Paper>
 
             {/* Binding Status Card */}
             <Paper sx={{ p: 3, mb: 3 }}>
@@ -392,6 +568,66 @@ export default function DeviceManagementTab({ screenId }: DeviceManagementTabPro
                         disabled={clearMutation.isPending}
                     >
                         {clearMutation.isPending ? 'Clearing...' : 'Clear Binding'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Regenerate API Key Confirmation Dialog */}
+            <Dialog open={regenerateDialogOpen} onClose={() => setRegenerateDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <WarningIcon color="warning" />
+                        Regenerate API Key?
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" paragraph sx={{ mt: 1 }}>
+                        This will <strong>invalidate the current API key</strong>. Any player device
+                        using the old key will lose access and need to be reconfigured with the new key.
+                    </Typography>
+                    <Alert severity="warning">
+                        Make sure you have access to the player device to update the key.
+                    </Alert>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setRegenerateDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        onClick={() => generateApiKeyMutation.mutate()}
+                        variant="contained"
+                        color="warning"
+                        disabled={generateApiKeyMutation.isPending}
+                    >
+                        {generateApiKeyMutation.isPending ? 'Generating...' : 'Regenerate'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Revoke API Key Confirmation Dialog */}
+            <Dialog open={revokeDialogOpen} onClose={() => setRevokeDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <WarningIcon color="error" />
+                        Revoke API Key?
+                    </Box>
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" paragraph sx={{ mt: 1 }}>
+                        The player device will <strong>no longer be able to authenticate</strong>.
+                        You can generate a new key later if needed.
+                    </Typography>
+                    <Alert severity="error">
+                        The player will stop working immediately after revocation.
+                    </Alert>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setRevokeDialogOpen(false)}>Cancel</Button>
+                    <Button
+                        onClick={() => revokeApiKeyMutation.mutate()}
+                        variant="contained"
+                        color="error"
+                        disabled={revokeApiKeyMutation.isPending}
+                    >
+                        {revokeApiKeyMutation.isPending ? 'Revoking...' : 'Revoke'}
                     </Button>
                 </DialogActions>
             </Dialog>

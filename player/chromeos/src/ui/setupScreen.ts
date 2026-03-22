@@ -4,6 +4,7 @@
 import { saveConfig, type PlayerConfig } from '../config';
 
 export class SetupScreen {
+  static readonly SERVER_URL = 'https://ccms.pixelspot.in';
   private readonly container: HTMLElement;
   private onComplete: ((config: PlayerConfig) => void) | null = null;
 
@@ -33,11 +34,16 @@ export class SetupScreen {
     title.style.cssText = 'color:#f8fafc;margin-bottom:1.5rem;text-align:center;';
     form.appendChild(title);
 
-    const serverInput = this.createInput('Server URL', 'https://ccms.pixelspot.in');
     const screenInput = this.createInput('Screen ID', 'Enter screen ID...');
     const apiKeyInput = this.createInput('API Key', 'Enter API key...');
 
-    form.appendChild(serverInput.wrapper);
+    const helpText = document.createElement('p');
+    helpText.textContent =
+      'Find your Screen ID and API Key in the CCMS dashboard under Screen Details \u2192 Generate API Key.';
+    helpText.style.cssText =
+      'color:#64748b;font-size:0.75rem;margin-bottom:1rem;line-height:1.4;text-align:center;';
+    form.appendChild(helpText);
+
     form.appendChild(screenInput.wrapper);
     form.appendChild(apiKeyInput.wrapper);
 
@@ -53,11 +59,11 @@ export class SetupScreen {
     form.onsubmit = (e) => {
       e.preventDefault();
       const config: PlayerConfig = {
-        serverUrl: serverInput.input.value.trim(),
+        serverUrl: SetupScreen.SERVER_URL,
         screenId: screenInput.input.value.trim(),
         apiKey: apiKeyInput.input.value.trim(),
       };
-      if (config.serverUrl && config.screenId && config.apiKey) {
+      if (config.screenId && config.apiKey) {
         saveConfig(config);
         this.onComplete?.(config);
       }

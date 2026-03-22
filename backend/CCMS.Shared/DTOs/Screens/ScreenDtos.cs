@@ -24,6 +24,7 @@ public class ScreenDto
     public int ImpressionsPerSlot { get; set; }
     public int DailyTotalImpressions { get; set; }
     public RevenueEstimateDto? RevenueEstimate { get; set; }
+    public bool HasApiKey { get; set; }
     public int BookedSlots { get; set; } // Number of booked slots for today
     public int ActiveBookings { get; set; } // Number of active bookings for today
     public DateTime? LastSyncAt { get; set; }

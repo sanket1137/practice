@@ -88,6 +88,7 @@ interface Screen {
     images?: ScreenImage[];
     primaryImage?: ScreenImage;
     isOnline?: boolean;
+    hasApiKey?: boolean;
 }
 
 export default function ScreenDetailPage() {
@@ -634,7 +635,7 @@ export default function ScreenDetailPage() {
 
             {/* Device Management Tab (Owner only) */}
             {currentTabId === 'device' && isOwner && (
-                <DeviceManagementTab screenId={id!} />
+                <DeviceManagementTab screenId={id!} hasApiKey={screen?.hasApiKey ?? false} />
             )}
 
             {/* Live Stream Tab (Owner or Advertiser with access) */}
