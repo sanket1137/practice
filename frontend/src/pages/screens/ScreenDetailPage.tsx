@@ -38,6 +38,7 @@ import {
     VideoSettings as VideoSettingsIcon,
     ShowChart as ActivityIcon,
     DevicesOther as DevicesIcon,
+    Verified as VerifiedIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -56,6 +57,7 @@ import ScreenImageGallery from '../../components/screens/ScreenImageGallery';
 import DeviceManagementTab from '../../components/screens/DeviceManagementTab';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import SelfReserveDialog from '../../components/bookings/SelfReserveDialog';
+import VerificationTab from '../../components/screens/VerificationTab';
 import { useState, useMemo } from 'react';
 import { getScreenTags } from '../../services/screenTagsService';
 import type { ScreenTagDetail, ScreenImage } from '../../types/screen';
@@ -161,6 +163,7 @@ export default function ScreenDetailPage() {
                 { id: 'live-activity', label: 'Live Activity', icon: <ActivityIcon /> },
                 { id: 'default-video', label: 'Default Video', icon: <VideoSettingsIcon /> },
                 { id: 'device', label: 'Device', icon: <DevicesIcon /> },
+                { id: 'verification', label: 'Verification', icon: <VerifiedIcon /> },
                 { id: 'live-stream', label: 'Live Stream', icon: <LiveTvIcon /> },
             ];
         } else {
@@ -636,6 +639,11 @@ export default function ScreenDetailPage() {
             {/* Device Management Tab (Owner only) */}
             {currentTabId === 'device' && isOwner && (
                 <DeviceManagementTab screenId={id!} hasApiKey={screen?.hasApiKey ?? false} />
+            )}
+
+            {/* Verification Tab (Owner only) */}
+            {currentTabId === 'verification' && isOwner && (
+                <VerificationTab screenId={id!} />
             )}
 
             {/* Live Stream Tab (Owner or Advertiser with access) */}

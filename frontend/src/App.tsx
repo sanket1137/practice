@@ -39,6 +39,8 @@ import LandingPage from './pages/public/LandingPage';
 import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
 import AdminPayoutsPage from './pages/payouts/AdminPayoutsPage';
 import AdminMachinesPage from './pages/admin/AdminMachinesPage';
+import AdminVerificationsPage from './pages/admin/AdminVerificationsPage';
+import VerifyScreenPage from './pages/verification/VerifyScreenPage';
 
 const queryClient = new QueryClient();
 
@@ -84,6 +86,7 @@ function App() {
                 <Route path="/resend-verification" element={<ResendVerificationPage />} />
                 <Route path="/demo" element={<DemoPage />} />
                 <Route path="/explore" element={<ExploreScreensPage />} />
+                <Route path="/verify/:screenId" element={<VerifyScreenPage />} />
                 <Route
                   path="/"
                   element={
@@ -115,6 +118,7 @@ function App() {
                   <Route path="profile" element={<ProfileSettingsPage />} />
                   <Route path="admin/payouts" element={<AdminPayoutsPage />} />
                   <Route path="admin/machines" element={<AdminMachinesPage />} />
+                  <Route path="admin/verifications" element={<AdminVerificationsPage />} />
                 </Route>
               </Routes>
               </BrowserRouter>

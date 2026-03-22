@@ -45,6 +45,7 @@ import {
     DoneAll as DoneAllIcon,
     Settings as SettingsIcon,
     Security as SecurityIcon,
+    VerifiedUser as VerifiedUserIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -112,6 +113,7 @@ const MainLayout = () => {
             { text: 'All Bookings', icon: <BookingIcon />, path: '/bookings' },
             { text: 'Payouts', icon: <PayoutsIcon />, path: '/admin/payouts' },
             { text: 'Machines', icon: <SecurityIcon />, path: '/admin/machines' },
+            { text: 'Verifications', icon: <VerifiedUserIcon />, path: '/admin/verifications' },
             { text: 'Platform Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
             { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
         ];

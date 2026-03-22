@@ -9,7 +9,7 @@ import {
     Container,
     Alert
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 
@@ -19,6 +19,7 @@ const LoginPage = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const setAuth = useAuthStore((state) => state.setAuth);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -55,7 +56,8 @@ const LoginPage = () => {
 
             const { user, accessToken, refreshToken } = data;
             setAuth(user, accessToken, refreshToken);
-            navigate('/dashboard');
+            const returnUrl = searchParams.get('returnUrl');
+            navigate(returnUrl && returnUrl.startsWith('/') ? returnUrl : '/dashboard');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Login failed');
         } finally {
