@@ -75,7 +75,7 @@ export class PlayerApi {
       const nonce = crypto.randomUUID();
       const timestamp = Math.floor(Date.now() / 1000);
 
-      const res = await fetch(`${this.baseUrl}/api/player/handshake`, {
+      const res = await fetch(`${this.baseUrl}/api/v1/player/handshake`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,7 +99,7 @@ export class PlayerApi {
 
   async sendHeartbeat(): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/api/player/heartbeat`, {
+      await fetch(`${this.baseUrl}/api/v1/player/heartbeat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -116,7 +116,7 @@ export class PlayerApi {
   async syncImpressions(impressions: SyncImpression[]): Promise<boolean> {
     if (impressions.length === 0) return true;
     try {
-      const res = await fetch(`${this.baseUrl}/api/player/sync`, {
+      const res = await fetch(`${this.baseUrl}/api/v1/player/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
