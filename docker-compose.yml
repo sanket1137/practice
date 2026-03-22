@@ -34,6 +34,7 @@ services:
       - Cors__AllowedOrigins__4=http://${SERVER_IP:-91.99.190.216}:80
       - Cors__AllowedOrigins__5=https://ccms.pixelspot.in
       - Cors__AllowedOrigins__6=http://ccms.pixelspot.in
+      - Cors__AllowedOrigins__7=http://localhost:3100
       # App Settings
       - App__BaseUrl=${FRONTEND_URL:-https://ccms.pixelspot.in}
       - TimeZone__Id=Asia/Kolkata

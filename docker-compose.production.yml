@@ -32,6 +32,10 @@ services:
       - Jwt__Audience=PixelCCMSUsers
       # CORS
       - Cors__AllowedOrigins__0=${FRONTEND_URL:-https://ccms.yourdomain.com}
+      - Cors__AllowedOrigins__1=https://pixelspot.in
+      - Cors__AllowedOrigins__2=https://www.pixelspot.in
+      - Cors__AllowedOrigins__3=https://app.pixelspot.in
+      - Cors__AllowedOrigins__4=http://localhost:3100
       # Email (AWS SES)
       - AWS__SES__AccessKeyId=${AWS_SES_ACCESS_KEY_ID:-}
       - AWS__SES__SecretAccessKey=${AWS_SES_SECRET_ACCESS_KEY:-}
