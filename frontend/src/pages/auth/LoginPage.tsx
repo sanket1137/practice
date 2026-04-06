@@ -110,7 +110,18 @@ const LoginPage = () => {
                             {loading ? 'Logging in...' : 'Login'}
                         </Button>
 
-                        <Box sx={{ mt: 2, textAlign: 'center' }}>
+                        <Box sx={{ mt: 1, textAlign: 'right' }}>
+                            <Button
+                                variant="text"
+                                size="small"
+                                onClick={() => navigate('/forgot-password')}
+                                sx={{ textTransform: 'none' }}
+                            >
+                                Forgot password?
+                            </Button>
+                        </Box>
+
+                        <Box sx={{ mt: 1, textAlign: 'center' }}>
                             <Typography variant="body2">
                                 Don't have an account?{' '}
                                 <Button

@@ -13,6 +13,8 @@ import RegisterPage from './pages/auth/RegisterPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import VerifyPhonePage from './pages/auth/VerifyPhonePage';
 import ResendVerificationPage from './pages/auth/ResendVerificationPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import CampaignsPage from './pages/campaigns/CampaignsPage';
 import CreateCampaignPage from './pages/campaigns/CreateCampaignPage';
@@ -84,6 +86,8 @@ function App() {
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/verify-phone" element={<VerifyPhonePage />} />
                 <Route path="/resend-verification" element={<ResendVerificationPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route path="/demo" element={<DemoPage />} />
                 <Route path="/explore" element={<ExploreScreensPage />} />
                 <Route path="/verify/:screenId" element={<VerifyScreenPage />} />

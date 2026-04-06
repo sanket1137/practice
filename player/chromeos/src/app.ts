@@ -164,6 +164,7 @@ export class App {
 
     // Check operating hours before starting
     if (this.operatingHours && !this.isWithinOperatingHours()) {
+      console.log('[App] Outside operating hours — deferring playback');
       this.enterOutsideHours();
       this.startOperatingHoursCheck();
       this.startHeartbeatLoop();
@@ -247,6 +248,8 @@ export class App {
 
   // ─── Sync Loop (adaptive 1-10 min) ───
 
+  private syncFailures = 0;
+
   private startSyncLoop(): void {
     if (this.syncTimer) clearInterval(this.syncTimer);
 
@@ -254,7 +257,10 @@ export class App {
       if (!this.impressionTracker || !this.api) return;
 
       const pending = await this.impressionTracker.getPending();
-      if (pending.length === 0) return;
+      if (pending.length === 0) {
+        this.syncFailures = 0;
+        return;
+      }
 
       console.log(`[App] Syncing ${pending.length} impressions...`);
 
@@ -273,22 +279,27 @@ export class App {
       );
 
       if (success) {
+        this.syncFailures = 0;
         await this.impressionTracker.markSynced(pending.map((imp) => imp.slotPlayKey));
         console.log(`[App] Synced ${pending.length} impressions successfully`);
       } else {
-        console.warn('[App] Sync failed, will retry next interval');
+        this.syncFailures++;
+        console.warn(`[App] Sync failed (${this.syncFailures}), will retry next interval`);
       }
     };
 
-    const intervalMs = this.syncIntervalMinutes * 60 * 1000;
+    // Guard against NaN or invalid interval
+    const safeMinutes = Number.isFinite(this.syncIntervalMinutes) ? this.syncIntervalMinutes : 5;
+    const intervalMs = safeMinutes * 60 * 1000;
     this.syncTimer = setInterval(syncImpressions, intervalMs);
-    console.log(`[App] Sync loop started (${this.syncIntervalMinutes}m)`);
+    console.log(`[App] Sync loop started (${safeMinutes}m)`);
 
     // Also do an immediate sync on start
     syncImpressions().catch(console.error);
   }
 
   private updateSyncInterval(minutes: number): void {
+    if (!Number.isFinite(minutes)) return;
     this.syncIntervalMinutes = Math.max(1, Math.min(10, minutes));
     console.log(`[App] Sync interval updated to ${this.syncIntervalMinutes}m`);
     this.startSyncLoop(); // Restart with new interval
@@ -297,17 +308,26 @@ export class App {
   // ─── Operating Hours ───
 
   private parseOperatingHours(raw: Record<string, string>): void {
-    this.operatingHours = {};
+    const parsed: Record<string, DaySchedule> = {};
     for (const [day, range] of Object.entries(raw)) {
+      if (range.toLowerCase() === 'closed') continue;
       const match = range.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
       if (match) {
-        this.operatingHours[day.toLowerCase()] = {
+        parsed[day.toLowerCase()] = {
           startHour: parseInt(match[1], 10),
           startMinute: parseInt(match[2], 10),
           endHour: parseInt(match[3], 10),
           endMinute: parseInt(match[4], 10),
         };
       }
+    }
+    // If no operating days were parsed, treat as "always on" (no schedule configured)
+    if (Object.keys(parsed).length > 0) {
+      this.operatingHours = parsed;
+      console.log('[App] Parsed operating hours:', JSON.stringify(parsed));
+    } else {
+      this.operatingHours = null;
+      console.log('[App] No operating hours configured — always on');
     }
   }
 
@@ -319,11 +339,16 @@ export class App {
     const today = days[now.getDay()];
 
     const schedule = this.operatingHours[today];
-    if (!schedule) return false; // Day not in schedule = closed
+    if (!schedule) {
+      console.log(`[App] Operating hours: ${today} not in schedule (closed)`);
+      return false;
+    }
 
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     const startMinutes = schedule.startHour * 60 + schedule.startMinute;
     const endMinutes = schedule.endHour * 60 + schedule.endMinute;
+
+    console.log(`[App] Operating hours check: ${today} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} (${currentMinutes}min) vs ${schedule.startHour}:${String(schedule.startMinute).padStart(2,'0')}-${schedule.endHour}:${String(schedule.endMinute).padStart(2,'0')} (${startMinutes}-${endMinutes}min)`);
 
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
   }
@@ -382,8 +407,9 @@ export class App {
         // Re-fetch playlist on slot status changes
         this.handlePlaylistUpdate();
       },
-      onSyncModeChanged: (intervalMinutes) => {
-        this.updateSyncInterval(intervalMinutes);
+      onSyncModeChanged: (mode) => {
+        const minutes = mode === 'fast' ? 1 : 10;
+        this.updateSyncInterval(minutes);
       },
       onConnectionStateChanged: (connected) => {
         this.updateConnectionOverlay(connected);

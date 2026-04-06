@@ -18,7 +18,8 @@ export interface PlaylistItem {
   campaignId: string | null;
   creativeId: string | null;
   ownerContentId: string | null;
-  videoUrl: string;
+  creativeUrl: string;
+  creativeMimeType: string | null;
   isFillerContent: boolean;
   startTime: string;
   endTime: string;

@@ -23,6 +23,7 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import HistoryIcon from '@mui/icons-material/History';
 import { format, parseISO } from 'date-fns';
+import { useSnackbar } from 'notistack';
 
 import { useVerificationStatus, useVerificationHistory, useScanQr, useUploadVerificationVideo } from '../../hooks/useScreenVerification';
 import type { ScreenVerificationStatus } from '../../types/verification';
@@ -49,14 +50,40 @@ export default function VerificationTab({ screenId }: VerificationTabProps) {
   const scanQrMutation = useScanQr(screenId);
   const uploadMutation = useUploadVerificationVideo(screenId);
 
+  const { enqueueSnackbar } = useSnackbar();
+
   const [scannerOpen, setScannerOpen] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [gpsPosition, setGpsPosition] = useState<GeolocationPosition | null>(null);
 
   const currentStatus = status?.status ?? 'Unverified';
   const config = STATUS_CONFIG[currentStatus as ScreenVerificationStatus] ?? STATUS_CONFIG.Unverified;
   const needsVerification = currentStatus === 'Unverified' || currentStatus === 'QrDisplayed' || currentStatus === 'Rejected' || currentStatus === 'ReVerificationRequired';
+
+  const handleScanButtonClick = useCallback(async () => {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+      })
+    ).catch((err: GeolocationPositionError) => {
+      if (err.code === err.PERMISSION_DENIED) {
+        enqueueSnackbar('Location permission denied. Please tap the lock icon in the address bar, allow Location, and reload the page.', { variant: 'error' });
+      } else if (err.code === err.TIMEOUT) {
+        enqueueSnackbar('Location request timed out. Please ensure GPS is enabled and try again.', { variant: 'error' });
+      } else {
+        enqueueSnackbar('Unable to get your location. Please ensure location services are enabled.', { variant: 'error' });
+      }
+      return null;
+    });
+
+    if (!position) return;
+
+    setGpsPosition(position);
+    setScannerOpen(true);
+  }, [enqueueSnackbar]);
 
   const handleQrScanned = useCallback(
     async (qrContent: string) => {
@@ -71,27 +98,29 @@ export default function VerificationTab({ screenId }: VerificationTabProps) {
         challengeCode = qrContent;
       }
 
-      if (!challengeCode) return;
+      if (!challengeCode) {
+        enqueueSnackbar('Invalid QR code — no challenge code found', { variant: 'error' });
+        return;
+      }
 
-      // Get GPS position
-      const position = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 15000,
-        })
-      ).catch(() => null);
+      if (!gpsPosition) {
+        enqueueSnackbar('Location not available. Please try again.', { variant: 'error' });
+        return;
+      }
 
-      if (!position) return;
+      try {
+        const result = await scanQrMutation.mutateAsync({
+          challengeCode,
+          gpsLatitude: gpsPosition.coords.latitude,
+          gpsLongitude: gpsPosition.coords.longitude,
+        });
 
-      const result = await scanQrMutation.mutateAsync({
-        challengeCode,
-        gpsLatitude: position.coords.latitude,
-        gpsLongitude: position.coords.longitude,
-      });
-
-      setVerificationId(result.verificationId);
+        setVerificationId(result.verificationId);
+      } catch {
+        // Error already shown via onError snackbar in useScanQr hook
+      }
     },
-    [scanQrMutation]
+    [scanQrMutation, gpsPosition, enqueueSnackbar]
   );
 
   const handleVideoComplete = useCallback(
@@ -143,7 +172,7 @@ export default function VerificationTab({ screenId }: VerificationTabProps) {
               <Button
                 variant="contained"
                 startIcon={<QrCodeScannerIcon />}
-                onClick={() => setScannerOpen(true)}
+                onClick={handleScanButtonClick}
                 disabled={scanQrMutation.isPending}
               >
                 Scan QR code
@@ -172,7 +201,7 @@ export default function VerificationTab({ screenId }: VerificationTabProps) {
       </Card>
 
       {/* Video Recording Step — shown after successful QR scan */}
-      {verificationId && !uploading && currentStatus !== 'PendingReview' && currentStatus !== 'Verified' && (
+      {verificationId && !uploading && !uploadMutation.isSuccess && (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>

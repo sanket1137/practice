@@ -23,7 +23,7 @@ interface PlayerApiService {
      * Authenticate with the backend, receive playlist + session credentials.
      * Called once on startup and again when session expires (24h) or on SignalR reconnect.
      */
-    @POST("api/player/handshake")
+    @POST("api/v1/player/handshake")
     suspend fun handshake(@Body request: HandshakeRequest): Response<ApiResponse<HandshakeResponse>>
 
     /**
@@ -32,13 +32,13 @@ interface PlayerApiService {
      *
      * Called every 1-10 minutes (adaptive via SetSyncMode SignalR event).
      */
-    @POST("api/player/sync")
+    @POST("api/v1/player/sync")
     suspend fun syncImpressions(@Body request: SyncRequest): Response<SyncResponse>
 
     /**
      * Keep-alive heartbeat (every 30 seconds).
      * Updates LastSeenAt + IsOnline on the server.
      */
-    @POST("api/player/heartbeat")
+    @POST("api/v1/player/heartbeat")
     suspend fun heartbeat(@Body request: HeartbeatRequest): Response<HeartbeatResponse>
 }

@@ -8,7 +8,7 @@ import type { PlayerConfig } from '../config';
 export interface SignalRCallbacks {
   onPlaylistUpdated: () => void;
   onSlotStatusChanged: (slotNumber: number, status: string) => void;
-  onSyncModeChanged: (intervalMinutes: number) => void;
+  onSyncModeChanged: (mode: string) => void;
   onConnectionStateChanged: (connected: boolean) => void;
 }
 
@@ -74,9 +74,9 @@ export class SignalRClient {
       this.callbacks.onSlotStatusChanged(slotNumber, status);
     });
 
-    this.connection.on('SetSyncMode', (intervalMinutes: number) => {
-      console.log(`[SignalR] SetSyncMode: ${intervalMinutes} minutes`);
-      this.callbacks.onSyncModeChanged(intervalMinutes);
+    this.connection.on('SetSyncMode', (mode: string) => {
+      console.log(`[SignalR] SetSyncMode: ${mode}`);
+      this.callbacks.onSyncModeChanged(mode);
     });
 
     try {
@@ -97,7 +97,7 @@ export class SignalRClient {
   private async joinScreenGroup(): Promise<void> {
     if (this.connection?.state === signalR.HubConnectionState.Connected) {
       try {
-        await this.connection.invoke('JoinScreenGroup', this.config.screenId);
+        await this.connection.invoke('SubscribeToScreen', this.config.screenId);
         console.log('[SignalR] Joined screen group');
       } catch (err) {
         console.warn('[SignalR] Failed to join screen group:', err);

@@ -12,12 +12,12 @@ export interface TrackedImpression {
   playedAt: string;
   durationSeconds: number;
   isFillerContent: boolean;
-  synced: boolean;
+  synced: number; // 0 = not synced, 1 = synced (IDB can't index booleans)
 }
 
 const DB_NAME = 'ccms_impressions';
 const STORE_NAME = 'impressions';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export class ImpressionTracker {
   private db: IDBDatabase | null = null;
@@ -27,10 +27,12 @@ export class ImpressionTracker {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = () => {
         const db = request.result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const store = db.createObjectStore(STORE_NAME, { keyPath: 'slotPlayKey' });
-          store.createIndex('synced', 'synced', { unique: false });
+        // v2: recreate store with numeric synced key (booleans are not valid IDB keys)
+        if (db.objectStoreNames.contains(STORE_NAME)) {
+          db.deleteObjectStore(STORE_NAME);
         }
+        const store = db.createObjectStore(STORE_NAME, { keyPath: 'slotPlayKey' });
+        store.createIndex('synced', 'synced', { unique: false });
       };
       request.onsuccess = () => {
         this.db = request.result;
@@ -44,7 +46,7 @@ export class ImpressionTracker {
     if (!this.db) return;
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).put({ ...impression, synced: false });
+      tx.objectStore(STORE_NAME).put({ ...impression, synced: 0 });
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -55,7 +57,7 @@ export class ImpressionTracker {
     return new Promise((resolve, reject) => {
       const tx = this.db!.transaction(STORE_NAME, 'readonly');
       const index = tx.objectStore(STORE_NAME).index('synced');
-      const request = index.getAll(IDBKeyRange.only(false));
+      const request = index.getAll(IDBKeyRange.only(0));
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -69,7 +71,7 @@ export class ImpressionTracker {
       const getReq = store.get(key);
       getReq.onsuccess = () => {
         if (getReq.result) {
-          getReq.result.synced = true;
+          getReq.result.synced = 1;
           store.put(getReq.result);
         }
       };

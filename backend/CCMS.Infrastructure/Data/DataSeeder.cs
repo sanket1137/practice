@@ -70,7 +70,19 @@ public static class DataSeeder
             CreatedAt = DateTime.UtcNow
         };
 
-        context.Users.AddRange(advertiser1, advertiser2, owner1, owner2, admin);
+        var sanketAdmin = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = "sanket@pixelspot.in",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("TempAdmin@123"),
+            FirstName = "Sanket",
+            LastName = "Admin",
+            Role = UserRole.Admin,
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        context.Users.AddRange(advertiser1, advertiser2, owner1, owner2, admin, sanketAdmin);
         await context.SaveChangesAsync();
 
         // Create Screens

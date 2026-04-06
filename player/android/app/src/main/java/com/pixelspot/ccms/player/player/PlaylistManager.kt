@@ -1,6 +1,7 @@
 package com.pixelspot.ccms.player.player
 
 import android.util.Log
+import com.pixelspot.ccms.player.CcmsPlayerApp
 import com.pixelspot.ccms.player.data.model.AdPlaybackEvent
 import com.pixelspot.ccms.player.data.model.PlaylistItem
 import com.pixelspot.ccms.player.data.remote.SignalRClient
@@ -22,6 +23,10 @@ import javax.inject.Singleton
  *
  * Connects ExoPlayer item transitions to the impression store via callbacks.
  * Enforces operating hours from the handshake response (Mon-Sun schedule).
+ *
+ * **Impression Guarding**: Impressions are ONLY recorded when the app is in
+ * foreground (visible on TV). This prevents billing for impressions that
+ * users can't see (e.g., when app is in background). Uses [CcmsPlayerApp.isAppInForeground].
  */
 @Singleton
 class PlaylistManager @Inject constructor(
@@ -123,6 +128,11 @@ class PlaylistManager @Inject constructor(
      * Called when ExoPlayer transitions from one item to the next.
      * Records an impression for the completed item and checks for cycle-boundary swap.
      *
+     * **Impression Guarding**: Impressions are ONLY recorded when:
+     * 1. The app is in foreground (UI visible on TV)
+     * 2. Content is not filler/default
+     * If the app is in background, impressions are skipped to prevent false billing.
+     *
      * @param reason ExoPlayer transition reason:
      *   - MEDIA_ITEM_TRANSITION_REASON_REPEAT (0) = playlist wrapped (last→first) = cycle boundary
      *   - MEDIA_ITEM_TRANSITION_REASON_AUTO (1) = natural end of item
@@ -144,12 +154,34 @@ class PlaylistManager @Inject constructor(
             emitAdStarted(currentItems[newIndex])
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // IMPRESSION GUARDING: Only record impressions when app is in foreground
+        // ══════════════════════════════════════════════════════════════════════
+        //
+        // Critical business rule: Impressions should only be counted when the
+        // player UI is actively visible on the TV screen. If the app is running
+        // in background (e.g., user pressed Home), impressions must NOT be
+        // recorded to prevent false billing.
+        //
+        // This matches Raspberry Pi behavior where impressions are only counted
+        // when the display is actually showing the content.
+        // ══════════════════════════════════════════════════════════════════════
+
+        if (!CcmsPlayerApp.isAppInForeground) {
+            Log.w(TAG, "⚠️ Skipping impression — app is NOT in foreground (slot ${item.slotNumber})")
+            // Still process cycle-boundary swap even when in background
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && pendingItems != null) {
+                applyPendingPlaylist()
+            }
+            return
+        }
+
         // Skip impressions for default/filler content — only count real bookings/owner content
         // Matches Pi player's record_impression() guard: `if is_filler: return`
         if (item.isFillerContent) {
             Log.d(TAG, "Skipping impression for filler/default content (slot ${item.slotNumber})")
         } else {
-            // Record impression for non-filler content
+            // Record impression for non-filler content (app is in foreground)
             scope.launch {
                 try {
                     val impressionId = impressionRepository.recordImpression(
@@ -164,6 +196,7 @@ class PlaylistManager @Inject constructor(
 
                     // Send real-time event via SignalR
                     if (impressionId != null) {
+                        Log.i(TAG, "✓ Impression recorded (foreground): slot ${item.slotNumber}, id=$impressionId")
                         val event = AdPlaybackEvent(
                             screenId = screenId,
                             bookingId = item.bookingId,
@@ -211,18 +244,30 @@ class PlaylistManager @Inject constructor(
         slotsPerFrame: Int
     ) {
         val validItems = items.filter { it.videoUrl.isNotBlank() }
+        Log.d(TAG, "📺 preparePlaylistUpdate: ${validItems.size} valid items, isPlaying=${exoPlayerManager.isPlaying}")
 
         // If nothing is currently playing, apply immediately
         if (currentItems.isEmpty() || !exoPlayerManager.isPlaying) {
-            Log.i(TAG, "No active playback, applying playlist update immediately")
+            Log.i(TAG, "📺 No active playback, applying playlist update immediately")
             loadPlaylist(items, screenId, timezone, operatingHours, slotsPerFrame)
             return
         }
 
         // Check if playlist is unchanged
         if (isPlaylistSame(validItems)) {
-            Log.i(TAG, "Playlist unchanged, no update needed")
+            Log.i(TAG, "📺 Playlist unchanged, no update needed")
             return
+        }
+        
+        Log.i(TAG, "📺 Playlist has changed! Buffering for cycle-boundary swap")
+        
+        // Log the differences
+        validItems.forEachIndexed { index, item ->
+            val oldUrl = currentItems.getOrNull(index)?.videoUrl ?: "NONE"
+            val newUrl = item.videoUrl
+            if (oldUrl != newUrl) {
+                Log.i(TAG, "📺 Slot ${item.slotNumber} changed: ${oldUrl.takeLast(30)} -> ${newUrl.takeLast(30)}")
+            }
         }
 
         // Buffer for cycle-boundary swap

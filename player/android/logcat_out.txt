@@ -1,0 +1,10 @@
+﻿adb : - waiting for device -
+At line:1 char:64
++ ... PDATA\Android\Sdk\platform-tools" ; adb logcat -d -t 200 2>&1 | Out-F ...
++                                         ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (- waiting for device -:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+* daemon still not running
+error: cannot connect to daemon at tcp:5037: cannot connect to 127.0.0.1:5037: No connection could be made because the target machine actively 
+refused it. (10061)

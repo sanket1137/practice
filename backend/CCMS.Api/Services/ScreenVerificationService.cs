@@ -96,6 +96,7 @@ public class ScreenVerificationService
 
         screenEntity.ActiveQrChallengeCode = null;
         screenEntity.QrChallengeExpiresAt = null;
+        screenEntity.VerificationStatus = ScreenVerificationStatus.PendingReview;
 
         // Create the verification record
         var verification = new ScreenVerification

@@ -41,6 +41,7 @@ export function useScanQr(screenId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['verification-status', screenId] });
       queryClient.invalidateQueries({ queryKey: ['verification-history', screenId] });
+      enqueueSnackbar('QR validated! Now record a verification video.', { variant: 'success' });
     },
     onError: (error: unknown) => {
       const message =

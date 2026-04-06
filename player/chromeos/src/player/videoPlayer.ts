@@ -55,7 +55,7 @@ export class VideoPlayer {
 
     // Swap videos
     const incoming = this.activeVideo === this.videoA ? this.videoB : this.videoA;
-    incoming.src = item.videoUrl;
+    incoming.src = item.creativeUrl;
     incoming.style.display = 'block';
     incoming.load();
 
@@ -86,7 +86,7 @@ export class VideoPlayer {
     const nextIndex = (this.currentIndex + 1) % this.playlist.length;
     const standby = this.activeVideo === this.videoA ? this.videoB : this.videoA;
     if (this.playlist[nextIndex]) {
-      standby.src = this.playlist[nextIndex].videoUrl;
+      standby.src = this.playlist[nextIndex].creativeUrl;
       standby.load();
     }
   }

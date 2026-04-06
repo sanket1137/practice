@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.pixelspot.ccms.player.CcmsPlayerApp
 import com.pixelspot.ccms.player.MainActivity
 import com.pixelspot.ccms.player.R
 import com.pixelspot.ccms.player.config.PlayerConfig
@@ -34,10 +35,16 @@ import javax.inject.Inject
  * Runs persistently (survives Activity destruction, app task removal).
  * Started by [BootReceiver] on device boot or by [MainActivity] on app launch.
  *
- * Manages three concurrent loops (same as Pi's asyncio tasks):
+ * Manages concurrent loops (same as Pi's asyncio tasks):
  * 1. Heartbeat loop (30s) — POST /api/player/heartbeat
  * 2. Sync loop (1-10 min, adaptive) — POST /api/player/sync
  * 3. Operating hours check loop (1 min) — pause/resume playback
+ * 4. **Foreground restoration loop (10s)** — ensures MainActivity is visible on TV
+ *
+ * **Impression Guarding**: The service ensures the player UI is always visible
+ * in foreground on the TV. If the app goes to background, the service will
+ * attempt to bring MainActivity back to front. Impressions are NOT counted
+ * while the app is in background (see [PlaylistManager]).
  *
  * Also manages:
  * - SignalR connection for real-time events
@@ -58,6 +65,7 @@ class PlayerService : Service() {
         private const val OPERATING_CHECK_INTERVAL_MS = 60_000L  // 1 minute
         private const val CLEANUP_INTERVAL_MS = 3_600_000L       // 1 hour
         private const val PLAYLIST_REFRESH_INTERVAL_MS = 60_000L // 1 minute (fallback polling)
+        private const val FOREGROUND_CHECK_INTERVAL_MS = 10_000L // 10 seconds (ensure UI visible)
 
         const val ACTION_START = "com.pixelspot.ccms.player.START"
         const val ACTION_STOP = "com.pixelspot.ccms.player.STOP"
@@ -163,6 +171,16 @@ class PlayerService : Service() {
 
                 withContext(Dispatchers.Main) {
                     exoPlayerManager.initialize()
+                    
+                    // Listen for playback to actually start and hide loading overlay
+                    exoPlayerManager.setOnPlaybackStateChanged { isPlaying ->
+                        if (isPlaying) {
+                            val currentPlaylist = playerRepository.getPlaylist()
+                            playerStateManager.setPlaying(currentPlaylist.size)
+                            Log.i(TAG, "Playback started (verified), hiding loading overlay")
+                        }
+                    }
+                    
                     playlistManager.loadPlaylist(
                         items = freshPlaylist,
                         screenId = screenId,
@@ -177,6 +195,16 @@ class PlayerService : Service() {
                 // 3. Initialize ExoPlayer and load playlist
                 withContext(Dispatchers.Main) {
                     exoPlayerManager.initialize()
+                    
+                    // Listen for playback to actually start and hide loading overlay
+                    exoPlayerManager.setOnPlaybackStateChanged { isPlaying ->
+                        if (isPlaying) {
+                            val currentPlaylist = playerRepository.getPlaylist()
+                            playerStateManager.setPlaying(currentPlaylist.size)
+                            Log.i(TAG, "Playback started, hiding loading overlay")
+                        }
+                    }
+                    
                     playlistManager.loadPlaylist(
                         items = playlist,
                         screenId = screenId,
@@ -210,6 +238,7 @@ class PlayerService : Service() {
             launch { operatingHoursLoop() }
             launch { cleanupLoop() }
             launch { playlistRefreshLoop() }   // Fallback polling (matches Pi's playlist_refresh_loop)
+            launch { foregroundRestorationLoop() }  // Ensure UI stays visible on TV
             launch { listenForSyncModeChanges() }
             launch { listenForPlaylistUpdates() }
         }
@@ -291,6 +320,59 @@ class PlayerService : Service() {
     }
 
     /**
+     * Foreground restoration loop — every 10 seconds.
+     *
+     * Ensures the player UI (MainActivity) is always visible on the TV screen.
+     * If the app goes to background (e.g., user pressed Home on remote), this
+     * loop will bring MainActivity back to front.
+     *
+     * **Critical for impression accuracy**: Impressions are only counted when
+     * the app is in foreground. If the UI isn't visible, impressions would be
+     * skipped (see PlaylistManager.onItemTransition). This loop ensures the
+     * TV always shows the player content and impressions are properly recorded.
+     *
+     * This is the Android TV equivalent of Raspberry Pi's always-on display
+     * behavior where the player is the only visible application.
+     */
+    private suspend fun foregroundRestorationLoop() {
+        // Initial delay to let MainActivity finish launching
+        delay(5_000)
+
+        while (isRunning) {
+            try {
+                if (!CcmsPlayerApp.isAppInForeground) {
+                    Log.w(TAG, "⚠️ App not in foreground — bringing MainActivity to front")
+                    bringMainActivityToFront()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Foreground restoration error: ${e.message}")
+            }
+            delay(FOREGROUND_CHECK_INTERVAL_MS)
+        }
+    }
+
+    /**
+     * Launch MainActivity to bring the player UI to foreground.
+     *
+     * Uses FLAG_ACTIVITY_REORDER_TO_FRONT to bring existing instance to front
+     * without recreating it, preserving playback state.
+     */
+    private fun bringMainActivityToFront() {
+        try {
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("foreground_restore", true)
+            }
+            startActivity(intent)
+            Log.i(TAG, "MainActivity brought to front")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to bring MainActivity to front: ${e.message}", e)
+        }
+    }
+
+    /**
      * Listen for SetSyncMode events from SignalR.
      * "fast" = 1 minute interval, "normal" = 10 minute interval.
      *
@@ -324,7 +406,8 @@ class PlayerService : Service() {
      */
     private suspend fun listenForPlaylistUpdates() {
         signalRClient.playlistUpdated.collectLatest { event ->
-            Log.i(TAG, "Playlist updated via SignalR: action=${event.action} slot=${event.slotNumber}")
+            Log.i(TAG, "📺 Playlist updated via SignalR: action=${event.action} slot=${event.slotNumber}")
+            Log.i(TAG, "📺 Triggering immediate playlist refresh...")
             refreshAndBufferPlaylist()
         }
     }
@@ -351,12 +434,21 @@ class PlayerService : Service() {
      * buffers new playlist for cycle-boundary swap.
      */
     private suspend fun refreshAndBufferPlaylist() {
+        Log.i(TAG, "📺 Refreshing playlist from server...")
         val oldUrls = playlistManager.currentVideoUrls.toSet()
+        Log.d(TAG, "Old playlist URLs: ${oldUrls.size} items")
 
         val response = playerRepository.handshake()
         if (response != null) {
             val updatedPlaylist = playerRepository.getPlaylist()
             val slotsPerFrame = response.playlist?.slotsPerFrame ?: updatedPlaylist.size
+
+            Log.i(TAG, "📺 Server returned ${updatedPlaylist.size} playlist items")
+            
+            // Log each item for debugging
+            updatedPlaylist.forEachIndexed { index, item ->
+                Log.d(TAG, "📺 Playlist[$index]: slot=${item.slotNumber}, url=${item.videoUrl.take(50)}...")
+            }
 
             // Evict cache entries for URLs that disappeared (content removed server-side).
             // Matches Pi player's _clear_slot_cache() pattern.
@@ -364,8 +456,14 @@ class PlayerService : Service() {
                 .map { it.videoUrl }.toSet()
             val removedUrls = oldUrls - newUrls
             if (removedUrls.isNotEmpty()) {
-                Log.i(TAG, "Evicting ${removedUrls.size} removed URLs from cache")
+                Log.i(TAG, "📺 Evicting ${removedUrls.size} removed URLs from cache")
                 exoPlayerManager.evictCachedUrls(removedUrls.toList())
+            }
+            
+            // Check for new URLs
+            val addedUrls = newUrls - oldUrls
+            if (addedUrls.isNotEmpty()) {
+                Log.i(TAG, "📺 New URLs detected: ${addedUrls.size}")
             }
 
             withContext(Dispatchers.Main) {
@@ -377,8 +475,12 @@ class PlayerService : Service() {
                     slotsPerFrame = slotsPerFrame
                 )
             }
-            updateNotification("Playing — ${updatedPlaylist.size} items" +
-                if (playlistManager.hasPendingUpdate()) " (update pending)" else "")
+            
+            val status = if (playlistManager.hasPendingUpdate()) " (update pending)" else ""
+            Log.i(TAG, "📺 Playlist refresh complete: ${updatedPlaylist.size} items$status")
+            updateNotification("Playing — ${updatedPlaylist.size} items$status")
+        } else {
+            Log.w(TAG, "📺 Playlist refresh failed - handshake returned null")
         }
     }
 
