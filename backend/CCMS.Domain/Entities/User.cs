@@ -39,4 +39,5 @@ public class User : BaseEntity
     public virtual ICollection<Payout> Payouts { get; set; } = new List<Payout>();
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public virtual ICollection<AdminAuthorizedMachine> AuthorizedMachines { get; set; } = new List<AdminAuthorizedMachine>();
+    public virtual ICollection<VisibilityChangeRequest> VisibilityChangeRequests { get; set; } = new List<VisibilityChangeRequest>();
 }

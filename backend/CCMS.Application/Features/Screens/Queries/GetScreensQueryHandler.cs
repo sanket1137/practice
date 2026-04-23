@@ -11,15 +11,18 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
 {
     private readonly IRepository<Screen> _screenRepository;
     private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<User> _userRepository;
     private readonly IMapper _mapper;
 
     public GetScreensQueryHandler(
         IRepository<Screen> screenRepository, 
         IRepository<Booking> bookingRepository,
+        IRepository<User> userRepository,
         IMapper mapper)
     {
         _screenRepository = screenRepository;
         _bookingRepository = bookingRepository;
+        _userRepository = userRepository;
         _mapper = mapper;
     }
 
@@ -32,6 +35,19 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
         {
             screens = screens.Where(s => s.OwnerId == request.OwnerId.Value);
         }
+
+        // Advertisers can only see screens from Public accounts
+        if (request.CallerRole == "Advertiser")
+        {
+            var allUsers = await _userRepository.GetAllAsync();
+            var privateOwnerIds = new HashSet<Guid>(
+                allUsers.Where(u => u.AccountVisibility == ScreenVisibility.Private).Select(u => u.Id));
+
+            if (privateOwnerIds.Count > 0)
+            {
+                screens = screens.Where(s => !privateOwnerIds.Contains(s.OwnerId));
+            }
+        }
         
         var screenDtos = _mapper.Map<IEnumerable<ScreenDto>>(screens).ToList();
         var allBookings = await _bookingRepository.GetAllAsync();
@@ -39,14 +55,6 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
         // Calculate revenue estimate for each screen based on ACTIVE/APPROVED bookings only
         foreach (var screenDto in screenDtos)
         {
-            // Debug: Show ALL bookings for this screen
-            var screenBookings = allBookings.Where(b => b.ScreenId == screenDto.Id).ToList();
-            Console.WriteLine($"[SCREEN {screenDto.Name}] Total bookings: {screenBookings.Count}");
-            foreach (var b in screenBookings)
-            {
-                Console.WriteLine($"  - Booking {b.Id.ToString().Substring(0,8)}: Status={b.Status}, Deleted={b.IsDeleted}, Slots={string.Join(",", b.SlotNumbers ?? new List<int>())}");
-            }
-
             // Get approved/active bookings for this screen (all dates, not just today)
             // This shows overall utilization including future bookings
             var approvedBookings = allBookings
@@ -57,15 +65,11 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
 
             if (approvedBookings.Any())
             {
-                Console.WriteLine($"[SCREEN {screenDto.Name}] Found {approvedBookings.Count} approved bookings");
-                
                 // For revenue, only count bookings active today
                 var todayDate = DateOnly.FromDateTime(DateTime.Today);
                 var activeToday = approvedBookings
                     .Where(b => b.StartDate <= todayDate && b.EndDate >= todayDate)
                     .ToList();
-
-                Console.WriteLine($"[SCREEN {screenDto.Name}] {activeToday.Count} bookings active today");
 
                 if (activeToday.Any())
                 {
@@ -94,9 +98,6 @@ public class GetScreensQueryHandler : IRequestHandler<GetScreensQuery, IEnumerab
                     .SelectMany(b => b.SlotNumbers)
                     .Distinct()
                     .Count();
-
-                Console.WriteLine($"[SCREEN {screenDto.Name}] Unique slots booked: {allSlotNumbers}");
-                Console.WriteLine($"[SCREEN {screenDto.Name}] Sample booking SlotNumbers: {string.Join(", ", approvedBookings.FirstOrDefault()?.SlotNumbers ?? new List<int>())}");
 
                 screenDto.BookedSlots = allSlotNumbers;
                 screenDto.ActiveBookings = approvedBookings.Count;

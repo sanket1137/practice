@@ -43,4 +43,9 @@ public class GetScreensPagedQuery : IRequest<PagedResult<ScreenDto>>
     /// Sort direction (asc or desc). Defaults to desc.
     /// </summary>
     public string SortDirection { get; set; } = "desc";
+
+    /// <summary>
+    /// Caller's role for visibility filtering (Advertiser sees only Public screens).
+    /// </summary>
+    public string? CallerRole { get; set; }
 }

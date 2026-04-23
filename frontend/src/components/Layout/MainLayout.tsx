@@ -21,6 +21,7 @@ import {
 } from '@mui/material';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useNotifications } from '../../hooks/useNotifications';
 import ConnectionStatus from '../common/ConnectionStatus';
@@ -46,6 +47,7 @@ import {
     Settings as SettingsIcon,
     Security as SecurityIcon,
     VerifiedUser as VerifiedUserIcon,
+    Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -54,6 +56,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, logout } = useAuthStore();
+    const { isPrivate } = useAccountVisibility();
     const { connectionState } = useWebSocket();
     const { unreadCount, notifications: recentNotifications, markAsRead, markAllAsRead } = useNotifications();
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -84,14 +87,21 @@ const MainLayout = () => {
         const role = user?.role;
 
         if (role === 'ScreenOwner') {
-            return [
-                { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-                { text: 'My Screens', icon: <ScreenIcon />, path: '/screens' },
-                { text: 'Booking Requests', icon: <BookingIcon />, path: '/bookings' },
-                { text: 'Payouts', icon: <PayoutsIcon />, path: '/payouts' },
-                { text: 'Earnings & Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
-                { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
-            ];
+                const items = [
+                    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+                    { text: 'My Screens', icon: <ScreenIcon />, path: '/screens' },
+                ];
+                if (!isPrivate) {
+                    items.push(
+                        { text: 'Booking Requests', icon: <BookingIcon />, path: '/bookings' },
+                        { text: 'Payouts', icon: <PayoutsIcon />, path: '/payouts' },
+                    );
+                }
+                items.push(
+                    { text: 'Earnings & Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
+                    { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
+                );
+                return items;
         }
 
         if (role === 'Advertiser') {
@@ -114,6 +124,7 @@ const MainLayout = () => {
             { text: 'Payouts', icon: <PayoutsIcon />, path: '/admin/payouts' },
             { text: 'Machines', icon: <SecurityIcon />, path: '/admin/machines' },
             { text: 'Verifications', icon: <VerifiedUserIcon />, path: '/admin/verifications' },
+            { text: 'Visibility Requests', icon: <VisibilityIcon />, path: '/admin/visibility-requests' },
             { text: 'Platform Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
             { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
         ];

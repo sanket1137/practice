@@ -8,6 +8,7 @@ public class RegisterRequest
     public string LastName { get; set; } = string.Empty;
     public string PhoneNumber { get; set; } = string.Empty; // Required for registration
     public string Role { get; set; } = "Advertiser"; // "ScreenOwner" or "Advertiser"
+    public string? Visibility { get; set; } // "Public" (default) or "Private" — only applies to ScreenOwner
 }
 
 public class LoginRequest

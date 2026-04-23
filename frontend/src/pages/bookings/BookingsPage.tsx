@@ -342,22 +342,36 @@ export default function BookingsPage() {
     const isPaymentPending = (booking: Booking) =>
         booking.status === 'Approved' && booking.paymentStatus === 'OrderCreated';
 
+    // Blur the currently focused element before opening a Dialog so MUI's
+    // aria-hidden on #root doesn't conflict with a button that retained focus.
+    // (Fixes the "Blocked aria-hidden on an element because its descendant
+    // retained focus" warning in the browser console.)
+    const blurActive = () => {
+        if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    };
+
     const handleOpenApprove = (booking: Booking) => {
+        blurActive();
         setSelectedBooking(booking);
         setApproveDialogOpen(true);
     };
 
     const handleOpenReject = (booking: Booking) => {
+        blurActive();
         setSelectedBooking(booking);
         setRejectDialogOpen(true);
     };
 
     const handleOpenCancel = (booking: Booking) => {
+        blurActive();
         setSelectedBooking(booking);
         setCancelDialogOpen(true);
     };
 
     const handleOpenUpdateDates = (booking: Booking) => {
+        blurActive();
         setSelectedBooking(booking);
         // Pre-fill with tomorrow as default start date
         const tomorrow = new Date();

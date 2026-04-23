@@ -10,5 +10,6 @@ public class UserDto
     public string Role { get; set; } = string.Empty;
     public string? ProfileImageUrl { get; set; }
     public bool IsEmailVerified { get; set; }
+    public string AccountVisibility { get; set; } = "Public";
     public DateTime CreatedAt { get; set; }
 }

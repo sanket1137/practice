@@ -56,3 +56,33 @@ public class UpdateVisibilityRequest
 {
     public string Visibility { get; set; } = "Public";
 }
+
+public class SubmitVisibilityRequestBody
+{
+    public string? Message { get; set; }
+}
+
+public class RejectVisibilityRequestBody
+{
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class VisibilityRequestDto
+{
+    public Guid Id { get; set; }
+    public string RequestedVisibility { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string? RequestMessage { get; set; }
+    public DateTime RequestedAt { get; set; }
+    public DateTime? AdminReviewedAt { get; set; }
+    public string? RejectionReason { get; set; }
+}
+
+public class VisibilityRequestDetailDto : VisibilityRequestDto
+{
+    public Guid UserId { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public string UserEmail { get; set; } = string.Empty;
+    public int ScreensCount { get; set; }
+    public string? AdminReviewedByName { get; set; }
+}

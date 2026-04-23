@@ -21,6 +21,7 @@ import {
     ListItemIcon,
     ListItemText,
     Chip,
+    Alert,
 } from '@mui/material';
 import {
     Search as SearchIcon,
@@ -36,6 +37,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 import EnhancedScreenCard from '../../components/screens/EnhancedScreenCard';
 import { CardSkeleton } from '../../components/common/LoadingSkeletons';
 import EmptyState from '../../components/common/EmptyState';
@@ -77,6 +79,7 @@ export default function ScreensPage() {
     const user = useAuthStore((state) => state.user);
     const isAdvertiser = user?.role === 'Advertiser';
     const isScreenOwner = user?.role === 'ScreenOwner';
+    const { isPrivate } = useAccountVisibility();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -371,6 +374,12 @@ export default function ScreensPage() {
                     </Button>
                 )}
             </Box>
+
+            {isPrivate && isScreenOwner && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                    Your account is Private. Your screens are not visible to advertisers. To go public, submit a request from your Profile Settings.
+                </Alert>
+            )}
 
             {/* Filters */}
             <Paper sx={{ p: 2, mb: 3 }}>

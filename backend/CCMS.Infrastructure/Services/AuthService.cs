@@ -83,7 +83,13 @@ public class AuthService : IAuthService
             PhoneNumber = normalizedPhone,
             Role = userRole,
             IsEmailVerified = false,
-            IsPhoneVerified = false
+            IsPhoneVerified = false,
+            AccountVisibility = (userRole == UserRole.ScreenOwner 
+                && !string.IsNullOrWhiteSpace(request.Visibility) 
+                && Enum.TryParse<ScreenVisibility>(request.Visibility, true, out var vis) 
+                && vis == ScreenVisibility.Private)
+                ? ScreenVisibility.Private
+                : ScreenVisibility.Public
         };
 
         _context.Users.Add(user);

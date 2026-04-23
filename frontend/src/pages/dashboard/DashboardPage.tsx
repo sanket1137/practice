@@ -9,6 +9,7 @@ import {
     CardActions,
     Button,
     Chip,
+    Alert,
 } from '@mui/material';
 import {
     Campaign as CampaignIcon,
@@ -24,6 +25,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useUserRole } from '../../hooks/useUserRole';
+import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 import EnhancedStatCard from '../../components/dashboard/EnhancedStatCard';
 import OwnerApprovalQueue from '../../components/dashboard/OwnerApprovalQueue';
 import ScreenStatusGrid from '../../components/dashboard/ScreenStatusGrid';
@@ -74,6 +76,7 @@ export default function DashboardPage() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const { isScreenOwner, isAdvertiser, role } = useUserRole();
+    const { isPrivate } = useAccountVisibility();
 
     // Fetch campaigns
     const { data: campaigns, isLoading: campaignsLoading } = useQuery<Campaign[]>({
@@ -165,6 +168,20 @@ export default function DashboardPage() {
                         Manage your screens and review booking requests
                     </Typography>
                 </Box>
+
+                {isPrivate && (
+                    <Alert
+                        severity="info"
+                        sx={{ mb: 3 }}
+                        action={
+                            <Button color="inherit" size="small" onClick={() => navigate('/profile')}>
+                                Go to settings
+                            </Button>
+                        }
+                    >
+                        Your account is set to Private. Your screens are not visible to advertisers in the marketplace. To go public, submit a request from your Profile Settings.
+                    </Alert>
+                )}
 
                 {/* Owner Stats Grid */}
                 <Grid container spacing={3} sx={{ mb: 4 }}>

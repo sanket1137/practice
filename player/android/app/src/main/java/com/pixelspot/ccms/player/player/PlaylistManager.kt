@@ -117,8 +117,8 @@ class PlaylistManager @Inject constructor(
         }
 
         // Set up impression recording on item transitions (with reason for cycle boundary detection)
-        exoPlayerManager.setOnItemTransition { previousIndex, newIndex, reason ->
-            onItemTransition(previousIndex, newIndex, reason)
+        exoPlayerManager.setOnItemTransition { previousIndex, newIndex, _ ->
+            onItemTransition(previousIndex, newIndex)
         }
 
         Log.i(TAG, "Loaded ${validItems.size} items for screen $screenId")
@@ -133,12 +133,11 @@ class PlaylistManager @Inject constructor(
      * 2. Content is not filler/default
      * If the app is in background, impressions are skipped to prevent false billing.
      *
-     * @param reason ExoPlayer transition reason:
-     *   - MEDIA_ITEM_TRANSITION_REASON_REPEAT (0) = playlist wrapped (last→first) = cycle boundary
-     *   - MEDIA_ITEM_TRANSITION_REASON_AUTO (1) = natural end of item
-     *   - MEDIA_ITEM_TRANSITION_REASON_SEEK (2) = manual seek
+     * Cycle-boundary detection: with REPEAT_MODE_ALL, ExoPlayer emits REASON_AUTO
+     * (not REASON_REPEAT) when wrapping from last → first. We detect the wrap
+     * purely by index (newIndex < completedIndex, or last → 0).
      */
-    private fun onItemTransition(completedIndex: Int, newIndex: Int, reason: Int) {
+    private fun onItemTransition(completedIndex: Int, newIndex: Int) {
         if (completedIndex < 0 || completedIndex >= currentItems.size) return
 
         val item = currentItems[completedIndex]
@@ -167,10 +166,17 @@ class PlaylistManager @Inject constructor(
         // when the display is actually showing the content.
         // ══════════════════════════════════════════════════════════════════════
 
+        // Detect cycle boundary: wrap from last item back to first.
+        // Note: with REPEAT_MODE_ALL, ExoPlayer emits MEDIA_ITEM_TRANSITION_REASON_AUTO
+        // on wrap (REASON_REPEAT is only for REPEAT_MODE_ONE). Detect wrap by index
+        // going backwards (newIndex < completedIndex) which reliably indicates a wrap.
+        val isCycleBoundary = newIndex < completedIndex ||
+            (completedIndex == currentItems.size - 1 && newIndex == 0)
+
         if (!CcmsPlayerApp.isAppInForeground) {
             Log.w(TAG, "⚠️ Skipping impression — app is NOT in foreground (slot ${item.slotNumber})")
             // Still process cycle-boundary swap even when in background
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && pendingItems != null) {
+            if (isCycleBoundary && pendingItems != null) {
                 applyPendingPlaylist()
             }
             return
@@ -219,8 +225,9 @@ class PlaylistManager @Inject constructor(
         }
 
         // ── Cycle-boundary swap: apply pending playlist when cycle completes ──
-        // MEDIA_ITEM_TRANSITION_REASON_REPEAT (0) = last item wrapped to first
-        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && pendingItems != null) {
+        // Detected by index wrap (newIndex < completedIndex) since REPEAT_MODE_ALL
+        // emits REASON_AUTO (not REASON_REPEAT) when wrapping the playlist.
+        if (isCycleBoundary && pendingItems != null) {
             applyPendingPlaylist()
         }
     }

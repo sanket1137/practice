@@ -15,12 +15,14 @@ import {
     BarChart as AnalyticsIcon,
 } from '@mui/icons-material';
 import { useUserRole } from '../../hooks/useUserRole';
+import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 
 export default function MobileBottomNav() {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
     const { isAdvertiser, isScreenOwner } = useUserRole();
+    const { isPrivate } = useAccountVisibility();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [value, setValue] = useState(0);
 
@@ -29,12 +31,13 @@ export default function MobileBottomNav() {
         { label: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['all'] },
         { label: 'Campaigns', icon: <CampaignIcon />, path: '/campaigns', roles: ['Advertiser'] },
         { label: 'Screens', icon: <ScreenIcon />, path: '/screens', roles: ['all'] },
-        { label: 'Bookings', icon: <BookingIcon />, path: '/bookings', roles: ['all'] },
+        { label: 'Bookings', icon: <BookingIcon />, path: '/bookings', roles: ['all'], hideForPrivate: true },
         { label: 'Analytics', icon: <AnalyticsIcon />, path: '/analytics', roles: ['all'] },
     ];
 
-    // Filter items based on role
+    // Filter items based on role and visibility
     const filteredItems = navItems.filter(item => {
+        if (isPrivate && isScreenOwner && item.hideForPrivate) return false;
         if (item.roles.includes('all')) return true;
         if (isAdvertiser && item.roles.includes('Advertiser')) return true;
         if (isScreenOwner && item.roles.includes('ScreenOwner')) return true;

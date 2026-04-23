@@ -8,7 +8,7 @@ export interface Profile {
     companyName?: string;
     gstNumber?: string;
     themePreference: string;
-    accountVisibility: string;
+    accountVisibility: 'Public' | 'Private';
     profileImageUrl?: string;
     bankAccount?: BankAccount;
 }
@@ -119,4 +119,26 @@ export interface PendingPayout {
     advancePercentage: number;
     createdAt: string;
     bankAccountOnFile: boolean;
+}
+
+// ─── Visibility Requests ─────────────────────────────
+
+export type VisibilityRequestStatus = 'Pending' | 'Approved' | 'Rejected';
+
+export interface VisibilityRequestDto {
+    id: string;
+    requestedVisibility: string;
+    status: VisibilityRequestStatus;
+    requestMessage?: string;
+    requestedAt: string;
+    adminReviewedAt?: string;
+    rejectionReason?: string;
+}
+
+export interface VisibilityRequestDetailDto extends VisibilityRequestDto {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    screensCount: number;
+    adminReviewedByName?: string;
 }

@@ -46,9 +46,24 @@ public class PlaybackHub : Hub
     /// </summary>
     public async Task RegisterDevice(Guid screenId, string deviceId)
     {
+        if (string.IsNullOrWhiteSpace(deviceId))
+            throw new ArgumentException("deviceId is required", nameof(deviceId));
+
         var screen = await _screenRepository.GetByIdAsync(screenId);
         if (screen == null)
             throw new ArgumentException($"Screen with ID {screenId} not found");
+
+        // Device-binding check: if screen is already bound to a different device,
+        // reject the registration to prevent hub hijacking. A screen is bound when
+        // ConnectedDeviceId is non-empty and the device has previously authorized.
+        if (!string.IsNullOrEmpty(screen.ConnectedDeviceId) &&
+            !string.Equals(screen.ConnectedDeviceId, deviceId, StringComparison.Ordinal))
+        {
+            _logger.LogWarning(
+                "[PlaybackHub] RegisterDevice rejected for screen {ScreenId}: bound to {BoundDevice}, got {IncomingDevice}",
+                screenId, screen.ConnectedDeviceId, deviceId);
+            throw new HubException("Screen is bound to a different device. Contact support to re-authorize.");
+        }
 
         // Update screen status
         screen.IsOnline = true;

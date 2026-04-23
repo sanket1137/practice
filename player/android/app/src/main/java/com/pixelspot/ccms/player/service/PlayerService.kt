@@ -36,8 +36,8 @@ import javax.inject.Inject
  * Started by [BootReceiver] on device boot or by [MainActivity] on app launch.
  *
  * Manages concurrent loops (same as Pi's asyncio tasks):
- * 1. Heartbeat loop (30s) — POST /api/player/heartbeat
- * 2. Sync loop (1-10 min, adaptive) — POST /api/player/sync
+ * 1. Heartbeat loop (30s) — POST /api/v1/player/heartbeat
+ * 2. Sync loop (1-10 min, adaptive) — POST /api/v1/player/sync
  * 3. Operating hours check loop (1 min) — pause/resume playback
  * 4. **Foreground restoration loop (10s)** — ensures MainActivity is visible on TV
  *
@@ -93,6 +93,16 @@ class PlayerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Always promote to foreground IMMEDIATELY on every start command to satisfy
+        // Android O+ requirement that foreground services call startForeground() within 5s.
+        // Missing or late startForeground() causes ForegroundServiceDidNotStartInTimeException
+        // which force-kills the service and shows "App is crashed" to the user.
+        try {
+            startForeground(NOTIFICATION_ID, createNotification("Starting..."))
+        } catch (e: Exception) {
+            Log.e(TAG, "startForeground failed: ${e.message}", e)
+        }
+
         when (intent?.action) {
             ACTION_STOP -> {
                 stopSelf()
@@ -102,9 +112,14 @@ class PlayerService : Service() {
 
         if (!isRunning) {
             isRunning = true
-            startForeground(NOTIFICATION_ID, createNotification("Starting..."))
             acquireWakeLock()
-            startPlayer()
+            try {
+                startPlayer()
+            } catch (e: Exception) {
+                // Never let a startup error kill the service \u2014 the system will retry via START_STICKY
+                Log.e(TAG, "startPlayer threw: ${e.message}", e)
+                updateNotification("Startup failed \u2014 retrying\u2026")
+            }
         }
 
         // Restart service if killed by system
@@ -262,19 +277,26 @@ class PlayerService : Service() {
     /**
      * Sync loop — adaptive interval (1 or 10 minutes).
      * Uploads pending impressions to the server.
+     *
+     * Performs an immediate first sync after a short warm-up delay (30s) so
+     * the server sees impressions quickly after player restart instead of
+     * waiting a full 10 minutes. Subsequent syncs follow [currentSyncInterval].
      */
     private suspend fun syncLoop() {
+        // Warm-up delay — lets handshake settle and first impressions accumulate
+        delay(30_000)
         while (isRunning) {
-            delay(currentSyncInterval)
             try {
                 val result = playerRepository.syncImpressions()
                 if (result >= 0) {
                     val stats = impressionRepository.getStats()
                     updateNotification("Playing — ${stats.today} impressions today")
+                    Log.i(TAG, "Sync complete: $result impressions uploaded, ${stats.pending} still pending")
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Sync error: ${e.message}")
             }
+            delay(currentSyncInterval)
         }
     }
 
@@ -338,11 +360,21 @@ class PlayerService : Service() {
         // Initial delay to let MainActivity finish launching
         delay(5_000)
 
+        var consecutiveBackgroundChecks = 0
+
         while (isRunning) {
             try {
                 if (!CcmsPlayerApp.isAppInForeground) {
-                    Log.w(TAG, "⚠️ App not in foreground — bringing MainActivity to front")
+                    consecutiveBackgroundChecks++
+                    // Log only first occurrence of each background episode to avoid log spam
+                    if (consecutiveBackgroundChecks == 1) {
+                        Log.w(TAG, "⚠️ App not in foreground — bringing MainActivity to front")
+                    } else {
+                        Log.d(TAG, "Still background (check #$consecutiveBackgroundChecks) — reattempting")
+                    }
                     bringMainActivityToFront()
+                } else {
+                    consecutiveBackgroundChecks = 0
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Foreground restoration error: ${e.message}")

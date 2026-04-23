@@ -15,15 +15,18 @@ public class GetScreensPagedQueryHandler : IRequestHandler<GetScreensPagedQuery,
 {
     private readonly IRepository<Screen> _screenRepository;
     private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<User> _userRepository;
     private readonly IMapper _mapper;
 
     public GetScreensPagedQueryHandler(
         IRepository<Screen> screenRepository,
         IRepository<Booking> bookingRepository,
+        IRepository<User> userRepository,
         IMapper mapper)
     {
         _screenRepository = screenRepository;
         _bookingRepository = bookingRepository;
+        _userRepository = userRepository;
         _mapper = mapper;
     }
 
@@ -39,6 +42,19 @@ public class GetScreensPagedQueryHandler : IRequestHandler<GetScreensPagedQuery,
         if (request.OwnerId.HasValue)
         {
             screens = screens.Where(s => s.OwnerId == request.OwnerId.Value);
+        }
+
+        // Advertisers can only see screens from Public accounts
+        if (request.CallerRole == "Advertiser")
+        {
+            var allUsers = await _userRepository.GetAllAsync();
+            var privateOwnerIds = new HashSet<Guid>(
+                allUsers.Where(u => u.AccountVisibility == ScreenVisibility.Private).Select(u => u.Id));
+
+            if (privateOwnerIds.Count > 0)
+            {
+                screens = screens.Where(s => !privateOwnerIds.Contains(s.OwnerId));
+            }
         }
         
         // Apply search filter

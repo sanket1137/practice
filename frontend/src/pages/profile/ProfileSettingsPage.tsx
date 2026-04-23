@@ -11,6 +11,8 @@ import {
     deleteBankAccount, changePassword, uploadProfileImage,
 } from '../../services/profileApi';
 import type { UpdateProfileRequest, UpdateBankAccountRequest, ChangePasswordRequest } from '../../types/profile';
+import { useVisibilityRequest } from '../../hooks/useVisibilityRequest';
+import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 
 export default function ProfileSettingsPage() {
     const queryClient = useQueryClient();
@@ -18,6 +20,9 @@ export default function ProfileSettingsPage() {
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+    const [requestMessage, setRequestMessage] = useState('');
+    const { isPrivate } = useAccountVisibility();
+    const { request: visibilityRequest, isLoading: visibilityRequestLoading, submitRequest, isSubmitting } = useVisibilityRequest();
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ['profile'],
@@ -260,21 +265,120 @@ export default function ProfileSettingsPage() {
                             <Typography variant="h6" mb={2}>Account</Typography>
                             <Box mb={2}>
                                 <Chip label={user?.role} color="primary" size="small" />
+                                {user?.role === 'ScreenOwner' && (
+                                    <Chip
+                                        label={profile?.accountVisibility === 'Public' ? 'Public' : 'Private'}
+                                        color={profile?.accountVisibility === 'Public' ? 'success' : 'default'}
+                                        size="small"
+                                        sx={{ ml: 1 }}
+                                    />
+                                )}
                             </Box>
                             {user?.role === 'ScreenOwner' && (
                                 <>
                                     <Divider sx={{ my: 2 }} />
                                     <Typography variant="subtitle2" mb={1}>Screen Visibility</Typography>
-                                    <FormControlLabel
-                                        control={
-                                            <Switch
-                                                checked={profile?.accountVisibility === 'Public'}
-                                                onChange={(e) => updateVisibilityMutation.mutate(e.target.checked ? 'Public' : 'Private')}
-                                                disabled={updateVisibilityMutation.isPending}
-                                            />
-                                        }
-                                        label={profile?.accountVisibility === 'Public' ? 'Public — Screens visible in explore' : 'Private — Screens hidden from explore'}
-                                    />
+
+                                    {isPrivate ? (
+                                        /* Private ScreenOwner — show request workflow */
+                                        <Box>
+                                            <Typography variant="body2" color="text.secondary" mb={2}>
+                                                Your screens are hidden from the marketplace. To make them visible to advertisers, submit a request for admin approval.
+                                            </Typography>
+
+                                            {visibilityRequestLoading ? (
+                                                <CircularProgress size={20} />
+                                            ) : visibilityRequest?.status === 'Pending' ? (
+                                                <Alert severity="info" sx={{ mb: 1 }}>
+                                                    Your request to go Public is pending admin review.
+                                                    <br />
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        Submitted: {new Date(visibilityRequest.requestedAt).toLocaleDateString()}
+                                                    </Typography>
+                                                </Alert>
+                                            ) : visibilityRequest?.status === 'Rejected' ? (
+                                                <>
+                                                    <Alert severity="warning" sx={{ mb: 2 }}>
+                                                        Your previous request was rejected.
+                                                        {visibilityRequest.rejectionReason && (
+                                                            <>
+                                                                <br />
+                                                                <strong>Reason:</strong> {visibilityRequest.rejectionReason}
+                                                            </>
+                                                        )}
+                                                    </Alert>
+                                                    <TextField
+                                                        label="Message (optional)"
+                                                        fullWidth
+                                                        multiline
+                                                        rows={2}
+                                                        size="small"
+                                                        value={requestMessage}
+                                                        onChange={(e) => setRequestMessage(e.target.value)}
+                                                        sx={{ mb: 1 }}
+                                                    />
+                                                    <Button
+                                                        variant="contained"
+                                                        size="small"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await submitRequest(requestMessage || undefined);
+                                                                setRequestMessage('');
+                                                                showSuccess('Visibility request resubmitted');
+                                                            } catch {
+                                                                showError('Failed to submit request');
+                                                            }
+                                                        }}
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        {isSubmitting ? 'Submitting...' : 'Resubmit request'}
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                /* No request yet, or approved (shouldn't be private if approved) */
+                                                <>
+                                                    <TextField
+                                                        label="Message (optional)"
+                                                        fullWidth
+                                                        multiline
+                                                        rows={2}
+                                                        size="small"
+                                                        value={requestMessage}
+                                                        onChange={(e) => setRequestMessage(e.target.value)}
+                                                        sx={{ mb: 1 }}
+                                                    />
+                                                    <Button
+                                                        variant="contained"
+                                                        size="small"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await submitRequest(requestMessage || undefined);
+                                                                setRequestMessage('');
+                                                                showSuccess('Visibility request submitted');
+                                                            } catch {
+                                                                showError('Failed to submit request');
+                                                            }
+                                                        }}
+                                                        disabled={isSubmitting}
+                                                    >
+                                                        {isSubmitting ? 'Submitting...' : 'Request public access'}
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Box>
+                                    ) : (
+                                        /* Public ScreenOwner — show toggle to go Private */
+                                        <FormControlLabel
+                                            control={
+                                                <Switch
+                                                    checked={profile?.accountVisibility === 'Public'}
+                                                    onChange={(e) => updateVisibilityMutation.mutate(e.target.checked ? 'Public' : 'Private')}
+                                                    disabled={updateVisibilityMutation.isPending}
+                                                />
+                                            }
+                                            label={profile?.accountVisibility === 'Public' ? 'Public — Screens visible in explore' : 'Private — Screens hidden from explore'}
+                                        />
+                                    )}
                                 </>
                             )}
                         </CardContent>

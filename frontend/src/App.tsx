@@ -42,6 +42,7 @@ import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
 import AdminPayoutsPage from './pages/payouts/AdminPayoutsPage';
 import AdminMachinesPage from './pages/admin/AdminMachinesPage';
 import AdminVerificationsPage from './pages/admin/AdminVerificationsPage';
+import AdminVisibilityRequestsPage from './pages/admin/AdminVisibilityRequestsPage';
 import VerifyScreenPage from './pages/verification/VerifyScreenPage';
 
 const queryClient = new QueryClient();
@@ -82,8 +83,7 @@ function App() {
                 <Route path="/" element={<SmartRoot />} />
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/register" element={<RegisterPage />} />                  <Route path="/register/private" element={<RegisterPage mode="private" />} />                <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/verify-phone" element={<VerifyPhonePage />} />
                 <Route path="/resend-verification" element={<ResendVerificationPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -123,6 +123,7 @@ function App() {
                   <Route path="admin/payouts" element={<AdminPayoutsPage />} />
                   <Route path="admin/machines" element={<AdminMachinesPage />} />
                   <Route path="admin/verifications" element={<AdminVerificationsPage />} />
+                  <Route path="admin/visibility-requests" element={<AdminVisibilityRequestsPage />} />
                 </Route>
               </Routes>
               </BrowserRouter>

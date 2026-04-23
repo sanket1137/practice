@@ -7,6 +7,7 @@ export interface User {
     profileImageUrl?: string;
     isEmailVerified?: boolean;
     isPhoneVerified?: boolean;
+    accountVisibility?: 'Public' | 'Private';
 }
 
 export interface AuthResponse {

@@ -10,6 +10,8 @@ import type {
     DeliverySummary,
     PendingPayout,
     SelfReserveSlotRequest,
+    VisibilityRequestDto,
+    VisibilityRequestDetailDto,
 } from '../types/profile';
 import type { Booking } from '../types/booking';
 import type { Payout } from '../types/payment';
@@ -126,5 +128,54 @@ export const getDeliverySummary = async (bookingId: string): Promise<DeliverySum
 // ─── Payout History (updated) ───────────────────────
 export const getAdminPayoutHistory = async (): Promise<Payout[]> => {
     const { data } = await api.get('/payouts/history');
+    return data.data;
+};
+
+// ─── Visibility Requests ────────────────────────────
+
+export const submitVisibilityRequest = async (message?: string): Promise<VisibilityRequestDto> => {
+    const { data } = await api.post('/profile/visibility-request', { message });
+    return data.data;
+};
+
+export const getMyVisibilityRequest = async (): Promise<VisibilityRequestDto | null> => {
+    const { data } = await api.get('/profile/visibility-request');
+    return data.data;
+};
+
+// ─── Admin Visibility Requests ──────────────────────
+
+export interface VisibilityRequestsParams {
+    status?: string;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+}
+
+export interface PagedResult<T> {
+    items: T[];
+    totalCount: number;
+    pageNumber: number;
+    pageSize: number;
+    totalPages: number;
+}
+
+export const getAdminVisibilityRequests = async (params: VisibilityRequestsParams = {}): Promise<PagedResult<VisibilityRequestDetailDto>> => {
+    const { data } = await api.get('/admin/visibility-requests', { params });
+    return data.data;
+};
+
+export const getAdminVisibilityRequestById = async (id: string): Promise<VisibilityRequestDetailDto> => {
+    const { data } = await api.get(`/admin/visibility-requests/${id}`);
+    return data.data;
+};
+
+export const approveVisibilityRequest = async (id: string): Promise<VisibilityRequestDto> => {
+    const { data } = await api.post(`/admin/visibility-requests/${id}/approve`);
+    return data.data;
+};
+
+export const rejectVisibilityRequest = async (id: string, reason: string): Promise<VisibilityRequestDto> => {
+    const { data } = await api.post(`/admin/visibility-requests/${id}/reject`, { reason });
     return data.data;
 };

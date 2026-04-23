@@ -38,7 +38,12 @@ const registerSchema = z.object({
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
-export default function RegisterPage() {
+interface RegisterPageProps {
+    mode?: 'public' | 'private';
+}
+
+export default function RegisterPage({ mode = 'public' }: RegisterPageProps) {
+    const isPrivateMode = mode === 'private';
     const navigate = useNavigate();
     const { enqueueSnackbar } = useSnackbar();
 
@@ -56,7 +61,7 @@ export default function RegisterPage() {
             firstName: '',
             lastName: '',
             phoneNumber: '',
-            role: 'Advertiser',
+            role: isPrivateMode ? 'ScreenOwner' : 'Advertiser',
         },
     });
 
@@ -65,7 +70,8 @@ export default function RegisterPage() {
             // Send phone with country code prefix (E.164 format)
             const registerData = {
                 ...data,
-                phoneNumber: `+91${data.phoneNumber}` // India country code
+                phoneNumber: `+91${data.phoneNumber}`, // India country code
+                ...(isPrivateMode ? { visibility: 'Private' } : {}),
             };
             const response = await api.post('/auth/register', registerData);
             return response.data;
@@ -115,12 +121,11 @@ export default function RegisterPage() {
             >
                 <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
                     <Typography variant="h4" component="h1" gutterBottom align="center">
-                        Create Account
+                        {isPrivateMode ? 'Private Screen Owner' : 'Create Account'}
                     </Typography>
                     <Typography variant="body2" color="textSecondary" align="center" paragraph>
-                        Sign up for CCMS
+                        {isPrivateMode ? 'Register as a private screen owner (self-managed screens)' : 'Sign up for CCMS'}
                     </Typography>
-
                     <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ mt: 3 }}>
                         <Grid container spacing={2}>
                             <Grid
@@ -267,8 +272,9 @@ export default function RegisterPage() {
                                             select
                                             label="Account Type"
                                             error={!!errors.role}
-                                            helperText={errors.role?.message || 'Select your account type'}
+                                            helperText={errors.role?.message || (isPrivateMode ? 'Locked to Screen Owner for private registration' : 'Select your account type')}
                                             required
+                                            disabled={isPrivateMode}
                                         >
                                             <MenuItem value="Advertiser">Advertiser</MenuItem>
                                             <MenuItem value="ScreenOwner">Screen Owner</MenuItem>

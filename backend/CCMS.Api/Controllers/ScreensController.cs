@@ -65,6 +65,10 @@ public class ScreensController : ControllerBase
             {
                 query.OwnerId = userGuid;
             }
+
+            // Pass caller role for visibility filtering (Advertisers can't see Private screens)
+            if (User.IsInRole("Advertiser"))
+                query.CallerRole = "Advertiser";
             
             var result = await _mediator.Send(query);
             return Ok(ApiResponse<IEnumerable<ScreenDto>>.SuccessResponse(result));
@@ -117,6 +121,10 @@ public class ScreensController : ControllerBase
             {
                 query.OwnerId = userGuid;
             }
+
+            // Pass caller role for visibility filtering (Advertisers can't see Private screens)
+            if (User.IsInRole("Advertiser"))
+                query.CallerRole = "Advertiser";
             
             var result = await _mediator.Send(query);
             return Ok(ApiResponse<PagedResult<ScreenDto>>.SuccessResponse(result));
@@ -132,6 +140,13 @@ public class ScreensController : ControllerBase
     {
         try
         {
+            // Visibility check: Advertisers cannot view screens owned by Private accounts
+            if (User.IsInRole("Advertiser"))
+            {
+                if (await IsScreenPrivateAsync(id))
+                    return NotFound(ApiResponse<ScreenDto>.ErrorResponse("Screen not found"));
+            }
+
             var query = new GetScreenByIdQuery { ScreenId = id };
             var result = await _mediator.Send(query);
 
@@ -184,6 +199,13 @@ public class ScreensController : ControllerBase
     {
         try
         {
+            // Visibility check: Advertisers cannot access availability of Private screens
+            if (User.IsInRole("Advertiser"))
+            {
+                if (await IsScreenPrivateAsync(id))
+                    return NotFound(ApiResponse<ScreenAvailabilityDto>.ErrorResponse("Screen not found"));
+            }
+
             var query = new GetScreenAvailabilityQuery
             {
                 ScreenId = id,
@@ -212,6 +234,13 @@ public class ScreensController : ControllerBase
     {
         try
         {
+            // Visibility check: Advertisers cannot access calendar of Private screens
+            if (User.IsInRole("Advertiser"))
+            {
+                if (await IsScreenPrivateAsync(id))
+                    return NotFound(ApiResponse<SlotCalendarDto>.ErrorResponse("Screen not found"));
+            }
+
             var query = new GetSlotCalendarQuery
             {
                 ScreenId = id,
@@ -1426,6 +1455,17 @@ public class ScreensController : ControllerBase
         {
             return StatusCode(500, ApiResponse<SearchScreensResult>.ErrorResponse($"Error: {ex.Message}"));
         }
+    }
+
+    private async Task<bool> IsScreenPrivateAsync(Guid screenId)
+    {
+        var ownerVisibility = await _context.Screens
+            .AsNoTracking()
+            .Where(s => s.Id == screenId && !s.IsDeleted)
+            .Join(_context.Users, s => s.OwnerId, u => u.Id, (s, u) => (ScreenVisibility?)u.AccountVisibility)
+            .FirstOrDefaultAsync();
+
+        return ownerVisibility == null || ownerVisibility == ScreenVisibility.Private;
     }
 }
 

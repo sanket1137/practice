@@ -41,6 +41,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
     public DbSet<AdminAuthorizedMachine> AdminAuthorizedMachines => Set<AdminAuthorizedMachine>();
     public DbSet<ScreenVerification> ScreenVerifications => Set<ScreenVerification>();
+    public DbSet<VisibilityChangeRequest> VisibilityChangeRequests => Set<VisibilityChangeRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -885,6 +886,31 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.LastVerification)
                 .WithMany()
                 .HasForeignKey(e => e.LastVerificationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── VisibilityChangeRequest (Private→Public approval workflow) ──
+        modelBuilder.Entity<VisibilityChangeRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("IX_VisibilityChangeRequests_UserId");
+
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_VisibilityChangeRequests_Status");
+
+            entity.Property(e => e.RequestMessage).HasMaxLength(1000);
+            entity.Property(e => e.RejectionReason).HasMaxLength(500);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.VisibilityChangeRequests)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AdminReviewedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.AdminReviewedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
         });
     }

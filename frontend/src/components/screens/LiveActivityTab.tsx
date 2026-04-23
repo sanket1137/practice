@@ -200,6 +200,12 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
         queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
     }, [queryClient, screenId]);
 
+    // Playlist changed on backend (slot content uploaded/removed, booking approved, etc.)
+    // Refresh slot status so the UI reflects the new playlist immediately.
+    const handlePlaylistUpdated = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
+    }, [queryClient, screenId]);
+
     // No-op handler for player-only SetSyncMode events (prevents SignalR warnings)
     const handleSetSyncMode = useCallback(() => {}, []);
 
@@ -216,6 +222,7 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                 websocketService.on('AdStarted', handleAdStarted);
                 websocketService.on('ImpressionRecorded', handleImpressionRecorded);
                 websocketService.on('SlotStatusChanged', handleSlotStatusChanged);
+                websocketService.on('PlaylistUpdated', handlePlaylistUpdated);
                 // SetSyncMode is a player-only command; register a no-op handler
                 // to prevent SignalR "No client method" warnings in the console
                 websocketService.on('SetSyncMode', handleSetSyncMode);
@@ -242,6 +249,7 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
             websocketService.off('AdStarted', handleAdStarted);
             websocketService.off('ImpressionRecorded', handleImpressionRecorded);
             websocketService.off('SlotStatusChanged', handleSlotStatusChanged);
+            websocketService.off('PlaylistUpdated', handlePlaylistUpdated);
             websocketService.off('SetSyncMode', handleSetSyncMode);
 
             // Unsubscribe and revert to normal sync
@@ -251,7 +259,7 @@ export default function LiveActivityTab({ screenId }: { screenId: string }) {
                 subscribedRef.current = false;
             }
         };
-    }, [screenId, handleAdStarted, handleImpressionRecorded, handleSlotStatusChanged, handleSetSyncMode]);
+    }, [screenId, handleAdStarted, handleImpressionRecorded, handleSlotStatusChanged, handlePlaylistUpdated, handleSetSyncMode]);
 
     const deleteMutation = useMutation({
         mutationFn: (slotNumber: number) =>

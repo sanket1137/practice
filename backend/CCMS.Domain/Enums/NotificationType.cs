@@ -15,4 +15,7 @@ public enum NotificationType
     PayoutAdvanceProcessed = 10,
     PayoutFinalPending = 11,
     PayoutFinalProcessed = 12,
+    VisibilityRequestSubmitted = 13,
+    VisibilityRequestApproved = 14,
+    VisibilityRequestRejected = 15,
 }
