@@ -3,6 +3,7 @@ package com.pixelspot.ccms.player.di
 import com.pixelspot.ccms.player.config.PlayerConfig
 import com.pixelspot.ccms.player.data.remote.PlayerApiService
 import com.pixelspot.ccms.player.security.SecurityManager
+import com.google.gson.Gson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -68,4 +69,8 @@ object NetworkModule {
     fun providePlayerApiService(retrofit: Retrofit): PlayerApiService {
         return retrofit.create(PlayerApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = Gson()
 }

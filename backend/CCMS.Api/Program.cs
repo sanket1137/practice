@@ -192,6 +192,13 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // Application Services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICmsPairingService, CmsPairingService>();
+builder.Services.AddScoped<ICmsMediaService, CmsMediaService>();
+builder.Services.AddScoped<ICmsPlaylistService, CmsPlaylistService>();
+builder.Services.AddScoped<IRemoteCommandService, RemoteCommandService>();
+
+// Player API-key auth helper (used by CmsControlHub to gate SubscribePlayer).
+builder.Services.AddSingleton<CCMS.Api.Security.PlayerAuthenticationService>();
 
 // Email & SMS Services for verification
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -214,7 +221,9 @@ if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
 }
 else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<IFileStorageService, R2StorageService>();
+    builder.Services.AddSingleton<R2StorageService>();
+    builder.Services.AddSingleton<IFileStorageService>(sp => sp.GetRequiredService<R2StorageService>());
+    builder.Services.AddSingleton<IPresignedUploadService>(sp => sp.GetRequiredService<R2StorageService>());
     Console.WriteLine("Using Cloudflare R2 Storage for file uploads (S3-compatible, zero egress)");
 }
 else
@@ -335,6 +344,15 @@ builder.Services.AddDirectoryBrowser();
 
 var app = builder.Build();
 
+// Eagerly resolve the storage singleton so its constructor-side background
+// tasks (e.g. R2 bucket CORS configuration) run at startup instead of lazily
+// on the first upload. Fixes a race where the browser's presigned PUT beats
+// the CORS-setup call to R2.
+if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
+{
+    _ = app.Services.GetRequiredService<R2StorageService>();
+}
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -386,6 +404,9 @@ app.MapHub<PlaybackHub>("/hubs/playback").AllowAnonymous();
 app.MapHub<PlayerHub>("/playerhub").AllowAnonymous();
 app.MapHub<StreamingHub>("/hubs/streaming"); // WebRTC signaling hub (requires auth)
 app.MapHub<NotificationHub>("/hubs/notifications"); // Notification push (requires auth)
+// CmsControlHub accepts both dashboards (JWT) and players (API key).
+// Auth is enforced inside each hub method, not at the connection level.
+app.MapHub<CmsControlHub>("/hubs/cms").AllowAnonymous();
 
 app.UseAuthentication();
 app.UseAuthorization();

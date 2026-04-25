@@ -9,6 +9,12 @@ public class RegisterRequest
     public string PhoneNumber { get; set; } = string.Empty; // Required for registration
     public string Role { get; set; } = "Advertiser"; // "ScreenOwner" or "Advertiser"
     public string? Visibility { get; set; } // "Public" (default) or "Private" — only applies to ScreenOwner
+
+    /// <summary>
+    /// Product mode chosen at registration: "CmsOwner", "MediaOwner", or "Advertiser".
+    /// Optional — if omitted, derived from Role (ScreenOwner→MediaOwner, Advertiser→Advertiser).
+    /// </summary>
+    public string? AccountType { get; set; }
 }
 
 public class LoginRequest

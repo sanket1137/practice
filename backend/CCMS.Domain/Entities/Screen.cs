@@ -87,7 +87,19 @@ public class Screen : BaseEntity
     public DateTime? LastTaggedAt { get; set; }
     public decimal? LastTaggedLatitude { get; set; }
     public decimal? LastTaggedLongitude { get; set; }
-    
+
+    // ── CMS mode additions ────────────────────────────────────────────────
+    /// <summary>
+    /// Currently-assigned default playlist. Plays whenever no schedule is active.
+    /// Only relevant for CMS-mode screens. Nullable until the owner creates one.
+    /// </summary>
+    public Guid? DefaultPlaylistId { get; set; }
+
+    /// <summary>Free-text location tag, e.g. "Floor 1 - Main Entrance".</summary>
+    public string? LocationTag { get; set; }
+
+    public ScreenDisplayType DisplayType { get; set; } = ScreenDisplayType.Indoor;
+
     // Navigation properties
     public virtual User Owner { get; set; } = null!;
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
@@ -96,7 +108,18 @@ public class Screen : BaseEntity
     public virtual ICollection<ScreenImage> Images { get; set; } = new List<ScreenImage>();
     public virtual ICollection<ScreenVerification> Verifications { get; set; } = new List<ScreenVerification>();
     public virtual ScreenVerification? LastVerification { get; set; }
-    
+    public virtual Playlist? DefaultPlaylist { get; set; }
+    public virtual ICollection<Playlist> Playlists { get; set; } = new List<Playlist>();
+    public virtual ICollection<RemoteCommand> RemoteCommands { get; set; } = new List<RemoteCommand>();
+
+    /// <summary>
+    /// Operating mode derived from the owner's <see cref="AccountType"/>.
+    /// Not a stored column — always resolved via the Owner relationship.
+    /// </summary>
+    public ScreenMode Mode => Owner?.AccountType == AccountType.CmsOwner
+        ? ScreenMode.Cms
+        : ScreenMode.Dooh;
+
     private int CalculateImpressionsPerSlot()
     {
         if (TimeFrameMinutes <= 0) return 0;

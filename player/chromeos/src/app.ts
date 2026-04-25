@@ -5,12 +5,19 @@
  * This is the central coordinator that wires all components together.
  */
 import { getConfig, type PlayerConfig } from './config';
-import { PlayerApi, type HandshakeResponse, type PlaylistItem } from './api/playerApi';
+import {
+  PlayerApi,
+  type HandshakeResponse,
+  type PlaylistItem,
+  type CmsPlaylistDto,
+} from './api/playerApi';
 import { SetupScreen } from './ui/setupScreen';
 import { QrVerificationScreen } from './verification/qrDisplay';
 import { VideoPlayer } from './player/videoPlayer';
 import { ImpressionTracker } from './player/impressionTracker';
 import { SignalRClient } from './realtime/signalRClient';
+import { CmsControlClient } from './realtime/cmsControlClient';
+import { RemoteCommandHandler } from './player/remoteCommandHandler';
 import { generateFingerprint } from './security/fingerprint';
 
 /** Parsed operating hours for a single day */
@@ -31,6 +38,8 @@ export class App {
   private player: VideoPlayer | null = null;
   private impressionTracker: ImpressionTracker | null = null;
   private signalRClient: SignalRClient | null = null;
+  private cmsClient: CmsControlClient | null = null;
+  private commandHandler: RemoteCommandHandler | null = null;
 
   // State
   private config: PlayerConfig | null = null;
@@ -179,8 +188,8 @@ export class App {
       this.recordImpression(item, durationSeconds);
     });
 
-    // Load playlist from handshake
-    const playlist = this.handshakeData?.playlist?.playlist ?? [];
+    // Load playlist from handshake — prefer CMS playlist when screen is in CmsOwner mode
+    const playlist = this.resolvePlaylist(this.handshakeData);
     if (playlist.length > 0) {
       this.player.loadPlaylist(playlist);
       console.log(`[App] Playing ${playlist.length} items`);
@@ -196,8 +205,40 @@ export class App {
     this.startSyncLoop();
     this.startOperatingHoursCheck();
 
-    // Connect SignalR
+    // Connect SignalR (playback hub + CMS control hub)
     this.connectSignalR();
+    this.connectCmsControl();
+  }
+
+  /**
+   * Map cmsPlaylist to PlaylistItem[] when the screen is CmsOwner-mode,
+   * otherwise return the traditional ad playlist.
+   */
+  private resolvePlaylist(data: HandshakeResponse | null): PlaylistItem[] {
+    if (!data) return [];
+    const cms = data.cmsPlaylist;
+    if (cms && cms.items && cms.items.length > 0) {
+      return this.mapCmsToPlaylistItems(cms);
+    }
+    return data.playlist?.playlist ?? [];
+  }
+
+  private mapCmsToPlaylistItems(cms: CmsPlaylistDto): PlaylistItem[] {
+    return cms.items
+      .filter((i) => i.mediaAsset && i.mediaAsset.isReady)
+      .sort((a, b) => a.order - b.order)
+      .map((item, idx) => ({
+        slotNumber: idx + 1,
+        bookingId: null,
+        campaignId: null,
+        creativeId: null,
+        ownerContentId: item.mediaAssetId,
+        creativeUrl: item.mediaAsset!.fileUrl,
+        creativeMimeType: item.mediaAsset!.mimeType,
+        isFillerContent: false,
+        startTime: '',
+        endTime: '',
+      }));
   }
 
   // ─── Impression Recording ───
@@ -424,15 +465,39 @@ export class App {
 
     console.log('[App] Fetching updated playlist...');
     const data = await this.api.handshake(this.deviceFingerprint);
-    if (!data?.playlist?.playlist) return;
+    if (!data) return;
 
     this.handshakeData = data;
-    const playlist = data.playlist.playlist;
+    const playlist = this.resolvePlaylist(data);
+    if (playlist.length === 0) return;
 
     if (this.player && this.state === 'playing') {
       this.player.loadPlaylist(playlist);
       console.log(`[App] Playlist updated: ${playlist.length} items`);
     }
+  }
+
+  // ─── CMS control hub ───
+
+  private connectCmsControl(): void {
+    if (!this.config || !this.player) return;
+
+    this.cmsClient = new CmsControlClient(this.config, {
+      onCommand: (cmd) => {
+        this.commandHandler?.handle(cmd).catch((err) =>
+          console.error('[App] Command handler error:', err)
+        );
+      },
+      onPlaylistUpdated: () => {
+        this.handlePlaylistUpdate().catch(console.error);
+      },
+    });
+
+    this.commandHandler = new RemoteCommandHandler(this.player, this.cmsClient, () => {
+      this.handlePlaylistUpdate().catch(console.error);
+    });
+
+    this.cmsClient.start().catch((err) => console.error('[App] CmsControlClient start failed:', err));
   }
 
   // ─── Connection Status Overlay ───
@@ -541,6 +606,7 @@ export class App {
 
     this.player?.stop();
     await this.signalRClient?.stop();
+    await this.cmsClient?.stop();
 
     // Final sync before shutdown
     if (this.impressionTracker && this.api) {

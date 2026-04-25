@@ -1,18 +1,23 @@
 package com.pixelspot.ccms.player.ui.setup
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.pixelspot.ccms.player.MainActivity
 import com.pixelspot.ccms.player.R
 import com.pixelspot.ccms.player.config.PlayerConfig
+import com.pixelspot.ccms.player.data.model.ClaimPairingCodeRequest
 import com.pixelspot.ccms.player.data.remote.PlayerApiService
 import com.pixelspot.ccms.player.data.model.HandshakeRequest
 import com.pixelspot.ccms.player.security.DeviceFingerprint
@@ -42,6 +47,7 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var screenIdInput: EditText
     private lateinit var apiKeyInput: EditText
     private lateinit var connectButton: Button
+    private lateinit var pairCodeButton: Button
     private lateinit var statusText: TextView
     private lateinit var progressBar: ProgressBar
 
@@ -53,6 +59,7 @@ class SetupActivity : AppCompatActivity() {
         screenIdInput = findViewById(R.id.screen_id_input)
         apiKeyInput = findViewById(R.id.api_key_input)
         connectButton = findViewById(R.id.connect_button)
+        pairCodeButton = findViewById(R.id.pair_code_button)
         statusText = findViewById(R.id.status_text)
         progressBar = findViewById(R.id.progress_bar)
 
@@ -60,6 +67,7 @@ class SetupActivity : AppCompatActivity() {
         serverUrlInput.setText(playerConfig.serverUrl ?: "https://ccms.pixelspot.in")
 
         connectButton.setOnClickListener { validateAndConnect() }
+        pairCodeButton.setOnClickListener { showPairingDialog() }
 
         // Check for emulator/root warnings
         if (deviceFingerprint.isEmulator()) {
@@ -146,5 +154,86 @@ class SetupActivity : AppCompatActivity() {
         serverUrlInput.isEnabled = !loading
         screenIdInput.isEnabled = !loading
         apiKeyInput.isEnabled = !loading
+    }
+
+    /**
+     * Show a dialog that accepts a 6-character pairing code and posts it to
+     * /api/v1/cms/pairing/claim. On success, persists credentials and jumps
+     * straight to MainActivity — the user never touches screenId/apiKey.
+     */
+    private fun showPairingDialog() {
+        val serverUrl = serverUrlInput.text.toString().trim().ifBlank { "https://ccms.pixelspot.in" }
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            hint = "ABC123"
+            textSize = 22f
+            filters = arrayOf(android.text.InputFilter.LengthFilter(6),
+                android.text.InputFilter.AllCaps())
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+            addView(input)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Enter pairing code")
+            .setMessage("Ask the screen owner to generate a code in the CMS dashboard.")
+            .setView(container)
+            .setPositiveButton("Pair") { _, _ ->
+                val code = input.text.toString().trim().uppercase()
+                if (code.length != 6) {
+                    Toast.makeText(this, "Code must be 6 characters", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                claimPairingCode(serverUrl, code)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun claimPairingCode(serverUrl: String, code: String) {
+        setLoading(true)
+        statusText.text = "Claiming code $code..."
+        statusText.isVisible = true
+
+        lifecycleScope.launch {
+            try {
+                // Configure base URL before the Retrofit call (apiKey unknown yet; claim is anonymous)
+                playerConfig.configure(
+                    screenId = playerConfig.screenId ?: "00000000-0000-0000-0000-000000000000",
+                    apiKey = playerConfig.apiKey ?: "",
+                    serverUrl = serverUrl
+                )
+
+                val request = ClaimPairingCodeRequest(
+                    code = code,
+                    deviceFingerprint = deviceFingerprint.generate(),
+                    deviceModel = Build.MODEL,
+                    osVersion = "Android ${Build.VERSION.RELEASE}",
+                    appVersion = "1.0.0-android"
+                )
+
+                val response = apiService.claimPairingCode(request)
+                val body = response.body()
+                if (response.isSuccessful && body?.success == true && body.data != null) {
+                    val data = body.data
+                    playerConfig.configure(data.screenId, data.apiKey, serverUrl)
+                    statusText.text = "✓ Paired with ${data.screenName ?: "screen"}"
+                    Toast.makeText(this@SetupActivity, "Paired successfully", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(this@SetupActivity, MainActivity::class.java))
+                    finish()
+                } else {
+                    val msg = body?.message ?: response.errorBody()?.string() ?: "Unknown error"
+                    statusText.text = "✗ Pairing failed: $msg"
+                    playerConfig.clear()
+                }
+            } catch (e: Exception) {
+                statusText.text = "✗ Error: ${e.message}"
+                playerConfig.clear()
+            } finally {
+                setLoading(false)
+            }
+        }
     }
 }

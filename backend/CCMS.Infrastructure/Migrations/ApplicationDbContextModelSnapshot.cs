@@ -653,6 +653,72 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("ImpressionDailySummaries");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.MediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("DurationSeconds")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsReady")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OriginalName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "Sha256")
+                        .IsUnique()
+                        .HasDatabaseName("IX_MediaAssets_Owner_Sha256");
+
+                    b.ToTable("MediaAssets");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Membership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -845,6 +911,56 @@ namespace CCMS.Infrastructure.Migrations
                         .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("OwnerContents");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.PairingCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PlayerFingerprint")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("IX_PairingCodes_Code");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("IX_PairingCodes_CreatedByUserId");
+
+                    b.HasIndex("ScreenId");
+
+                    b.ToTable("PairingCodes");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.PasswordResetToken", b =>
@@ -1096,6 +1212,86 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("PhoneVerificationOtps");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Playlist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastPublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("PlaylistType")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScreenId")
+                        .HasDatabaseName("IX_Playlists_ScreenId");
+
+                    b.ToTable("Playlists");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.PlaylistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ItemType")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("MediaAssetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("PlaylistId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MediaAssetId");
+
+                    b.HasIndex("PlaylistId", "Order")
+                        .HasDatabaseName("IX_PlaylistItems_Playlist_Order");
+
+                    b.ToTable("PlaylistItems");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1143,6 +1339,62 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.RemoteCommand", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AckedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CommandType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DispatchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("IssuedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IssuedByUserId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_RemoteCommands_Status");
+
+                    b.HasIndex("ScreenId", "IssuedAt")
+                        .HasDatabaseName("IX_RemoteCommands_Screen_IssuedAt");
+
+                    b.ToTable("RemoteCommands");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Screen", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1173,6 +1425,9 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<int>("CurrentViewerCount")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("DefaultPlaylistId")
+                        .HasColumnType("uuid");
 
                     b.Property<long?>("DefaultVideoSizeBytes")
                         .HasColumnType("bigint");
@@ -1210,6 +1465,9 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<string>("DimensionUnit")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("DisplayType")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("HasCustomDefaultVideo")
                         .HasColumnType("boolean");
@@ -1252,6 +1510,10 @@ namespace CCMS.Infrastructure.Migrations
 
                     b.Property<bool>("LiveStreamingEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("LocationTag")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<decimal>("Longitude")
                         .HasPrecision(9, 6)
@@ -1318,6 +1580,8 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DefaultPlaylistId");
 
                     b.HasIndex("DeviceId");
 
@@ -1663,6 +1927,9 @@ namespace CCMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AccountType")
+                        .HasColumnType("integer");
+
                     b.Property<int>("AccountVisibility")
                         .HasColumnType("integer");
 
@@ -1736,6 +2003,9 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountType")
+                        .HasDatabaseName("IX_Users_AccountType");
 
                     b.HasIndex("Email")
                         .IsUnique();
@@ -2089,6 +2359,17 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Screen");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.MediaAsset", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Membership", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.Organization", "Organization")
@@ -2137,6 +2418,24 @@ namespace CCMS.Infrastructure.Migrations
                         .HasForeignKey("ScreenId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Screen");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.PairingCode", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany()
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("CreatedByUser");
 
                     b.Navigation("Screen");
                 });
@@ -2200,6 +2499,36 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Playlist", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany("Playlists")
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Screen");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.PlaylistItem", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.MediaAsset", "MediaAsset")
+                        .WithMany("PlaylistItems")
+                        .HasForeignKey("MediaAssetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.Playlist", "Playlist")
+                        .WithMany("Items")
+                        .HasForeignKey("PlaylistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MediaAsset");
+
+                    b.Navigation("Playlist");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.User", "User")
@@ -2211,8 +2540,32 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.RemoteCommand", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.User", "IssuedByUser")
+                        .WithMany()
+                        .HasForeignKey("IssuedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany("RemoteCommands")
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("IssuedByUser");
+
+                    b.Navigation("Screen");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Screen", b =>
                 {
+                    b.HasOne("CCMS.Domain.Entities.Playlist", "DefaultPlaylist")
+                        .WithMany()
+                        .HasForeignKey("DefaultPlaylistId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("CCMS.Domain.Entities.ScreenVerification", "LastVerification")
                         .WithMany()
                         .HasForeignKey("LastVerificationId")
@@ -2450,6 +2803,8 @@ namespace CCMS.Infrastructure.Migrations
                                 .IsRequired();
                         });
 
+                    b.Navigation("DefaultPlaylist");
+
                     b.Navigation("LastVerification");
 
                     b.Navigation("Location")
@@ -2596,6 +2951,11 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Bookings");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.MediaAsset", b =>
+                {
+                    b.Navigation("PlaylistItems");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Organization", b =>
                 {
                     b.Navigation("Memberships");
@@ -2606,6 +2966,11 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Impressions");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.Playlist", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.Screen", b =>
                 {
                     b.Navigation("Bookings");
@@ -2613,6 +2978,10 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("Images");
 
                     b.Navigation("Impressions");
+
+                    b.Navigation("Playlists");
+
+                    b.Navigation("RemoteCommands");
 
                     b.Navigation("TagAssignments");
 

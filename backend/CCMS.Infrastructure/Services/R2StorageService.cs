@@ -15,9 +15,14 @@ namespace CCMS.Infrastructure.Services;
 /// <summary>
 /// Cloudflare R2 storage service - S3-compatible object storage with zero egress fees
 /// </summary>
-public class R2StorageService : IFileStorageService
+public class R2StorageService : IFileStorageService, IPresignedUploadService
 {
     private readonly IAmazonS3 _s3Client;
+    // Separate client for bucket-admin operations (PutBucketCors, etc.) using an
+    // admin token. Falls back to _s3Client when admin creds are not configured
+    // so dev environments with a single full-access token still work.
+    private readonly IAmazonS3 _adminS3Client;
+    private readonly bool _hasAdminCredentials;
     private readonly string _bucketName;
     private readonly string _basePath;
     private readonly string _publicUrlBase;
@@ -29,7 +34,13 @@ public class R2StorageService : IFileStorageService
     {
         // Force TLS 1.2 for Cloudflare R2 compatibility
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
-        
+
+        // Force AWS SigV4 for presigned URLs. Without this the SDK defaults to
+        // SigV2 query-string signing (AWSAccessKeyId/Signature), which R2
+        // rejects on preflight OPTIONS with 401 — stripping CORS headers and
+        // breaking browser uploads. Must be set before any S3 client is built.
+        Amazon.AWSConfigsS3.UseSignatureVersion4 = true;
+
         var accountId = configuration["R2:AccountId"] 
             ?? throw new InvalidOperationException("R2 Account ID not configured");
         var accessKeyId = configuration["R2:AccessKeyId"] 
@@ -60,6 +71,29 @@ public class R2StorageService : IFileStorageService
         };
         
         _s3Client = new AmazonS3Client(accessKeyId, secretAccessKey, config);
+
+        // Optional admin credentials used only for bucket-config operations
+        // (PutBucketCors). Kept separate so the runtime token can stay scoped
+        // to object-level permissions (principle of least privilege).
+        var adminAccessKeyId = configuration["R2:AdminAccessKeyId"];
+        var adminSecretAccessKey = configuration["R2:AdminSecretAccessKey"];
+        if (!string.IsNullOrWhiteSpace(adminAccessKeyId) && !string.IsNullOrWhiteSpace(adminSecretAccessKey))
+        {
+            var adminConfig = new AmazonS3Config
+            {
+                ServiceURL = r2Endpoint,
+                ForcePathStyle = true,
+                SignatureVersion = "4",
+                HttpClientFactory = new R2HttpClientFactory(httpClientHandler)
+            };
+            _adminS3Client = new AmazonS3Client(adminAccessKeyId, adminSecretAccessKey, adminConfig);
+            _hasAdminCredentials = true;
+        }
+        else
+        {
+            _adminS3Client = _s3Client;
+            _hasAdminCredentials = false;
+        }
         
         // Collect CORS allowed origins from configuration
         // These are the same origins allowed by the ASP.NET CORS policy
@@ -79,6 +113,15 @@ public class R2StorageService : IFileStorageService
         // Log initialization once (no blocking bucket check)
         var pathInfo = string.IsNullOrEmpty(_basePath) ? "root" : $"/{_basePath}/";
         Console.WriteLine($"[R2Storage] Initialized - Bucket: {_bucketName}, BasePath: {pathInfo}, URL: {_publicUrlBase}");
+
+        // Configure CORS in the background on startup so browser-direct presigned
+        // PUT uploads (CMS media uploader) don't fail with a preflight block.
+        // Non-blocking: failures are logged and don't prevent the app from starting.
+        _ = Task.Run(async () =>
+        {
+            try { await EnsureCorsConfiguredAsync(); }
+            catch (Exception ex) { Console.WriteLine($"[R2Storage] Background CORS setup failed: {ex.Message}"); }
+        });
     }
     
     /// <summary>
@@ -131,20 +174,26 @@ public class R2StorageService : IFileStorageService
                     new CORSRule
                     {
                         AllowedOrigins = _corsAllowedOrigins.ToList(),
-                        AllowedMethods = new List<string> { "GET", "HEAD" },
+                        // GET/HEAD for media playback; PUT/POST for browser-direct presigned
+                        // uploads (CMS media library). DELETE reserved for future client-side cleanup.
+                        AllowedMethods = new List<string> { "GET", "HEAD", "PUT", "POST", "DELETE" },
                         AllowedHeaders = new List<string> { "*" },
+                        // ETag must be exposed so xhr.upload can read the upload fingerprint
+                        // returned by R2 and confirm integrity before calling /finalize.
+                        ExposeHeaders = new List<string> { "ETag" },
                         MaxAgeSeconds = 86400 // Cache preflight for 24 hours
                     }
                 }
             };
             
-            await _s3Client.PutCORSConfigurationAsync(new PutCORSConfigurationRequest
+            await _adminS3Client.PutCORSConfigurationAsync(new PutCORSConfigurationRequest
             {
                 BucketName = _bucketName,
                 Configuration = corsConfiguration
             });
-            
-            Console.WriteLine($"[R2Storage] CORS configured for bucket '{_bucketName}' — allowed origins: {string.Join(", ", _corsAllowedOrigins)}");
+
+            var tokenKind = _hasAdminCredentials ? "admin" : "runtime";
+            Console.WriteLine($"[R2Storage] CORS configured for bucket '{_bucketName}' via {tokenKind} token — allowed origins: {string.Join(", ", _corsAllowedOrigins)}");
         }
         catch (Exception ex)
         {
@@ -282,6 +331,42 @@ public class R2StorageService : IFileStorageService
         };
         
         return _s3Client.GetPreSignedURL(request);
+    }
+
+    // ── IPresignedUploadService ────────────────────────────────────────────
+
+    public string GetPresignedUploadUrl(string objectKey, string contentType, TimeSpan expiry)
+    {
+        var fullKey = string.IsNullOrEmpty(_basePath) ? objectKey : $"{_basePath}/{objectKey}";
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucketName,
+            Key = fullKey,
+            Expires = DateTime.UtcNow.Add(expiry),
+            Verb = HttpVerb.PUT,
+            ContentType = contentType
+        };
+        return _s3Client.GetPreSignedURL(request);
+    }
+
+    public string GetPublicUrl(string objectKey)
+    {
+        var fullKey = string.IsNullOrEmpty(_basePath) ? objectKey : $"{_basePath}/{objectKey}";
+        return $"{_publicUrlBase}/{fullKey}";
+    }
+
+    public async Task<bool> ObjectExistsAsync(string objectKey, CancellationToken cancellationToken = default)
+    {
+        var fullKey = string.IsNullOrEmpty(_basePath) ? objectKey : $"{_basePath}/{objectKey}";
+        try
+        {
+            await _s3Client.GetObjectMetadataAsync(_bucketName, fullKey, cancellationToken);
+            return true;
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            return false;
+        }
     }
 
     private string GetObjectKeyFromUrl(string fileUrl)

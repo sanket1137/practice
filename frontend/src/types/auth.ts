@@ -4,6 +4,7 @@ export interface User {
     firstName: string;
     lastName: string;
     role: 'Admin' | 'ScreenOwner' | 'Advertiser';
+    accountType?: 'MediaOwner' | 'CmsOwner' | 'Advertiser';
     profileImageUrl?: string;
     isEmailVerified?: boolean;
     isPhoneVerified?: boolean;

@@ -8,6 +8,7 @@ public class UserDto
     public string LastName { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
     public string Role { get; set; } = string.Empty;
+    public string AccountType { get; set; } = "MediaOwner";
     public string? ProfileImageUrl { get; set; }
     public bool IsEmailVerified { get; set; }
     public string AccountVisibility { get; set; } = "Public";

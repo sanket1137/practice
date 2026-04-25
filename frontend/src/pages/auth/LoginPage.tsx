@@ -57,7 +57,14 @@ const LoginPage = () => {
             const { user, accessToken, refreshToken } = data;
             setAuth(user, accessToken, refreshToken);
             const returnUrl = searchParams.get('returnUrl');
-            navigate(returnUrl && returnUrl.startsWith('/') ? returnUrl : '/dashboard');
+            if (returnUrl && returnUrl.startsWith('/')) {
+                navigate(returnUrl);
+            } else if (user?.accountType === 'CmsOwner') {
+                // CMS-mode owners get a dedicated self-hosted dashboard
+                navigate('/cms/screens');
+            } else {
+                navigate('/dashboard');
+            }
         } catch (err: any) {
             setError(err.response?.data?.message || 'Login failed');
         } finally {

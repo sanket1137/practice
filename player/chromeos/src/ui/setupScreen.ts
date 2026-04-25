@@ -2,6 +2,8 @@
  * First-run setup screen for entering Screen ID, API key, and server URL.
  */
 import { saveConfig, type PlayerConfig } from '../config';
+import { claimPairingCode } from '../api/playerApi';
+import { generateFingerprint } from '../security/fingerprint';
 
 export class SetupScreen {
   static readonly SERVER_URL = 'https://ccms.pixelspot.in';
@@ -56,6 +58,27 @@ export class SetupScreen {
 
     form.appendChild(btn);
 
+    // Pairing-code flow (CMS owner screens)
+    const divider = document.createElement('p');
+    divider.textContent = 'or';
+    divider.style.cssText = 'color:#64748b;font-size:0.75rem;margin:1rem 0 0.5rem;text-align:center;';
+    form.appendChild(divider);
+
+    const pairBtn = document.createElement('button');
+    pairBtn.type = 'button';
+    pairBtn.textContent = 'Have a pairing code?';
+    pairBtn.style.cssText =
+      'width:100%;padding:0.65rem;background:transparent;color:#6366f1;' +
+      'border:1px solid #6366f1;border-radius:0.5rem;font-size:0.9rem;cursor:pointer;';
+    pairBtn.onclick = () => this.handlePairingFlow();
+    form.appendChild(pairBtn);
+
+    const errorBox = document.createElement('p');
+    errorBox.id = 'setup-error';
+    errorBox.style.cssText =
+      'color:#ef4444;font-size:0.8rem;margin-top:0.75rem;text-align:center;display:none;';
+    form.appendChild(errorBox);
+
     form.onsubmit = (e) => {
       e.preventDefault();
       const config: PlayerConfig = {
@@ -70,6 +93,38 @@ export class SetupScreen {
     };
 
     this.container.appendChild(form);
+  }
+
+  private async handlePairingFlow(): Promise<void> {
+    const raw = window.prompt('Enter the 6-character pairing code shown in the dashboard:');
+    if (!raw) return;
+    const code = raw.trim().toUpperCase();
+    if (code.length !== 6) {
+      this.showError('Pairing code must be exactly 6 characters.');
+      return;
+    }
+    try {
+      const fingerprint = await generateFingerprint();
+      const res = await claimPairingCode(SetupScreen.SERVER_URL, code, fingerprint);
+      const config: PlayerConfig = {
+        serverUrl: SetupScreen.SERVER_URL,
+        screenId: res.screenId,
+        apiKey: res.apiKey,
+      };
+      saveConfig(config);
+      this.onComplete?.(config);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.showError(`Pairing failed: ${msg}`);
+    }
+  }
+
+  private showError(message: string): void {
+    const box = document.getElementById('setup-error');
+    if (box) {
+      box.textContent = message;
+      box.style.display = 'block';
+    }
   }
 
   private createInput(

@@ -1,13 +1,16 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using CCMS.Api.Extensions;
 using CCMS.Api.Hubs;
 using CCMS.Api.Services;
+using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
+using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Player;
 using Asp.Versioning;
@@ -29,7 +32,9 @@ public class PlayerController : ControllerBase
     private readonly ILogger<PlayerController> _logger;
     private readonly ITimeZoneService _timeZoneService;
     private readonly PlayerDeviceManager _deviceManager;
-    
+    private readonly ICmsPlaylistService _cmsPlaylistService;
+    private readonly ApplicationDbContext _dbContext;
+
     // Cache valid owner content IDs to avoid repeated DB lookups
     private HashSet<Guid>? _validOwnerContentIds;
 
@@ -41,7 +46,9 @@ public class PlayerController : ControllerBase
         IHubContext<PlayerHub> hubContext,
         ILogger<PlayerController> logger,
         ITimeZoneService timeZoneService,
-        PlayerDeviceManager deviceManager)
+        PlayerDeviceManager deviceManager,
+        ICmsPlaylistService cmsPlaylistService,
+        ApplicationDbContext dbContext)
     {
         _screenRepository = screenRepository;
         _playlistService = playlistService;
@@ -51,6 +58,8 @@ public class PlayerController : ControllerBase
         _logger = logger;
         _timeZoneService = timeZoneService;
         _deviceManager = deviceManager;
+        _cmsPlaylistService = cmsPlaylistService;
+        _dbContext = dbContext;
     }
 
     /// <summary>
@@ -169,6 +178,27 @@ public class PlayerController : ControllerBase
             var isVerified = screen.VerificationStatus == ScreenVerificationStatus.Verified;
             var verificationMode = !isVerified;
 
+            // Look up owner account type to decide whether to attach the CMS playlist.
+            var ownerAccountType = await _dbContext.Users
+                .AsNoTracking()
+                .Where(u => u.Id == screen.OwnerId)
+                .Select(u => u.AccountType)
+                .FirstOrDefaultAsync();
+
+            var isCmsMode = ownerAccountType == AccountType.CmsOwner;
+            CCMS.Shared.DTOs.Cms.CmsPlaylistDto? cmsPlaylistDto = null;
+            if (isCmsMode && !verificationMode)
+            {
+                try
+                {
+                    cmsPlaylistDto = await _cmsPlaylistService.GetDefaultForPlayerAsync(screenGuid);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load CMS playlist for screen {ScreenId}", request.ScreenId);
+                }
+            }
+
             var response = new HandshakeResponse
             {
                 Success = true,
@@ -184,7 +214,9 @@ public class PlayerController : ControllerBase
                 SessionExpiresAt = sessionExpiresAt,
                 DeviceBindingStatus = deviceBindingStatus,
                 VerificationMode = verificationMode,
-                VerificationStatus = screen.VerificationStatus.ToString()
+                VerificationStatus = screen.VerificationStatus.ToString(),
+                CmsPlaylist = cmsPlaylistDto,
+                ScreenMode = isCmsMode ? "Cms" : "Dooh"
             };
 
             return Ok(ApiResponse<HandshakeResponse>.SuccessResponse(response));

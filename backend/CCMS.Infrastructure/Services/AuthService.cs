@@ -73,6 +73,32 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Admin accounts cannot be created through registration. Please contact system administrator.");
         }
 
+        // Resolve AccountType. Explicit value wins; otherwise derive from Role.
+        AccountType accountType;
+        if (!string.IsNullOrWhiteSpace(request.AccountType))
+        {
+            if (!Enum.TryParse<AccountType>(request.AccountType, true, out accountType))
+            {
+                throw new ArgumentException("Invalid account type specified");
+            }
+        }
+        else
+        {
+            accountType = userRole == UserRole.Advertiser
+                ? AccountType.Advertiser
+                : AccountType.MediaOwner;
+        }
+
+        // CmsOwner and MediaOwner both persist as UserRole.ScreenOwner for backward compat.
+        if (accountType == AccountType.CmsOwner || accountType == AccountType.MediaOwner)
+        {
+            userRole = UserRole.ScreenOwner;
+        }
+        else if (accountType == AccountType.Advertiser)
+        {
+            userRole = UserRole.Advertiser;
+        }
+
         // Create user with unverified status
         var user = new User
         {
@@ -82,6 +108,7 @@ public class AuthService : IAuthService
             LastName = request.LastName,
             PhoneNumber = normalizedPhone,
             Role = userRole,
+            AccountType = accountType,
             IsEmailVerified = false,
             IsPhoneVerified = false,
             AccountVisibility = (userRole == UserRole.ScreenOwner 
@@ -194,7 +221,7 @@ public class AuthService : IAuthService
         user.LastLoginAt = DateTime.UtcNow;
 
         // Generate tokens
-        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Email, user.Role.ToString());
+        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Email, user.Role.ToString(), user.AccountType.ToString());
         var refreshToken = _tokenService.GenerateRefreshToken();
 
         // Save refresh token
@@ -231,7 +258,7 @@ public class AuthService : IAuthService
         var user = tokenEntity.User;
 
         // Generate new tokens
-        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Email, user.Role.ToString());
+        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Email, user.Role.ToString(), user.AccountType.ToString());
         var newRefreshToken = _tokenService.GenerateRefreshToken();
 
         // Revoke old token
@@ -318,7 +345,7 @@ public class AuthService : IAuthService
         user.LastLoginAt = DateTime.UtcNow;
 
         // Generate tokens
-        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Email, user.Role.ToString());
+        var accessToken = _tokenService.GenerateAccessToken(user.Id, user.Email, user.Role.ToString(), user.AccountType.ToString());
         var refreshToken = _tokenService.GenerateRefreshToken();
 
         // Save refresh token

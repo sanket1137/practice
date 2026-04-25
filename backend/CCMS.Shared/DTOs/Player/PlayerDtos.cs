@@ -47,6 +47,14 @@ public class HandshakeResponse
     public bool VerificationMode { get; set; }
     public string? VerificationStatus { get; set; }
     public string? QrChallengeUrl { get; set; }
+
+    // CMS-mode payload. Present only when the screen owner is a CmsOwner;
+    // players should prefer this playlist over <see cref="Playlist"/> when set.
+    public CCMS.Shared.DTOs.Cms.CmsPlaylistDto? CmsPlaylist { get; set; }
+
+    // Screen mode — "Cms" or "Dooh". Lets the player pick the right code path
+    // without having to infer from which playlist field is populated.
+    public string? ScreenMode { get; set; }
 }
 
 public class PlaylistDto

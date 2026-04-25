@@ -45,6 +45,13 @@ import AdminVerificationsPage from './pages/admin/AdminVerificationsPage';
 import AdminVisibilityRequestsPage from './pages/admin/AdminVisibilityRequestsPage';
 import VerifyScreenPage from './pages/verification/VerifyScreenPage';
 
+// CMS subsystem
+import CmsLayout from './pages/cms/CmsLayout';
+import CmsScreensPage from './pages/cms/CmsScreensPage';
+import CmsMediaPage from './pages/cms/CmsMediaPage';
+import CmsPlaylistsPage from './pages/cms/CmsPlaylistsPage';
+import CmsRemoteControlPage from './pages/cms/CmsRemoteControlPage';
+
 const queryClient = new QueryClient();
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -124,6 +131,22 @@ function App() {
                   <Route path="admin/machines" element={<AdminMachinesPage />} />
                   <Route path="admin/verifications" element={<AdminVerificationsPage />} />
                   <Route path="admin/visibility-requests" element={<AdminVisibilityRequestsPage />} />
+                </Route>
+
+                {/* CMS subsystem (private CMS-mode owners) */}
+                <Route
+                  path="/cms"
+                  element={
+                    <ProtectedRoute>
+                      <CmsLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="screens" replace />} />
+                  <Route path="screens" element={<CmsScreensPage />} />
+                  <Route path="screens/:screenId/control" element={<CmsRemoteControlPage />} />
+                  <Route path="media" element={<CmsMediaPage />} />
+                  <Route path="playlists" element={<CmsPlaylistsPage />} />
                 </Route>
               </Routes>
               </BrowserRouter>

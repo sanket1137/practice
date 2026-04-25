@@ -1,6 +1,8 @@
 package com.pixelspot.ccms.player.data.remote
 
 import com.pixelspot.ccms.player.data.model.ApiResponse
+import com.pixelspot.ccms.player.data.model.ClaimPairingCodeRequest
+import com.pixelspot.ccms.player.data.model.ClaimPairingCodeResponse
 import com.pixelspot.ccms.player.data.model.HandshakeRequest
 import com.pixelspot.ccms.player.data.model.HandshakeResponse
 import com.pixelspot.ccms.player.data.model.HeartbeatRequest
@@ -41,4 +43,15 @@ interface PlayerApiService {
      */
     @POST("api/v1/player/heartbeat")
     suspend fun heartbeat(@Body request: HeartbeatRequest): Response<HeartbeatResponse>
+
+    /**
+     * Anonymous pairing claim for CMS-mode screens. Player submits the
+     * 6-character code the owner typed into the dashboard plus a device
+     * fingerprint; server responds with the persistent screenId + apiKey
+     * that the player then stores in SharedPreferences.
+     */
+    @POST("api/v1/cms/pairing/claim")
+    suspend fun claimPairingCode(
+        @Body request: ClaimPairingCodeRequest
+    ): Response<ApiResponse<ClaimPairingCodeResponse>>
 }

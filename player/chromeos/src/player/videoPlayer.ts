@@ -97,4 +97,47 @@ export class VideoPlayer {
     this.videoA.removeAttribute('src');
     this.videoB.removeAttribute('src');
   }
+
+  // ── Remote-control API (used by RemoteCommandHandler) ──
+
+  pause(): void {
+    this.activeVideo.pause();
+  }
+
+  resume(): void {
+    this.activeVideo.play().catch(console.error);
+  }
+
+  skipNext(): void {
+    this.playItem(this.currentIndex + 1);
+  }
+
+  skipPrevious(): void {
+    const prev = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
+    this.playItem(prev);
+  }
+
+  jumpTo(index: number): void {
+    if (index < 0 || index >= this.playlist.length) {
+      throw new Error(`Invalid index ${index}`);
+    }
+    this.playItem(index);
+  }
+
+  restart(): void {
+    this.playItem(0);
+  }
+
+  setVolume(volume: number): void {
+    // Accept either 0-1 or 0-100
+    const v = volume > 1 ? volume / 100 : volume;
+    const clamped = Math.max(0, Math.min(1, v));
+    this.videoA.volume = clamped;
+    this.videoB.volume = clamped;
+    // Unmute if volume > 0 so the user actually hears it
+    if (clamped > 0) {
+      this.videoA.muted = false;
+      this.videoB.muted = false;
+    }
+  }
 }

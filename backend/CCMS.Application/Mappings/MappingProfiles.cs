@@ -17,6 +17,7 @@ public class MappingProfiles : Profile
         // User mappings
         CreateMap<User, UserDto>()
             .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()))
+            .ForMember(dest => dest.AccountType, opt => opt.MapFrom(src => src.AccountType.ToString()))
             .ForMember(dest => dest.AccountVisibility, opt => opt.MapFrom(src => src.AccountVisibility.ToString()));
         
         // Screen mappings

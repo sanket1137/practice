@@ -549,6 +549,37 @@ class CCMSPlayer:
                         logger.warning(f"  Screen requires verification (status: {self.verification_status})")
                         return True  # Handshake succeeded but player needs to enter verification mode
                     
+                    # CMS-mode playlist takes precedence over marketplace playlist when
+                    # the screen owner is a CmsOwner. The server emits `cmsPlaylist`
+                    # only for those screens; marketplace screens still get `playlist`.
+                    cms_playlist = data.get("cmsPlaylist")
+                    screen_mode = data.get("screenMode")
+                    if cms_playlist and isinstance(cms_playlist, dict):
+                        cms_items = cms_playlist.get("items", []) or []
+                        translated = []
+                        for idx, item in enumerate(cms_items):
+                            asset = item.get("mediaAsset") or {}
+                            url = asset.get("fileUrl")
+                            if not url:
+                                continue
+                            translated.append({
+                                "slotNumber": idx + 1,
+                                "fileUrl": url,
+                                "ownerContentId": asset.get("id"),
+                                "mimeType": asset.get("mimeType"),
+                                "durationSeconds": item.get("durationSeconds") or asset.get("durationSeconds"),
+                                "isFillerContent": False,
+                                "source": "cms",
+                            })
+                        self.playlist = translated
+                        logger.info(
+                            f"[OK] CMS playlist received (mode={screen_mode}): "
+                            f"{len(self.playlist)} items, version={cms_playlist.get('version')}"
+                        )
+                        sync_interval = data.get("syncIntervalMinutes", 10)
+                        Config.SYNC_INTERVAL_MINUTES = sync_interval
+                        return True
+
                     playlist_data = data.get("playlist")
                     if playlist_data and isinstance(playlist_data, dict):
                         self.playlist = playlist_data.get("playlist", [])
@@ -1626,6 +1657,12 @@ class CCMSPlayer:
             logger.info("Stopping playback...")
             self.mpv_player.stop()
             self.mpv_player.cleanup()
+            try:
+                cms = getattr(self, "cms_client", None)
+                if cms is not None:
+                    cms.stop()
+            except Exception:
+                pass
 
 
     
@@ -1715,6 +1752,28 @@ class CCMSPlayer:
             self.connect_signalr()
         except Exception as e:
             logger.warning(f"SignalR connection failed (will continue with HTTP only): {e}")
+
+        # Connect to CMS control hub (for CmsOwner-owned screens; marketplace
+        # screens simply never receive commands). Non-fatal if it fails.
+        try:
+            from cms_control_client import CmsControlClient
+            from remote_command_handler import RemoteCommandHandler
+
+            self.cms_client = CmsControlClient(
+                api_url=self.api_url,
+                screen_id=self.screen_id,
+                api_key=self.api_key,
+            )
+            self.cms_command_handler = RemoteCommandHandler(
+                mpv_player=self.mpv_player,
+                cms_client=self.cms_client,
+                on_force_sync=lambda: self.handshake(),
+            )
+            self.cms_client.set_on_command(self.cms_command_handler.handle)
+            self.cms_client.set_on_playlist_updated(lambda _evt: self.handshake())
+            self.cms_client.connect()
+        except Exception as e:
+            logger.warning(f"CMS hub connection failed (non-fatal): {e}")
         
         
         # Initialize WebRTC streaming if enabled

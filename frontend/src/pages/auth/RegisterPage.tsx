@@ -31,6 +31,12 @@ const registerSchema = z.object({
         .max(10, 'Phone number must be 10 digits')
         .regex(/^[6-9]\d{9}$/, 'Enter a valid Indian mobile number'),
     role: z.enum(['ScreenOwner', 'Advertiser']),
+    accountType: z.enum(['MediaOwner', 'CmsOwner', 'Advertiser']),
+}).refine((d) => (d.role === 'ScreenOwner'
+    ? d.accountType === 'MediaOwner' || d.accountType === 'CmsOwner'
+    : d.accountType === 'Advertiser'), {
+    message: 'Account type does not match role',
+    path: ['accountType'],
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ['confirmPassword'],
@@ -51,6 +57,7 @@ export default function RegisterPage({ mode = 'public' }: RegisterPageProps) {
         control,
         handleSubmit,
         getValues,
+        setValue,
         formState: { errors },
     } = useForm<RegisterFormData>({
         resolver: zodResolver(registerSchema),
@@ -62,6 +69,7 @@ export default function RegisterPage({ mode = 'public' }: RegisterPageProps) {
             lastName: '',
             phoneNumber: '',
             role: isPrivateMode ? 'ScreenOwner' : 'Advertiser',
+            accountType: isPrivateMode ? 'MediaOwner' : 'Advertiser',
         },
     });
 
@@ -263,7 +271,7 @@ export default function RegisterPage({ mode = 'public' }: RegisterPageProps) {
                             </Grid>
                             <Grid size={12}>
                                 <Controller
-                                    name="role"
+                                    name="accountType"
                                     control={control}
                                     render={({ field }) => (
                                         <TextField
@@ -271,13 +279,21 @@ export default function RegisterPage({ mode = 'public' }: RegisterPageProps) {
                                             fullWidth
                                             select
                                             label="Account Type"
-                                            error={!!errors.role}
-                                            helperText={errors.role?.message || (isPrivateMode ? 'Locked to Screen Owner for private registration' : 'Select your account type')}
+                                            value={field.value}
+                                            onChange={(e) => {
+                                                const v = e.target.value as RegisterFormData['accountType'];
+                                                field.onChange(v);
+                                                // Keep role in sync with the chosen account type
+                                                setValue('role', v === 'Advertiser' ? 'Advertiser' : 'ScreenOwner', { shouldValidate: true });
+                                            }}
+                                            error={!!errors.accountType}
+                                            helperText={errors.accountType?.message || (isPrivateMode ? 'Locked to DOOH screen owner for private registration' : 'Choose the type of account that best describes you')}
                                             required
                                             disabled={isPrivateMode}
                                         >
-                                            <MenuItem value="Advertiser">Advertiser</MenuItem>
-                                            <MenuItem value="ScreenOwner">Screen Owner</MenuItem>
+                                            <MenuItem value="Advertiser">Advertiser — run ad campaigns on public screens</MenuItem>
+                                            <MenuItem value="MediaOwner">DOOH Screen Owner — monetise public screens via the marketplace</MenuItem>
+                                            <MenuItem value="CmsOwner">CMS Screen Owner — self-manage private screens (no marketplace)</MenuItem>
                                         </TextField>
                                     )}
                                 />

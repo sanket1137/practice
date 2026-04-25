@@ -36,5 +36,42 @@ data class HandshakeResponse(
     @SerializedName("deviceBindingStatus") val deviceBindingStatus: String?,
     @SerializedName("verificationMode") val verificationMode: Boolean = false,
     @SerializedName("verificationStatus") val verificationStatus: String? = null,
-    @SerializedName("qrChallengeUrl") val qrChallengeUrl: String? = null
+    @SerializedName("qrChallengeUrl") val qrChallengeUrl: String? = null,
+    // CMS-mode fields (populated only when screen owner's AccountType == CmsOwner)
+    @SerializedName("cmsPlaylist") val cmsPlaylist: CmsPlaylistDto? = null,
+    @SerializedName("screenMode") val screenMode: String? = null
+)
+
+/** Mirrors backend CmsPlaylistDto for player consumption. */
+data class CmsPlaylistDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("screenId") val screenId: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("playlistType") val playlistType: String,
+    @SerializedName("version") val version: Int,
+    @SerializedName("isDefault") val isDefault: Boolean,
+    @SerializedName("lastPublishedAt") val lastPublishedAt: String?,
+    @SerializedName("items") val items: List<CmsPlaylistItemDto> = emptyList()
+)
+
+data class CmsPlaylistItemDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("mediaAssetId") val mediaAssetId: String,
+    @SerializedName("itemType") val itemType: String,
+    @SerializedName("order") val order: Int,
+    @SerializedName("durationSeconds") val durationSeconds: Int?,
+    @SerializedName("mediaAsset") val mediaAsset: CmsMediaAssetDto?
+)
+
+data class CmsMediaAssetDto(
+    @SerializedName("id") val id: String,
+    @SerializedName("originalName") val originalName: String,
+    @SerializedName("mimeType") val mimeType: String,
+    @SerializedName("sizeBytes") val sizeBytes: Long,
+    @SerializedName("fileUrl") val fileUrl: String,
+    @SerializedName("thumbnailUrl") val thumbnailUrl: String?,
+    @SerializedName("width") val width: Int?,
+    @SerializedName("height") val height: Int?,
+    @SerializedName("durationSeconds") val durationSeconds: Int?,
+    @SerializedName("isReady") val isReady: Boolean
 )

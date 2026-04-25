@@ -99,4 +99,15 @@
         android:focusable="true"
         android:nextFocusUp="@+id/api_key_input" />
 
+    <!-- Pair via CMS code (for CMS-mode screens) -->
+    <Button
+        android:id="@+id/pair_code_button"
+        android:layout_width="400dp"
+        android:layout_height="wrap_content"
+        android:text="Have a pairing code?"
+        android:textSize="14sp"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="#6366f1"
+        android:focusable="true" />
+
 </LinearLayout>

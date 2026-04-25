@@ -30,6 +30,36 @@ export interface PlaylistResponse {
   slotsPerFrame: number;
 }
 
+export interface CmsMediaAssetDto {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  fileUrl: string;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+  isReady: boolean;
+}
+
+export interface CmsPlaylistItemDto {
+  id: string;
+  mediaAssetId: string;
+  itemType: string;
+  order: number;
+  durationSeconds: number | null;
+  mediaAsset: CmsMediaAssetDto | null;
+}
+
+export interface CmsPlaylistDto {
+  id: string;
+  screenId: string;
+  name: string;
+  playlistType: string;
+  version: number;
+  isDefault: boolean;
+  lastPublishedAt: string | null;
+  items: CmsPlaylistItemDto[];
+}
+
 export interface HandshakeResponse {
   success: boolean;
   message: string | null;
@@ -46,6 +76,15 @@ export interface HandshakeResponse {
   verificationMode: boolean;
   verificationStatus: string | null;
   qrChallengeUrl: string | null;
+  // CMS-mode fields (populated only for CmsOwner screens)
+  cmsPlaylist: CmsPlaylistDto | null;
+  screenMode: string | null;
+}
+
+export interface ClaimPairingCodeResponse {
+  screenId: string;
+  apiKey: string;
+  screenName: string | null;
 }
 
 interface SyncImpression {
@@ -135,4 +174,33 @@ export class PlayerApi {
       return false;
     }
   }
+}
+
+/**
+ * Claim a 6-character CMS pairing code. Anonymous endpoint — no existing
+ * credentials required. On success the caller should persist the returned
+ * { screenId, apiKey } into PlayerConfig and restart the handshake flow.
+ */
+export async function claimPairingCode(
+  serverUrl: string,
+  code: string,
+  deviceFingerprint: string
+): Promise<ClaimPairingCodeResponse> {
+  const baseUrl = serverUrl.replace(/\/+$/, '');
+  const res = await fetch(`${baseUrl}/api/v1/cms/pairing/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code,
+      deviceFingerprint,
+      deviceModel: 'chromeos',
+      osVersion: navigator.userAgent,
+      appVersion: '1.0.0-chromeos',
+    }),
+  });
+  const envelope = (await res.json()) as ApiResponse<ClaimPairingCodeResponse>;
+  if (!res.ok || !envelope.success || !envelope.data) {
+    throw new Error(envelope.message || `HTTP ${res.status}`);
+  }
+  return envelope.data;
 }

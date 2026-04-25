@@ -43,6 +43,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<ScreenVerification> ScreenVerifications => Set<ScreenVerification>();
     public DbSet<VisibilityChangeRequest> VisibilityChangeRequests => Set<VisibilityChangeRequest>();
 
+    // ── CMS mode ──────────────────────────────────────────────────────────
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+    public DbSet<Playlist> Playlists => Set<Playlist>();
+    public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
+    public DbSet<PairingCode> PairingCodes => Set<PairingCode>();
+    public DbSet<RemoteCommand> RemoteCommands => Set<RemoteCommand>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -912,6 +919,139 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.AdminReviewedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── CMS mode: MediaAsset ──────────────────────────────────────────
+        modelBuilder.Entity<MediaAsset>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Sha256).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.OriginalName).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.MimeType).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.FileUrl).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.ThumbnailUrl).HasMaxLength(1000);
+
+            // Dedupe: same owner cannot have two rows for the same file content.
+            entity.HasIndex(e => new { e.OwnerId, e.Sha256 })
+                .IsUnique()
+                .HasDatabaseName("IX_MediaAssets_Owner_Sha256");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── CMS mode: Playlist ────────────────────────────────────────────
+        modelBuilder.Entity<Playlist>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.PlaylistType).HasConversion<int>();
+
+            entity.HasIndex(e => e.ScreenId).HasDatabaseName("IX_Playlists_ScreenId");
+
+            entity.HasOne(e => e.Screen)
+                .WithMany(s => s.Playlists)
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── CMS mode: PlaylistItem ────────────────────────────────────────
+        modelBuilder.Entity<PlaylistItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ItemType).HasConversion<int>();
+
+            entity.HasIndex(e => new { e.PlaylistId, e.Order })
+                .HasDatabaseName("IX_PlaylistItems_Playlist_Order");
+
+            entity.HasOne(e => e.Playlist)
+                .WithMany(p => p.Items)
+                .HasForeignKey(e => e.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.MediaAsset)
+                .WithMany(m => m.PlaylistItems)
+                .HasForeignKey(e => e.MediaAssetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── CMS mode: PairingCode ─────────────────────────────────────────
+        modelBuilder.Entity<PairingCode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(12);
+            entity.Property(e => e.PlayerFingerprint).HasMaxLength(256);
+
+            entity.HasIndex(e => e.Code)
+                .IsUnique()
+                .HasDatabaseName("IX_PairingCodes_Code");
+            entity.HasIndex(e => e.CreatedByUserId)
+                .HasDatabaseName("IX_PairingCodes_CreatedByUserId");
+
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── CMS mode: RemoteCommand ───────────────────────────────────────
+        modelBuilder.Entity<RemoteCommand>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CommandType).HasConversion<int>();
+            entity.Property(e => e.Status).HasConversion<int>();
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+
+            entity.HasIndex(e => new { e.ScreenId, e.IssuedAt })
+                .HasDatabaseName("IX_RemoteCommands_Screen_IssuedAt");
+            entity.HasIndex(e => e.Status)
+                .HasDatabaseName("IX_RemoteCommands_Status");
+
+            entity.HasOne(e => e.Screen)
+                .WithMany(s => s.RemoteCommands)
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.IssuedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.IssuedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── CMS mode: Screen.DefaultPlaylist ──────────────────────────────
+        modelBuilder.Entity<Screen>(entity =>
+        {
+            entity.Property(e => e.DisplayType).HasConversion<int>();
+            entity.Property(e => e.LocationTag).HasMaxLength(200);
+
+            entity.HasOne(e => e.DefaultPlaylist)
+                .WithMany()
+                .HasForeignKey(e => e.DefaultPlaylistId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── CMS mode: User.AccountType ────────────────────────────────────
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.Property(e => e.AccountType).HasConversion<int>();
+            entity.HasIndex(e => e.AccountType).HasDatabaseName("IX_Users_AccountType");
         });
     }
 

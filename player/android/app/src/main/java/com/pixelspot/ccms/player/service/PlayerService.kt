@@ -15,12 +15,14 @@ import com.pixelspot.ccms.player.CcmsPlayerApp
 import com.pixelspot.ccms.player.MainActivity
 import com.pixelspot.ccms.player.R
 import com.pixelspot.ccms.player.config.PlayerConfig
+import com.pixelspot.ccms.player.data.remote.CmsControlHubClient
 import com.pixelspot.ccms.player.data.remote.SignalRClient
 import com.pixelspot.ccms.player.data.repository.ImpressionRepository
 import com.pixelspot.ccms.player.data.repository.PlayerRepository
 import com.pixelspot.ccms.player.player.ExoPlayerManager
 import com.pixelspot.ccms.player.player.PlaylistManager
 import com.pixelspot.ccms.player.player.PlayerStateManager
+import com.pixelspot.ccms.player.player.RemoteCommandHandler
 import com.pixelspot.ccms.player.security.DeviceFingerprint
 import com.pixelspot.ccms.player.streaming.StreamingSignalRClient
 import com.pixelspot.ccms.player.streaming.WebRTCStreamer
@@ -81,6 +83,8 @@ class PlayerService : Service() {
     @Inject lateinit var deviceFingerprint: DeviceFingerprint
     @Inject lateinit var webRTCStreamer: WebRTCStreamer
     @Inject lateinit var streamingSignalRClient: StreamingSignalRClient
+    @Inject lateinit var cmsControlHubClient: CmsControlHubClient
+    @Inject lateinit var remoteCommandHandler: RemoteCommandHandler
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var wakeLock: PowerManager.WakeLock? = null
@@ -237,6 +241,26 @@ class PlayerService : Service() {
                 screenId = screenId,
                 deviceId = fingerprint.take(16)
             )
+
+            // 4a. Connect CMS control hub for remote commands (CMS-mode screens)
+            cmsControlHubClient.connect(
+                serverUrl = playerConfig.serverUrl!!,
+                screenId = screenId,
+                apiKey = apiKey
+            )
+            launch {
+                cmsControlHubClient.commandReceived.collect { cmd ->
+                    Log.i(TAG, "CMS command received: ${cmd.commandType}")
+                    remoteCommandHandler.handle(cmd)
+                }
+            }
+            launch {
+                cmsControlHubClient.playlistUpdated.collect { evt ->
+                    Log.i(TAG, "CMS playlist_updated — triggering handshake refresh")
+                    // Re-handshake to pick up new CMS playlist; safe to run concurrently
+                    runCatching { playerRepository.handshake() }
+                }
+            }
 
             // 5. Initialize WebRTC live streaming (in background, non-blocking)
             launch(Dispatchers.IO) {
@@ -646,6 +670,7 @@ class PlayerService : Service() {
         webRTCStreamer.release()
         streamingSignalRClient.disconnect()
         signalRClient.disconnect()
+        cmsControlHubClient.disconnect()
         exoPlayerManager.release()
         releaseWakeLock()
 

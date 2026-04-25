@@ -10,6 +10,14 @@ public class User : BaseEntity
     public string LastName { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
     public UserRole Role { get; set; }
+
+    /// <summary>
+    /// Top-level product discriminator chosen at registration. Determines
+    /// whether the user lands in the CMS dashboard or the marketplace.
+    /// Backward compat: existing users are backfilled to MediaOwner (marketplace).
+    /// </summary>
+    public AccountType AccountType { get; set; } = AccountType.MediaOwner;
+
     public string? ProfileImageUrl { get; set; }
     public bool IsEmailVerified { get; set; }
     public bool IsPhoneVerified { get; set; }
