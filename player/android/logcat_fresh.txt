@@ -1,4 +1,0 @@
---------- beginning of system
-02-18 09:18:46.068  5834  6302 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x4 cmp=com.pixelspot.ccms.player/.MainActivity} with LAUNCH_MULTIPLE from uid 2000 result code=-92
---------- beginning of main
-02-18 09:18:46.504  6546  6546 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.castauth.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsDirectBootAwareApiService }

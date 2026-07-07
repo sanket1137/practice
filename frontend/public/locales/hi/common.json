@@ -1,0 +1,69 @@
+﻿{
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "screens": "स्क्रीन",
+    "campaigns": "अभियान",
+    "bookings": "बुकिंग",
+    "analytics": "एनालिटिक्स",
+    "wallet": "वॉलेट",
+    "payouts": "भुगतान",
+    "notifications": "सूचनाएं",
+    "settings": "सेटिंग्स",
+    "admin": "एडमिन"
+  },
+  "common": {
+    "loading": "लोड हो रहा है...",
+    "error": "कुछ गलत हो गया",
+    "retry": "पुनः प्रयास करें",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "view": "देखें",
+    "confirm": "पुष्टि करें",
+    "back": "वापस",
+    "next": "अगला",
+    "submit": "सबमिट करें",
+    "search": "खोजें",
+    "filter": "फ़िल्टर",
+    "clear": "साफ़ करें",
+    "noData": "कोई डेटा नहीं मिला",
+    "active": "सक्रिय",
+    "inactive": "निष्क्रिय",
+    "pending": "लंबित",
+    "approved": "स्वीकृत",
+    "rejected": "अस्वीकृत",
+    "cancelled": "रद्द"
+  },
+  "currency": {
+    "symbol": "₹",
+    "locale": "hi-IN"
+  },
+  "analytics": {
+    "title": "एनालिटिक्स",
+    "impressions": "इम्प्रेशन",
+    "fullPlays": "पूर्ण प्ले",
+    "playRate": "प्ले दर",
+    "today": "आज",
+    "last7Days": "पिछले 7 दिन",
+    "last30Days": "पिछले 30 दिन",
+    "last90Days": "पिछले 90 दिन",
+    "thisYear": "इस साल",
+    "allTime": "सभी समय"
+  },
+  "screens": {
+    "title": "स्क्रीन",
+    "addScreen": "स्क्रीन जोड़ें",
+    "screenName": "स्क्रीन नाम",
+    "location": "स्थान",
+    "status": "स्थिति"
+  },
+  "bookings": {
+    "title": "बुकिंग",
+    "newBooking": "नई बुकिंग",
+    "startDate": "प्रारंभ तिथि",
+    "endDate": "समाप्ति तिथि",
+    "status": "स्थिति",
+    "amount": "राशि"
+  }
+}

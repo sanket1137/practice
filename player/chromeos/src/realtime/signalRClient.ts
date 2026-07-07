@@ -9,6 +9,7 @@ export interface SignalRCallbacks {
   onPlaylistUpdated: () => void;
   onSlotStatusChanged: (slotNumber: number, status: string) => void;
   onSyncModeChanged: (mode: string) => void;
+  onRemoteCommand: (commandType: string, payload: unknown) => void;
   onConnectionStateChanged: (connected: boolean) => void;
 }
 
@@ -77,6 +78,18 @@ export class SignalRClient {
     this.connection.on('SetSyncMode', (mode: string) => {
       console.log(`[SignalR] SetSyncMode: ${mode}`);
       this.callbacks.onSyncModeChanged(mode);
+    });
+
+    this.connection.on('RemoteCommand', (commandType: string, payloadJson: string | null) => {
+      let payload: unknown = null;
+      if (payloadJson) {
+        try {
+          payload = JSON.parse(payloadJson);
+        } catch {
+          payload = payloadJson;
+        }
+      }
+      this.callbacks.onRemoteCommand(commandType, payload);
     });
 
     try {

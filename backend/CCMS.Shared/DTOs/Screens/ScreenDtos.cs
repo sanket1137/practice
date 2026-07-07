@@ -40,6 +40,24 @@ public class ScreenDto
     // Images
     public List<ScreenImageDto> Images { get; set; } = new();
     public ScreenImageDto? PrimaryImage { get; set; }
+
+    // Display characteristics (Phase 2)
+    /// <summary>Indoor | Outdoor | SemiIndoor</summary>
+    public string DisplayType { get; set; } = "Indoor";
+    /// <summary>Landscape | Portrait</summary>
+    public string Orientation { get; set; } = "Landscape";
+    /// <summary>Verified | Pending | Rejected</summary>
+    public string? VerificationStatus { get; set; }
+    /// <summary>Distance from a reference lat/lng when supplied in the search request. Null when no reference given.</summary>
+    public double? DistanceKm { get; set; }
+    /// <summary>Cost per 1000 impressions (PricePerSlot / ImpressionsPerSlot * 1000). Null when ImpressionsPerSlot is 0.</summary>
+    public decimal? Cpm { get; set; }
+    /// <summary>Average operating hours per day across the weekly schedule.</summary>
+    public double? AverageOperatingHoursPerDay { get; set; }
+    /// <summary>Display screen owner name (organization / individual). Limited fields, never email/phone.</summary>
+    public string? OwnerDisplayName { get; set; }
+    /// <summary>Whether the screen owner is verified on the platform.</summary>
+    public bool OwnerIsVerified { get; set; }
 }
 
 public class CreateScreenRequest
@@ -96,6 +114,27 @@ public class AddressDto
     public string State { get; set; } = string.Empty;
     public string Country { get; set; } = string.Empty;
     public string PostalCode { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Payload sent when upgrading a CMS screen to CCMS (MediaOwner marketplace) mode.
+/// Provides the marketplace-required fields that CMS registration skips.
+/// </summary>
+public class UpgradeScreenToMarketplaceRequest
+{
+    public decimal PricePerSlot { get; set; }
+    public AddressDto Location { get; set; } = new();
+    public decimal Latitude { get; set; }
+    public decimal Longitude { get; set; }
+    public string Timezone { get; set; } = "Asia/Kolkata";
+    public OperatingScheduleDto Schedule { get; set; } = new();
+    public int TimeFrameMinutes { get; set; } = 10;
+    public int SlotsPerFrame { get; set; } = 6;
+}
+
+public class UpdateScreenSettingsRequest
+{
+    public bool AutoApprovalEnabled { get; set; }
 }
 
 public class DayScheduleDto
@@ -168,6 +207,30 @@ public class MasterTagDto
     public string? IconName { get; set; }
     public string? ColorCode { get; set; }
     public int Priority { get; set; }
+
+    /// <summary>
+    /// Number of currently active (verified, public, not-deleted) screens carrying this tag.
+    /// Populated only when the catalog endpoint is called with includeScreenCounts=true.
+    /// </summary>
+    public int? ScreenCount { get; set; }
+}
+
+/// <summary>
+/// Location autocomplete suggestion sourced from active marketplace screens.
+/// </summary>
+public class LocationSuggestionDto
+{
+    /// <summary>Human-readable label (e.g. "Mumbai, Maharashtra").</summary>
+    public string Label { get; set; } = string.Empty;
+    /// <summary>"city" or "state".</summary>
+    public string Kind { get; set; } = "city";
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public int ScreenCount { get; set; }
+    /// <summary>Geographic centroid (average lat) of screens in this city/state. Used by frontend to auto-anchor the map.</summary>
+    public decimal? CenterLatitude { get; set; }
+    /// <summary>Geographic centroid (average lng) of screens in this city/state.</summary>
+    public decimal? CenterLongitude { get; set; }
 }
 
 /// <summary>
@@ -277,7 +340,7 @@ public class SearchScreensRequest
     public int PageSize { get; set; } = 20;
     
     /// <summary>
-    /// Sort by field: "name", "price", "distance", "created"
+    /// Sort by field: "name", "price", "distance", "impressions", "cpm", "created"
     /// </summary>
     public string? SortBy { get; set; }
     
@@ -285,6 +348,47 @@ public class SearchScreensRequest
     /// Sort direction: "asc" or "desc"
     /// </summary>
     public string? SortDirection { get; set; }
+
+    // ---------- Phase 2 advertiser-discovery filters ----------
+
+    /// <summary>Map viewport bounding box. When supplied, screens must fall inside the box. Combine with radius for a tighter filter.</summary>
+    public BoundingBox? BoundingBox { get; set; }
+
+    /// <summary>Indoor | Outdoor | SemiIndoor (case-insensitive). Null = any.</summary>
+    public string? DisplayType { get; set; }
+
+    /// <summary>Landscape | Portrait (case-insensitive). Null = any.</summary>
+    public string? Orientation { get; set; }
+
+    /// <summary>Minimum resolution width in pixels.</summary>
+    public int? MinResolutionWidth { get; set; }
+
+    /// <summary>Minimum resolution height in pixels.</summary>
+    public int? MinResolutionHeight { get; set; }
+
+    /// <summary>Minimum daily total impressions.</summary>
+    public int? MinDailyImpressions { get; set; }
+
+    /// <summary>Maximum daily total impressions.</summary>
+    public int? MaxDailyImpressions { get; set; }
+
+    /// <summary>Minimum CPM (price per 1000 impressions).</summary>
+    public decimal? MinCpm { get; set; }
+
+    /// <summary>Maximum CPM (price per 1000 impressions).</summary>
+    public decimal? MaxCpm { get; set; }
+
+    /// <summary>Screen must have at least one free slot on every day inside [AvailableFrom, AvailableTo]. Inclusive.</summary>
+    public DateOnly? AvailableFrom { get; set; }
+
+    /// <summary>See AvailableFrom.</summary>
+    public DateOnly? AvailableTo { get; set; }
+
+    /// <summary>If true, only screens currently reporting IsOnline=true are returned.</summary>
+    public bool? OnlineOnly { get; set; }
+
+    /// <summary>Hour-of-day (0-23, local-to-screen timezone). Screen must be operating at that hour on at least one day of the week.</summary>
+    public int? OperatingAtHour { get; set; }
 }
 
 /// <summary>

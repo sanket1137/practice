@@ -9,20 +9,28 @@ import { useAuthStore } from '../../store/authStore';
 import {
     getProfile, updateProfile, updateVisibility, updateBankAccount,
     deleteBankAccount, changePassword, uploadProfileImage,
+    getAccountTypeSwitchPreflight, switchAccountType,
 } from '../../services/profileApi';
 import type { UpdateProfileRequest, UpdateBankAccountRequest, ChangePasswordRequest } from '../../types/profile';
 import { useVisibilityRequest } from '../../hooks/useVisibilityRequest';
 import { useAccountVisibility } from '../../hooks/useAccountVisibility';
+import ScreenUpgradeWizard from '../../components/profile/ScreenUpgradeWizard';
+import type { ScreenUpgradeRequired } from '../../types/profile';
 
 export default function ProfileSettingsPage() {
     const queryClient = useQueryClient();
-    const { user } = useAuthStore();
+    const { user, updateUser } = useAuthStore();
     const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
     const [requestMessage, setRequestMessage] = useState('');
     const { isPrivate } = useAccountVisibility();
     const { request: visibilityRequest, isLoading: visibilityRequestLoading, submitRequest, isSubmitting } = useVisibilityRequest();
+
+    // Account-type switch state
+    const [switchTarget, setSwitchTarget] = useState<'MediaOwner' | 'CmsOwner' | null>(null);
+    const [upgradeScreens, setUpgradeScreens] = useState<ScreenUpgradeRequired[]>([]);
+    const [upgradeWizardOpen, setUpgradeWizardOpen] = useState(false);
 
     const { data: profile, isLoading } = useQuery({
         queryKey: ['profile'],
@@ -141,6 +149,31 @@ export default function ProfileSettingsPage() {
         onError: () => showError('Failed to upload image'),
     });
 
+    const preflightMutation = useMutation({
+        mutationFn: (target: 'MediaOwner' | 'CmsOwner') => getAccountTypeSwitchPreflight(target),
+        onSuccess: (data, target) => {
+            if (data.canSwitchNow) {
+                switchTypeMutation.mutate(target);
+            } else {
+                setUpgradeScreens(data.screensRequiringUpgrade);
+                setSwitchTarget(target);
+                setUpgradeWizardOpen(true);
+            }
+        },
+        onError: () => showError('Failed to check switch requirements'),
+    });
+
+    const switchTypeMutation = useMutation({
+        mutationFn: (target: 'MediaOwner' | 'CmsOwner') => switchAccountType(target),
+        onSuccess: (updatedProfile) => {
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+            updateUser({ accountType: updatedProfile.accountType });
+            showSuccess(`Switched to ${updatedProfile.accountType === 'MediaOwner' ? 'DOOH Marketplace (CCMS)' : 'Self-managed Signage (CMS)'}`);
+            setSwitchTarget(null);
+        },
+        onError: () => showError('Failed to switch account type'),
+    });
+
     if (isLoading) {
         return (
             <Box display="flex" justifyContent="center" py={4}>
@@ -151,7 +184,14 @@ export default function ProfileSettingsPage() {
 
     return (
         <Box>
-            <Typography variant="h4" fontWeight={700} mb={3}>Profile Settings</Typography>
+            <Card sx={{ mb: 3, borderRadius: 3 }}>
+                <CardContent>
+                    <Typography variant="h4" fontWeight={700} mb={0.5}>Profile Settings</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Manage your account, visibility mode, and operational preferences.
+                    </Typography>
+                </CardContent>
+            </Card>
 
             {successMsg && <Alert severity="success" sx={{ mb: 2 }}>{successMsg}</Alert>}
             {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
@@ -279,6 +319,12 @@ export default function ProfileSettingsPage() {
                                     <Divider sx={{ my: 2 }} />
                                     <Typography variant="subtitle2" mb={1}>Screen Visibility</Typography>
 
+                                    <Alert severity={isPrivate ? 'warning' : 'success'} sx={{ mb: 2 }}>
+                                        {isPrivate
+                                            ? 'Private mode is active. Marketplace bookings and payouts are hidden until approved for public visibility.'
+                                            : 'Public mode is active. Your screens are visible to advertisers in marketplace listings.'}
+                                    </Alert>
+
                                     {isPrivate ? (
                                         /* Private ScreenOwner — show request workflow */
                                         <Box>
@@ -384,6 +430,58 @@ export default function ProfileSettingsPage() {
                         </CardContent>
                     </Card>
                 </Grid>
+
+                {/* Account Type — Screen Owners only */}
+                {user?.role === 'ScreenOwner' && (
+                    <Grid size={{ xs: 12 }}>
+                        <Card>
+                            <CardContent>
+                                <Typography variant="h6" mb={1}>Account Mode</Typography>
+                                <Typography variant="body2" color="text.secondary" mb={2}>
+                                    Switch between self-managed signage (CMS) and the DOOH marketplace (CCMS).
+                                </Typography>
+
+                                <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
+                                    <Chip
+                                        label={profile?.accountType === 'CmsOwner' ? 'CMS — Self-managed Signage' : 'CCMS — DOOH Marketplace'}
+                                        color="primary"
+                                        variant="outlined"
+                                    />
+                                    {profile?.accountType === 'CmsOwner' ? (
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            onClick={() => preflightMutation.mutate('MediaOwner')}
+                                            disabled={preflightMutation.isPending || switchTypeMutation.isPending}
+                                        >
+                                            {preflightMutation.isPending || switchTypeMutation.isPending
+                                                ? 'Checking...'
+                                                : 'Switch to DOOH Marketplace (CCMS)'}
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="outlined"
+                                            size="small"
+                                            onClick={() => preflightMutation.mutate('CmsOwner')}
+                                            disabled={preflightMutation.isPending || switchTypeMutation.isPending}
+                                        >
+                                            {preflightMutation.isPending || switchTypeMutation.isPending
+                                                ? 'Switching...'
+                                                : 'Switch to Self-managed Signage (CMS)'}
+                                        </Button>
+                                    )}
+                                </Box>
+
+                                {profile?.accountType === 'CmsOwner' && (
+                                    <Alert severity="info" sx={{ mt: 2 }}>
+                                        Switching to CCMS allows advertisers to book slots on your screens.
+                                        Your existing screens will need pricing, address, and schedule details.
+                                    </Alert>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                )}
 
                 {/* Bank Account (Screen Owners only) */}
                 {user?.role === 'ScreenOwner' && (
@@ -511,6 +609,24 @@ export default function ProfileSettingsPage() {
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            {/* Screen upgrade wizard for CMS → CCMS switch */}
+            {upgradeWizardOpen && upgradeScreens.length > 0 && (
+                <ScreenUpgradeWizard
+                    open={upgradeWizardOpen}
+                    screens={upgradeScreens}
+                    onComplete={() => {
+                        setUpgradeWizardOpen(false);
+                        if (switchTarget) {
+                            switchTypeMutation.mutate(switchTarget);
+                        }
+                    }}
+                    onCancel={() => {
+                        setUpgradeWizardOpen(false);
+                        setSwitchTarget(null);
+                    }}
+                />
+            )}
         </Box>
     );
 }

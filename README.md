@@ -1,9 +1,9 @@
-# PixelSpot CCMS
-## Digital Out-of-Home Advertising Platform
+# PixelSpot CCMS — Unified Reference & Operations Guide
+## Single Source of Truth for Product, Engineering, and Operations
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
 ![Status](https://img.shields.io/badge/status-Production%20Ready-green.svg)
 
@@ -16,992 +16,235 @@
 ## 📖 Table of Contents
 
 1. [Executive Summary](#-executive-summary)
-2. [Features](#-features)
-3. [Architecture](#-architecture)
-4. [Tech Stack](#-tech-stack)
-5. [Quick Start](#-quick-start)
-6. [Deployment](#-deployment)
-7. [API Reference](#-api-reference)
-8. [Raspberry Pi Player Setup](#-raspberry-pi-player-setup)
-9. [Security Architecture](#-security-architecture)
-10. [Device Management](#-device-management)
-11. [Screen Tag Generation](#-screen-tag-generation)
-12. [Frontend Architecture](#-frontend-architecture)
-13. [Developer Guidelines](#-developer-guidelines)
-14. [Pricing & Business Model](#-pricing--business-model)
-15. [Infrastructure Costs](#-infrastructure-costs)
-16. [Current Limitations](#-current-limitations)
-17. [Future Roadmap](#-future-roadmap)
+2. [Business Model & Roles](#-business-model--roles)
+3. [Operations Guide](#-operations-guide)
+4. [As-Built Tech Stack & Architecture](#-as-built-tech-stack--architecture)
+5. [Domain Schema & Entities](#-domain-schema--entities)
+6. [Core Application Flows](#-core-application-flows)
+7. [Player Ecosystem & Real-Time Channels](#-player-ecosystem--real-time-channels)
+8. [UI/UX Design System Rules](#-uiux-design-system-rules)
+9. [Developer Quick Start & Deployment](#-developer-quick-start--deployment)
 
 ---
 
 ## 🎯 Executive Summary
 
-**PixelSpot CCMS** is a comprehensive Digital Out-of-Home (DOOH) advertising platform that connects screen owners with advertisers through intelligent, real-time content management.
+**PixelSpot CCMS** (Content & Campaign Management System) is a Digital Out-of-Home (DOOH) advertising SaaS platform. It acts as a **two-sided marketplace** that connects:
+- **Screen Owners (Media/Cms Owners)** — Individuals or businesses with physical digital displays (e.g. shops, malls, offices, lobbies, restaurants) looking to monetize their displays.
+- **Advertisers** — Brands, agencies, or local businesses who want to run video/image campaigns on those physical screens.
 
-### The Problem We Solve
+Traditional DOOH lacks tracking, automated scheduling, and trust. PixelSpot CCMS solves this by providing automated slot bookings, real-time verified playbacks (Proof-of-Play), transparent pricing, and live performance dashboards.
 
-| Traditional DOOH Issues | PixelSpot Solution |
-|------------------------|-------------------|
-| ❌ No proof of play | ✅ Real-time verified impressions |
-| ❌ Manual scheduling | ✅ Automated slot management |
-| ❌ Delayed reporting | ✅ Live dashboard with instant data |
-| ❌ Fragmented market | ✅ Unified marketplace |
-| ❌ Trust deficit | ✅ Tamper-proof impression tracking |
+---
+
+## 💰 Business Model & Roles
+
+### Slot-Based Advertising
+- **Schedules**: Each screen has **6 ad slots per hour** (10 minutes each).
+- **Bookings**: Advertisers book specific slots for a date range.
+- **Pricing**: Screen owners set a **price per slot per day**.
+- **Commission**: The platform captures a custom commission percentage per screen.
+
+### Revenue & Payout Settlement Flow
+```
+Advertiser pays ₹X for booking
+         │
+         ▼
+    Razorpay captures payment
+         │
+         ▼
+    Platform holds funds
+         │
+         ├── Advance payout to Screen Owner (50%) — after booking starts (Admin processes)
+         │
+         └── Final payout to Screen Owner (remaining) — after booking completes (minus commission)
+```
 
 ### User Roles
-
-| Role | Description | Capabilities |
-|------|-------------|--------------|
-| **Admin** | Platform administrator | Full access, user management, system config |
-| **Screen Owner** | Owns digital displays | Add screens, approve bookings, monitor playback |
-| **Advertiser** | Brands wanting to advertise | Create campaigns, book screens, track impressions |
+- **Admin**: Manages the marketplace, verifies physical screens, registers machines, processes payouts, resolves disputes, and monitors platform analytics.
+- **Screen Owner**: Registers physical screens, uploads fallback videos, configures pricing, manages schedules, self-reserves slots for personal content, and tracks earnings.
+- **Advertiser**: Discovers screens via the explorer, uploads ad creatives, configures campaigns, completes payments, and tracks impression metrics.
 
 ---
 
-## ✨ Features
+## 📋 Operations Guide
 
-### ✅ Core Features (Production Ready)
+### Screen Owner Operations
+1. **Screen Registration**: Input screen name, address, GPS coordinates, resolution, dimensions, timezone, default fallback video, and pricing. This generates a BCrypt-hashed API key for the hardware player.
+2. **Availability Calendar**: A day-by-day heatmap showing slot availability (6 slots per hour) where owners can accept bookings or self-reserve slots.
+3. **Health Monitor**: Tracks online/offline status, last seen heartbeats, and client versions.
+4. **Financials**: Dashboard detailing total earnings, pending payouts, bank details configuration, and PDF invoices (generated via QuestPDF).
 
-#### 🔐 Authentication & Security
-- JWT Authentication with Refresh Tokens
-- Role-Based Access Control (RBAC)
-- Email Verification
-- Phone OTP Verification (India - ComBirds)
-- Password Reset Flow
-- BCrypt Password Hashing
-- Secure API Keys for Players
-
-#### 📺 Screen Management
-- Screen Registration (location, hours, pricing)
-- Operating Hours Configuration (per day)
-- Timezone Support (IST, UTC, etc.)
-- Screen Images Upload (multiple)
-- Online/Offline Status Tracking (30s heartbeat)
-- Screen Tagging System (Auto + Manual)
-- Google Places API Integration for POI tagging
-- Public Screen Explorer
-
-#### 🎬 Campaign & Creative Management
-- Campaign CRUD with Status Management
-- Creative Upload (Video/Image)
-- File Size & Format Validation
-- Content Hash Verification
-- Multi-Creative per Campaign
-- Video Metadata Extraction
-
-#### 📅 Booking System
-- Slot-Based Booking (6 slots/hour, 10-min each)
-- Date Range Selection
-- Real-Time Slot Availability
-- Approval/Rejection Workflow
-- Automatic Price Calculation
-- Multi-Currency Support (INR, USD, EUR)
-- PDF Invoice Generation (QuestPDF)
-
-#### 🍓 Raspberry Pi Player
-- MPV Gapless Video Playback
-- Dual-Buffer Playback (seamless transitions)
-- Local Video Caching with Hash Verification
-- SignalR Real-Time Communication
-- Dynamic Playlist Sync
-- Default Video Fallback
-- Operating Hours Enforcement
-- Offline Impression Queue (SQLite)
-- Watchdog Auto-Recovery
-
-#### 📊 Analytics & Impressions
-- Real-Time Impression Tracking
-- Deduplication via SlotPlayKey
-- Batched Sync (10-minute intervals)
-- Daily Summary Aggregation
-- Campaign & Screen Reports
-
-#### 🔴 Real-Time Features (SignalR)
-- PlaybackHub (Ad start/complete events)
-- PlayerHub (Device management)
-- StreamingHub (WebRTC signaling)
-- Live Play Counter Widget
-- Instant Playlist Updates
-
-#### 📹 Live Streaming (WebRTC)
-- Screen Live Preview
-- Advertiser Stream Access Validation
-- 24-Hour Preview Access (before booking starts)
-- Multi-Viewer Support with Priority
-- TURN/STUN Server Configuration
-
-#### 🎨 UI/UX Enhancements
-- Server-Side Pagination
-- React Error Boundaries
-- Rate Limiting UI Feedback
-- Offline Mode Indicator
-- Email Notifications for Booking Status
+### Advertiser Operations
+1. **Explore & Filter**: Discover screens using map interfaces, location tags, and pricing parameters.
+2. **Campaign Creator**: Group creatives together and set target run dates.
+3. **Creative Review**: Upload video/image creatives. Video files undergo metadata checks (dimensions, length, compatibility).
+4. **Booking & Wallet**: Select screens, request slots, checkout via Razorpay, and view transaction history.
 
 ---
 
-## 🏗 Architecture
+## 🏗️ As-Built Tech Stack & Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         FRONTEND                                 │
-│            React 18 + TypeScript + Material UI + Vite            │
-│         (Dashboard, Booking UI, Live Monitor, Analytics)         │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         BACKEND API                              │
-│           ASP.NET Core 8 + SignalR + MediatR (CQRS)             │
-│      (REST APIs, WebSocket Hubs, Business Logic, Auth)          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-            ┌─────────────────┼─────────────────┐
-            ▼                 ▼                 ▼
-┌───────────────────┐ ┌──────────────┐ ┌───────────────────┐
-│    PostgreSQL     │ │ Cloudflare   │ │   Raspberry Pi    │
-│   (Neon Cloud)    │ │   R2 Storage │ │     Players       │
-│  (Data + Schema)  │ │  (Videos)    │ │ (MPV + Python)    │
-└───────────────────┘ └──────────────┘ └───────────────────┘
-```
+The system is fully built and deployed using the following modern stacks:
 
-### Project Structure
-
-```
-pixelspot-ccms/
-├── backend/                      # ASP.NET Core 8.0 Web API
-│   ├── CCMS.Api/                # Controllers, Hubs, Middleware
-│   ├── CCMS.Application/        # Business Logic (CQRS + MediatR)
-│   ├── CCMS.Domain/             # Entities, Enums, Value Objects
-│   ├── CCMS.Infrastructure/     # EF Core, Repositories, Services
-│   └── CCMS.Shared/             # DTOs, Common Models
-├── frontend/                     # React + TypeScript SPA
-│   └── src/
-│       ├── components/          # Reusable UI Components
-│       ├── hooks/               # Custom React Hooks
-│       ├── pages/               # Route Pages
-│       ├── services/            # API & WebSocket Services
-│       └── store/               # Zustand State Management
-├── player/                       # Raspberry Pi Python Player
-│   ├── ccms_player.py          # Main Entry Point
-│   ├── mpv_dual_player.py      # Gapless Video Playback
-│   ├── cache_manager.py        # Video Caching
-│   ├── impression_store.py     # Offline Queue
-│   └── config.json             # Player Configuration
-└── nginx/                        # Reverse Proxy Configuration
-```
+| Layer | Component details |
+|-------|-------------------|
+| **Backend Runtime** | **ASP.NET Core 8 + EF Core 8 + MediatR** (built as clean architecture) |
+| **Frontend** | **React 19 + TypeScript 5.9 + MUI 7.3.6 + Vite** (SPA dashboard) |
+| **Database** | **PostgreSQL (Neon-hosted)** |
+| **Real-time Engine** | **SignalR** (ASP.NET Core WebSockets for playback events, commands, WebRTC signaling) |
+| **Object Storage** | **Cloudflare R2 + Cloudflare CDN** (distributes ad creatives and default videos) |
+| **Server Infrastructure**| **Hetzner VPS + Docker Compose + Nginx** |
+| **Player Platforms** | **ChromeOS TypeScript PWA**, **Android Kotlin**, **Raspberry Pi Python** |
+| **Onboarding** | **QR-Code based Pairing** using JSON Web Tokens (JWT) |
 
 ---
 
-## 🛠 Tech Stack
+## 🗄️ Domain Schema & Entities
 
-### Backend
-| Technology | Purpose |
-|------------|---------|
-| ASP.NET Core 8.0 | Web API Framework |
-| Entity Framework Core 8 | ORM |
-| PostgreSQL (Neon) | Primary Database |
-| SignalR | Real-Time WebSockets |
-| MediatR | CQRS Pattern |
-| QuestPDF | Invoice Generation |
-| AWS SES | Email Service |
-| FluentValidation | Input Validation |
+The production database schema consists of these core entities:
 
-### Frontend
-| Technology | Purpose |
-|------------|---------|
-| React 18 | UI Framework |
-| TypeScript 5 | Type Safety |
-| Vite 5 | Build Tool |
-| Material UI v6 | Component Library |
-| TanStack Query | Server State |
-| Zustand | Client State |
-| notistack | Notifications |
-
-### Player
-| Technology | Purpose |
-|------------|---------|
-| Python 3.9+ | Runtime |
-| MPV | Gapless Video Playback |
-| python-socketio | SignalR Client |
-| SQLite | Offline Impression Queue |
-| aiohttp | Async HTTP |
-
-### Infrastructure
-| Service | Purpose |
-|---------|---------|
-| Hetzner VPS | Application Hosting |
-| Neon | PostgreSQL Database |
-| Cloudflare R2 | Video/Image Storage |
-| AWS SES | Transactional Emails |
-| ComBirds | SMS OTP (India) |
-| Let's Encrypt | SSL Certificates |
+- `User`: Base user identity with email, phone, and role.
+- `Screen`: Physical screen properties (GPS, operating hours, prices, API key, status).
+- `ScreenImage`: Verification photo attachments.
+- `ScreenTag` / `ScreenTagAssignment`: Geographic/demographic tags (150+ categories mapped via Google Places API).
+- `ScreenVerification`: Admin vetting log.
+- `PlayerPairingToken`: JWT pairing credentials used for secure QR onboardings.
+- `Campaign`: Advertiser campaign metadata.
+- `Booking`: Ties campaigns to screen slots, holding status and aspect ratio transforms.
+- `SlotAvailability`: Heatmap tracking allocated/free calendar days.
+- `Creative`: Ad asset containing verification statuses, durations, and file paths.
+- `Impression` / `ImpressionDailySummary`: Tracked plays mapped via `SlotPlayKey` to deduplicate events.
+- `Wallet` / `WalletTransaction`: Balance tracking for payments.
+- `Payout` / `BankAccount`: Media owner bank details and withdrawal records.
+- `RemoteCommand`: Command queue for realtime screen controls (CMS mode).
 
 ---
 
-## 🚀 Quick Start
+## 🔄 Core Application Flows
 
-### Prerequisites
-- Node.js 18+
-- .NET 8.0 SDK
-- PostgreSQL (or Neon account)
-- Docker (optional)
+### 1. Authentication Flow
+- **Access Tokens**: Short-lived JWT access tokens (15-minute expiry).
+- **Refresh Tokens**: Secure sliding-window refresh tokens (7-day expiry).
+- **Ownership Verification**: Resource authorization validated server-side on every request.
 
-### 1. Clone Repository
-```bash
-git clone https://github.com/your-org/pixelspot-ccms.git
-cd pixelspot-ccms
+### 2. Booking & Payment Lifecycle
+```
+Advertiser requests booking (Pending)
+         │
+         ▼ (Screen Owner reviews)
+┌─────────────────┐             ┌─────────────────┐
+│     Approved    │             │    Rejected     │
+└────────┬────────┘             └─────────────────┘
+         │ (Razorpay OrderCreated)
+         │ (24h Payment Window starts)
+         ├──────────────────────────────┐
+         ▼ (Payment Captured)           ▼ (No Payment / Cancelled)
+┌─────────────────┐             ┌─────────────────┐
+│     Active      │             │    Cancelled    │
+└────────┬────────┘             └─────────────────┘
+         │ (End Date reached)
+         ▼
+┌─────────────────┐
+│    Completed    │
+└─────────────────┘
 ```
 
-### 2. Backend Setup
-```bash
-cd backend/CCMS.Api
-cp appsettings.Development.example.json appsettings.Development.json
-# Edit appsettings.Development.json with your database connection
+- **Creative Fit Validation**: When uploading, creatives are checked for duration and size compatibility. Mismatched aspect ratios are assigned a fallback mode:
+  - Delta ≤ 5%: `SuggestedFitMode = Fit` (adds letterboxing/pillarboxing)
+  - Delta > 5%: `SuggestedFitMode = SmartAdaptive` (adds dynamic blurred backdrop)
+  - Fit modes are stored on the booking and handled directly by hardware players.
 
-dotnet restore
-dotnet ef database update
-dotnet run
-```
-
-**Backend runs on**: `http://localhost:5257`  
-**Swagger UI**: `http://localhost:5257/swagger`
-
-### 3. Frontend Setup
-```bash
-cd frontend
-npm install
-cp .env.example .env.local
-# Edit .env.local with your API URL
-
-npm run dev
-```
-
-**Frontend runs on**: `http://localhost:5173`
-
-### 4. Player Setup (Raspberry Pi / Local Testing)
-```bash
-cd player
-pip install -r requirements.txt
-# Edit config.json with your screen_id and api_url
-python ccms_player.py
-```
+- **Razorpay Integration & Webhooks**:
+  - The payment flow uses per-booking orders created on approval.
+  - A background Azure Function (`BookingStatusUpdateService`) runs daily to move approved bookings without payment to `Cancelled`, and active bookings past their end date to `Completed`.
+  - Refunds are handled back to the advertiser's origin payment capture account.
 
 ---
 
-## 🌐 Deployment
+## 📺 Player Ecosystem & Real-Time Channels
 
-### Production Architecture (Hetzner + Neon + R2)
+The system supports Raspberry Pi (Python/mpv), Android TV (Kotlin/ExoPlayer), and ChromeOS (PWA) players, maintaining real-time communication through SignalR.
 
 ```
-Internet
-    │
-    ▼
-┌─────────────────────────────────────────────┐
-│              HETZNER VPS                    │
-│  ┌─────────────────────────────────────┐   │
-│  │           NGINX                      │   │
-│  │   (SSL + Reverse Proxy)              │   │
-│  │   :80/:443                           │   │
-│  └──────────┬──────────────┬────────────┘   │
-│             │              │                │
-│      ┌──────▼──────┐ ┌─────▼─────┐         │
-│      │  Frontend   │ │  Backend  │         │
-│      │  (React)    │ │  (.NET)   │         │
-│      │  :3000      │ │  :5000    │         │
-│      └─────────────┘ └─────┬─────┘         │
-└────────────────────────────┼───────────────┘
-                             │
-              ┌──────────────┼──────────────┐
-              │              │              │
-       ┌──────▼──────┐ ┌─────▼─────┐ ┌──────▼──────┐
-       │    Neon     │ │     R2    │ │   AWS SES   │
-       │ PostgreSQL  │ │  Storage  │ │   Email     │
-       └─────────────┘ └───────────┘ └─────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                            ASP.NET Core 8 Backend                           │
+│  Controllers (REST) ──┐                                                     │
+│                        ├─► Services / MediatR ──► Postgres (Neon)           │
+│  SignalR Hubs ────────┘                                                     │
+│                                                                             │
+│  Hubs: /hubs/playback, /playerhub, /hubs/streaming, /hubs/cms               │
+└────────────────────────────────────────────────────────────────────────────┘
+        ▲                  ▲                  ▲                ▲
+        │ WS (SignalR)     │ REST + SignalR   │ WebRTC + WS    │ REST
+        │                  │                  │                │
+┌──────────────┐  ┌────────────────┐  ┌──────────────┐  ┌──────────────┐
+│  Pi Player   │  │ Android Player │  │ Owner Phone  │  │ Advertiser   │
+│  (Python)    │  │  (Kotlin)      │  │ (Dashboard)  │  │ Dashboard    │
+└──────────────┘  └────────────────┘  └──────────────┘  └──────────────┘
 ```
 
-### Deployment Commands
+### SignalR Channels
+1. **PlaybackHub (`/hubs/playback`)**: Emits playback start/complete telemetry (Proof-of-Play) and heartbeats. Batches plays and updates dashboard statistics in real time.
+2. **PlayerHub (`/playerhub`)**: Manages the handshake and sync of playlists. Calculates local timezone offset and clock drift using server time offsets.
+3. **StreamingHub (`/hubs/streaming`)**: Orchestrates WebRTC signaling for screen live previewing. Advertisers can stream a live preview of the physical screen during or 24 hours prior to a booking. Kicks out unauthorized streams via `AccessRevocationBackgroundService`.
+4. **CmsControlHub (`/hubs/cms`)**: Relays remote control commands (reboots, screenshot commands, manual updates) in CMS mode.
 
-```powershell
-# Setup server (first time)
-./deploy-production.ps1 -Command setup
-
-# Deploy application
-./deploy-production.ps1 -Command deploy
-
-# Setup SSL
-./deploy-production.ps1 -Command ssl
-
-# View logs
-./deploy-production.ps1 -Command logs
-```
-
-### Environment Variables
-
-```env
-# Database
-POSTGRES_CONNECTION_STRING=Host=...;Database=pixelspot_ccms;...
-
-# Storage (Cloudflare R2)
-R2_ACCOUNT_ID=your_account_id
-R2_ACCESS_KEY_ID=your_access_key
-R2_SECRET_ACCESS_KEY=your_secret_key
-R2_BUCKET_NAME=prod-ccms
-R2_PUBLIC_URL=https://pub-xxx.r2.dev
-
-# JWT
-JWT_SECRET_KEY=your_64_char_secret
-
-# Email (AWS SES)
-AWS_ACCESS_KEY_ID=your_aws_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret
-AWS_SES_REGION=ap-south-1
-AWS_SES_FROM_EMAIL=noreply@pixelspot.in
-
-# SMS (ComBirds - India)
-COMBIRDS_API_KEY=your_api_key
-COMBIRDS_SENDER_ID=PIXLSP
-COMBIRDS_TEMPLATE_ID=your_template_id
-```
+### Hardware Pairing & Screen Verification Flows
+1. **QR Pairing Flow (CCMS Onboarding)**:
+   - The unconfigured player boots up and displays a unique setup QR code containing a secure pairing token.
+   - The Screen Owner scans the QR code using their authenticated mobile dashboard, mapping the player to their screen.
+2. **Physical Screen Verification Flow (Admin)**:
+   - To prevent fraudulent location listings, an admin visits the screen physically.
+   - The admin scans the screen's operational verification QR. The server captures the GPS coordinates from the admin's device, matching it against the screen's registered coordinates.
 
 ---
 
-## 📡 API Reference
+## 🎨 UI/UX Design System Rules
 
-### Authentication
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/register` | POST | Register new user |
-| `/api/auth/login` | POST | Login, get tokens |
-| `/api/auth/refresh` | POST | Refresh access token |
-| `/api/auth/verify-email` | GET | Verify email |
-| `/api/auth/verify-phone` | POST | Verify phone OTP |
+PixelSpot follows Apple-inspired layout rules, favoring clarity, high readability, and clean visual structure.
 
-### Screens
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/screens` | GET | List all screens |
-| `/api/screens/paged` | GET | Paginated screens |
-| `/api/screens/{id}` | GET | Screen details |
-| `/api/screens` | POST | Create screen |
-| `/api/screens/{id}` | PUT | Update screen |
-| `/api/screens/{id}` | DELETE | Delete screen |
+### 1. Color System
+- **Backgrounds**: `--bg-primary` (`#FFFFFF` light / `#0A0A0A` dark), `--bg-secondary` (`#F5F5F7` / `#111111`).
+- **Typography**: `--text-primary` (`#1D1D1F` / `#F5F5F7`), `--text-secondary` (`#6E6E73` / `#A1A1A6`).
+- **Accents**: Blue (`#0071E3`), Green (`#30D158`), Purple (`#BF5AF2` for CCMS).
+- **Rule**: Accent/status colors must cover no more than 10% of any screen surface area. Dark Mode is mandatory for hardware Player UIs.
 
-### Bookings
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/bookings` | GET | List bookings |
-| `/api/bookings/paged` | GET | Paginated bookings |
-| `/api/bookings/{id}` | GET | Booking details |
-| `/api/bookings` | POST | Create booking |
-| `/api/bookings/{id}/approve` | POST | Approve booking |
-| `/api/bookings/{id}/reject` | POST | Reject booking |
-| `/api/bookings/{id}/invoice` | GET | Download PDF invoice |
-
-### Campaigns
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/campaigns` | GET | List campaigns |
-| `/api/campaigns/paged` | GET | Paginated campaigns |
-| `/api/campaigns/{id}` | GET | Campaign details |
-| `/api/campaigns` | POST | Create campaign |
-| `/api/creatives` | POST | Upload creative |
-
-### Player
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/player/handshake` | POST | Player authentication |
-| `/api/player/playlist/{screenId}` | GET | Get playlist |
-| `/api/player/impressions` | POST | Report impressions |
-
-### SignalR Hubs
-
-| Hub | Endpoint | Purpose |
-|-----|----------|---------|
-| PlaybackHub | `/hubs/playback` | Ad start/complete events |
-| PlayerHub | `/hubs/player` | Device management |
-| StreamingHub | `/hubs/streaming` | WebRTC signaling |
+### 2. Typography
+- **Primary Font**: `Inter` (variable sans-serif) for clean rendering at small sizes.
+- **Monospace**: `SF Mono` / `JetBrains Mono` for IDs, keys, hashes, and code blocks.
+- **Rule**: Never use more than 3 font sizes per layout. Bold weight is reserved exclusively for structural hierarchy.
 
 ---
 
-## 🍓 Raspberry Pi Player Setup
-
-### Hardware Requirements
-- Raspberry Pi 4 (4GB RAM recommended)
-- 32GB+ MicroSD Card
-- Stable Internet Connection
-- HDMI Display
-
-### Software Setup
-
-```bash
-# 1. Install dependencies
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y mpv python3-pip python3-venv git
-
-# 2. Clone player
-git clone https://github.com/your-org/pixelspot-player.git
-cd pixelspot-player
-
-# 3. Setup virtual environment
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 4. Configure player
-cp config.example.json config.json
-# Edit config.json with your screen_id and api_url
-
-# 5. Run player
-python ccms_player.py
-```
-
-### Auto-Start on Boot
-
-```bash
-# Create systemd service
-sudo nano /etc/systemd/system/ccms-player.service
-
-# Add:
-[Unit]
-Description=CCMS Player
-After=network-online.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/pixelspot-player
-ExecStart=/home/pi/pixelspot-player/venv/bin/python ccms_player.py
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-
-# Enable service
-sudo systemctl enable ccms-player
-sudo systemctl start ccms-player
-```
-
-### Player Configuration (config.json)
-
-```json
-{
-  "screen_id": "your-screen-uuid",
-  "api_url": "https://api.pixelspot.in",
-  "api_key": "your-api-key",
-  "cache_dir": "./video_cache",
-  "default_video": {
-    "url": "https://r2.pixelspot.in/default.mp4",
-    "local_path": "./default_video.mp4"
-  },
-  "sync_interval_minutes": 10,
-  "heartbeat_interval_seconds": 30
-}
-```
-
-### Player Workflow
-
-1. **Startup**: Reads config, initializes MPV
-2. **Handshake**: Authenticates with backend, receives playlist
-3. **Download**: Caches videos with hash verification
-4. **Playback**: Loops through playlist slots (gapless)
-5. **Tracking**: Records impressions locally (SQLite)
-6. **Sync**: Sends batched impressions every 10 minutes
-7. **Operating Hours**: Only plays during configured schedule
-8. **Watchdog**: Auto-recovers from crashes
-
----
-
-## � Security Architecture
-
-### Security Layers
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                       SECURITY LAYERS                            │
-├──────────────────────────────────────────────────────────────────┤
-│  ┌──────────┐     TLS 1.3/HTTPS          ┌──────────────┐       │
-│  │  Player  │◄──────────────────────────►│    Server    │       │
-│  │(Rasp Pi) │  + HMAC Signed Requests    │  (.NET API)  │       │
-│  └──────────┘  + Session Tokens          └──────────────┘       │
-│       │                                         ▲                │
-│       │ Device Fingerprint                      │ JWT Tokens     │
-│       ▼                                         │                │
-│  ┌──────────┐                            ┌──────────────┐       │
-│  │  Local   │                            │   Client     │       │
-│  │ Config   │                            │ (Dashboard)  │       │
-│  └──────────┘                            └──────────────┘       │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-### Player Handshake Flow
-
-```
-Player                              Server
-  │  1. Handshake Request              │
-  │  ─────────────────────────────────►│
-  │  {screenId, apiKeyHash, nonce,     │
-  │   deviceFingerprint, timestamp}    │
-  │                                    │
-  │  2. Handshake Response             │
-  │  ◄─────────────────────────────────│
-  │  {sessionToken, serverSalt,        │
-  │   expiresAt, signature}            │
-  │                                    │
-  │  3. Subsequent Requests            │
-  │  ─────────────────────────────────►│
-  │  Headers: X-Screen-Id,            │
-  │  X-Session-Token, X-Timestamp,    │
-  │  X-Signature (HMAC-SHA256)        │
-```
-
-### Security Headers
-
-| Header | Purpose |
-|--------|---------|
-| `X-Screen-Id` | Identifies the player device |
-| `X-Session-Token` | Proves authenticated session |
-| `X-Timestamp` | Prevents replay attacks (±5 min window) |
-| `X-Signature` | HMAC-SHA256 of payload + timestamp + token |
-
-### Dashboard Authentication
-
-| Feature | Implementation |
-|---------|----------------|
-| Auth Method | JWT (JSON Web Tokens) |
-| Token Expiry | 60 minutes |
-| Refresh | Sliding window |
-| Claims | userId, role, email |
-| API Key Storage | BCrypt hash (work factor 12) on server |
-
-### Rate Limiting
-
-| Endpoint Type | Limit |
-|---------------|-------|
-| API General | 10 requests/second |
-| Login | 5 requests/minute |
-| Streaming | 1 request/second per connection |
-
-### Impression Integrity
-
-Each impression includes a tamper-proof HMAC hash computed from impression data + screen ID + session token. The server validates the hash, timestamp window, session token, and screen ID match.
-
----
-
-## 🔗 Device Management
-
-### Device Binding
-
-Each screen is bound to a specific hardware device via a **SHA-256 fingerprint hash**. Device binding ensures only authorized hardware can play content.
-
-**Fingerprint Generation:**
-- **Raspberry Pi**: `SHA256(cpu_serial | disk_serial | mac_address | hostname)`
-- **Android**: `SHA256(ANDROID_ID | Build.FINGERPRINT | mac_address | model_manufacturer)`
-
-### Binding Lifecycle
-
-1. **First Registration** — First device to handshake gets bound automatically
-2. **Device Verification** — Subsequent handshakes verify fingerprint match
-3. **Device Override** — Owner requests a 30-minute window for replacement device
-4. **Binding Clear** — Admin-only full reset of device association
-
-### Device API Endpoints
-
-| Endpoint | Method | Auth | Description |
-|----------|--------|------|-------------|
-| `/api/devices/{screenId}/binding` | GET | ScreenOwner, Admin | Get binding status |
-| `/api/devices/{screenId}/override` | POST | ScreenOwner, Admin | Request 30-min override window |
-| `/api/devices/{screenId}/clear` | POST | Admin | Clear device binding |
-| `/api/devices/{screenId}/history` | GET | ScreenOwner, Admin | Audit trail of binding changes |
-
----
-
-## 🏷️ Screen Tag Generation
-
-### Overview
-
-When a screen is registered with coordinates, the system auto-generates location-aware tags via Google Places API.
-
-### 6-Phase Pipeline
-
-```
-Screen (lat, lng)
-  → Google Places API (500m radius, 7 type groups)
-  → Phase 1: Proximity Tags (single POI within threshold)
-  → Phase 2: Density Tags (≥N POIs of same type)
-  → Phase 3: Composite Tags (lifestyle: multiple conditions)
-  → Phase 4: Audience Tags (derived from existing tags)
-  → Phase 5: Time Tags (rush hour, weekend, 24/7)
-  → Phase 6: Economic Tags (avg price level of nearby POIs)
-  → Deduplicate & Rank → Top 5 → IsPrimary = true
-```
-
-- Cached for 48 hours per location
-- Auto-retags every 90 days or on coordinate change
-- Tags allow advertisers to target by context (e.g., "near metro", "foodie zone", "corporate hub")
-
----
-
-## 🖥️ Frontend Architecture
-
-### Tech Stack
-
-| Technology | Purpose |
-|------------|---------|
-| React 18 + TypeScript | UI Framework + Type Safety |
-| Vite | Build Tool & Dev Server |
-| Material UI v6 | Component Library (Dark Theme) |
-| React Router DOM v6 | Client-side Routing |
-| TanStack React Query | Server State Management |
-| Zustand + persist | Client State (Auth) |
-| react-hook-form + Zod | Forms & Schema Validation |
-| Axios | HTTP Client with Interceptors |
-| @microsoft/signalr | WebSocket Real-time |
-| Recharts | Charts & Analytics |
-| Leaflet + react-leaflet | Interactive Maps |
-| notistack | Toast Notifications |
-
-### Routing Structure
-
-| Route | Page | Access |
-|-------|------|--------|
-| `/login`, `/register` | Auth Pages | Public |
-| `/dashboard` | Role-based Dashboard | Protected |
-| `/campaigns/*` | Campaign CRUD | Advertiser, Admin |
-| `/screens/*` | Screen Management | ScreenOwner, Admin |
-| `/bookings/*` | Booking Management | All Roles |
-| `/creatives/*` | Creative Upload | Advertiser, Admin |
-| `/analytics` | Analytics Dashboard | All Roles |
-| `/reports` | Report Generation | All Roles |
-| `/explore` | Public Screen Explorer | Public |
-
-### State Management
-
-- **Server State**: TanStack Query (caching, refetching, optimistic updates)
-- **Client State**: Zustand with localStorage persistence for auth tokens
-- **Real-time**: SignalR connections via PlaybackHub for live impression counters
-
-### Key Frontend Patterns
-
-- Server-side pagination on all list pages
-- React Error Boundaries for fault isolation
-- Axios interceptors for JWT auto-refresh & rate limit handling
-- Drag-and-drop file upload via react-dropzone
-
----
-
-## 👨‍💻 Developer Guidelines
-
-### DateTime Handling
-
-**Rule:** ALWAYS use UTC, NEVER local time
-
-```csharp
-// ✅ Correct
-var now = DateTime.UtcNow;
-var startDate = request.StartDate.ToUtc();
-
-// ❌ NEVER
-var now = DateTime.Now;
-var date = DateTime.Today;
-```
-
-### Timezone Support
-
-Screens store an IANA timezone string (e.g., `"Asia/Kolkata"`). Players convert UTC to local time for operating hours enforcement. DST is handled automatically.
-
-### Navigation Properties
-
-Always use `.Include()` or projections — never access navigation properties without explicit loading:
-
-```csharp
-// ✅ Correct
-var bookings = await _context.Bookings
-    .Include(b => b.Creative)
-    .Include(b => b.Campaign)
-    .Where(b => b.ScreenId == screenId)
-    .ToListAsync();
-```
-
-### Status Checks
-
-Use `BookingStatusHelper` — don't hardcode status checks:
-
-```csharp
-var activeStatuses = BookingStatusHelper.GetActiveStatuses();
-var bookings = await _repo.FindAsync(b => activeStatuses.Contains(b.Status));
-```
-
-### Entity Creation
-
-Use factory methods — never construct entities manually:
-
-```csharp
-var booking = BookingFactory.CreateWithDailyAssignments(
-    screenId, campaignId, creativeId,
-    startDate, endDate, slotNumbers, price);
-```
-
-### DailySlotAssignmentsJson Format
-
-```json
-{
-  "2026-01-09": [1, 2, 3],
-  "2026-01-10": [2, 4]
-}
-```
-
-**Rules:** Date keys use `yyyy-MM-dd` (no timestamp). Values are always arrays. Empty days are omitted. Use `DailySlotAssignmentsHelper` for all creation/parsing.
-
-### Date Format Standards
-
-| Layer | Format | Example |
-|-------|--------|---------|
-| Database | UTC timestamps | `2026-01-09T00:00:00Z` |
-| API Response | ISO 8601 with Z | `"2026-01-09T00:00:00.000Z"` |
-| API Request (dates) | YYYY-MM-DD string | `"2026-01-09"` |
-| Frontend display | Localized via `date-fns` | `"Jan 09, 2026 05:30 AM"` |
-| Player | UTC via `datetime.now(timezone.utc)` | — |
-
-### Key Migrations
-
-- **DateOnlyAndIndiaDefaults**: Booking/Campaign dates changed from `DateTime` to `DateOnly`. Default timezone set to `"Asia/Kolkata"`, currency to `"INR"`.
-- **AddTimezoneToScreen**: Screen entity timezone field for local operating hours.
-
----
-
-## �💰 Pricing & Business Model
-
-### Revenue Model: Hybrid (SaaS + Commission)
-
-```
-┌────────────────────────────────────────────────────────────┐
-│                    HYBRID MODEL                            │
-├────────────────────────────────────────────────────────────┤
-│                                                            │
-│  SCREEN OWNERS                                             │
-│  • Monthly subscription per screen                         │
-│  • Commission on each booking                              │
-│                                                            │
-│  ADVERTISERS                                               │
-│  • Pay-per-booking (no subscription)                       │
-│  • Optional premium features                               │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
-```
-
-### Screen Owner Pricing (India Market)
-
-| Plan | Monthly Fee | Commission | Features |
-|------|-------------|------------|----------|
-| **Free Trial** | ₹0 (3 months) | 25% | 1 screen, basic analytics |
-| **Starter** | ₹199/screen | 18% | Up to 5 screens |
-| **Professional** | ₹149/screen | 12% | 20+ screens, priority support |
-| **Enterprise** | Custom | 8% | Unlimited, API access, SLA |
-
-### Advertiser Pricing
-
-| Option | Fee | Benefits |
-|--------|-----|----------|
-| **Pay-as-you-go** | ₹0 | Standard booking rates |
-| **Starter** | ₹999/month | 5% discount on bookings |
-| **Growth** | ₹2,999/month | 10% discount, priority access |
-| **Enterprise** | ₹9,999/month | 15% discount, auto-approval |
-
-### Suggested Slot Rates (Per 10-minute slot)
-
-| Location Type | Rate Range | Example Daily Revenue |
-|---------------|------------|----------------------|
-| **Premium** (Malls, Airports) | ₹50-200/slot | ₹7,200/day |
-| **High Traffic** (Markets, Colleges) | ₹20-50/slot | ₹2,520/day |
-| **Standard** (Retail, Cafes) | ₹5-20/slot | ₹720/day |
-| **Low Traffic** (Offices, Gyms) | ₹2-10/slot | ₹360/day |
-
-### Revenue Projections
-
-| Scale | Monthly Bookings | Platform Revenue (20%) | Net Profit |
-|-------|------------------|------------------------|------------|
-| 10 screens | ₹50,000 | ₹10,000 | ₹6,000 |
-| 50 screens | ₹5,00,000 | ₹1,00,000 | ₹85,000 |
-| 200 screens | ₹25,00,000 | ₹5,00,000 | ₹4,50,000 |
-
----
-
-## 💵 Infrastructure Costs
-
-### Monthly Operating Costs
-
-| Service | Free Tier | Small (10 screens) | Medium (50 screens) |
-|---------|-----------|-------------------|---------------------|
-| **Neon PostgreSQL** | $0 (limited) | $19 | $69 |
-| **Cloudflare R2** | $0 (10GB) | $5 | $20 |
-| **Hetzner VPS** | - | $6 (CX21) | $30 (CX41) |
-| **AWS SES** | $0 (62k/mo) | $2 | $10 |
-| **ComBirds SMS** | - | ₹500 (~$6) | ₹3,000 (~$36) |
-| **Google Places API** | $200 credit | $10 | $50 |
-| **Domain + SSL** | - | $1 | $1 |
-| **TOTAL** | ~$0 | **~$50/month** | **~$215/month** |
-
-### One-Time Costs (Per Player)
-
-| Item | Cost |
-|------|------|
-| Raspberry Pi 4 (4GB) | ~₹5,000 ($60) |
-| MicroSD Card (32GB) | ~₹500 ($6) |
-| Power Supply | ~₹500 ($6) |
-| Case + Heatsink | ~₹500 ($6) |
-| **Total per Player** | **~₹6,500 ($80)** |
-
-### Break-Even Analysis
-
-| Model | Monthly Costs | Break-Even Point |
-|-------|---------------|------------------|
-| Commission Only (20%) | ₹4,000 | ₹20,000 bookings |
-| SaaS (₹199/screen) | ₹4,000 | 21 screens |
-| Hybrid | ₹4,000 | 10 screens + ₹10,000 bookings |
-
----
-
-## ⚠️ Current Limitations
-
-### Known Issues
-
-| Issue | Impact | Workaround |
-|-------|--------|------------|
-| No payment gateway | Can't collect payments | Manual invoicing |
-| No booking cancellation | Users can't cancel | Admin manual cancellation |
-| No refund mechanism | - | Manual processing |
-| Booking end not auto-completed | Stale status | Background job needed |
-| No creative preview at resolution | May not match screen | Manual testing |
-
-### Technical Limitations
-
-| Limitation | Details |
-|------------|---------|
-| Concurrent booking race condition | Potential double-booking on high traffic |
-| No API versioning | Breaking changes affect all clients |
-| Limited offline support | Frontend requires internet |
-| Single region deployment | Latency for distant users |
-
-### Scale Limitations
-
-| Component | Current Limit | Upgrade Path |
-|-----------|---------------|--------------|
-| Database (Neon Free) | 0.5GB, 191 compute hrs | Upgrade to Launch ($19) |
-| Storage (R2 Free) | 10GB | Pay-as-you-go ($0.015/GB) |
-| Concurrent WebSockets | ~1,000 | Horizontal scaling |
-| Video upload size | 500MB | Configurable |
-
----
-
-## 🗺 Future Roadmap
-
-### Phase 1: Monetization (Q1 2026)
-- [ ] Razorpay Payment Gateway Integration
-- [ ] Advertiser Wallet System
-- [ ] Screen Owner Payouts
-- [ ] GST-Compliant Invoicing
-- [ ] Payment History Dashboard
-
-### Phase 2: Advanced Analytics (Q2 2026)
-- [ ] Detailed Performance Reports
-- [ ] PDF Report Export
-- [ ] Hourly Performance Heatmaps
-- [ ] Screen Comparison Analytics
-- [ ] Campaign ROI Calculator
-- [ ] Scheduled Email Reports
-
-### Phase 3: Notification System (Q2 2026)
-- [ ] In-App Notification Center
-- [ ] Push Notifications (Mobile)
-- [ ] Notification Preferences
-- [ ] Scheduled Reminders
-
-### Phase 4: AI & Automation (Q3-Q4 2026)
-- [ ] AI Content Moderation
-- [ ] Dynamic Pricing Engine
-- [ ] Smart Auto-Scheduling
-- [ ] Trusted Advertiser Auto-Approval
-- [ ] Audience Analytics (Camera)
-
-### Phase 5: Enterprise Features (2027)
-- [ ] Multi-Tenant White-Label
-- [ ] SSO Integration (SAML/OAuth)
-- [ ] Mobile Apps (iOS/Android)
-- [ ] Programmatic Buying (RTB)
-- [ ] API Marketplace
-
----
-
-## 📊 Feature Completion Status
-
-```
-Authentication & Security     ████████████████████ 100%
-Screen Management            ████████████████████ 100%
-Campaign Management          ████████████████████ 100%
-Booking System               ██████████████████░░  92%
-Player System                ████████████████████ 100%
-Analytics & Impressions      ████████████████░░░░  80%
-Real-Time Features           ████████████████████ 100%
-Live Streaming               ████████████████████ 100%
-Dashboard & UI               ██████████████████░░  92%
-Owner Content                ████████████████████ 100%
-Payment Integration          ░░░░░░░░░░░░░░░░░░░░   0%
-Notifications                ████████░░░░░░░░░░░░  40%
-Advanced Analytics           ████░░░░░░░░░░░░░░░░  20%
-
-Overall MVP Completion:      █████████████████░░░  85%
-```
-
----
-
-## 🔐 Test Accounts
-
-| Role | Email | Password |
-|------|-------|----------|
-| **Admin** | `admin@example.com` | `Password123!` |
-| **Screen Owner** | `owner1@example.com` | `Password123!` |
-| **Advertiser** | `advertiser1@example.com` | `Password123!` |
-
----
-
-## 🐛 Troubleshooting
-
-### Backend won't start
-```bash
-# Check port availability
-netstat -ano | findstr :5257
-
-# Rebuild database
-dotnet ef database drop -f
-dotnet ef database update
-```
-
-### Frontend build errors
-```bash
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Player connection issues
-```bash
-# Test API connectivity
-curl http://localhost:5257/api/health
-
-# Verify screen ID in config.json
-```
-
----
-
-## 📄 License
-
-Proprietary Software - All Rights Reserved  
-© 2024-2026 PixelSpot Technologies
-
----
-
-<div align="center">
-
-**PixelSpot CCMS** - *Every Screen, Every Second, Verified*
-
-</div>
+## 🚀 Developer Quick Start & Deployment
+
+### Local Configuration
+1. Clone the project and initialize `.env` files in root, `frontend`, and `backend/CCMS.Api` directories using the `.env.example` templates.
+2. Run PostgreSQL and start Azurite for local blob emulation.
+3. **Run C# Backend**:
+   ```bash
+   cd backend
+   dotnet restore
+   dotnet run --project CCMS.Api
+   ```
+4. **Run React Frontend**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+### Hardware Player Onboarding
+- **Raspberry Pi Player (Python)**:
+  - Requires `python3`, `mpv` library binaries, and standard packages.
+  - Setup script: `cd player/raspberrypi && ./setup-raspberry-pi.sh`
+- **Android Player (Kotlin)**:
+  - Open `player/android` in Android Studio, sync Gradle, and install it on an Android TV device.
+
+### Production Deployment
+- Deployed on Hetzner VPS using Docker Compose and Nginx.
+- Production configuration parameters are loaded via env vars. To launch production services:
+  ```bash
+  docker-compose -f docker-compose.production.yml up --build -d
+  ```

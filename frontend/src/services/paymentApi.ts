@@ -15,6 +15,65 @@ interface ApiResponse<T> {
 }
 
 // ============================================
+// WALLET TYPES
+// ============================================
+
+export interface Wallet {
+    id: string;
+    balance: number;
+    currency: string;
+    lastTopUpAt?: string;
+}
+
+export interface WalletTransaction {
+    id: string;
+    type: 'TopUp' | 'Debit' | 'Refund' | 'Payout';
+    amount: number;
+    description?: string;
+    referenceId?: string;
+    referenceType?: string;
+    balanceBefore: number;
+    balanceAfter: number;
+    createdAt: string;
+}
+
+// ============================================
+// WALLET
+// ============================================
+
+export const getWallet = async (): Promise<Wallet> => {
+    const response = await api.get<ApiResponse<Wallet>>('/wallet');
+    return response.data.data;
+};
+
+export const getWalletTransactions = async (page = 1, pageSize = 20): Promise<WalletTransaction[]> => {
+    const response = await api.get<ApiResponse<WalletTransaction[]>>('/wallet/transactions', {
+        params: { page, pageSize },
+    });
+    return response.data.data;
+};
+
+export const createWalletTopUp = async (amount: number): Promise<CreateOrderResponse> => {
+    const response = await api.post<ApiResponse<CreateOrderResponse>>('/wallet/topup', { amount });
+    return response.data.data;
+};
+
+export const confirmWalletTopUp = async (
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+    amount: number,
+): Promise<Wallet> => {
+    const response = await api.post<ApiResponse<Wallet>>('/wallet/topup/confirm', {
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        amount,
+    });
+    return response.data.data;
+};
+
+// ============================================
 // PAYMENTS
 // ============================================
 

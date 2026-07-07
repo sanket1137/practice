@@ -18,4 +18,15 @@ public enum NotificationType
     VisibilityRequestSubmitted = 13,
     VisibilityRequestApproved = 14,
     VisibilityRequestRejected = 15,
+    // Phase 2
+    CreativeApproved = 16,
+    CreativeRejected = 17,
+    CampaignLive = 18,
+    CampaignCompleted = 19,
+    ScreenOffline = 20,
+    ScreenVerified = 21,
+    ScreenVerificationRejected = 22,
+    WalletLowBalance = 23,
+    BookingAutoApproved = 24,
+    PlaylistSyncFailed = 25,
 }

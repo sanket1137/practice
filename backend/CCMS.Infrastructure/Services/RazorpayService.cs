@@ -26,8 +26,19 @@ public class RazorpayService : IRazorpayService
 
     public async Task<RazorpayOrderResult> CreateOrderAsync(decimal amount, string currency, string receipt)
     {
-        // Razorpay expects amount in smallest currency unit (paise for INR)
-        var amountInPaise = (int)(amount * 100);
+        // Defensive amount validation — this service is the last line of defence before money moves.
+        if (amount <= 0m)
+            throw new ArgumentException("Amount must be positive", nameof(amount));
+        if (amount > 1_000_000m)
+            throw new ArgumentException("Amount exceeds maximum allowed", nameof(amount));
+        if (decimal.Round(amount, 2) != amount)
+            throw new ArgumentException("Amount must have at most 2 decimal places", nameof(amount));
+        if (string.IsNullOrWhiteSpace(currency))
+            throw new ArgumentException("Currency is required", nameof(currency));
+
+        // Razorpay expects amount in smallest currency unit (paise for INR). Use a checked cast so
+        // any overflow throws instead of wrapping silently — and round defensively before scaling.
+        var amountInPaise = checked((int)(decimal.Round(amount, 2) * 100m));
 
         var options = new Dictionary<string, object>
         {

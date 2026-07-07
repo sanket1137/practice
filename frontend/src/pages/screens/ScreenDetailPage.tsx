@@ -58,6 +58,7 @@ import DeviceManagementTab from '../../components/screens/DeviceManagementTab';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import SelfReserveDialog from '../../components/bookings/SelfReserveDialog';
 import VerificationTab from '../../components/screens/VerificationTab';
+import { ScreenAvailabilityCalendar } from '../../components/screens/ScreenAvailabilityCalendar';
 import { useState, useMemo } from 'react';
 import { getScreenTags } from '../../services/screenTagsService';
 import type { ScreenTagDetail, ScreenImage } from '../../types/screen';
@@ -252,6 +253,13 @@ export default function ScreenDetailPage() {
                                 onClick={() => navigate(`/screens/${id}/edit`)}
                             >
                                 Edit
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                startIcon={<MoneyIcon />}
+                                onClick={() => navigate(`/screens/${id}/pricing`)}
+                            >
+                                Pricing rules
                             </Button>
                             <Button
                                 variant="outlined"
@@ -575,6 +583,13 @@ export default function ScreenDetailPage() {
                                     </CardContent>
                                 </Card>
                             )}
+                        </Grid>
+
+                        {/* Availability Calendar - Full Width */}
+                        <Grid size={12}>
+                            <Card variant="outlined" sx={{ bgcolor: 'background.paper', p: 3 }}>
+                                <ScreenAvailabilityCalendar screenId={screen.id} />
+                            </Card>
                         </Grid>
 
                         {/* Revenue Estimate - Full Width */}

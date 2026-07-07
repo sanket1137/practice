@@ -15,8 +15,47 @@ using CCMS.Infrastructure.Repositories;
 using CCMS.Infrastructure.Services;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Npgsql;
+using Serilog;
+using Serilog.Events;
+using QuestPDF.Infrastructure;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json;
+
+// QuestPDF community license
+QuestPDF.Settings.License = LicenseType.Community;
+
+// Bootstrap Serilog early so startup errors are captured
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Replace default logging with Serilog
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console());
+
+// Sentry error tracking
+var sentryDsn = builder.Configuration["Sentry:Dsn"];
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    builder.WebHost.UseSentry(options =>
+    {
+        options.Dsn = sentryDsn;
+        options.TracesSampleRate = builder.Environment.IsProduction() ? 0.1 : 0.0;
+        options.SendDefaultPii = false;
+        options.Environment = builder.Environment.EnvironmentName;
+        options.MaxBreadcrumbs = 50;
+    });
+}
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -193,6 +232,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICmsPairingService, CmsPairingService>();
+builder.Services.AddScoped<IPlayerPairingService, PlayerPairingService>();
 builder.Services.AddScoped<ICmsMediaService, CmsMediaService>();
 builder.Services.AddScoped<ICmsPlaylistService, CmsPlaylistService>();
 builder.Services.AddScoped<IRemoteCommandService, RemoteCommandService>();
@@ -281,6 +321,21 @@ builder.Services.AddScoped<ReportExportService>();
 // Memory cache for caching (used by Google Places Service)
 builder.Services.AddMemoryCache();
 
+// ── Phase 2: Distributed cache (Redis in production, in-memory fallback in dev) ──
+var redisConnection = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisConnection))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "PixelCCMS:";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
 // Google Places Service for screen tagging (Singleton to reuse HTTP client and cache)
 builder.Services.AddHttpClient("GooglePlaces");
 builder.Services.AddSingleton<IGooglePlacesService, GooglePlacesService>();
@@ -338,6 +393,15 @@ builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 
 // Rate Limiting policies
 builder.Services.AddRateLimitingPolicies();
+
+// Health Checks — Postgres connectivity
+var pgConnectionString = builder.Configuration.GetConnectionString("PostgresConnection");
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        connectionString: pgConnectionString ?? string.Empty,
+        name: "postgresql",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: new[] { "db", "postgresql" });
 
 // Static Files (for uploads)
 builder.Services.AddDirectoryBrowser();
@@ -411,6 +475,28 @@ app.MapHub<CmsControlHub>("/hubs/cms").AllowAnonymous();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Health check endpoint — returns JSON with postgres status
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            timestamp = DateTime.UtcNow,
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds
+            })
+        });
+        await context.Response.WriteAsync(result);
+    }
+}).AllowAnonymous();
+
 app.MapControllers();
 
 // Auto-apply migrations
@@ -420,20 +506,61 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
+        var seedLogger = services.GetRequiredService<ILogger<Program>>();
         context.Database.Migrate();
         Console.WriteLine("Database migration applied successfully.");
-        
-        // Seed data in development mode
+
+        // Seed data in development mode — isolated so a partial failure here
+        // does not block subsequent independent seeders (tags, India screens…).
         var env = services.GetRequiredService<IWebHostEnvironment>();
         if (env.IsDevelopment())
         {
-            await DataSeeder.SeedAsync(context);
-            Console.WriteLine("Seed data applied successfully.");
+            try
+            {
+                await DataSeeder.SeedAsync(context);
+                Console.WriteLine("Seed data applied successfully.");
+            }
+            catch (Exception seedEx)
+            {
+                seedLogger.LogWarning(seedEx, "DataSeeder skipped/failed (likely partial existing data); continuing with other seeders.");
+                // Critical: discard any tracked-but-unsaved entities from the failed seeder
+                // so subsequent seeders don't retry/clash with them on their next SaveChanges.
+                context.ChangeTracker.Clear();
+            }
         }
-        
+
+        // Always seed/refresh marketplace-ready Indian demo screens (idempotent).
+        try
+        {
+            await IndianScreensSeeder.SeedAsync(context);
+            Console.WriteLine("Indian marketplace screens seeded successfully.");
+        }
+        catch (Exception seedEx)
+        {
+            seedLogger.LogWarning(seedEx, "IndianScreensSeeder failed.");
+        }
+
         // Always seed screen tags (master data)
-        await ScreenTagSeeder.SeedTagsAsync(context);
-        Console.WriteLine("Screen tags seeded successfully.");
+        try
+        {
+            await ScreenTagSeeder.SeedTagsAsync(context);
+            Console.WriteLine("Screen tags seeded successfully.");
+        }
+        catch (Exception seedEx)
+        {
+            seedLogger.LogWarning(seedEx, "ScreenTagSeeder failed.");
+        }
+
+        // Always seed festival calendar (Phase 4)
+        try
+        {
+            await FestivalSeeder.SeedAsync(context);
+            Console.WriteLine("Festival calendar seeded successfully.");
+        }
+        catch (Exception seedEx)
+        {
+            seedLogger.LogWarning(seedEx, "FestivalSeeder failed.");
+        }
     }
     catch (Exception ex)
     {

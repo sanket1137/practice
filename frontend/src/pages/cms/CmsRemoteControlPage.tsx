@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import {
     Box, Button, Card, CardContent, Typography, Stack, Grid, TextField, Chip,
     Alert, IconButton, Divider, List, ListItem, ListItemText, Skeleton,
+    Slider, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import BrightnessHighIcon from '@mui/icons-material/BrightnessHigh';
+import ScreenRotationIcon from '@mui/icons-material/ScreenRotation';
+import PowerIcon from '@mui/icons-material/Power';
+import PowerOffIcon from '@mui/icons-material/PowerOff';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import ReplayIcon from '@mui/icons-material/Replay';
 import * as signalR from '@microsoft/signalr';
@@ -25,6 +30,8 @@ export default function CmsRemoteControlPage() {
     const token = useAuthStore((s) => s.accessToken);
     const [hubState, setHubState] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
     const [volume, setVolume] = useState(50);
+    const [brightness, setBrightness] = useState(80);
+    const [orientation, setOrientation] = useState<'Landscape' | 'Portrait'>('Landscape');
     const [message, setMessage] = useState('');
     const hubRef = useRef<signalR.HubConnection | null>(null);
 
@@ -103,19 +110,75 @@ export default function CmsRemoteControlPage() {
                             <Typography variant="subtitle1" gutterBottom>Audio</Typography>
                             <Stack direction="row" spacing={2} alignItems="center">
                                 <VolumeUpIcon />
-                                <TextField
-                                    type="number"
-                                    size="small"
-                                    label="Volume (0-100)"
+                                <Slider
                                     value={volume}
-                                    onChange={(e) => setVolume(Math.max(0, Math.min(100, Number(e.target.value))))}
-                                    sx={{ width: 140 }}
+                                    onChange={(_, v) => setVolume(v as number)}
+                                    min={0} max={100} step={5}
+                                    valueLabelDisplay="auto"
+                                    sx={{ flex: 1 }}
                                 />
+                                <Typography variant="body2" sx={{ minWidth: 32 }}>{volume}%</Typography>
                                 <Button onClick={() => issue.mutate({ commandType: 'SetVolume', payload: { volume } })}>
-                                    Set volume
+                                    Set
                                 </Button>
                                 <Button onClick={() => issue.mutate({ commandType: 'Mute' })}>Mute</Button>
                                 <Button onClick={() => issue.mutate({ commandType: 'Unmute' })}>Unmute</Button>
+                            </Stack>
+
+                            <Divider sx={{ my: 3 }} />
+                            <Typography variant="subtitle1" gutterBottom>Brightness</Typography>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <BrightnessHighIcon />
+                                <Slider
+                                    value={brightness}
+                                    onChange={(_, v) => setBrightness(v as number)}
+                                    min={0} max={100} step={5}
+                                    valueLabelDisplay="auto"
+                                    sx={{ flex: 1 }}
+                                />
+                                <Typography variant="body2" sx={{ minWidth: 32 }}>{brightness}%</Typography>
+                                <Button onClick={() => issue.mutate({ commandType: 'SetBrightness', payload: { brightness } })}>
+                                    Set
+                                </Button>
+                            </Stack>
+
+                            <Divider sx={{ my: 3 }} />
+                            <Typography variant="subtitle1" gutterBottom>Orientation</Typography>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <ScreenRotationIcon />
+                                <ToggleButtonGroup
+                                    value={orientation}
+                                    exclusive
+                                    onChange={(_, v) => v && setOrientation(v)}
+                                    size="small"
+                                >
+                                    <ToggleButton value="Landscape">Landscape</ToggleButton>
+                                    <ToggleButton value="Portrait">Portrait</ToggleButton>
+                                </ToggleButtonGroup>
+                                <Button onClick={() => issue.mutate({ commandType: 'SetOrientation', payload: { orientation } })}>
+                                    Apply
+                                </Button>
+                            </Stack>
+
+                            <Divider sx={{ my: 3 }} />
+                            <Typography variant="subtitle1" gutterBottom>Power</Typography>
+                            <Stack direction="row" spacing={1}>
+                                <Button
+                                    startIcon={<PowerIcon />}
+                                    variant="outlined"
+                                    color="success"
+                                    onClick={() => issue.mutate({ commandType: 'DisplayOn' })}
+                                >
+                                    Display On
+                                </Button>
+                                <Button
+                                    startIcon={<PowerOffIcon />}
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => issue.mutate({ commandType: 'DisplayOff' })}
+                                >
+                                    Display Off
+                                </Button>
                             </Stack>
 
                             <Divider sx={{ my: 3 }} />

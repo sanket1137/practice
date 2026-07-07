@@ -171,3 +171,30 @@ public class BookingPerformanceDto
     public decimal DeliveryRate { get; set; }
     public DateTime? LastPlaybackAt { get; set; }
 }
+
+// ── Phase 5: Proof-of-Play Analytics DTOs ─────────────────────────────────
+
+public class PopDailyDto
+{
+    public DateTime Date { get; set; }
+    public int ImpressionCount { get; set; }
+    public int FullPlayCount { get; set; }
+    public double AvgDurationSeconds { get; set; }
+}
+
+public class PopAnalyticsDto
+{
+    public int TotalImpressions { get; set; }
+    public int FullPlayCount { get; set; }
+    public double FullPlayRate { get; set; }
+    public List<PopDailyDto> DailyBreakdown { get; set; } = new();
+}
+
+public class PopSummaryDto
+{
+    public int TotalImpressions { get; set; }
+    public int FullPlayCount { get; set; }
+    public double FullPlayRate { get; set; }
+    public double AvgDurationSeconds { get; set; }
+    public string Preset { get; set; } = "30d";
+}

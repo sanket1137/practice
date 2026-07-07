@@ -1,5 +1,6 @@
 using CCMS.Application.Interfaces;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Cms;
@@ -151,6 +152,7 @@ public class CmsMediaService : ICmsMediaService
         asset.Width = request.Width;
         asset.Height = request.Height;
         asset.DurationSeconds = request.DurationSeconds;
+        asset.AssetType = ClassifyAssetType(asset.MimeType);
         await _context.SaveChangesAsync(ct);
 
         _logger.LogInformation("Media asset {Id} finalized for owner {OwnerId}", asset.Id, ownerId);
@@ -158,18 +160,62 @@ public class CmsMediaService : ICmsMediaService
         return ToDto(asset);
     }
 
-    public async Task<PagedResult<MediaAssetDto>> ListAsync(Guid ownerId, int page, int pageSize, CancellationToken ct = default)
+    public async Task<PagedResult<MediaAssetDto>> ListAsync(Guid ownerId, MediaLibraryFilters filters, CancellationToken ct = default)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        var page = Math.Max(1, filters.Page);
+        var pageSize = Math.Clamp(filters.PageSize, 1, 100);
 
         var query = _context.MediaAssets
             .AsNoTracking()
             .Where(m => m.OwnerId == ownerId && m.IsReady);
 
+        if (!string.IsNullOrWhiteSpace(filters.Search))
+        {
+            var s = filters.Search.Trim().ToLower();
+            query = query.Where(m =>
+                (m.Title != null && m.Title.ToLower().Contains(s)) ||
+                m.OriginalName.ToLower().Contains(s));
+        }
+
+        if (filters.Tags != null && filters.Tags.Count > 0)
+        {
+            // Postgres text[] && operator (overlaps any). EF Core npgsql maps List<string>.Any(...).
+            foreach (var tag in filters.Tags)
+            {
+                var needle = tag;
+                query = query.Where(m => m.Tags.Contains(needle));
+            }
+        }
+
+        if (filters.CollectionId.HasValue)
+        {
+            var cid = filters.CollectionId.Value;
+            query = query.Where(m => m.CollectionId == cid);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filters.AssetType) &&
+            Enum.TryParse<MediaAssetType>(filters.AssetType, true, out var typeFilter))
+        {
+            query = query.Where(m => m.AssetType == typeFilter);
+        }
+
+        if (filters.FavoritesOnly)
+        {
+            query = query.Where(m => m.IsFavorite);
+        }
+
+        if (filters.RecentlyUsed)
+        {
+            query = query.Where(m => m.LastUsedAt != null)
+                         .OrderByDescending(m => m.LastUsedAt);
+        }
+        else
+        {
+            query = query.OrderByDescending(m => m.CreatedAt);
+        }
+
         var total = await query.CountAsync(ct);
         var items = await query
-            .OrderByDescending(m => m.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(m => new MediaAssetDto
@@ -184,7 +230,13 @@ public class CmsMediaService : ICmsMediaService
                 Height = m.Height,
                 DurationSeconds = m.DurationSeconds,
                 IsReady = m.IsReady,
-                CreatedAt = m.CreatedAt
+                CreatedAt = m.CreatedAt,
+                Title = m.Title,
+                Tags = m.Tags,
+                CollectionId = m.CollectionId,
+                IsFavorite = m.IsFavorite,
+                LastUsedAt = m.LastUsedAt,
+                AssetType = m.AssetType.ToString()
             })
             .ToListAsync(ct);
 
@@ -195,6 +247,117 @@ public class CmsMediaService : ICmsMediaService
             PageNumber = page,
             PageSize = pageSize
         };
+    }
+
+    public async Task<MediaAssetDto> UpdateAssetAsync(Guid ownerId, Guid mediaAssetId, UpdateMediaAssetRequest request, CancellationToken ct = default)
+    {
+        var asset = await _context.MediaAssets
+            .FirstOrDefaultAsync(m => m.Id == mediaAssetId && m.OwnerId == ownerId, ct)
+            ?? throw new InvalidOperationException("Media asset not found");
+
+        if (request.Title != null) asset.Title = string.IsNullOrWhiteSpace(request.Title) ? null : request.Title.Trim();
+        if (request.Tags != null)
+        {
+            asset.Tags = request.Tags
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Trim().ToLowerInvariant())
+                .Distinct()
+                .Take(20)
+                .ToList();
+        }
+        if (request.CollectionId.HasValue)
+        {
+            // Validate the collection belongs to the same owner; null clears it.
+            if (request.CollectionId.Value == Guid.Empty)
+            {
+                asset.CollectionId = null;
+            }
+            else
+            {
+                var ok = await _context.MediaCollections
+                    .AnyAsync(c => c.Id == request.CollectionId.Value && c.OwnerId == ownerId, ct);
+                if (!ok) throw new InvalidOperationException("Collection not found");
+                asset.CollectionId = request.CollectionId.Value;
+            }
+        }
+        if (request.IsFavorite.HasValue) asset.IsFavorite = request.IsFavorite.Value;
+
+        await _context.SaveChangesAsync(ct);
+        return ToDto(asset);
+    }
+
+    public async Task<bool> ToggleFavoriteAsync(Guid ownerId, Guid mediaAssetId, CancellationToken ct = default)
+    {
+        var asset = await _context.MediaAssets
+            .FirstOrDefaultAsync(m => m.Id == mediaAssetId && m.OwnerId == ownerId, ct)
+            ?? throw new InvalidOperationException("Media asset not found");
+
+        asset.IsFavorite = !asset.IsFavorite;
+        await _context.SaveChangesAsync(ct);
+        return asset.IsFavorite;
+    }
+
+    public async Task<MediaCollectionDto> CreateCollectionAsync(Guid ownerId, CreateMediaCollectionRequest request, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new ArgumentException("Collection name is required");
+
+        var name = request.Name.Trim();
+        var duplicate = await _context.MediaCollections
+            .AnyAsync(c => c.OwnerId == ownerId && c.Name == name, ct);
+        if (duplicate) throw new InvalidOperationException("A collection with this name already exists");
+
+        var collection = new MediaCollection
+        {
+            OwnerId = ownerId,
+            Name = name,
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim()
+        };
+        _context.MediaCollections.Add(collection);
+        await _context.SaveChangesAsync(ct);
+
+        return new MediaCollectionDto
+        {
+            Id = collection.Id,
+            Name = collection.Name,
+            Description = collection.Description,
+            AssetCount = 0,
+            CreatedAt = collection.CreatedAt
+        };
+    }
+
+    public async Task<List<MediaCollectionDto>> ListCollectionsAsync(Guid ownerId, CancellationToken ct = default)
+    {
+        return await _context.MediaCollections
+            .AsNoTracking()
+            .Where(c => c.OwnerId == ownerId)
+            .OrderBy(c => c.Name)
+            .Select(c => new MediaCollectionDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                AssetCount = _context.MediaAssets.Count(m => m.CollectionId == c.Id && m.IsReady),
+                CreatedAt = c.CreatedAt
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> DeleteCollectionAsync(Guid ownerId, Guid collectionId, CancellationToken ct = default)
+    {
+        var collection = await _context.MediaCollections
+            .FirstOrDefaultAsync(c => c.Id == collectionId && c.OwnerId == ownerId, ct);
+        if (collection == null) return false;
+
+        // Detach assets from the collection rather than deleting them (FK is SetNull anyway).
+        var assets = await _context.MediaAssets
+            .Where(m => m.CollectionId == collectionId)
+            .ToListAsync(ct);
+        foreach (var a in assets) a.CollectionId = null;
+
+        collection.IsDeleted = true;
+        await _context.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(Guid ownerId, Guid mediaAssetId, CancellationToken ct = default)
@@ -236,8 +399,24 @@ public class CmsMediaService : ICmsMediaService
         Height = m.Height,
         DurationSeconds = m.DurationSeconds,
         IsReady = m.IsReady,
-        CreatedAt = m.CreatedAt
+        CreatedAt = m.CreatedAt,
+        Title = m.Title,
+        Tags = m.Tags,
+        CollectionId = m.CollectionId,
+        IsFavorite = m.IsFavorite,
+        LastUsedAt = m.LastUsedAt,
+        AssetType = m.AssetType.ToString()
     };
+
+    private static MediaAssetType ClassifyAssetType(string mimeType)
+    {
+        if (string.IsNullOrWhiteSpace(mimeType)) return MediaAssetType.Other;
+        var mt = mimeType.ToLowerInvariant();
+        if (mt.StartsWith("image/")) return MediaAssetType.Image;
+        if (mt.StartsWith("video/")) return MediaAssetType.Video;
+        if (mt == "text/html") return MediaAssetType.Html;
+        return MediaAssetType.Other;
+    }
 
     private static string GetExtension(string mimeType, string originalName)
     {

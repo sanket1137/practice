@@ -206,20 +206,25 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         );
 
         // STEP 4: Create booking entity
+        var autoApprove = screen.AutoApprovalEnabled;
         var booking = new Booking
         {
             ScreenId = request.Request.ScreenId,
             CampaignId = request.Request.CampaignId,
             CreativeId = request.Request.CreativeId,
-            StartDate = bookingStartDate,  // DateOnly - no timezone conversion needed!
-            EndDate = bookingEndDate,      // DateOnly - no timezone conversion needed!
+            StartDate = bookingStartDate,
+            EndDate = bookingEndDate,
             SlotNumbers = new List<int> { slotNumber },
-            Status = Domain.Enums.BookingStatus.Pending,
+            Status = autoApprove ? Domain.Enums.BookingStatus.Approved : Domain.Enums.BookingStatus.Pending,
             ExpectedImpressions = calculation.TotalExpectedImpressions,
             DeliveredImpressions = 0,
             TotalPrice = totalPrice,
             Currency = screen.Currency,
-            DailySlotAssignments = dailySlotAssignments,  // Store dates for partial booking display
+            FitMode = request.Request.FitMode
+                ?? validation.SuggestedFitMode
+                ?? Domain.Enums.CreativeFitMode.SmartAdaptive,
+            DailySlotAssignments = dailySlotAssignments,
+            CancelGraceExpiresAt = autoApprove ? DateTime.UtcNow.AddHours(2) : null,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -241,7 +246,6 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
         catch (Exception)
         {
             // Don't fail the booking creation if notification fails
-            // Notification is best-effort
         }
 
         return bookingDto;

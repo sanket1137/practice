@@ -17,3 +17,16 @@ export interface NotificationsResponse {
     page: number;
     pageSize: number;
 }
+
+export interface NotificationPreference {
+    notificationType: number;
+    name: string;
+    inAppEnabled: boolean;
+    emailEnabled: boolean;
+}
+
+export interface UpdateNotificationPreferenceRequest {
+    notificationType: number;
+    inAppEnabled: boolean;
+    emailEnabled: boolean;
+}

@@ -3,8 +3,8 @@ name: Deploy to Production
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 env:
   SERVER_IP: ${{ secrets.SERVER_IP }}
@@ -83,3 +83,7 @@ jobs:
           sleep 15
           ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} \
             "curl -sf http://localhost:5000/api/v1/health || echo 'Health check failed'"
+
+      - name: Public health check
+        run: |
+          curl -f https://ccms.pixelspot.in/health || exit 1

@@ -7,6 +7,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import { QRCodeSVG } from 'qrcode.react';
 import { cmsPairingApi } from '../../services/cmsApi';
 
 interface Props {
@@ -23,12 +24,14 @@ export default function PairingCodeDialog({ open, onClose }: Props) {
     const queryClient = useQueryClient();
     const [code, setCode] = useState<string | null>(null);
     const [expiresAt, setExpiresAt] = useState<string | null>(null);
+    const [qrPayload, setQrPayload] = useState<string | null>(null);
 
     const generate = useMutation({
         mutationFn: () => cmsPairingApi.generate(),
         onSuccess: (res) => {
             setCode(res.code);
             setExpiresAt(res.expiresAt);
+            setQrPayload(res.qrPayload);
         },
         onError: () => enqueueSnackbar('Failed to generate pairing code', { variant: 'error' }),
     });
@@ -40,6 +43,7 @@ export default function PairingCodeDialog({ open, onClose }: Props) {
         if (!open) {
             setCode(null);
             setExpiresAt(null);
+            setQrPayload(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
@@ -84,6 +88,11 @@ export default function PairingCodeDialog({ open, onClose }: Props) {
 
                     {code && !expired && (
                         <Box sx={{ textAlign: 'center' }}>
+                            {qrPayload && (
+                                <Box sx={{ mb: 2, display: 'inline-flex', p: 1.5, bgcolor: 'common.white', borderRadius: 2 }}>
+                                    <QRCodeSVG value={qrPayload} size={180} includeMargin />
+                                </Box>
+                            )}
                             <Typography
                                 variant="h2"
                                 sx={{

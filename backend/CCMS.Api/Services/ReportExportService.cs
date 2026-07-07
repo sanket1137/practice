@@ -510,4 +510,125 @@ public class ReportExportService
     }
 
     #endregion
+
+    #region Screen Health Report
+
+    public record ScreenHealthRow(
+        string Name,
+        string? LocationTag,
+        string Status,
+        string LastSeenAt,
+        string CurrentPlaylist);
+
+    public byte[] ExportScreenHealthReportToPdf(List<ScreenHealthRow> rows)
+    {
+        try
+        {
+            var generatedAt = DateTime.UtcNow;
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(40);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontColor(Color.FromHex(TextColor)));
+
+                    page.Header().Element(c => ComposeHeader(c, "Screen Health Report"));
+
+                    page.Content().Column(col =>
+                    {
+                        col.Item().PaddingBottom(8).Row(row =>
+                        {
+                            row.RelativeItem().Text($"Generated: {generatedAt:yyyy-MM-dd HH:mm} UTC")
+                                .FontSize(9).FontColor(Color.FromHex("#6B7280"));
+                            row.RelativeItem().AlignRight().Text($"Total screens: {rows.Count}")
+                                .FontSize(9).FontColor(Color.FromHex("#6B7280"));
+                        });
+
+                        // Summary row
+                        var onlineCount = rows.Count(r => r.Status == "online");
+                        var staleCount = rows.Count(r => r.Status == "stale");
+                        var offlineCount = rows.Count(r => r.Status == "offline");
+
+                        col.Item().PaddingBottom(16).Row(row =>
+                        {
+                            row.RelativeItem().Background(Color.FromHex("#DCFCE7")).Padding(8).Text(
+                                $"Online: {onlineCount}").FontSize(11).Bold().FontColor(Color.FromHex("#166534"));
+                            row.ConstantItem(8);
+                            row.RelativeItem().Background(Color.FromHex("#FEF9C3")).Padding(8).Text(
+                                $"Stale: {staleCount}").FontSize(11).Bold().FontColor(Color.FromHex("#713F12"));
+                            row.ConstantItem(8);
+                            row.RelativeItem().Background(Color.FromHex("#FEE2E2")).Padding(8).Text(
+                                $"Offline: {offlineCount}").FontSize(11).Bold().FontColor(Color.FromHex("#991B1B"));
+                        });
+
+                        // Table header
+                        col.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(cols =>
+                            {
+                                cols.RelativeColumn(3);   // Name
+                                cols.RelativeColumn(2);   // Location
+                                cols.RelativeColumn(1.2f); // Status
+                                cols.RelativeColumn(2);   // Last Seen
+                                cols.RelativeColumn(3);   // Playlist
+                            });
+
+                            // Header row
+                            static IContainer HeaderCell(IContainer c) =>
+                                c.Background(Color.FromHex("#1E293B")).Padding(6);
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCell).Text("Screen Name").Bold()
+                                    .FontColor(Colors.White).FontSize(9);
+                                header.Cell().Element(HeaderCell).Text("Location").Bold()
+                                    .FontColor(Colors.White).FontSize(9);
+                                header.Cell().Element(HeaderCell).Text("Status").Bold()
+                                    .FontColor(Colors.White).FontSize(9);
+                                header.Cell().Element(HeaderCell).Text("Last Seen").Bold()
+                                    .FontColor(Colors.White).FontSize(9);
+                                header.Cell().Element(HeaderCell).Text("Current Playlist").Bold()
+                                    .FontColor(Colors.White).FontSize(9);
+                            });
+
+                            // Data rows
+                            for (var i = 0; i < rows.Count; i++)
+                            {
+                                var r = rows[i];
+                                var bg = i % 2 == 0 ? Colors.White : Color.FromHex(LightGray);
+                                var statusColor = r.Status switch
+                                {
+                                    "online" => "#166534",
+                                    "stale" => "#713F12",
+                                    _ => "#991B1B"
+                                };
+
+                                IContainer DataCell(IContainer c) => c.Background(bg).Padding(5);
+
+                                table.Cell().Element(DataCell).Text(r.Name).FontSize(9);
+                                table.Cell().Element(DataCell).Text(r.LocationTag ?? "—").FontSize(9)
+                                    .FontColor(Color.FromHex("#6B7280"));
+                                table.Cell().Element(DataCell).Text(r.Status.ToUpper()).FontSize(9)
+                                    .Bold().FontColor(Color.FromHex(statusColor));
+                                table.Cell().Element(DataCell).Text(r.LastSeenAt).FontSize(9);
+                                table.Cell().Element(DataCell).Text(r.CurrentPlaylist).FontSize(9);
+                            }
+                        });
+                    });
+
+                    page.Footer().Element(ComposeFooter);
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating screen health PDF: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    #endregion
 }

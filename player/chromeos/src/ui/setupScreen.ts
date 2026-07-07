@@ -2,13 +2,15 @@
  * First-run setup screen for entering Screen ID, API key, and server URL.
  */
 import { saveConfig, type PlayerConfig } from '../config';
-import { claimPairingCode } from '../api/playerApi';
+import { getPlayerPairingStatus, requestPlayerPairingToken } from '../api/playerApi';
 import { generateFingerprint } from '../security/fingerprint';
+import qrcode from 'qrcode-generator';
 
 export class SetupScreen {
   static readonly SERVER_URL = 'https://ccms.pixelspot.in';
   private readonly container: HTMLElement;
   private onComplete: ((config: PlayerConfig) => void) | null = null;
+  private pairingPollTimer: number | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -66,7 +68,7 @@ export class SetupScreen {
 
     const pairBtn = document.createElement('button');
     pairBtn.type = 'button';
-    pairBtn.textContent = 'Have a pairing code?';
+    pairBtn.textContent = 'Show registration QR';
     pairBtn.style.cssText =
       'width:100%;padding:0.65rem;background:transparent;color:#6366f1;' +
       'border:1px solid #6366f1;border-radius:0.5rem;font-size:0.9rem;cursor:pointer;';
@@ -96,26 +98,105 @@ export class SetupScreen {
   }
 
   private async handlePairingFlow(): Promise<void> {
-    const raw = window.prompt('Enter the 6-character pairing code shown in the dashboard:');
-    if (!raw) return;
-    const code = raw.trim().toUpperCase();
-    if (code.length !== 6) {
-      this.showError('Pairing code must be exactly 6 characters.');
-      return;
-    }
+    this.clearPairingTimer();
+
+    this.container.innerHTML = '';
+    this.container.style.cssText =
+      'display:flex;align-items:center;justify-content:center;width:100%;height:100%;' +
+      'background:#0f172a;font-family:system-ui,sans-serif;';
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText =
+      'background:#1e293b;padding:2rem;border-radius:0.75rem;width:440px;text-align:center;';
+
+    const title = document.createElement('h2');
+    title.textContent = 'Scan to register this player';
+    title.style.cssText = 'color:#f8fafc;margin-bottom:0.5rem;';
+    wrapper.appendChild(title);
+
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Open PixelSpot app/dashboard, scan this QR, and complete registration.';
+    subtitle.style.cssText = 'color:#94a3b8;font-size:0.9rem;margin:0 0 1rem;';
+    wrapper.appendChild(subtitle);
+
+    const qrHost = document.createElement('div');
+    qrHost.style.cssText = 'display:flex;justify-content:center;margin:0 auto 1rem;';
+    wrapper.appendChild(qrHost);
+
+    const status = document.createElement('p');
+    status.style.cssText = 'color:#94a3b8;font-size:0.85rem;margin:0.75rem 0;';
+    status.textContent = 'Generating QR...';
+    wrapper.appendChild(status);
+
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.textContent = 'Back';
+    backBtn.style.cssText =
+      'width:100%;padding:0.65rem;background:transparent;color:#6366f1;border:1px solid #6366f1;' +
+      'border-radius:0.5rem;font-size:0.9rem;cursor:pointer;margin-top:0.5rem;';
+    backBtn.onclick = () => {
+      this.clearPairingTimer();
+      this.render();
+    };
+    wrapper.appendChild(backBtn);
+
+    this.container.appendChild(wrapper);
+
     try {
       const fingerprint = await generateFingerprint();
-      const res = await claimPairingCode(SetupScreen.SERVER_URL, code, fingerprint);
-      const config: PlayerConfig = {
-        serverUrl: SetupScreen.SERVER_URL,
-        screenId: res.screenId,
-        apiKey: res.apiKey,
-      };
-      saveConfig(config);
-      this.onComplete?.(config);
+      const tokenRes = await requestPlayerPairingToken(SetupScreen.SERVER_URL, fingerprint);
+
+      const qr = qrcode(0, 'L');
+      qr.addData(tokenRes.qrContent);
+      qr.make();
+
+      const svgMarkup = qr.createSvgTag({
+        scalable: true,
+        margin: 2,
+        cellSize: 6,
+      });
+
+      qrHost.innerHTML = svgMarkup;
+      status.textContent = 'Waiting for dashboard claim...';
+
+      this.pairingPollTimer = window.setInterval(async () => {
+        try {
+          const pairingStatus = await getPlayerPairingStatus(SetupScreen.SERVER_URL, tokenRes.token);
+
+          if (pairingStatus.isExpired) {
+            this.clearPairingTimer();
+            status.textContent = 'QR expired. Please go back and generate a new QR.';
+            return;
+          }
+
+          if (pairingStatus.isClaimed && pairingStatus.screenId && pairingStatus.apiKey) {
+            this.clearPairingTimer();
+            status.textContent = 'Paired successfully. Starting player...';
+
+            const config: PlayerConfig = {
+              serverUrl: SetupScreen.SERVER_URL,
+              screenId: pairingStatus.screenId,
+              apiKey: pairingStatus.apiKey,
+            };
+            saveConfig(config);
+            this.onComplete?.(config);
+          }
+        } catch (pollErr) {
+          const msg = pollErr instanceof Error ? pollErr.message : String(pollErr);
+          status.textContent = `Waiting for claim... (${msg})`;
+        }
+      }, 5000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      this.render();
       this.showError(`Pairing failed: ${msg}`);
+    }
+  }
+
+  private clearPairingTimer(): void {
+    if (this.pairingPollTimer !== null) {
+      clearInterval(this.pairingPollTimer);
+      this.pairingPollTimer = null;
     }
   }
 

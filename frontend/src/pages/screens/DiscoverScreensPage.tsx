@@ -56,6 +56,11 @@ import { TAG_CATEGORIES, TAG_CATEGORY_LABELS } from '../../types/screen';
 const DEFAULT_PAGE_SIZE = 12;
 const MAP_PAGE_SIZE = 200; // Load more screens for map view
 const SIDEBAR_WIDTH = 380;
+const PREMIUM_SURFACE = {
+    backgroundColor: 'background.paper',
+    border: '1px solid rgba(16, 24, 40, 0.08)',
+    boxShadow: '0 10px 28px rgba(16, 24, 40, 0.08)',
+};
 
 export default function DiscoverScreensPage() {
     const navigate = useNavigate();
@@ -191,6 +196,7 @@ export default function DiscoverScreensPage() {
                         borderRadius: 0,
                         overflow: 'hidden',
                         zIndex: 1,
+                        ...PREMIUM_SURFACE,
                     }}
                 >
                     {/* Header */}
@@ -242,7 +248,7 @@ export default function DiscoverScreensPage() {
                                 size="small"
                                 variant="contained"
                                 onClick={handleSearch}
-                                sx={{ flex: 1 }}
+                                sx={{ flex: 1, py: 0.9 }}
                             >
                                 Search
                             </Button>
@@ -474,17 +480,26 @@ export default function DiscoverScreensPage() {
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
             {/* Header */}
-            <Box sx={{ mb: 4 }}>
+            <Paper
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10, 102, 216, 0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                }}
+            >
                 <Typography variant="h4" gutterBottom>
                     Discover Screens
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
-                    Find the perfect digital screens for your advertising campaigns. Filter by location, audience, and more.
+                    Find premium placements by city, audience intent, and slot quality.
                 </Typography>
-            </Box>
+            </Paper>
 
             {/* Search Bar */}
-            <Paper sx={{ p: 2, mb: 3 }}>
+            <Paper sx={{ p: 2, mb: 3, borderRadius: 3, ...PREMIUM_SURFACE }}>
                 <Grid container spacing={2} alignItems="center">
                     <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
@@ -515,6 +530,7 @@ export default function DiscoverScreensPage() {
                             variant="contained"
                             startIcon={<SearchIcon />}
                             onClick={handleSearch}
+                            sx={{ py: 1.1 }}
                         >
                             Search
                         </Button>
@@ -699,7 +715,7 @@ export default function DiscoverScreensPage() {
                 <Grid container spacing={3}>
                     {[...Array(6)].map((_, i) => (
                         <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
-                            <Skeleton variant="rectangular" height={300} />
+                            <Skeleton variant="rectangular" height={320} sx={{ borderRadius: 3 }} />
                         </Grid>
                     ))}
                 </Grid>
@@ -708,7 +724,7 @@ export default function DiscoverScreensPage() {
                     Failed to load screens. Please try again.
                 </Alert>
             ) : searchResult?.screens.length === 0 ? (
-                <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 3, ...PREMIUM_SURFACE }}>
                     <MonitorIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
                     <Typography variant="h6" gutterBottom>
                         No screens found
@@ -767,7 +783,19 @@ function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
     const navigate = useNavigate();
 
     return (
-        <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Card
+            sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: 3,
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 18px 36px rgba(16, 24, 40, 0.12)',
+                },
+            }}
+        >
             {/* Screen Image */}
             {screen.primaryImage?.imageUrl ? (
                 <Box
@@ -803,6 +831,7 @@ function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
                         label={screen.status}
                         size="small"
                         color={screen.status === 'Active' ? 'success' : 'default'}
+                        variant={screen.status === 'Active' ? 'filled' : 'outlined'}
                     />
                 </Box>
 
@@ -867,8 +896,8 @@ function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
                 <Button size="small" onClick={() => navigate(`/screens/${screen.id}`)}>
                     View Details
                 </Button>
-                <Button size="small" color="primary" onClick={() => onBook?.(screen.id, screen.name)}>
-                    Book Now
+                <Button size="small" color="primary" variant="contained" onClick={() => onBook?.(screen.id, screen.name)}>
+                    Book now
                 </Button>
             </CardActions>
         </Card>

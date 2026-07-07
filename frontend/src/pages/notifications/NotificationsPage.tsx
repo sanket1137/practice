@@ -62,19 +62,34 @@ const NotificationsPage: React.FC = () => {
 
     return (
         <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="h5" fontWeight="bold">
-                    Notifications
-                </Typography>
-                <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<DoneAllIcon />}
-                    onClick={handleMarkAllAsRead}
-                >
-                    Mark All as Read
-                </Button>
-            </Box>
+            <Paper
+                sx={{
+                    p: { xs: 2, md: 3 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+                    <Box>
+                        <Typography variant="h5" fontWeight="bold">
+                            Notifications
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Action-needed updates, delivery events, and platform alerts.
+                        </Typography>
+                    </Box>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<DoneAllIcon />}
+                        onClick={handleMarkAllAsRead}
+                    >
+                        Mark all as read
+                    </Button>
+                </Box>
+            </Paper>
 
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }}>
@@ -102,7 +117,7 @@ const NotificationsPage: React.FC = () => {
                                 <ListItem
                                     disablePadding
                                     sx={{
-                                        bgcolor: notif.isRead ? 'transparent' : 'action.hover',
+                                        bgcolor: notif.isRead ? 'transparent' : 'rgba(10,102,216,0.06)',
                                         borderBottom: index < data.items.length - 1 ? '1px solid' : 'none',
                                         borderColor: 'divider',
                                     }}

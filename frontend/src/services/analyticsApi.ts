@@ -159,3 +159,85 @@ export const getPlatformDailyStats = async (days: number = 7): Promise<PlatformD
     const response = await api.get(`/analytics/admin/daily?days=${days}`);
     return response.data.data;
 };
+
+// ============================================
+// DATE-RANGE ANALYTICS API (Phase 3)
+// ============================================
+
+export interface SpendOverTimePoint { date: string; amount: number; }
+export interface CampaignBreakdownItem { campaignId: string; name: string; plays: number; spend: number; }
+
+export interface AdvertiserDateRangeAnalytics {
+    totalSpend: number;
+    totalPlays: number;
+    avgCpp: number;
+    activeCampaigns: number;
+    spendOverTime: SpendOverTimePoint[];
+    campaignBreakdown: CampaignBreakdownItem[];
+}
+
+export interface RevenueOverTimePoint { date: string; amount: number; }
+export interface FillRateByScreen { screenId: string; screenName: string; fillRate: number; }
+export interface TopAdvertiser { advertiserId: string; advertiserName: string; spend: number; bookings: number; }
+
+export interface MediaOwnerDateRangeAnalytics {
+    totalRevenue: number;
+    fillRate: number;
+    totalBookings: number;
+    pendingBookings: number;
+    revenueOverTime: RevenueOverTimePoint[];
+    fillRateByScreen: FillRateByScreen[];
+    topAdvertisers: TopAdvertiser[];
+}
+
+export const getAdvertiserDateRangeAnalytics = async (
+    dateFrom: string,
+    dateTo: string
+): Promise<AdvertiserDateRangeAnalytics> => {
+    const response = await api.get(`/analytics/advertiser/daterange?dateFrom=${dateFrom}&dateTo=${dateTo}`);
+    return response.data;
+};
+
+export const getMediaOwnerDateRangeAnalytics = async (
+    dateFrom: string,
+    dateTo: string,
+    screenId?: string
+): Promise<MediaOwnerDateRangeAnalytics> => {
+    const params = new URLSearchParams({ dateFrom, dateTo });
+    if (screenId) params.append('screenId', screenId);
+    const response = await api.get(`/analytics/mediaowner/daterange?${params}`);
+    return response.data;
+};
+
+export const exportAnalyticsCsv = async (
+    role: 'advertiser' | 'mediaowner',
+    dateFrom: string,
+    dateTo: string
+): Promise<void> => {
+    const response = await api.get(`/analytics/export?role=${role}&dateFrom=${dateFrom}&dateTo=${dateTo}`, {
+        responseType: 'blob',
+    });
+    const url = URL.createObjectURL(response.data as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics_${role}_${dateFrom}_${dateTo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+export const exportAnalyticsPdf = async (
+    role: 'advertiser' | 'mediaowner',
+    dateFrom: string,
+    dateTo: string
+): Promise<void> => {
+    const response = await api.get(
+        `/analytics/export?role=${role}&dateFrom=${dateFrom}&dateTo=${dateTo}&format=pdf`,
+        { responseType: 'blob' }
+    );
+    const url = URL.createObjectURL(response.data as Blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics_${role}_${dateFrom}_${dateTo}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+};

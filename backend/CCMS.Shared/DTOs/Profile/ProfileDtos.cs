@@ -16,6 +16,28 @@ public class ProfileDto
     public bool IsEmailVerified { get; set; }
     public bool IsPhoneVerified { get; set; }
     public BankAccountDto? BankAccount { get; set; }
+    public string AccountType { get; set; } = "MediaOwner";
+}
+
+public class SwitchAccountTypeRequest
+{
+    public string TargetAccountType { get; set; } = string.Empty;
+}
+
+public class ScreenUpgradeRequiredDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public bool NeedsPricing { get; set; }
+    public bool NeedsAddress { get; set; }
+    public bool NeedsSchedule { get; set; }
+}
+
+public class AccountTypeSwitchPreflightDto
+{
+    public string TargetAccountType { get; set; } = string.Empty;
+    public bool CanSwitchNow { get; set; }
+    public List<ScreenUpgradeRequiredDto> ScreensRequiringUpgrade { get; set; } = new();
 }
 
 public class UpdateProfileRequest

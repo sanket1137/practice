@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Screen Owner Public Dashboard Reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-canvas: #070b14;
+      --bg-elevated: #0e1524;
+      --bg-glass: rgba(18, 27, 46, 0.72);
+      --border-soft: rgba(160, 190, 255, 0.2);
+      --text-primary: #f5f8ff;
+      --text-secondary: #a7b4cc;
+      --accent-primary: #2ec5ff;
+      --accent-secondary: #ffc857;
+      --ok: #34d399;
+      --warn: #f59e0b;
+      --danger: #f87171;
+      --shadow: 0 24px 80px rgba(6, 10, 22, 0.52);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background:
+        radial-gradient(1100px 540px at 90% -8%, rgba(46, 197, 255, 0.2), transparent 56%),
+        radial-gradient(880px 420px at 8% -5%, rgba(255, 200, 87, 0.12), transparent 55%),
+        var(--bg-canvas);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 244px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      border-right: 1px solid var(--border-soft);
+      background: linear-gradient(180deg, rgba(14, 21, 36, 0.9), rgba(11, 16, 30, 0.95));
+      padding: 24px 16px;
+    }
+
+    .brand {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin: 8px 10px 24px;
+    }
+
+    .nav-item {
+      padding: 12px 14px;
+      border-radius: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .nav-item.active {
+      color: var(--text-primary);
+      background: rgba(46, 197, 255, 0.16);
+      border: 1px solid rgba(46, 197, 255, 0.35);
+    }
+
+    .content {
+      padding: 24px 30px 34px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .status-pill {
+      border: 1px solid rgba(52, 211, 153, 0.5);
+      background: rgba(52, 211, 153, 0.12);
+      color: #9ef4d6;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .headline h1 {
+      margin: 0;
+      font-size: 36px;
+      letter-spacing: -0.02em;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .headline p {
+      margin: 8px 0 0;
+      color: var(--text-secondary);
+      max-width: 700px;
+      line-height: 1.6;
+    }
+
+    .kpi-grid {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-soft);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .kpi {
+      padding: 16px;
+      min-height: 116px;
+    }
+
+    .kpi .label {
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .kpi .value {
+      margin-top: 14px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 30px;
+      font-weight: 700;
+    }
+
+    .kpi .delta {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #99eecf;
+      font-weight: 600;
+    }
+
+    .section-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 14px;
+    }
+
+    .section {
+      padding: 16px;
+      min-height: 300px;
+    }
+
+    .section h3 {
+      margin: 0;
+      font-size: 17px;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .chart {
+      margin-top: 14px;
+      height: 236px;
+      border-radius: 12px;
+      border: 1px dashed rgba(160, 190, 255, 0.3);
+      background: linear-gradient(180deg, rgba(46, 197, 255, 0.1), rgba(46, 197, 255, 0.01));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .queue-item {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid rgba(255, 200, 87, 0.35);
+      border-radius: 12px;
+      background: rgba(255, 200, 87, 0.1);
+    }
+
+    .queue-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    @media (max-width: 1080px) {
+      .shell { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .section-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .content { padding: 18px 14px 90px; }
+      .headline h1 { font-size: 28px; }
+      .kpi-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">PixelSpot CCMS</div>
+      <div class="nav-item active">Dashboard</div>
+      <div class="nav-item">My Screens</div>
+      <div class="nav-item">Booking Requests</div>
+      <div class="nav-item">Payouts</div>
+      <div class="nav-item">Earnings and Analytics</div>
+      <div class="nav-item">Settings</div>
+    </aside>
+    <main class="content">
+      <div class="topbar">
+        <div class="headline">
+          <h1>Public Marketplace Dashboard</h1>
+          <p>Track revenue flow, booking demand, and network reliability in one operational cockpit.</p>
+        </div>
+        <div class="status-pill">Marketplace Mode: Public</div>
+      </div>
+
+      <section class="kpi-grid">
+        <article class="card kpi">
+          <div class="label">Today Revenue</div>
+          <div class="value">INR 48,320</div>
+          <div class="delta">+14.8% vs yesterday</div>
+        </article>
+        <article class="card kpi">
+          <div class="label">Pending Requests</div>
+          <div class="value">17</div>
+          <div class="delta" style="color:#ffd58d">Needs review in next 2 hrs</div>
+        </article>
+        <article class="card kpi">
+          <div class="label">Screens Online</div>
+          <div class="value">42/46</div>
+          <div class="delta">Network uptime 99.2%</div>
+        </article>
+        <article class="card kpi">
+          <div class="label">Weekly Payout</div>
+          <div class="value">INR 2.1L</div>
+          <div class="delta">Settlement ETA: Friday</div>
+        </article>
+      </section>
+
+      <section class="section-grid">
+        <article class="card section">
+          <h3>Earnings Trend (7 days)</h3>
+          <div class="chart">High-fidelity reference: smooth area chart with benchmark overlay</div>
+          <div class="footer-note">Goal: emphasize conversion windows and slot utilization</div>
+        </article>
+        <article class="card section">
+          <h3>Booking Action Queue</h3>
+          <div class="queue-item">
+            <strong>MG Road Billboard - 3 requests</strong>
+            Approval pending for peak-hour slots (18:00 to 21:00)
+          </div>
+          <div class="queue-item" style="border-color:rgba(248,113,113,0.45);background:rgba(248,113,113,0.12)">
+            <strong>Connaught Place LED - conflict alert</strong>
+            Two advertisers requested overlapping time windows
+          </div>
+          <div class="queue-item" style="border-color:rgba(46,197,255,0.45);background:rgba(46,197,255,0.1)">
+            <strong>Phoenix Mall Screen - approved</strong>
+            Ready to publish playlist and go live
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

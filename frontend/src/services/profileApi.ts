@@ -12,6 +12,7 @@ import type {
     SelfReserveSlotRequest,
     VisibilityRequestDto,
     VisibilityRequestDetailDto,
+    AccountTypeSwitchPreflight,
 } from '../types/profile';
 import type { Booking } from '../types/booking';
 import type { Payout } from '../types/payment';
@@ -178,4 +179,35 @@ export const approveVisibilityRequest = async (id: string): Promise<VisibilityRe
 export const rejectVisibilityRequest = async (id: string, reason: string): Promise<VisibilityRequestDto> => {
     const { data } = await api.post(`/admin/visibility-requests/${id}/reject`, { reason });
     return data.data;
+};
+
+// ─── Account Type Switch ─────────────────────────────
+export const getAccountTypeSwitchPreflight = async (
+    target: 'MediaOwner' | 'CmsOwner'
+): Promise<AccountTypeSwitchPreflight> => {
+    const { data } = await api.get('/profile/account-type-switch-preflight', { params: { target } });
+    return data.data;
+};
+
+export const switchAccountType = async (
+    targetAccountType: 'MediaOwner' | 'CmsOwner'
+): Promise<Profile> => {
+    const { data } = await api.put('/profile/account-type', { targetAccountType });
+    return data.data;
+};
+
+export const upgradeScreenToMarketplace = async (
+    screenId: string,
+    payload: {
+        pricePerSlot: number;
+        location: { street: string; city: string; state: string; country: string; postalCode: string };
+        latitude: number;
+        longitude: number;
+        timezone: string;
+        schedule: Record<string, { isOperating: boolean; startTime: string; endTime: string }>;
+        timeFrameMinutes: number;
+        slotsPerFrame: number;
+    }
+): Promise<void> => {
+    await api.put(`/screens/${screenId}/upgrade-to-marketplace`, payload);
 };

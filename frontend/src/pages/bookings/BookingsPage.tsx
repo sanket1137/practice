@@ -677,7 +677,15 @@ export default function BookingsPage() {
 
     return (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-            <Box mb={3}>
+            <Paper
+                sx={{
+                    p: { xs: 2, md: 3 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                }}
+            >
                 <Typography variant="h4" gutterBottom>
                     {user?.role === 'ScreenOwner'
                         ? 'Booking Requests'
@@ -692,7 +700,7 @@ export default function BookingsPage() {
                             ? 'Track the status of your submitted booking requests'
                             : 'View and manage all bookings on the platform'}
                 </Typography>
-            </Box>
+            </Paper>
             {/* Filters */}
             <BookingFiltersBar
                 filters={filters}
@@ -727,7 +735,7 @@ export default function BookingsPage() {
                 </Tabs>
             </Box>
 
-            <Paper>
+            <Paper sx={{ borderRadius: 3 }}>
                 <Box p={3}>
                     {activeTab === 0 && renderBookingsTable(
                         filteredBookings.filter(isActiveLifecycle),

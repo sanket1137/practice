@@ -69,12 +69,99 @@ public class CmsMediaController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<MediaAssetDto>>>> List(
+        [FromQuery] string? search,
+        [FromQuery] string? tags,            // comma-separated
+        [FromQuery] Guid? collectionId,
+        [FromQuery] string? assetType,       // Image | Video | Html | Other
+        [FromQuery] bool favoritesOnly = false,
+        [FromQuery] bool recentlyUsed = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
     {
-        var result = await _mediaService.ListAsync(GetUserId(), page, pageSize, ct);
+        var filters = new MediaLibraryFilters
+        {
+            Search = search,
+            Tags = string.IsNullOrWhiteSpace(tags)
+                ? null
+                : tags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                      .Select(t => t.ToLowerInvariant())
+                      .ToList(),
+            CollectionId = collectionId,
+            AssetType = assetType,
+            FavoritesOnly = favoritesOnly,
+            RecentlyUsed = recentlyUsed,
+            Page = page,
+            PageSize = pageSize
+        };
+        var result = await _mediaService.ListAsync(GetUserId(), filters, ct);
         return Ok(ApiResponse<PagedResult<MediaAssetDto>>.SuccessResponse(result));
+    }
+
+    [HttpPatch("{id}")]
+    public async Task<ActionResult<ApiResponse<MediaAssetDto>>> Update(
+        Guid id, [FromBody] UpdateMediaAssetRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var dto = await _mediaService.UpdateAssetAsync(GetUserId(), id, request, ct);
+            return Ok(ApiResponse<MediaAssetDto>.SuccessResponse(dto));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<MediaAssetDto>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpPost("{id}/favorite")]
+    public async Task<ActionResult<ApiResponse<bool>>> ToggleFavorite(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var isFav = await _mediaService.ToggleFavoriteAsync(GetUserId(), id, ct);
+            return Ok(ApiResponse<bool>.SuccessResponse(isFav));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpGet("collections")]
+    public async Task<ActionResult<ApiResponse<List<MediaCollectionDto>>>> ListCollections(CancellationToken ct)
+    {
+        var result = await _mediaService.ListCollectionsAsync(GetUserId(), ct);
+        return Ok(ApiResponse<List<MediaCollectionDto>>.SuccessResponse(result));
+    }
+
+    [HttpPost("collections")]
+    public async Task<ActionResult<ApiResponse<MediaCollectionDto>>> CreateCollection(
+        [FromBody] CreateMediaCollectionRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var dto = await _mediaService.CreateCollectionAsync(GetUserId(), request, ct);
+            return Ok(ApiResponse<MediaCollectionDto>.SuccessResponse(dto));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<MediaCollectionDto>.ErrorResponse(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<MediaCollectionDto>.ErrorResponse(ex.Message));
+        }
+    }
+
+    [HttpDelete("collections/{id}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteCollection(Guid id, CancellationToken ct)
+    {
+        var deleted = await _mediaService.DeleteCollectionAsync(GetUserId(), id, ct);
+        if (!deleted)
+        {
+            return NotFound(ApiResponse<bool>.ErrorResponse("Collection not found"));
+        }
+        return Ok(ApiResponse<bool>.SuccessResponse(true, "Deleted"));
     }
 
     [HttpDelete("{id}")]

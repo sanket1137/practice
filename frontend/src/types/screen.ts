@@ -66,6 +66,8 @@ export interface MasterTag {
     iconName?: string;
     colorCode?: string;
     priority: number;
+    /** Active marketplace screens carrying this tag — populated only when ?includeScreenCounts=true. */
+    screenCount?: number;
 }
 
 export interface GenerateTagsResult {
@@ -77,6 +79,13 @@ export interface GenerateTagsResult {
     totalPoisFound: number;
 }
 
+export interface BoundingBox {
+    minLat: number;
+    minLng: number;
+    maxLat: number;
+    maxLng: number;
+}
+
 export interface SearchScreensRequest {
     searchText?: string;
     city?: string;
@@ -85,16 +94,46 @@ export interface SearchScreensRequest {
     latitude?: number;
     longitude?: number;
     radiusKm?: number;
+    /** Viewport-bounded search; takes precedence over radiusKm when present. */
+    boundingBox?: BoundingBox;
     requiredTagIds?: string[];
     anyTagIds?: string[];
     tagCategory?: string;
     minPrice?: number;
     maxPrice?: number;
+    /** "Indoor" | "Outdoor" | "SemiIndoor" */
+    displayType?: string;
+    /** "Landscape" | "Portrait" */
+    orientation?: string;
+    minResolutionWidth?: number;
+    minResolutionHeight?: number;
+    minDailyImpressions?: number;
+    maxDailyImpressions?: number;
+    minCpm?: number;
+    maxCpm?: number;
+    /** Returns only screens with NO confirmed booking overlapping this range. */
+    availableFrom?: string; // YYYY-MM-DD
+    availableTo?: string;   // YYYY-MM-DD
+    /** Only currently-online screens. */
+    onlineOnly?: boolean;
+    /** Hour-of-day 0-23 the screen must be operating at (any weekday match). */
+    operatingAtHour?: number;
     status?: string;
     page: number;
     pageSize: number;
+    /** "distance" | "price" | "impressions" | "cpm" | "newest" | "name" */
     sortBy?: string;
     sortDirection?: 'asc' | 'desc';
+}
+
+export interface LocationSuggestion {
+    label: string;
+    kind: 'city' | 'state';
+    city?: string;
+    state?: string;
+    screenCount: number;
+    centerLatitude?: number;
+    centerLongitude?: number;
 }
 
 export interface SearchScreensResult {
@@ -134,12 +173,29 @@ export interface Screen {
     dailyTotalImpressions?: number;
     isOnline?: boolean;
     lastSeenAt?: string;
+    audienceQualityScore?: number;
     createdAt: string;
     lastTaggedAt?: string;
     tags?: ScreenTagSummary[];
     primaryTags?: ScreenTagSummary[];
     images?: ScreenImage[];
     primaryImage?: ScreenImage;
+    /** "Indoor" | "Outdoor" | "SemiIndoor" */
+    displayType?: string;
+    /** "Landscape" | "Portrait" */
+    orientation?: string;
+    /** Verification status string e.g. "Verified". */
+    verificationStatus?: string;
+    /** Distance from the search anchor in km (populated only when search included a coordinate anchor). */
+    distanceKm?: number;
+    /** Cost per mille (1 000 impressions). Null when impressions are unknown. */
+    cpm?: number;
+    /** Average operating hours per day across the weekly schedule. */
+    averageOperatingHoursPerDay?: number;
+    /** Owner display name (company name if set, else first+last). */
+    ownerDisplayName?: string;
+    /** Whether the owner has a verified account. */
+    ownerIsVerified?: boolean;
 }
 
 // Tag categories for filtering

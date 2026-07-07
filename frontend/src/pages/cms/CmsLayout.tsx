@@ -7,6 +7,8 @@ import {
 import MonitorIcon from '@mui/icons-material/Monitor';
 import PermMediaIcon from '@mui/icons-material/PermMedia';
 import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAuthStore } from '../../store/authStore';
 
@@ -16,6 +18,8 @@ const navItems = [
     { path: '/cms/screens', label: 'Screens', icon: <MonitorIcon /> },
     { path: '/cms/media', label: 'Media Library', icon: <PermMediaIcon /> },
     { path: '/cms/playlists', label: 'Playlists', icon: <PlaylistPlayIcon /> },
+    { path: '/cms/schedule', label: 'Schedule', icon: <ScheduleIcon /> },
+    { path: '/cms/groups', label: 'Screen Groups', icon: <GroupIcon /> },
 ];
 
 export default function CmsLayout() {

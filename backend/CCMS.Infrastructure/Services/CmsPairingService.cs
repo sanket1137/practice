@@ -66,7 +66,8 @@ public class CmsPairingService : ICmsPairingService
         return new PairingCodeResponse
         {
             Code = entity.Code,
-            ExpiresAt = entity.ExpiresAt
+            ExpiresAt = entity.ExpiresAt,
+            QrPayload = $"PIXELSPOT-PAIR:{entity.Code}",
         };
     }
 
@@ -118,6 +119,13 @@ public class CmsPairingService : ICmsPairingService
 
         // Provision a new screen for the code's owner.
         var rawApiKey = GenerateApiKey();
+        var orientation = Enum.TryParse<ScreenOrientation>(request.Orientation, true, out var parsedOrientation)
+            ? parsedOrientation
+            : ScreenOrientation.Landscape;
+
+        var width = request.ResolutionWidth.GetValueOrDefault(1920);
+        var height = request.ResolutionHeight.GetValueOrDefault(1080);
+
         var screen = new Screen
         {
             OwnerId = pairing.CreatedByUserId,
@@ -125,8 +133,8 @@ public class CmsPairingService : ICmsPairingService
             Description = string.Empty,
             PhysicalWidth = 0,
             PhysicalHeight = 0,
-            ResolutionWidth = 1920,
-            ResolutionHeight = 1080,
+            ResolutionWidth = width,
+            ResolutionHeight = height,
             Location = new Address(),
             Timezone = "Asia/Kolkata",
             Schedule = new OperatingSchedule(),
@@ -140,6 +148,8 @@ public class CmsPairingService : ICmsPairingService
             DeviceFingerprintHash = HashFingerprint(request.DeviceFingerprint),
             DeviceBoundAt = DateTime.UtcNow,
             DisplayType = ScreenDisplayType.Indoor,
+            Orientation = orientation,
+            LocationTag = request.LocationTag,
             PricePerSlot = 0,
             Currency = "INR"
         };

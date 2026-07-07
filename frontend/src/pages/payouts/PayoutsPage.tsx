@@ -89,16 +89,34 @@ export default function PayoutsPage() {
 
     return (
         <Container maxWidth="lg" sx={{ py: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h4" fontWeight={700}>
-                    Payouts
-                </Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 2,
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Payouts</Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Request and track your screen earnings payouts.
+                    </Typography>
+                </Box>
                 <Button
                     variant="contained"
                     startIcon={<RequestIcon />}
                     onClick={() => setRequestOpen(true)}
                 >
-                    Request Payout
+                    Request payout
                 </Button>
             </Box>
 

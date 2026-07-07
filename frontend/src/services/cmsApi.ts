@@ -13,7 +13,15 @@ import type {
     UpdateCmsPlaylistRequest,
     ReplacePlaylistItemsRequest,
     IssueRemoteCommandRequest,
+    BulkIssueRemoteCommandRequest,
     RemoteCommandDto,
+    ScreenHealthDto,
+    ScheduleWindowDto,
+    CreateScheduleWindowRequest,
+    UpdateScheduleWindowRequest,
+    ScreenGroupDto,
+    CreateScreenGroupRequest,
+    UpdateScreenGroupRequest,
 } from '../types/cms';
 
 // API envelope from backend: { success, data, message, errors }
@@ -61,8 +69,48 @@ export const cmsPlaylistApi = {
 export const cmsCommandsApi = {
     issue: (body: IssueRemoteCommandRequest) =>
         api.post<Envelope<RemoteCommandDto>>('/cms/commands', body).then(unwrap),
+    bulkIssue: (body: BulkIssueRemoteCommandRequest) =>
+        api.post<Envelope<RemoteCommandDto[]>>('/cms/commands/bulk', body).then(unwrap),
     recent: (screenId: string, limit = 50) =>
         api.get<Envelope<RemoteCommandDto[]>>(`/cms/commands/by-screen/${screenId}?limit=${limit}`).then(unwrap),
+    ack: (commandId: string, success: boolean, errorMessage?: string) =>
+        api.post<Envelope<boolean>>(`/cms/commands/${commandId}/ack`, { commandId, success, errorMessage }).then(unwrap),
+};
+
+// ---- Screen health ----
+export const cmsScreensApi = {
+    health: () => api.get<Envelope<ScreenHealthDto[]>>('/cms/screens/health').then(unwrap),
+    exportHealthReport: () =>
+        api.get('/cms/screens/health-report', { responseType: 'blob' }),
+    updateSettings: (screenId: string, autoApprovalEnabled: boolean) =>
+        api.put<Envelope<boolean>>(`/screens/${screenId}/settings`, { autoApprovalEnabled }).then(unwrap),
+};
+
+// ---- Schedule windows ----
+export const cmsScheduleApi = {
+    list: (screenId: string) =>
+        api.get<Envelope<ScheduleWindowDto[]>>(`/cms/screens/${screenId}/schedule/windows`).then(unwrap),
+    create: (screenId: string, body: CreateScheduleWindowRequest) =>
+        api.post<Envelope<ScheduleWindowDto>>(`/cms/screens/${screenId}/schedule/windows`, body).then(unwrap),
+    update: (screenId: string, windowId: string, body: UpdateScheduleWindowRequest) =>
+        api.put<Envelope<ScheduleWindowDto>>(`/cms/screens/${screenId}/schedule/windows/${windowId}`, body).then(unwrap),
+    delete: (screenId: string, windowId: string) =>
+        api.delete<Envelope<boolean>>(`/cms/screens/${screenId}/schedule/windows/${windowId}`).then(unwrap),
+};
+
+// ---- Screen groups ----
+export const cmsScreenGroupsApi = {
+    list: () => api.get<Envelope<ScreenGroupDto[]>>('/cms/screen-groups').then(unwrap),
+    get: (id: string) => api.get<Envelope<ScreenGroupDto>>(`/cms/screen-groups/${id}`).then(unwrap),
+    create: (body: CreateScreenGroupRequest) =>
+        api.post<Envelope<ScreenGroupDto>>('/cms/screen-groups', body).then(unwrap),
+    update: (id: string, body: UpdateScreenGroupRequest) =>
+        api.put<Envelope<ScreenGroupDto>>(`/cms/screen-groups/${id}`, body).then(unwrap),
+    delete: (id: string) => api.delete<Envelope<boolean>>(`/cms/screen-groups/${id}`).then(unwrap),
+    addScreen: (groupId: string, screenId: string) =>
+        api.post<Envelope<boolean>>(`/cms/screen-groups/${groupId}/screens/${screenId}`).then(unwrap),
+    removeScreen: (groupId: string, screenId: string) =>
+        api.delete<Envelope<boolean>>(`/cms/screen-groups/${groupId}/screens/${screenId}`).then(unwrap),
 };
 
 // ---- Helper: SHA-256 of a File via SubtleCrypto ----

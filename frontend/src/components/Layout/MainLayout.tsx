@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import {
     Box,
     AppBar,
@@ -22,6 +23,7 @@ import {
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useAccountVisibility } from '../../hooks/useAccountVisibility';
+import { getSidebarNavigation } from '../../constants/roleRouteMatrix';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import { useNotifications } from '../../hooks/useNotifications';
 import ConnectionStatus from '../common/ConnectionStatus';
@@ -48,6 +50,7 @@ import {
     Security as SecurityIcon,
     VerifiedUser as VerifiedUserIcon,
     Visibility as VisibilityIcon,
+    PermMedia as MediaIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -82,55 +85,29 @@ const MainLayout = () => {
         navigate('/login');
     };
 
-    // Role-specific menu items with appropriate labels
-    const getMenuItems = () => {
-        const role = user?.role;
-
-        if (role === 'ScreenOwner') {
-                const items = [
-                    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-                    { text: 'My Screens', icon: <ScreenIcon />, path: '/screens' },
-                ];
-                if (!isPrivate) {
-                    items.push(
-                        { text: 'Booking Requests', icon: <BookingIcon />, path: '/bookings' },
-                        { text: 'Payouts', icon: <PayoutsIcon />, path: '/payouts' },
-                    );
-                }
-                items.push(
-                    { text: 'Earnings & Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
-                    { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
-                );
-                return items;
-        }
-
-        if (role === 'Advertiser') {
-            return [
-                { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-                { text: 'Campaigns', icon: <CampaignIcon />, path: '/campaigns' },
-                { text: 'Discover Screens', icon: <ExploreIcon />, path: '/screens/discover' },
-                { text: 'My Bookings', icon: <BookingIcon />, path: '/bookings' },
-                { text: 'Campaign Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
-                { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
-            ];
-        }
-
-        // Admin - full access
-        return [
-            { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-            { text: 'All Campaigns', icon: <CampaignIcon />, path: '/campaigns' },
-            { text: 'All Screens', icon: <ScreenIcon />, path: '/screens' },
-            { text: 'All Bookings', icon: <BookingIcon />, path: '/bookings' },
-            { text: 'Payouts', icon: <PayoutsIcon />, path: '/admin/payouts' },
-            { text: 'Machines', icon: <SecurityIcon />, path: '/admin/machines' },
-            { text: 'Verifications', icon: <VerifiedUserIcon />, path: '/admin/verifications' },
-            { text: 'Visibility Requests', icon: <VisibilityIcon />, path: '/admin/visibility-requests' },
-            { text: 'Platform Analytics', icon: <AnalyticsIcon />, path: '/analytics' },
-            { text: 'Settings', icon: <SettingsIcon />, path: '/profile' },
-        ];
+    const iconMap = {
+        dashboard: <DashboardIcon />,
+        campaigns: <CampaignIcon />,
+        screens: <ScreenIcon />,
+        bookings: <BookingIcon />,
+        analytics: <AnalyticsIcon />,
+        settings: <SettingsIcon />,
+        discover: <ExploreIcon />,
+        payouts: <PayoutsIcon />,
+        machines: <SecurityIcon />,
+        verifications: <VerifiedUserIcon />,
+        visibility: <VisibilityIcon />,
+        media: <MediaIcon />,
     };
 
-    const menuItems = getMenuItems();
+    const menuItems = getSidebarNavigation({
+        role: user?.role,
+        isPrivate,
+        accountType: user?.accountType,
+    }).map((item) => ({
+        ...item,
+        icon: iconMap[item.iconKey],
+    }));
 
     const drawer = (
         <Box>
@@ -184,6 +161,9 @@ const MainLayout = () => {
                     </Typography>
 
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                            <LanguageSwitcher />
+                        </Box>
                         {/* WebSocket Connection Status */}
                         <ConnectionStatus status={connectionState} />
 
@@ -347,6 +327,17 @@ const MainLayout = () => {
                     >
                         <Typography variant="body2" color="primary">
                             View All Notifications
+                        </Typography>
+                    </ListItemButton>
+                    <ListItemButton
+                        onClick={() => {
+                            setNotifAnchorEl(null);
+                            navigate('/notifications/settings');
+                        }}
+                        sx={{ justifyContent: 'center', borderRadius: 1 }}
+                    >
+                        <Typography variant="body2" color="text.secondary">
+                            Notification Settings
                         </Typography>
                     </ListItemButton>
                 </Box>

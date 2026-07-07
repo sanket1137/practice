@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   Box,
@@ -51,6 +52,7 @@ export default function VerificationTab({ screenId }: VerificationTabProps) {
   const uploadMutation = useUploadVerificationVideo(screenId);
 
   const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
 
   const [scannerOpen, setScannerOpen] = useState(false);
   const [verificationId, setVerificationId] = useState<string | null>(null);
@@ -90,16 +92,23 @@ export default function VerificationTab({ screenId }: VerificationTabProps) {
       setScannerOpen(false);
 
       // QR encodes: {baseUrl}/verify/{screenId}?code={code}
+      // If player pairing QR is scanned (?token=), redirect to pairing page
       let challengeCode: string;
       try {
         const url = new URL(qrContent);
+        const pairingToken = url.searchParams.get('token');
+        if (pairingToken && url.pathname.includes('player-pair')) {
+          enqueueSnackbar('Player QR detected — redirecting to pairing page', { variant: 'info' });
+          navigate(`/player-pair?token=${encodeURIComponent(pairingToken)}`);
+          return;
+        }
         challengeCode = url.searchParams.get('code') ?? '';
       } catch {
         challengeCode = qrContent;
       }
 
       if (!challengeCode) {
-        enqueueSnackbar('Invalid QR code — no challenge code found', { variant: 'error' });
+        enqueueSnackbar('Invalid QR code — scan the verification QR shown on the player screen, not the pairing QR', { variant: 'error' });
         return;
       }
 

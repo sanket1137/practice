@@ -12,6 +12,8 @@ using CCMS.Domain.Enums;
 using CCMS.Shared.DTOs.Bookings;
 using System.Security.Claims;
 using Asp.Versioning;
+using CCMS.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace CCMS.Api.Controllers;
@@ -28,6 +30,7 @@ public class BookingsController : ControllerBase
     private readonly IRepository<User> _userRepository;
     private readonly IRepository<Screen> _screenRepository;
     private readonly ILogger<BookingsController> _logger;
+    private readonly ApplicationDbContext _context;
 
     public BookingsController(
         IMediator mediator, 
@@ -35,7 +38,8 @@ public class BookingsController : ControllerBase
         IInvoiceService invoiceService,
         IRepository<User> userRepository,
         IRepository<Screen> screenRepository,
-        ILogger<BookingsController> logger)
+        ILogger<BookingsController> logger,
+        ApplicationDbContext context)
     {
         _mediator = mediator;
         _calculationService = calculationService;
@@ -43,6 +47,7 @@ public class BookingsController : ControllerBase
         _userRepository = userRepository;
         _screenRepository = screenRepository;
         _logger = logger;
+        _context = context;
     }
 
     [HttpGet]
@@ -569,5 +574,39 @@ public class BookingsController : ControllerBase
             _logger.LogError(ex, "Error fetching self-reserved bookings");
             return StatusCode(500, CCMS.Shared.Common.ApiResponse<List<BookingDto>>.ErrorResponse("Failed to fetch self-reserved bookings"));
         }
+    }
+
+    /// <summary>
+    /// Cancel a booking within the auto-approval grace window (2 hours) for a full refund.
+    /// </summary>
+    [HttpPut("{id}/cancel-grace")]
+    [Authorize]
+    public async Task<IActionResult> CancelGrace(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var booking = await _context.Bookings
+            .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted);
+
+        if (booking == null)
+            return NotFound(CCMS.Shared.Common.ApiResponse<object>.ErrorResponse("Booking not found"));
+
+        // Must be the advertiser (campaign owner)
+        var campaign = await _context.Campaigns.AsNoTracking().FirstOrDefaultAsync(c => c.Id == booking.CampaignId);
+        if (campaign == null || campaign.AdvertiserId != userId)
+            return StatusCode(403, CCMS.Shared.Common.ApiResponse<object>.ErrorResponse("Not authorised to cancel this booking"));
+
+        if (booking.CancelGraceExpiresAt == null || DateTime.UtcNow > booking.CancelGraceExpiresAt)
+            return BadRequest(CCMS.Shared.Common.ApiResponse<object>.ErrorResponse("Grace cancellation window has expired"));
+
+        if (booking.Status != Domain.Enums.BookingStatus.Approved)
+            return BadRequest(CCMS.Shared.Common.ApiResponse<object>.ErrorResponse("Booking is not in approved status"));
+
+        booking.Status = Domain.Enums.BookingStatus.Cancelled;
+        booking.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return Ok(CCMS.Shared.Common.ApiResponse<object>.SuccessResponse(null!, "Booking cancelled within grace window"));
     }
 }

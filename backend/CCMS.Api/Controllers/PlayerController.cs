@@ -187,6 +187,7 @@ public class PlayerController : ControllerBase
 
             var isCmsMode = ownerAccountType == AccountType.CmsOwner;
             CCMS.Shared.DTOs.Cms.CmsPlaylistDto? cmsPlaylistDto = null;
+            List<CCMS.Shared.DTOs.Player.ScheduleWindowPlayerDto>? scheduleWindows = null;
             if (isCmsMode && !verificationMode)
             {
                 try
@@ -196,6 +197,57 @@ public class PlayerController : ControllerBase
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to load CMS playlist for screen {ScreenId}", request.ScreenId);
+                }
+
+                try
+                {
+                    var windows = await _dbContext.ScheduleWindows
+                        .AsNoTracking()
+                        .Where(w => w.ScreenId == screenGuid && w.IsActive)
+                        .Include(w => w.Playlist)
+                            .ThenInclude(p => p.Items.OrderBy(i => i.Order))
+                                .ThenInclude(i => i.MediaAsset)
+                        .ToListAsync();
+
+                    if (windows.Any())
+                    {
+                        scheduleWindows = windows.Select(w => new CCMS.Shared.DTOs.Player.ScheduleWindowPlayerDto
+                        {
+                            Id = w.Id,
+                            DaysOfWeekMask = w.DaysOfWeekMask,
+                            StartMinute = w.StartMinute,
+                            EndMinute = w.EndMinute,
+                            PlaylistId = w.PlaylistId,
+                            Label = w.Label,
+                            Items = w.Playlist?.Items?.OrderBy(i => i.Order).Select(i => new CCMS.Shared.DTOs.Cms.CmsPlaylistItemDto
+                            {
+                                Id = i.Id,
+                                MediaAssetId = i.MediaAssetId,
+                                ItemType = i.ItemType.ToString(),
+                                Order = i.Order,
+                                DurationSeconds = i.DurationSeconds,
+                                MediaAsset = i.MediaAsset == null ? null : new CCMS.Shared.DTOs.Cms.MediaAssetDto
+                                {
+                                    Id = i.MediaAsset.Id,
+                                    OriginalName = i.MediaAsset.OriginalName,
+                                    MimeType = i.MediaAsset.MimeType,
+                                    SizeBytes = i.MediaAsset.SizeBytes,
+                                    FileUrl = i.MediaAsset.FileUrl,
+                                    ThumbnailUrl = i.MediaAsset.ThumbnailUrl,
+                                    Width = i.MediaAsset.Width,
+                                    Height = i.MediaAsset.Height,
+                                    DurationSeconds = i.MediaAsset.DurationSeconds,
+                                    IsReady = i.MediaAsset.IsReady,
+                                    CreatedAt = i.MediaAsset.CreatedAt
+                                }
+                            }).ToList() ?? new()
+                        }).ToList();
+                        _logger.LogInformation("Loaded {Count} schedule windows for screen {ScreenId}", scheduleWindows.Count, request.ScreenId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load schedule windows for screen {ScreenId}", request.ScreenId);
                 }
             }
 
@@ -216,6 +268,7 @@ public class PlayerController : ControllerBase
                 VerificationMode = verificationMode,
                 VerificationStatus = screen.VerificationStatus.ToString(),
                 CmsPlaylist = cmsPlaylistDto,
+                ScheduleWindows = scheduleWindows,
                 ScreenMode = isCmsMode ? "Cms" : "Dooh"
             };
 

@@ -30,10 +30,10 @@ interface BookingCalendarViewProps {
 }
 
 const STATUS_COLORS = {
-    Pending: '#ff9800',
-    Approved: '#2196f3',
-    Active: '#4caf50',
-    Completed: '#9e9e9e',
+    Pending: '#d97706',
+    Approved: '#0a66d8',
+    Active: '#16a34a',
+    Completed: '#64748b',
 };
 
 export default function BookingCalendarView({
@@ -60,10 +60,19 @@ export default function BookingCalendarView({
     };
 
     return (
-        <Paper sx={{ p: 3 }}>
+        <Paper
+            sx={{
+                p: { xs: 2, sm: 3 },
+                borderRadius: 3,
+                border: '1px solid rgba(16, 24, 40, 0.08)',
+                boxShadow: '0 10px 28px rgba(16, 24, 40, 0.08)',
+                background:
+                    'radial-gradient(1000px 300px at 100% -10%, rgba(10, 102, 216, 0.09), transparent 58%), #ffffff',
+            }}
+        >
             {/* Header */}
             <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
-                <Typography variant="h6">
+                <Typography variant="h6" fontWeight={700}>
                     {format(currentDate, 'MMMM yyyy')}
                 </Typography>
                 <Box>
@@ -76,15 +85,20 @@ export default function BookingCalendarView({
                 </Box>
             </Box>
             {/* Weekday headers */}
-            <Grid container spacing={1} mb={1}>
+            <Grid container spacing={1} mb={1.5}>
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
                     <Grid key={day} size={12 / 7}>
                         <Typography
                             variant="caption"
                             color="text.secondary"
-                            fontWeight="bold"
+                            fontWeight={700}
                             textAlign="center"
                             display="block"
+                            sx={{
+                                py: 0.8,
+                                borderRadius: 2,
+                                bgcolor: 'rgba(10, 102, 216, 0.06)',
+                            }}
                         >
                             {day}
                         </Typography>
@@ -110,15 +124,15 @@ export default function BookingCalendarView({
                             <Paper
                                 variant="outlined"
                                 sx={{
-                                    height: 100,
+                                    height: 112,
                                     p: 1,
                                     cursor: onDateClick ? 'pointer' : 'default',
-                                    bgcolor: isCurrentDay ? 'primary.lighter' : 'background.paper',
-                                    borderColor: isCurrentDay ? 'primary.main' : 'divider',
+                                    bgcolor: isCurrentDay ? 'rgba(10, 102, 216, 0.06)' : 'background.paper',
+                                    borderColor: isCurrentDay ? 'primary.main' : 'rgba(16, 24, 40, 0.12)',
                                     borderWidth: isCurrentDay ? 2 : 1,
                                     '&:hover': onDateClick
                                         ? {
-                                            bgcolor: 'action.hover',
+                                            bgcolor: 'rgba(10, 102, 216, 0.04)',
                                             borderColor: 'primary.main',
                                         }
                                         : {},
@@ -128,7 +142,7 @@ export default function BookingCalendarView({
                             >
                                 <Typography
                                     variant="caption"
-                                    fontWeight={isCurrentDay ? 'bold' : 'normal'}
+                                    fontWeight={isCurrentDay ? 700 : 500}
                                     color={isCurrentDay ? 'primary.main' : 'text.secondary'}
                                 >
                                     {format(date, 'd')}
@@ -145,6 +159,7 @@ export default function BookingCalendarView({
                                                     fontSize: '0.65rem',
                                                     bgcolor: STATUS_COLORS[event.status],
                                                     color: 'white',
+                                                    borderRadius: 1,
                                                     '& .MuiChip-label': {
                                                         px: 1,
                                                         overflow: 'hidden',
@@ -170,7 +185,7 @@ export default function BookingCalendarView({
                 })}
             </Grid>
             {/* Legend */}
-            <Box mt={3} display="flex" gap={2} flexWrap="wrap">
+            <Box mt={3} display="flex" gap={2} flexWrap="wrap" sx={{ pt: 1, borderTop: '1px solid rgba(16, 24, 40, 0.08)' }}>
                 {Object.entries(STATUS_COLORS).map(([status, color]) => (
                     <Box key={status} display="flex" alignItems="center" gap={0.5}>
                         <Box

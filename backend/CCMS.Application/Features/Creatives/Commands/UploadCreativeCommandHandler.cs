@@ -138,6 +138,7 @@ public class UploadCreativeCommandHandler : IRequestHandler<UploadCreativeComman
             Duration = metadata.Duration,  // Always from video file
             Width = request.Width ?? metadata.Width,   // User-provided overrides auto-detected
             Height = request.Height ?? metadata.Height, // User-provided overrides auto-detected
+            Status = Domain.Enums.CreativeStatus.PendingReview,
             CreatedAt = DateTime.UtcNow
         };
 

@@ -1,5 +1,18 @@
 namespace CCMS.Shared.DTOs.Player;
 
+/// <summary>Slim schedule window payload sent to the player inside the handshake response.</summary>
+public class ScheduleWindowPlayerDto
+{
+    public Guid Id { get; set; }
+    public int DaysOfWeekMask { get; set; }
+    public int StartMinute { get; set; }
+    public int EndMinute { get; set; }
+    public Guid PlaylistId { get; set; }
+    public string? Label { get; set; }
+    /// <summary>Ordered playlist items for this window (same shape as CmsPlaylist.Items).</summary>
+    public List<CCMS.Shared.DTOs.Cms.CmsPlaylistItemDto> Items { get; set; } = new();
+}
+
 public class HandshakeRequest
 {
     // Screen identification
@@ -51,6 +64,10 @@ public class HandshakeResponse
     // CMS-mode payload. Present only when the screen owner is a CmsOwner;
     // players should prefer this playlist over <see cref="Playlist"/> when set.
     public CCMS.Shared.DTOs.Cms.CmsPlaylistDto? CmsPlaylist { get; set; }
+
+    // Schedule windows for day-parting (CMS mode only). The player checks these
+    // every minute and switches to the matching playlist when a window is active.
+    public List<ScheduleWindowPlayerDto>? ScheduleWindows { get; set; }
 
     // Screen mode — "Cms" or "Dooh". Lets the player pick the right code path
     // without having to infer from which playlist field is populated.

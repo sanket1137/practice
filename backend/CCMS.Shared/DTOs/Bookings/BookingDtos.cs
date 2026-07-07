@@ -21,6 +21,10 @@ public class BookingDto
     public int DeliveredImpressions { get; set; }
     public decimal TotalPrice { get; set; }
     public string Currency { get; set; } = "INR";
+
+    /// <summary>Fit mode the player applies if creative ≠ screen dimensions.</summary>
+    public string FitMode { get; set; } = "SmartAdaptive";
+
     public DateTime CreatedAt { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public Guid? CancelledBy { get; set; }
@@ -64,6 +68,13 @@ public class CreateBookingRequest
     public string StartDate { get; set; } = string.Empty; // YYYY-MM-DD format (date-only, no timezone issues)
     public string EndDate { get; set; } = string.Empty;   // YYYY-MM-DD format
     public int? SlotNumber { get; set; } // null = auto-assign, 1-6 = specific slot
+
+    /// <summary>
+    /// Optional fit mode the player should apply if the creative does not
+    /// natively match the screen dimensions. Defaults to SmartAdaptive
+    /// server-side when omitted. See CreativeFitMode.
+    /// </summary>
+    public Domain.Enums.CreativeFitMode? FitMode { get; set; }
 }
 
 public class ApproveBookingRequest

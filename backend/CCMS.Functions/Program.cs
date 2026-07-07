@@ -1,7 +1,9 @@
+using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Interfaces;
 using CCMS.Infrastructure.Data;
 using CCMS.Infrastructure.Repositories;
+using CCMS.Infrastructure.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +38,15 @@ var host = new HostBuilder()
 
         // Application Services
         services.AddScoped<BookingStatusUpdateService>();
+
+        // Infrastructure services used by jobs
+        services.AddScoped<IEmailService, EmailService>();
+
+        // HttpClient (required by EmailService / external services)
+        services.AddHttpClient();
+
+        // IConfiguration for EmailService
+        services.AddSingleton(configuration);
 
         // Logging (Application Insights - optional, commented out for local dev)
         // services.AddApplicationInsightsTelemetryWorkerService();

@@ -452,6 +452,9 @@ export class App {
         const minutes = mode === 'fast' ? 1 : 10;
         this.updateSyncInterval(minutes);
       },
+      onRemoteCommand: (commandType, payload) => {
+        this.handlePlaybackHubRemoteCommand(commandType, payload);
+      },
       onConnectionStateChanged: (connected) => {
         this.updateConnectionOverlay(connected);
       },
@@ -474,6 +477,44 @@ export class App {
     if (this.player && this.state === 'playing') {
       this.player.loadPlaylist(playlist);
       console.log(`[App] Playlist updated: ${playlist.length} items`);
+    }
+  }
+
+  private handlePlaybackHubRemoteCommand(commandType: string, payload: unknown): void {
+    if (!this.player) return;
+
+    const type = (commandType || '').toLowerCase();
+    const body = typeof payload === 'object' && payload !== null
+      ? (payload as Record<string, unknown>)
+      : {};
+
+    switch (type) {
+      case 'play':
+        this.player.resume();
+        break;
+      case 'pause':
+        this.player.pause();
+        break;
+      case 'skip':
+      case 'next':
+        this.player.skipNext();
+        break;
+      case 'mute':
+        this.player.mute();
+        break;
+      case 'unmute':
+        this.player.unmute();
+        break;
+      case 'setbrightness': {
+        const raw = body.brightness ?? body.value;
+        if (typeof raw === 'number') {
+          const percent = Math.max(0, Math.min(100, raw));
+          document.body.style.filter = `brightness(${Math.max(0.05, percent / 100)})`;
+        }
+        break;
+      }
+      default:
+        break;
     }
   }
 

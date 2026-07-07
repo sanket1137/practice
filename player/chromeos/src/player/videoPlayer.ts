@@ -140,4 +140,14 @@ export class VideoPlayer {
       this.videoB.muted = false;
     }
   }
+
+  mute(): void {
+    this.videoA.muted = true;
+    this.videoB.muted = true;
+  }
+
+  unmute(): void {
+    this.videoA.muted = false;
+    this.videoB.muted = false;
+  }
 }

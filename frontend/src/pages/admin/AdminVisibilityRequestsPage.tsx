@@ -101,9 +101,22 @@ export default function AdminVisibilityRequestsPage() {
 
     return (
         <Box>
-            <Typography variant="h5" fontWeight="bold" sx={{ mb: 3 }}>
-                Visibility requests
-            </Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                }}
+            >
+                <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Visibility requests</Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Approve screen owners moving from private to public marketplace.
+                </Typography>
+            </Box>
 
             {/* Stats */}
             <Grid container spacing={2} sx={{ mb: 3 }}>

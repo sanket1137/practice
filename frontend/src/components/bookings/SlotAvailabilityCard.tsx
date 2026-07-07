@@ -75,7 +75,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
         enabled: !!screenId && !!startDate && !!endDate,
     });
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'default' => {
         switch (status) {
             case 'AVAILABLE':
                 return 'success';
@@ -103,7 +103,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
 
     if (isLoading) {
         return (
-            <Card>
+            <Card sx={{ borderRadius: 3 }}>
                 <CardContent>
                     <Box display="flex" alignItems="center" gap={2}>
                         <CircularProgress size={20} />
@@ -132,11 +132,18 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
         : 0;
 
     return (
-        <Card>
+        <Card
+            sx={{
+                borderRadius: 3,
+                border: '1px solid rgba(16, 24, 40, 0.08)',
+                background:
+                    'radial-gradient(900px 340px at 100% -10%, rgba(10, 102, 216, 0.08), transparent 60%), #ffffff',
+            }}
+        >
             <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                    <Typography variant="h6">
-                        📊 Slot Availability
+                    <Typography variant="h6" fontWeight={700}>
+                        Slot availability
                     </Typography>
                     <IconButton
                         onClick={() => setExpanded(!expanded)}
@@ -156,7 +163,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             xs: 6,
                             sm: 3
                         }}>
-                        <Box textAlign="center">
+                        <Box textAlign="center" sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(10, 102, 216, 0.06)' }}>
                             <Typography variant="h4" color="primary">
                                 {summary.totalAvailableSlots}
                             </Typography>
@@ -170,7 +177,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             xs: 6,
                             sm: 3
                         }}>
-                        <Box textAlign="center">
+                        <Box textAlign="center" sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(22, 163, 74, 0.08)' }}>
                             <Typography variant="h4" color="success.main">
                                 {summary.availableDays}
                             </Typography>
@@ -184,7 +191,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             xs: 6,
                             sm: 3
                         }}>
-                        <Box textAlign="center">
+                        <Box textAlign="center" sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(220, 38, 38, 0.08)' }}>
                             <Typography variant="h4" color="error.main">
                                 {summary.soldOutDays}
                             </Typography>
@@ -198,7 +205,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
                             xs: 6,
                             sm: 3
                         }}>
-                        <Box textAlign="center">
+                        <Box textAlign="center" sx={{ p: 1.2, borderRadius: 2, bgcolor: 'rgba(100, 116, 139, 0.10)' }}>
                             <Typography variant="h4">
                                 {utilizationRate.toFixed(0)}%
                             </Typography>
@@ -277,7 +284,7 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
 
                                     <Chip
                                         label={day.status.replace('_', ' ')}
-                                        color={getStatusColor(day.status) as any}
+                                        color={getStatusColor(day.status)}
                                         size="small"
                                         icon={getStatusIcon(day.status)}
                                     />

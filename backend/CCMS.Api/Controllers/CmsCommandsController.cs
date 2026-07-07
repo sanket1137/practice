@@ -74,6 +74,66 @@ public class CmsCommandsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Bulk-issue the same command to multiple screens.
+    /// </summary>
+    [HttpPost("bulk")]
+    public async Task<ActionResult<ApiResponse<List<RemoteCommandDto>>>> BulkIssue(
+        [FromBody] BulkIssueRemoteCommandRequest request, CancellationToken ct)
+    {
+        if (request.ScreenIds == null || request.ScreenIds.Count == 0)
+            return BadRequest(ApiResponse<List<RemoteCommandDto>>.ErrorResponse("No screens specified"));
+
+        var userId = GetUserId();
+        var results = new List<RemoteCommandDto>();
+        var errors = new List<string>();
+
+        foreach (var screenId in request.ScreenIds)
+        {
+            try
+            {
+                var single = new IssueRemoteCommandRequest
+                {
+                    ScreenId = screenId,
+                    CommandType = request.CommandType,
+                    Payload = request.Payload,
+                };
+                var result = await _commandService.IssueAsync(userId, single, ct);
+                results.Add(result);
+
+                await _hub.Clients.Group(CmsControlHub.GroupName(screenId))
+                    .SendAsync("command", result, ct);
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{screenId}: {ex.Message}");
+            }
+        }
+
+        return Ok(ApiResponse<List<RemoteCommandDto>>.SuccessResponse(
+            results,
+            errors.Count > 0 ? $"Completed with {errors.Count} error(s)" : $"Issued to {results.Count} screen(s)"));
+    }
+
+    /// <summary>
+    /// Player acknowledges a command result.
+    /// </summary>
+    [HttpPost("{commandId}/ack")]
+    public async Task<ActionResult<ApiResponse<bool>>> Ack(
+        Guid commandId, [FromBody] AckCommandRequest request, CancellationToken ct)
+    {
+        try
+        {
+            request.CommandId = commandId;
+            await _commandService.AckAsync(Guid.Empty, request, ct);
+            return Ok(ApiResponse<bool>.SuccessResponse(true, "Acknowledged"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<bool>.ErrorResponse(ex.Message));
+        }
+    }
+
     private Guid GetUserId()
     {
         var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

@@ -11,6 +11,13 @@ public class IssueRemoteCommandRequest
     public object? Payload { get; set; }
 }
 
+public class BulkIssueRemoteCommandRequest
+{
+    public List<Guid> ScreenIds { get; set; } = new();
+    public string CommandType { get; set; } = string.Empty;
+    public object? Payload { get; set; }
+}
+
 public class RemoteCommandDto
 {
     public Guid Id { get; set; }

@@ -1,2 +1,0 @@
---------- beginning of system
-02-18 09:45:17.908  5834  5922 I ActivityTaskManager: START u0 {flg=0x10000000 xflg=0x4 cmp=com.pixelspot.ccms.player.debug/.MainActivity} with LAUNCH_MULTIPLE from uid 2000 result code=-92

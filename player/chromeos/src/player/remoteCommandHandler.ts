@@ -56,6 +56,21 @@ export class RemoteCommandHandler {
           this.player.setVolume(payload.volume);
           break;
         }
+        case 'mute':
+          this.player.mute();
+          break;
+        case 'unmute':
+          this.player.unmute();
+          break;
+        case 'setbrightness': {
+          const raw = payload.brightness ?? payload.value;
+          if (typeof raw !== 'number') {
+            throw new Error("SetBrightness requires numeric 'brightness' or 'value'");
+          }
+          const percent = Math.max(0, Math.min(100, raw));
+          document.body.style.filter = `brightness(${Math.max(0.05, percent / 100)})`;
+          break;
+        }
         case 'forcesync':
           this.onForceSync();
           break;

@@ -122,19 +122,13 @@ export default function CreateBookingPage() {
     const [validationError, setValidationError] = useState<string | null>(null);
 
     // Fetch campaigns
-    const { data: campaigns, error: campaignsError, isLoading: campaignsLoading } = useQuery<Campaign[]>({
+    const { data: campaigns } = useQuery<Campaign[]>({
         queryKey: ['campaigns'],
         queryFn: async () => {
             const response = await api.get('/campaigns');
-            console.log('Campaigns API response:', response.data);
             return response.data.data; // ApiResponse wrapper
         },
     });
-
-    // Log campaigns for debugging
-    console.log('Campaigns data:', campaigns);
-    console.log('Campaigns error:', campaignsError);
-    console.log('Campaigns loading:', campaignsLoading);
 
     // Fetch creatives for selected campaign
     const { data: creatives } = useQuery<Creative[]>({
@@ -229,11 +223,6 @@ export default function CreateBookingPage() {
     const calculation = useMemo(() => {
         if (!selectedScreenDetails || !startDate || !endDate || !availabilityData) return null;
 
-        console.log('=== Booking Calculation ===');
-        console.log('Start Date:', startDate);
-        console.log('End Date:', endDate);
-        console.log('Availability Data:', availabilityData);
-
         const parseTime = (timeStr: string) => {
             const [hours, minutes] = timeStr.split(':').map(Number);
             return hours * 60 + minutes;
@@ -259,8 +248,6 @@ export default function CreateBookingPage() {
                 return availDate === currentDateStr;
             });
 
-            console.log('Checking date:', currentDateStr, 'Found availability:', dayAvailability);
-
             const hasAvailableSlots = dayAvailability && dayAvailability.availableSlots > 0;
 
             if (daySchedule?.isOperating && hasAvailableSlots) {
@@ -272,8 +259,6 @@ export default function CreateBookingPage() {
                 operatingDays++;
                 bookableDays++;
                 totalImpressions += frames;
-
-                console.log('Day has availability:', currentDateStr, 'frames:', frames);
 
                 breakdown.push({
                     date: new Date(current),
@@ -366,14 +351,23 @@ export default function CreateBookingPage() {
 
     return (
         <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-            <Box mb={3}>
+            <Paper
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10, 102, 216, 0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                }}
+            >
                 <Typography variant="h4" gutterBottom>
-                    Create New Booking
+                    Create booking
                 </Typography>
-                <Typography variant="body1" color="textSecondary">
-                    Book a screen for your campaign
+                <Typography variant="body1" color="text.secondary">
+                    Build your schedule with modern availability insights and pricing.
                 </Typography>
-            </Box>
+            </Paper>
             <Grid container spacing={3}>
                 {/* Form */}
                 <Grid
@@ -381,7 +375,7 @@ export default function CreateBookingPage() {
                         xs: 12,
                         md: 8
                     }}>
-                    <Paper sx={{ p: 4 }}>
+                    <Paper sx={{ p: { xs: 2.5, md: 4 }, borderRadius: 3 }}>
                         <form onSubmit={handleSubmit(onSubmit)}>
                             <Grid container spacing={3}>
                                 {/* Campaign */}
@@ -503,6 +497,7 @@ export default function CreateBookingPage() {
                                                     slotProps={{
                                                         textField: {
                                                             fullWidth: true,
+                                                            size: 'small',
                                                             error: !!errors.startDate,
                                                             helperText: errors.startDate?.message || 'Bookings must start from tomorrow onwards',
                                                             required: true,
@@ -532,6 +527,7 @@ export default function CreateBookingPage() {
                                                     slotProps={{
                                                         textField: {
                                                             fullWidth: true,
+                                                            size: 'small',
                                                             error: !!errors.endDate,
                                                             helperText: errors.endDate?.message,
                                                             required: true,
@@ -570,7 +566,7 @@ export default function CreateBookingPage() {
                                             variant="contained"
                                             disabled={createMutation.isPending || !!validationError}
                                         >
-                                            Create Booking
+                                            {createMutation.isPending ? 'Creating...' : 'Create booking'}
                                         </Button>
                                     </Box>
                                 </Grid>
@@ -585,7 +581,7 @@ export default function CreateBookingPage() {
                         xs: 12,
                         md: 4
                     }}>
-                    <Card>
+                    <Card sx={{ borderRadius: 3 }}>
                         <CardContent>
                             <Typography variant="h6" gutterBottom>
                                 Booking Summary

@@ -227,6 +227,10 @@ class CCMSPlayer:
         self.playlist_needs_reload = False  # Flag to trigger MPV playlist reload
         self._reload_event = asyncio.Event()  # Event to signal immediate reload
         self._event_loop = None  # Reference to main event loop for thread-safe async calls
+
+        # Day-parting / schedule windows (CMS mode)
+        self.schedule_windows = []      # List of schedule window dicts from handshake
+        self.cms_default_playlist = []  # Fallback playlist when no schedule window matches
         
         # Duplicate event prevention
         self._last_ended_slot = None  # Last slot that triggered video-ended
@@ -484,7 +488,7 @@ class CCMSPlayer:
             }
             
             response = requests.post(
-                f"{self.api_url}/api/player/handshake",
+                f"{self.api_url}/api/v1/player/handshake",
                 json=handshake_payload,
                 timeout=10
             )
@@ -576,6 +580,19 @@ class CCMSPlayer:
                             f"[OK] CMS playlist received (mode={screen_mode}): "
                             f"{len(self.playlist)} items, version={cms_playlist.get('version')}"
                         )
+
+                        # Store the default CMS playlist as fallback for day-parting
+                        self.cms_default_playlist = list(self.playlist)
+
+                        # Extract schedule windows for day-parting (may be None or empty)
+                        schedule_windows_raw = data.get("scheduleWindows") or []
+                        if schedule_windows_raw:
+                            self.schedule_windows = schedule_windows_raw
+                            logger.info(f"[Schedule] {len(self.schedule_windows)} schedule windows loaded for day-parting")
+                        else:
+                            self.schedule_windows = []
+                            logger.info("[Schedule] No schedule windows configured")
+
                         sync_interval = data.get("syncIntervalMinutes", 10)
                         Config.SYNC_INTERVAL_MINUTES = sync_interval
                         return True
@@ -613,12 +630,64 @@ class CCMSPlayer:
         except Exception as e:
             logger.error(f"Handshake error: {e}")
             return False
-    
+
+    def get_schedule_active_playlist(self):
+        """Return translated playlist items for the currently active schedule window.
+
+        The day-of-week bitmask convention matches the backend:
+          1=Mon, 2=Tue, 4=Wed, 8=Thu, 16=Fri, 32=Sat, 64=Sun
+        Python's datetime.weekday() returns 0=Mon … 6=Sun, so bit = 1 << weekday().
+
+        Returns None when no window matches (caller should fall back to default).
+        """
+        if not self.schedule_windows:
+            return None
+
+        if self.screen_timezone:
+            now = datetime.now(self.screen_timezone)
+        else:
+            now = datetime.now()
+
+        day_bit = 1 << now.weekday()  # Mon=0→1, Tue=1→2, …, Sun=6→64
+        current_minute = now.hour * 60 + now.minute
+
+        for window in self.schedule_windows:
+            mask = window.get("daysOfWeekMask", 0)
+            start = window.get("startMinute", 0)
+            end = window.get("endMinute", 1440)
+            if (mask & day_bit) and start <= current_minute < end:
+                items_raw = window.get("items", []) or []
+                translated = []
+                for idx, item in enumerate(items_raw):
+                    asset = item.get("mediaAsset") or {}
+                    url = asset.get("fileUrl")
+                    if not url:
+                        continue
+                    translated.append({
+                        "slotNumber": idx + 1,
+                        "fileUrl": url,
+                        "ownerContentId": asset.get("id"),
+                        "mimeType": asset.get("mimeType"),
+                        "durationSeconds": item.get("durationSeconds") or asset.get("durationSeconds"),
+                        "isFillerContent": False,
+                        "source": "schedule",
+                    })
+                if not translated:
+                    continue  # window has no valid items; keep searching
+                label = window.get("label") or str(window.get("playlistId", ""))[:8]
+                logger.info(
+                    f"[Schedule] Active window '{label}' "
+                    f"({start // 60:02d}:{start % 60:02d}–{end // 60:02d}:{end % 60:02d})"
+                )
+                return translated
+
+        return None  # No matching window right now
+
     def send_heartbeat(self):
         """Send heartbeat to maintain online status"""
         try:
             response = requests.post(
-                f"{self.api_url}/api/player/heartbeat",
+                f"{self.api_url}/api/v1/player/heartbeat",
                 json={"screenId": self.screen_id},
                 timeout=5
             )
@@ -686,7 +755,7 @@ class CCMSPlayer:
             logger.info(f"Syncing {len(impressions_to_sync)} impressions...")
             
             response = requests.post(
-                f"{self.api_url}/api/player/sync",
+                f"{self.api_url}/api/v1/player/sync",
                 json={
                     "screenId": self.screen_id,
                     "syncData": sync_data
@@ -985,7 +1054,7 @@ class CCMSPlayer:
             
             # Use handshake endpoint since there's no dedicated playlist endpoint
             response = self.session.post(
-                f"{self.api_url}/api/player/handshake",
+                f"{self.api_url}/api/v1/player/handshake",
                 json={"screenId": self.screen_id, "deviceId": f"player-{self.screen_id}"},
                 headers={"X-Device-Id": f"player-{self.screen_id}"},
                 timeout=10
@@ -1049,6 +1118,37 @@ class CCMSPlayer:
             if new_url != old_url or new_owner != old_owner:
                 return False
         return True
+
+    async def schedule_check_loop(self):
+        """Periodically check whether the active schedule window has changed.
+
+        Runs every 60 seconds. When a different window becomes active the new
+        playlist is buffered as a pending playlist so the cycle-boundary swap
+        mechanism applies it gaplessly at the end of the current ad cycle.
+        """
+        while self.is_running:
+            await asyncio.sleep(60)
+            if not self.schedule_windows:
+                continue
+            try:
+                scheduled = self.get_schedule_active_playlist()
+                new_playlist = scheduled if scheduled is not None else (self.cms_default_playlist or self.playlist)
+                if not new_playlist:
+                    continue
+                # Only buffer if playlist actually changed
+                compare_against = self._pending_playlist if self._pending_playlist is not None else self.playlist
+                if len(new_playlist) != len(compare_against) or any(
+                    a.get("fileUrl") != b.get("fileUrl")
+                    for a, b in zip(new_playlist, compare_against)
+                ):
+                    logger.info(
+                        f"[Schedule] Window changed — buffering new playlist "
+                        f"({len(new_playlist)} items) for cycle-boundary swap"
+                    )
+                    self._pending_playlist = new_playlist
+                    self._pending_slots_per_frame = len(new_playlist)
+            except Exception as e:
+                logger.error(f"[Schedule] Check failed: {e}")
     
     def _schedule_background_download(self, playlist: list, is_pending: bool = False):
         """Schedule background download in a thread-safe manner.
@@ -1616,6 +1716,19 @@ class CCMSPlayer:
                     logger.warning("No playlist loaded, waiting...")
                     await asyncio.sleep(5)
                     continue
+
+                # Day-parting: apply the active schedule window (if any) before loading MPV.
+                # This runs every outer loop iteration so the correct playlist is used whenever
+                # the player restarts after an operating-hours pause or a sync.
+                if self.schedule_windows:
+                    scheduled = self.get_schedule_active_playlist()
+                    if scheduled is not None:
+                        self.playlist = scheduled
+                        logger.info(f"[Schedule] Using scheduled playlist ({len(self.playlist)} items)")
+                    else:
+                        if self.cms_default_playlist:
+                            self.playlist = list(self.cms_default_playlist)
+                        logger.info("[Schedule] No matching window — using default CMS playlist")
                 
                 # Debug: log playlist structure (local_path already set during download)
                 logger.info(f"Playlist has {len(self.playlist)} items:")
@@ -1821,6 +1934,7 @@ class CCMSPlayer:
         sync_task = asyncio.create_task(self.sync_loop())
         cache_cleanup_task = asyncio.create_task(self.cache_cleanup_loop())
         playlist_refresh_task = asyncio.create_task(self.playlist_refresh_loop())
+        schedule_task = asyncio.create_task(self.schedule_check_loop())
         
         try:
             await self.play_loop()
@@ -1832,6 +1946,7 @@ class CCMSPlayer:
             sync_task.cancel()
             cache_cleanup_task.cancel()
             playlist_refresh_task.cancel()
+            schedule_task.cancel()
             
             # Stop WebRTC streaming
             if webrtc_client:

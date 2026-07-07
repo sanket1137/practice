@@ -72,7 +72,8 @@ public class ProfileController : ControllerBase
             AccountVisibility = user.AccountVisibility.ToString(),
             IsEmailVerified = user.IsEmailVerified,
             IsPhoneVerified = user.IsPhoneVerified,
-            BankAccount = bankAccount != null ? MapBankAccount(bankAccount) : null
+            BankAccount = bankAccount != null ? MapBankAccount(bankAccount) : null,
+            AccountType = user.AccountType.ToString()
         };
 
         return Ok(ApiResponse<ProfileDto>.SuccessResponse(dto));
@@ -354,4 +355,118 @@ public class ProfileController : ControllerBase
         AdminReviewedAt = r.AdminReviewedAt,
         RejectionReason = r.RejectionReason,
     };
+
+    // ─── Account Type Switch ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns which of the caller's screens will need marketplace details filled in
+    /// before switching from CmsOwner → MediaOwner. Screens missing pricing,
+    /// address, or operating schedule are flagged.
+    /// </summary>
+    [HttpGet("account-type-switch-preflight")]
+    [Authorize(Roles = "ScreenOwner")]
+    public async Task<ActionResult<ApiResponse<AccountTypeSwitchPreflightDto>>> GetAccountTypeSwitchPreflight(
+        [FromQuery] string target = "MediaOwner")
+    {
+        if (!Enum.TryParse<AccountType>(target, true, out var targetType))
+            return BadRequest(ApiResponse<AccountTypeSwitchPreflightDto>.ErrorResponse(
+                "Invalid target account type. Must be 'MediaOwner' or 'CmsOwner'."));
+
+        var userId = GetUserId();
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return NotFound(ApiResponse<AccountTypeSwitchPreflightDto>.ErrorResponse("User not found"));
+
+        if (user.AccountType == targetType)
+            return Ok(ApiResponse<AccountTypeSwitchPreflightDto>.SuccessResponse(new AccountTypeSwitchPreflightDto
+            {
+                TargetAccountType = target,
+                CanSwitchNow = true,
+                ScreensRequiringUpgrade = new()
+            }));
+
+        var screens = new List<ScreenUpgradeRequiredDto>();
+
+        // Only CmsOwner → MediaOwner requires per-screen upgrade checks
+        if (user.AccountType == AccountType.CmsOwner && targetType == AccountType.MediaOwner)
+        {
+            var ownedScreens = await _context.Screens
+                .AsNoTracking()
+                .Where(s => s.OwnerId == userId && !s.IsDeleted)
+                .ToListAsync();
+
+            foreach (var s in ownedScreens)
+            {
+                var needsPricing = s.PricePerSlot <= 0;
+                var needsAddress = string.IsNullOrWhiteSpace(s.Location?.City);
+                var needsSchedule = s.TimeFrameMinutes <= 0 || s.SlotsPerFrame <= 0;
+
+                if (needsPricing || needsAddress || needsSchedule)
+                {
+                    screens.Add(new ScreenUpgradeRequiredDto
+                    {
+                        Id = s.Id,
+                        Name = s.Name,
+                        NeedsPricing = needsPricing,
+                        NeedsAddress = needsAddress,
+                        NeedsSchedule = needsSchedule
+                    });
+                }
+            }
+        }
+
+        return Ok(ApiResponse<AccountTypeSwitchPreflightDto>.SuccessResponse(new AccountTypeSwitchPreflightDto
+        {
+            TargetAccountType = target,
+            CanSwitchNow = screens.Count == 0,
+            ScreensRequiringUpgrade = screens
+        }));
+    }
+
+    /// <summary>
+    /// Switches the caller's account type. For CmsOwner → MediaOwner the
+    /// switch is blocked if any screens still need marketplace details
+    /// (use the preflight endpoint + upgrade endpoint first).
+    /// </summary>
+    [HttpPut("account-type")]
+    [Authorize(Roles = "ScreenOwner")]
+    public async Task<ActionResult<ApiResponse<ProfileDto>>> SwitchAccountType(
+        [FromBody] SwitchAccountTypeRequest request)
+    {
+        if (!Enum.TryParse<AccountType>(request.TargetAccountType, true, out var targetType))
+            return BadRequest(ApiResponse<ProfileDto>.ErrorResponse(
+                "Invalid account type. Allowed: 'MediaOwner', 'CmsOwner'."));
+
+        var userId = GetUserId();
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return NotFound(ApiResponse<ProfileDto>.ErrorResponse("User not found"));
+
+        if (user.AccountType == targetType)
+            return await GetProfile();
+
+        // Guard CmsOwner → MediaOwner: all screens must be marketplace-ready
+        if (user.AccountType == AccountType.CmsOwner && targetType == AccountType.MediaOwner)
+        {
+            var hasIncompleteScreens = await _context.Screens
+                .AsNoTracking()
+                .Where(s => s.OwnerId == userId && !s.IsDeleted)
+                .AnyAsync(s => s.PricePerSlot <= 0
+                            || string.IsNullOrEmpty(s.Location!.City)
+                            || s.TimeFrameMinutes <= 0
+                            || s.SlotsPerFrame <= 0);
+
+            if (hasIncompleteScreens)
+                return BadRequest(ApiResponse<ProfileDto>.ErrorResponse(
+                    "Some screens are missing marketplace details (pricing, address, schedule). " +
+                    "Upgrade each screen first, then retry the account switch."));
+        }
+
+        user.AccountType = targetType;
+        await _userRepository.UpdateAsync(user);
+        await _unitOfWork.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} switched account type to {Type}", userId, targetType);
+        return await GetProfile();
+    }
 }

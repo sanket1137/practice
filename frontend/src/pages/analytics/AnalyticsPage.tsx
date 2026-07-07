@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     Box,
     Container,
@@ -8,6 +9,9 @@ import {
     CardContent,
     Alert,
     Skeleton,
+    Button,
+    ButtonGroup,
+    Stack,
 } from '@mui/material';
 import {
     BarChart,
@@ -20,9 +24,18 @@ import {
     ResponsiveContainer,
     LineChart,
     Line,
+    AreaChart,
+    Area,
 } from 'recharts';
+import DownloadIcon from '@mui/icons-material/Download';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { format, subDays, startOfMonth, endOfMonth, startOfYear } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { useUserRole } from '../../hooks/useUserRole';
+import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 import {
     getOwnerAnalyticsSummary,
     getOwnerScreenBreakdown,
@@ -32,6 +45,10 @@ import {
     getAdvertiserDailyImpressions,
     getPlatformAnalyticsSummary,
     getPlatformDailyStats,
+    getAdvertiserDateRangeAnalytics,
+    getMediaOwnerDateRangeAnalytics,
+    exportAnalyticsCsv,
+    exportAnalyticsPdf,
     type OwnerAnalyticsSummary,
     type ScreenRevenue,
     type DailyRevenue,
@@ -40,6 +57,8 @@ import {
     type DailyImpressions,
     type PlatformAnalyticsSummary,
     type PlatformDailyStats,
+    type AdvertiserDateRangeAnalytics,
+    type MediaOwnerDateRangeAnalytics,
 } from '../../services/analyticsApi';
 
 // Helper to format currency
@@ -79,15 +98,137 @@ const ChartSkeleton = ({ height = 400 }: { height?: number }) => (
     </Paper>
 );
 
+type DatePreset = 'today' | '7d' | '30d' | '90d' | 'month' | 'year' | 'thisyear' | 'alltime' | 'custom';
+
+interface DateRange { from: Date; to: Date; }
+
+function DateRangeSelector({
+    value,
+    onChange,
+    onExport,
+    exporting,
+    onExportPdf,
+    exportingPdf,
+}: {
+    value: DateRange;
+    onChange: (range: DateRange) => void;
+    onExport?: () => void;
+    exporting?: boolean;
+    onExportPdf?: () => void;
+    exportingPdf?: boolean;
+}) {
+    const [activePreset, setActivePreset] = useState<DatePreset>('30d');
+    const [customFrom, setCustomFrom] = useState<Date | null>(null);
+    const [customTo, setCustomTo] = useState<Date | null>(null);
+
+    const applyPreset = (preset: DatePreset) => {
+        setActivePreset(preset);
+        const now = new Date();
+        let from: Date;
+        let to: Date = now;
+        switch (preset) {
+            case 'today': from = now; break;
+            case '7d': from = subDays(now, 6); break;
+            case '30d': from = subDays(now, 29); break;
+            case '90d': from = subDays(now, 89); break;
+            case 'month': from = startOfMonth(now); to = endOfMonth(now); break;
+            case 'year': from = startOfYear(now); break;
+            case 'thisyear': from = startOfYear(now); break;
+            case 'alltime': from = new Date(2020, 0, 1); break;
+            default: return;
+        }
+        onChange({ from, to });
+    };
+
+    const applyCustom = () => {
+        if (customFrom && customTo) {
+            setActivePreset('custom');
+            onChange({ from: customFrom, to: customTo });
+        }
+    };
+
+    const presets: { label: string; value: DatePreset }[] = [
+        { label: 'Today', value: 'today' },
+        { label: '7D', value: '7d' },
+        { label: '30D', value: '30d' },
+        { label: '90D', value: '90d' },
+        { label: 'Month', value: 'month' },
+        { label: 'YTD', value: 'year' },
+        { label: 'This Year', value: 'thisyear' },
+        { label: 'All Time', value: 'alltime' },
+    ];
+
+    return (
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} flexWrap="wrap" gap={1}>
+                <ButtonGroup size="small" variant="outlined">
+                    {presets.map((p) => (
+                        <Button
+                            key={p.value}
+                            variant={activePreset === p.value ? 'contained' : 'outlined'}
+                            onClick={() => applyPreset(p.value)}
+                        >
+                            {p.label}
+                        </Button>
+                    ))}
+                </ButtonGroup>
+                <Stack direction="row" spacing={1} alignItems="center">
+                    <DatePicker
+                        label="From"
+                        value={activePreset === 'custom' ? customFrom : value.from}
+                        onChange={(d) => { setCustomFrom(d); setActivePreset('custom'); }}
+                        slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                    />
+                    <DatePicker
+                        label="To"
+                        value={activePreset === 'custom' ? customTo : value.to}
+                        onChange={(d) => { setCustomTo(d); setActivePreset('custom'); }}
+                        slotProps={{ textField: { size: 'small', sx: { width: 150 } } }}
+                    />
+                    {activePreset === 'custom' && (
+                        <Button size="small" variant="contained" onClick={applyCustom}>Apply</Button>
+                    )}
+                </Stack>
+                <Stack direction="row" spacing={1} sx={{ ml: 'auto' }}>
+                    {onExport && (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<DownloadIcon />}
+                            onClick={onExport}
+                            disabled={exporting}
+                        >
+                            {exporting ? 'Exporting...' : 'Export CSV'}
+                        </Button>
+                    )}
+                    {onExportPdf && (
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            color="secondary"
+                            startIcon={<PictureAsPdfIcon />}
+                            onClick={onExportPdf}
+                            disabled={exportingPdf}
+                        >
+                            {exportingPdf ? 'Exporting...' : 'Export PDF'}
+                        </Button>
+                    )}
+                </Stack>
+            </Stack>
+        </LocalizationProvider>
+    );
+}
+
 
 export default function AnalyticsPage() {
     const { isScreenOwner, isAdvertiser } = useUserRole();
+    const { isPrivate } = useAccountVisibility();
 
     // ==========================================
     // SCREEN OWNER ANALYTICS - Focus on Earnings
     // ==========================================
     if (isScreenOwner) {
-        return <ScreenOwnerAnalytics />;
+        return <ScreenOwnerAnalytics isPrivate={isPrivate} />;
     }
 
     // ==========================================
@@ -107,7 +248,14 @@ export default function AnalyticsPage() {
 // ============================================
 // SCREEN OWNER ANALYTICS COMPONENT
 // ============================================
-function ScreenOwnerAnalytics() {
+function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
+    const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 29), to: new Date() });
+    const [exporting, setExporting] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
+
+    const dateFrom = format(dateRange.from, 'yyyy-MM-dd');
+    const dateTo = format(dateRange.to, 'yyyy-MM-dd');
+
     const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery<OwnerAnalyticsSummary>({
         queryKey: ['analytics', 'owner', 'summary'],
         queryFn: getOwnerAnalyticsSummary,
@@ -123,6 +271,29 @@ function ScreenOwnerAnalytics() {
         queryFn: () => getOwnerDailyRevenue(7),
     });
 
+    const { data: dateRangeData } = useQuery<MediaOwnerDateRangeAnalytics>({
+        queryKey: ['analytics', 'owner', 'daterange', dateFrom, dateTo],
+        queryFn: () => getMediaOwnerDateRangeAnalytics(dateFrom, dateTo),
+    });
+
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            await exportAnalyticsCsv('mediaowner', dateFrom, dateTo);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleExportPdf = async () => {
+        setExportingPdf(true);
+        try {
+            await exportAnalyticsPdf('mediaowner', dateFrom, dateTo);
+        } finally {
+            setExportingPdf(false);
+        }
+    };
+
     const isLoading = summaryLoading || screensLoading || dailyLoading;
 
     if (summaryError) {
@@ -135,14 +306,48 @@ function ScreenOwnerAnalytics() {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Box mb={4}>
-                <Typography variant="h4" gutterBottom>
-                    Earnings & Analytics
-                </Typography>
-                <Typography variant="body1" color="textSecondary">
-                    Track your screen performance and revenue
-                </Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                    display: 'flex',
+                    alignItems: { sm: 'center' },
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    gap: 2,
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>
+                        {isPrivate ? 'Screen Operations Analytics' : 'Earnings & Analytics'}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        {isPrivate
+                            ? 'Track uptime, delivery, and screen health in private operations mode'
+                            : 'Track your screen performance and revenue'}
+                    </Typography>
+                </Box>
             </Box>
+            <Box mb={3}>
+                <DateRangeSelector
+                    value={dateRange}
+                    onChange={setDateRange}
+                    onExport={handleExport}
+                    exporting={exporting}
+                    onExportPdf={handleExportPdf}
+                    exportingPdf={exportingPdf}
+                />
+            </Box>
+
+            {isPrivate && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                    Private mode prioritizes operational metrics. Marketplace revenue and fill-rate widgets are hidden.
+                </Alert>
+            )}
 
             {/* Summary Cards */}
             <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -151,13 +356,17 @@ function ScreenOwnerAnalytics() {
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
-                                    Total Revenue (Month)
+                                    {isPrivate ? 'Total Impressions' : 'Total Revenue (Month)'}
                                 </Typography>
-                                <Typography variant="h4" color="success.main">
-                                    {formatCurrency(summary?.totalRevenueMonth || 0)}
+                                <Typography variant="h4" color={isPrivate ? 'info.main' : 'success.main'}>
+                                    {isPrivate
+                                        ? (summary?.totalImpressions || 0).toLocaleString()
+                                        : formatCurrency(summary?.totalRevenueMonth || 0)}
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: formatChangePercent(summary?.revenueChangePercent || 0).color }}>
-                                    {formatChangePercent(summary?.revenueChangePercent || 0).text} from last month
+                                    {isPrivate
+                                        ? `${(summary?.todayImpressions || 0).toLocaleString()} plays today`
+                                        : `${formatChangePercent(summary?.revenueChangePercent || 0).text} from last month`}
                                 </Typography>
                             </CardContent>
                         </Card>
@@ -168,11 +377,15 @@ function ScreenOwnerAnalytics() {
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
-                                    Avg. Daily Earnings
+                                    {isPrivate ? 'Online Screens' : 'Avg. Daily Earnings'}
                                 </Typography>
-                                <Typography variant="h4">{formatCurrency(summary?.avgDailyRevenue || 0)}</Typography>
+                                <Typography variant="h4">
+                                    {isPrivate
+                                        ? `${summary?.onlineScreens || 0}/${summary?.totalScreens || 0}`
+                                        : formatCurrency(summary?.avgDailyRevenue || 0)}
+                                </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Across all screens
+                                    {isPrivate ? 'Currently online' : 'Across all screens'}
                                 </Typography>
                             </CardContent>
                         </Card>
@@ -183,11 +396,11 @@ function ScreenOwnerAnalytics() {
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
-                                    Active Bookings
+                                    {isPrivate ? 'Screen Uptime' : 'Active Bookings'}
                                 </Typography>
-                                <Typography variant="h4">{summary?.activeBookings || 0}</Typography>
+                                <Typography variant="h4">{isPrivate ? `${summary?.screenUptimePercent || 0}%` : summary?.activeBookings || 0}</Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    Currently running
+                                    {isPrivate ? 'Network availability' : 'Currently running'}
                                 </Typography>
                             </CardContent>
                         </Card>
@@ -198,13 +411,15 @@ function ScreenOwnerAnalytics() {
                         <Card>
                             <CardContent>
                                 <Typography color="textSecondary" gutterBottom>
-                                    Screen Uptime
+                                    {isPrivate ? 'Total Screens' : 'Screen Uptime'}
                                 </Typography>
                                 <Typography variant="h4" color="info.main">
-                                    {summary?.screenUptimePercent || 0}%
+                                    {isPrivate ? summary?.totalScreens || 0 : `${summary?.screenUptimePercent || 0}%`}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    {summary?.onlineScreens || 0} of {summary?.totalScreens || 0} online
+                                    {isPrivate
+                                        ? `${summary?.onlineScreens || 0} online`
+                                        : `${summary?.onlineScreens || 0} of ${summary?.totalScreens || 0} online`}
                                 </Typography>
                             </CardContent>
                         </Card>
@@ -214,6 +429,7 @@ function ScreenOwnerAnalytics() {
 
             <Grid container spacing={3}>
                 {/* Revenue Chart */}
+                {!isPrivate && (
                 <Grid size={{ xs: 12, lg: 8 }}>
                     {dailyLoading ? <ChartSkeleton height={350} /> : (
                         <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
@@ -242,13 +458,14 @@ function ScreenOwnerAnalytics() {
                         </Paper>
                     )}
                 </Grid>
+                )}
 
                 {/* Earnings Summary */}
-                <Grid size={{ xs: 12, lg: 4 }}>
+                <Grid size={{ xs: 12, lg: isPrivate ? 12 : 4 }}>
                     {screensLoading ? <ChartSkeleton height={350} /> : (
                         <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 'auto', lg: 400 }, minHeight: { xs: 200, lg: 400 }, overflow: 'auto' }}>
                             <Typography variant="h6" gutterBottom>
-                                Revenue by Screen
+                                {isPrivate ? 'Screen Health by Location' : 'Revenue by Screen'}
                             </Typography>
                             {screens && screens.length > 0 ? (
                                 <Box sx={{ mt: 3 }}>
@@ -267,9 +484,11 @@ function ScreenOwnerAnalytics() {
                                                     }}
                                                 />
                                             </Box>
-                                            <Typography variant="h5">{formatCurrency(screen.revenue)}</Typography>
+                                            <Typography variant="h5">{isPrivate ? `${screen.uptimePercent}% uptime` : formatCurrency(screen.revenue)}</Typography>
                                             <Typography variant="caption" color="textSecondary">
-                                                {screen.impressions.toLocaleString()} plays • {screen.activeBookings} active bookings
+                                                {isPrivate
+                                                    ? `${screen.impressions.toLocaleString()} plays • ${screen.isOnline ? 'Online' : 'Offline'}`
+                                                    : `${screen.impressions.toLocaleString()} plays • ${screen.activeBookings} active bookings`}
                                             </Typography>
                                         </Box>
                                     ))}
@@ -318,6 +537,46 @@ function ScreenOwnerAnalytics() {
                         </Paper>
                     )}
                 </Grid>
+
+                {/* Revenue Over Time (date-range) */}
+                {!isPrivate && dateRangeData && dateRangeData.revenueOverTime.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 8 }}>
+                        <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
+                            <Typography variant="h6" gutterBottom>
+                                Revenue Over Time ({dateFrom} → {dateTo})
+                            </Typography>
+                            <ResponsiveContainer width="100%" height="90%">
+                                <AreaChart data={dateRangeData.revenueOverTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} />
+                                    <YAxis />
+                                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                                    <Area type="monotone" dataKey="amount" stroke="#22c55e" fill="#22c55e33" name="Revenue (₹)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+                )}
+
+                {/* Fill Rate by Screen (date-range) */}
+                {!isPrivate && dateRangeData && dateRangeData.fillRateByScreen.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 4 }}>
+                        <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
+                            <Typography variant="h6" gutterBottom>
+                                Fill Rate by Screen
+                            </Typography>
+                            <ResponsiveContainer width="100%" height="90%">
+                                <BarChart data={dateRangeData.fillRateByScreen} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                                    <YAxis type="category" dataKey="screenName" width={80} tick={{ fontSize: 11 }} />
+                                    <Tooltip formatter={(v: number) => `${v}%`} />
+                                    <Bar dataKey="fillRate" fill="#6366f1" name="Fill Rate %" />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+                )}
             </Grid>
         </Container>
     );
@@ -328,6 +587,13 @@ function ScreenOwnerAnalytics() {
 // ADVERTISER ANALYTICS COMPONENT
 // ============================================
 function AdvertiserAnalytics() {
+    const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 29), to: new Date() });
+    const [exporting, setExporting] = useState(false);
+    const [exportingPdf, setExportingPdf] = useState(false);
+
+    const dateFrom = format(dateRange.from, 'yyyy-MM-dd');
+    const dateTo = format(dateRange.to, 'yyyy-MM-dd');
+
     const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery<AdvertiserAnalyticsSummary>({
         queryKey: ['analytics', 'advertiser', 'summary'],
         queryFn: getAdvertiserAnalyticsSummary,
@@ -343,7 +609,30 @@ function AdvertiserAnalytics() {
         queryFn: () => getAdvertiserDailyImpressions(7),
     });
 
+    const { data: dateRangeData } = useQuery<AdvertiserDateRangeAnalytics>({
+        queryKey: ['analytics', 'advertiser', 'daterange', dateFrom, dateTo],
+        queryFn: () => getAdvertiserDateRangeAnalytics(dateFrom, dateTo),
+    });
+
     const isLoading = summaryLoading || campaignsLoading || dailyLoading;
+
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            await exportAnalyticsCsv('advertiser', dateFrom, dateTo);
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleExportPdf = async () => {
+        setExportingPdf(true);
+        try {
+            await exportAnalyticsPdf('advertiser', dateFrom, dateTo);
+        } finally {
+            setExportingPdf(false);
+        }
+    };
 
     if (summaryError) {
         return (
@@ -355,13 +644,39 @@ function AdvertiserAnalytics() {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Box mb={4}>
-                <Typography variant="h4" gutterBottom>
-                    Campaign Analytics
-                </Typography>
-                <Typography variant="body1" color="textSecondary">
-                    Track your campaign performance and impressions
-                </Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                    display: 'flex',
+                    alignItems: { sm: 'center' },
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    gap: 2,
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>
+                        Campaign Analytics
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Track your campaign performance and spend
+                    </Typography>
+                </Box>
+            </Box>
+            <Box mb={3}>
+                <DateRangeSelector
+                    value={dateRange}
+                    onChange={setDateRange}
+                    onExport={handleExport}
+                    exporting={exporting}
+                    onExportPdf={handleExportPdf}
+                    exportingPdf={exportingPdf}
+                />
             </Box>
 
             {/* Summary Cards */}
@@ -531,6 +846,26 @@ function AdvertiserAnalytics() {
                         </Paper>
                     )}
                 </Grid>
+
+                {/* Spend Over Time (date-range) */}
+                {dateRangeData && dateRangeData.spendOverTime.length > 0 && (
+                    <Grid size={{ xs: 12 }}>
+                        <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
+                            <Typography variant="h6" gutterBottom>
+                                Spend Over Time ({dateFrom} → {dateTo})
+                            </Typography>
+                            <ResponsiveContainer width="100%" height="90%">
+                                <AreaChart data={dateRangeData.spendOverTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} />
+                                    <YAxis />
+                                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                                    <Area type="monotone" dataKey="amount" stroke="#6366f1" fill="#6366f133" name="Spend (₹)" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </Paper>
+                    </Grid>
+                )}
             </Grid>
         </Container>
     );
@@ -563,11 +898,21 @@ function AdminAnalytics() {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Box mb={4}>
-                <Typography variant="h4" gutterBottom>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 4,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                }}
+            >
+                <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>
                     Platform Analytics
                 </Typography>
-                <Typography variant="body1" color="textSecondary">
+                <Typography variant="body1" color="text.secondary">
                     Performance metrics across all screens and campaigns
                 </Typography>
             </Box>

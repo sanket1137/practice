@@ -3,6 +3,7 @@ package com.pixelspot.ccms.player.player
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.pixelspot.ccms.player.CcmsPlayerApp
 import com.pixelspot.ccms.player.data.remote.CmsControlHubClient
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -64,6 +65,27 @@ class RemoteCommandHandler @Inject constructor(
                     val volume = payload?.get("volume")?.asFloat
                         ?: throw IllegalArgumentException("SetVolume requires 'volume' (0-1)")
                     player.volume = volume.coerceIn(0f, 1f)
+                }
+                "mute" -> {
+                    player.volume = 0f
+                }
+                "unmute" -> {
+                    if (player.volume <= 0f) {
+                        player.volume = 1f
+                    }
+                }
+                "setbrightness" -> {
+                    val payload = parsePayload(cmd.payloadJson)
+                    val raw = payload?.get("brightness")?.asFloat
+                        ?: payload?.get("value")?.asFloat
+                        ?: throw IllegalArgumentException("SetBrightness requires 'brightness' or 'value'")
+                    val normalized = (raw.coerceIn(0f, 100f) / 100f).coerceAtLeast(0.05f)
+                    val activity = CcmsPlayerApp.currentActivity
+                    if (activity != null) {
+                        val params = activity.window.attributes
+                        params.screenBrightness = normalized
+                        activity.window.attributes = params
+                    }
                 }
                 "forcesync" -> {
                     // Signal PlayerService to re-handshake / refresh playlist.

@@ -24,3 +24,23 @@ data class ClaimPairingCodeResponse(
     @SerializedName("apiKey") val apiKey: String,
     @SerializedName("screenName") val screenName: String?
 )
+
+data class RequestPlayerPairingTokenRequest(
+    @SerializedName("deviceFingerprint") val deviceFingerprint: String,
+    @SerializedName("deviceModel") val deviceModel: String? = null,
+    @SerializedName("osVersion") val osVersion: String? = null,
+    @SerializedName("appVersion") val appVersion: String? = null
+)
+
+data class RequestPlayerPairingTokenResponse(
+    @SerializedName("token") val token: String,
+    @SerializedName("qrContent") val qrContent: String,
+    @SerializedName("expiresAt") val expiresAt: String
+)
+
+data class PlayerPairingStatusResponse(
+    @SerializedName("isClaimed") val isClaimed: Boolean,
+    @SerializedName("isExpired") val isExpired: Boolean,
+    @SerializedName("screenId") val screenId: String?,
+    @SerializedName("apiKey") val apiKey: String?
+)

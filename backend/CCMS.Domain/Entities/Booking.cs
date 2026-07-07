@@ -73,6 +73,12 @@ public class Booking : BaseEntity
     public decimal TotalPrice { get; set; }
     public string Currency { get; set; } = "INR";
 
+    /// <summary>
+    /// How the creative should be rendered on the screen when dimensions differ.
+    /// Default = SmartAdaptive (player picks at playback time).
+    /// </summary>
+    public CreativeFitMode FitMode { get; set; } = CreativeFitMode.SmartAdaptive;
+
     // Payment
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.None;
     public string? RazorpayOrderId { get; set; }
@@ -88,7 +94,13 @@ public class Booking : BaseEntity
     public string? ClientContact { get; set; }
     public string? InternalNotes { get; set; }
     public bool IsInternalPayment { get; set; }
-    
+
+    /// <summary>
+    /// If set, the advertiser can cancel for a full refund until this time
+    /// (auto-approval grace window).
+    /// </summary>
+    public DateTime? CancelGraceExpiresAt { get; set; }
+
     // Navigation properties
     public virtual Screen Screen { get; set; } = null!;
     public virtual Campaign? Campaign { get; set; }

@@ -42,13 +42,30 @@ public class ApplicationDbContext : DbContext
     public DbSet<AdminAuthorizedMachine> AdminAuthorizedMachines => Set<AdminAuthorizedMachine>();
     public DbSet<ScreenVerification> ScreenVerifications => Set<ScreenVerification>();
     public DbSet<VisibilityChangeRequest> VisibilityChangeRequests => Set<VisibilityChangeRequest>();
+    public DbSet<PricingRule> PricingRules => Set<PricingRule>();
 
     // ── CMS mode ──────────────────────────────────────────────────────────
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+    public DbSet<MediaCollection> MediaCollections => Set<MediaCollection>();
     public DbSet<Playlist> Playlists => Set<Playlist>();
     public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
     public DbSet<PairingCode> PairingCodes => Set<PairingCode>();
     public DbSet<RemoteCommand> RemoteCommands => Set<RemoteCommand>();
+    public DbSet<PlayerPairingToken> PlayerPairingTokens => Set<PlayerPairingToken>();
+
+    // ── Phase 2 additions ─────────────────────────────────────────────────
+    public DbSet<ScheduleWindow> ScheduleWindows => Set<ScheduleWindow>();
+    public DbSet<ScreenGroup> ScreenGroups => Set<ScreenGroup>();
+    public DbSet<ScreenGroupMember> ScreenGroupMembers => Set<ScreenGroupMember>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+
+    // ── Phase 4 additions ─────────────────────────────────────────────────
+    public DbSet<FestivalEntry> FestivalEntries => Set<FestivalEntry>();
+
+    // ── Phase 5 additions ─────────────────────────────────────────────────
+    public DbSet<ScreenGroupAssignment> ScreenGroupAssignments => Set<ScreenGroupAssignment>();
+    public DbSet<LedWallZone> LedWallZones => Set<LedWallZone>();
+    public DbSet<LedControllerAgent> LedControllerAgents => Set<LedControllerAgent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -370,6 +387,13 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.UploadedBy)
                 .WithMany()
                 .HasForeignKey(e => e.UploadedById)
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
+
+            // Optional link to reusable library asset (Phase 1)
+            entity.HasOne(e => e.MediaAsset)
+                .WithMany()
+                .HasForeignKey(e => e.MediaAssetId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
                 
@@ -931,10 +955,49 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.FileUrl).IsRequired().HasMaxLength(1000);
             entity.Property(e => e.ThumbnailUrl).HasMaxLength(1000);
 
+            // Library metadata (Phase 1)
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Tags)
+                .HasColumnType("text[]")
+                .HasDefaultValueSql("ARRAY[]::text[]");
+            entity.Property(e => e.AssetType).HasConversion<int>();
+
             // Dedupe: same owner cannot have two rows for the same file content.
             entity.HasIndex(e => new { e.OwnerId, e.Sha256 })
                 .IsUnique()
                 .HasDatabaseName("IX_MediaAssets_Owner_Sha256");
+
+            entity.HasIndex(e => new { e.OwnerId, e.LastUsedAt })
+                .HasDatabaseName("IX_MediaAssets_Owner_LastUsedAt");
+
+            entity.HasIndex(e => new { e.OwnerId, e.IsFavorite })
+                .HasDatabaseName("IX_MediaAssets_Owner_IsFavorite");
+
+            entity.HasIndex(e => e.CollectionId)
+                .HasDatabaseName("IX_MediaAssets_Collection");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Collection)
+                .WithMany(c => c.Assets)
+                .HasForeignKey(e => e.CollectionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── CMS mode: MediaCollection ─────────────────────────────────────
+        modelBuilder.Entity<MediaCollection>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(1000);
+
+            entity.HasIndex(e => new { e.OwnerId, e.Name })
+                .HasDatabaseName("IX_MediaCollections_Owner_Name");
 
             entity.HasOne(e => e.Owner)
                 .WithMany()
@@ -1009,6 +1072,37 @@ public class ApplicationDbContext : DbContext
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
+        // Player-initiated QR pairing token
+        modelBuilder.Entity<PlayerPairingToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.DeviceFingerprintHash).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.DeviceModel).HasMaxLength(200);
+            entity.Property(e => e.OsVersion).HasMaxLength(500);
+            entity.Property(e => e.AppVersion).HasMaxLength(100);
+            entity.Property(e => e.ApiKey).HasMaxLength(256);
+
+            entity.HasIndex(e => e.Token)
+                .IsUnique()
+                .HasDatabaseName("IX_PlayerPairingTokens_Token");
+
+            entity.HasIndex(e => e.ExpiresAt)
+                .HasDatabaseName("IX_PlayerPairingTokens_ExpiresAt");
+
+            entity.HasOne(e => e.ClaimedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ClaimedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
         // ── CMS mode: RemoteCommand ───────────────────────────────────────
         modelBuilder.Entity<RemoteCommand>(entity =>
         {
@@ -1052,6 +1146,159 @@ public class ApplicationDbContext : DbContext
         {
             entity.Property(e => e.AccountType).HasConversion<int>();
             entity.HasIndex(e => e.AccountType).HasDatabaseName("IX_Users_AccountType");
+        });
+
+        // ── PricingRule ────────────────────────────────────────────────────
+        modelBuilder.Entity<PricingRule>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.RuleType).HasConversion<int>();
+            entity.Property(e => e.RegularSlotPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DaysOfWeek).HasMaxLength(50);
+
+            entity.HasIndex(e => e.ScreenId).HasDatabaseName("IX_PricingRules_ScreenId");
+            entity.HasIndex(e => new { e.ScreenId, e.IsActive }).HasDatabaseName("IX_PricingRules_Screen_Active");
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Creative: review status ─────────────────────────────────────── 
+        modelBuilder.Entity<Creative>(entity =>
+        {
+            entity.Property(e => e.Status).HasConversion<int>();
+        });
+
+        // ── Phase 2: ScheduleWindow ──────────────────────────────────────
+        modelBuilder.Entity<ScheduleWindow>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Label).HasMaxLength(100);
+
+            entity.HasIndex(e => e.ScreenId).HasDatabaseName("IX_ScheduleWindows_ScreenId");
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Playlist)
+                .WithMany()
+                .HasForeignKey(e => e.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Phase 2: ScreenGroup ─────────────────────────────────────────
+        modelBuilder.Entity<ScreenGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+
+            entity.HasIndex(e => e.OwnerId).HasDatabaseName("IX_ScreenGroups_OwnerId");
+
+            entity.HasOne(e => e.Owner)
+                .WithMany()
+                .HasForeignKey(e => e.OwnerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Phase 2: ScreenGroupMember (junction, no BaseEntity) ─────────
+        modelBuilder.Entity<ScreenGroupMember>(entity =>
+        {
+            entity.HasKey(e => new { e.ScreenGroupId, e.ScreenId });
+
+            entity.HasOne(e => e.Group)
+                .WithMany(g => g.Members)
+                .HasForeignKey(e => e.ScreenGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Phase 2: NotificationPreference ─────────────────────────────
+        modelBuilder.Entity<NotificationPreference>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.NotificationType).HasConversion<int>();
+
+            entity.HasIndex(e => new { e.UserId, e.NotificationType })
+                .IsUnique()
+                .HasDatabaseName("IX_NotificationPreferences_User_Type");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Phase 5: ScreenGroupAssignment ───────────────────────────────
+        modelBuilder.Entity<ScreenGroupAssignment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.GroupId, e.Row, e.Col })
+                .IsUnique()
+                .HasDatabaseName("IX_ScreenGroupAssignments_Group_Position");
+
+            entity.HasOne(e => e.Group)
+                .WithMany(g => g.ScreenAssignments)
+                .HasForeignKey(e => e.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Phase 5: LedWallZone ─────────────────────────────────────────
+        modelBuilder.Entity<LedWallZone>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ContentConfig).HasColumnType("text");
+            entity.Property(e => e.ContentType).HasConversion<int>();
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // ── Phase 5: LedControllerAgent ──────────────────────────────────
+        modelBuilder.Entity<LedControllerAgent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AgentVersion).HasMaxLength(50);
+            entity.Property(e => e.ControllerSoftware).HasMaxLength(100);
+            entity.Property(e => e.DeviceToken).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+            entity.HasIndex(e => e.ScreenId).HasDatabaseName("IX_LedControllerAgents_ScreenId");
+
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
         });
     }
 

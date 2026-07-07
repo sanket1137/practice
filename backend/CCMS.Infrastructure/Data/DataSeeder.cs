@@ -461,7 +461,7 @@ public static class DataSeeder
         await context.SaveChangesAsync();
     }
 
-    private static OperatingSchedule CreateDefaultSchedule()
+    internal static OperatingSchedule CreateDefaultSchedule()
     {
         return new OperatingSchedule
         {

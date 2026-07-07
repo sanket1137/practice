@@ -100,6 +100,21 @@ public class Screen : BaseEntity
 
     public ScreenDisplayType DisplayType { get; set; } = ScreenDisplayType.Indoor;
 
+    /// <summary>Physical orientation of the screen panel.</summary>
+    public ScreenOrientation Orientation { get; set; } = ScreenOrientation.Landscape;
+
+    /// <summary>
+    /// When true, new bookings on this screen are automatically approved without manual review.
+    /// A 2-hour grace-cancel window applies.
+    /// </summary>
+    public bool AutoApprovalEnabled { get; set; } = false;
+
+    /// <summary>
+    /// Audience Quality Score (0–100). Computed nightly by AQSCalculationJob.
+    /// Formula: (footfall × 0.40) + (uptime × 0.25) + (fillRate × 0.25) + (review × 0.10)
+    /// </summary>
+    public decimal AudienceQualityScore { get; set; } = 0m;
+
     // Navigation properties
     public virtual User Owner { get; set; } = null!;
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();

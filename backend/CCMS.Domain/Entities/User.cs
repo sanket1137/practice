@@ -34,6 +34,10 @@ public class User : BaseEntity
 
     // Screen visibility (account-level: applies to ALL screens)
     public ScreenVisibility AccountVisibility { get; set; } = ScreenVisibility.Public;
+
+    // CMS subscription plan (Phase 4)
+    public CmsPlanTier CmsPlan { get; set; } = CmsPlanTier.Free;
+    public DateTime? CmsPlanExpiresAt { get; set; }
     
     // Navigation properties
     public virtual ICollection<Screen> Screens { get; set; } = new List<Screen>();

@@ -87,6 +87,19 @@ export interface ClaimPairingCodeResponse {
   screenName: string | null;
 }
 
+export interface RequestPlayerPairingTokenResponse {
+  token: string;
+  qrContent: string;
+  expiresAt: string;
+}
+
+export interface PlayerPairingStatusResponse {
+  isClaimed: boolean;
+  isExpired: boolean;
+  screenId: string | null;
+  apiKey: string | null;
+}
+
 interface SyncImpression {
   slotPlayKey: string;
   bookingId: string | null;
@@ -199,6 +212,41 @@ export async function claimPairingCode(
     }),
   });
   const envelope = (await res.json()) as ApiResponse<ClaimPairingCodeResponse>;
+  if (!res.ok || !envelope.success || !envelope.data) {
+    throw new Error(envelope.message || `HTTP ${res.status}`);
+  }
+  return envelope.data;
+}
+
+export async function requestPlayerPairingToken(
+  serverUrl: string,
+  deviceFingerprint: string
+): Promise<RequestPlayerPairingTokenResponse> {
+  const baseUrl = serverUrl.replace(/\/+$/, '');
+  const res = await fetch(`${baseUrl}/api/v1/player/pairing/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      deviceFingerprint,
+      deviceModel: 'chromeos',
+      osVersion: navigator.userAgent,
+      appVersion: '1.0.0-chromeos',
+    }),
+  });
+  const envelope = (await res.json()) as ApiResponse<RequestPlayerPairingTokenResponse>;
+  if (!res.ok || !envelope.success || !envelope.data) {
+    throw new Error(envelope.message || `HTTP ${res.status}`);
+  }
+  return envelope.data;
+}
+
+export async function getPlayerPairingStatus(
+  serverUrl: string,
+  token: string
+): Promise<PlayerPairingStatusResponse> {
+  const baseUrl = serverUrl.replace(/\/+$/, '');
+  const res = await fetch(`${baseUrl}/api/v1/player/pairing/${encodeURIComponent(token)}/status`);
+  const envelope = (await res.json()) as ApiResponse<PlayerPairingStatusResponse>;
   if (!res.ok || !envelope.success || !envelope.data) {
     throw new Error(envelope.message || `HTTP ${res.status}`);
   }

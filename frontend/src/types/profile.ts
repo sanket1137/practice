@@ -11,6 +11,21 @@ export interface Profile {
     accountVisibility: 'Public' | 'Private';
     profileImageUrl?: string;
     bankAccount?: BankAccount;
+    accountType: 'MediaOwner' | 'CmsOwner' | 'Advertiser';
+}
+
+export interface ScreenUpgradeRequired {
+    id: string;
+    name: string;
+    needsPricing: boolean;
+    needsAddress: boolean;
+    needsSchedule: boolean;
+}
+
+export interface AccountTypeSwitchPreflight {
+    targetAccountType: string;
+    canSwitchNow: boolean;
+    screensRequiringUpgrade: ScreenUpgradeRequired[];
 }
 
 export interface BankAccount {

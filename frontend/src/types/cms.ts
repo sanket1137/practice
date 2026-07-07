@@ -151,3 +151,80 @@ export interface RemoteCommandDto {
     ackedAt?: string;
     errorMessage?: string;
 }
+
+// Bulk commands ----------------------------------------------------------------
+
+export interface BulkIssueRemoteCommandRequest {
+    screenIds: string[];
+    commandType: string;
+    payload?: unknown;
+}
+
+// Screen health ---------------------------------------------------------------
+
+export type ScreenHealthStatus = 'online' | 'stale' | 'offline';
+
+export interface ScreenHealthDto {
+    screenId: string;
+    name: string;
+    status: ScreenHealthStatus;
+    lastSeenAt?: string;
+    currentPlaylistName?: string;
+    currentPlaylistId?: string;
+    locationTag?: string;
+    autoApprovalEnabled: boolean;
+}
+
+// Schedule windows ------------------------------------------------------------
+
+export interface ScheduleWindowDto {
+    id: string;
+    screenId: string;
+    playlistId: string;
+    playlistName?: string;
+    daysOfWeekMask: number;
+    startMinute: number;
+    endMinute: number;
+    isActive: boolean;
+    label?: string;
+}
+
+export interface CreateScheduleWindowRequest {
+    playlistId: string;
+    daysOfWeekMask: number;
+    startMinute: number;
+    endMinute: number;
+    isActive: boolean;
+    label?: string;
+}
+
+export interface UpdateScheduleWindowRequest {
+    playlistId?: string;
+    daysOfWeekMask?: number;
+    startMinute?: number;
+    endMinute?: number;
+    isActive?: boolean;
+    label?: string;
+}
+
+// Screen groups ---------------------------------------------------------------
+
+export interface ScreenGroupDto {
+    id: string;
+    name: string;
+    description?: string;
+    screenIds: string[];
+    memberCount: number;
+    createdAt: string;
+}
+
+export interface CreateScreenGroupRequest {
+    name: string;
+    description?: string;
+    screenIds: string[];
+}
+
+export interface UpdateScreenGroupRequest {
+    name?: string;
+    description?: string;
+}

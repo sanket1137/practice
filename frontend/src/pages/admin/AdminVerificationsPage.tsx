@@ -79,9 +79,22 @@ export default function AdminVerificationsPage() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={3}>
-        Screen Verifications
-      </Typography>
+      <Box
+        sx={{
+          p: { xs: 2.5, md: 3.5 },
+          mb: 3,
+          borderRadius: 3,
+          background:
+            'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+          border: '1px solid rgba(16, 24, 40, 0.08)',
+          boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+        }}
+      >
+        <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Screen verifications</Typography>
+        <Typography variant="body1" color="text.secondary">
+          Review pending screens and approve trusted operators.
+        </Typography>
+      </Box>
 
       {/* Summary cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

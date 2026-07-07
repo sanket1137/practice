@@ -1,3 +1,0 @@
-List of devices attached
-emulator-5554          device product:sdk_google_atv_x86 model:AOSP_TV_on_x86 device:emulator_x86_arm transport_id:3
-

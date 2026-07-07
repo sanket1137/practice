@@ -1,11 +1,14 @@
 package com.pixelspot.ccms.player.ui.setup
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -18,11 +21,16 @@ import com.pixelspot.ccms.player.MainActivity
 import com.pixelspot.ccms.player.R
 import com.pixelspot.ccms.player.config.PlayerConfig
 import com.pixelspot.ccms.player.data.model.ClaimPairingCodeRequest
+import com.pixelspot.ccms.player.data.model.RequestPlayerPairingTokenRequest
 import com.pixelspot.ccms.player.data.remote.PlayerApiService
 import com.pixelspot.ccms.player.data.model.HandshakeRequest
 import com.pixelspot.ccms.player.security.DeviceFingerprint
 import com.pixelspot.ccms.player.security.SecurityManager
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -50,6 +58,7 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var pairCodeButton: Button
     private lateinit var statusText: TextView
     private lateinit var progressBar: ProgressBar
+    private var pairingPollJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,7 +76,7 @@ class SetupActivity : AppCompatActivity() {
         serverUrlInput.setText(playerConfig.serverUrl ?: "https://ccms.pixelspot.in")
 
         connectButton.setOnClickListener { validateAndConnect() }
-        pairCodeButton.setOnClickListener { showPairingDialog() }
+        pairCodeButton.setOnClickListener { showPairingModeDialog() }
 
         // Check for emulator/root warnings
         if (deviceFingerprint.isEmulator()) {
@@ -161,6 +170,20 @@ class SetupActivity : AppCompatActivity() {
      * /api/v1/cms/pairing/claim. On success, persists credentials and jumps
      * straight to MainActivity — the user never touches screenId/apiKey.
      */
+    private fun showPairingModeDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Register player")
+            .setItems(arrayOf("Show registration QR", "Enter 6-character pairing code")) { _, which ->
+                if (which == 0) {
+                    showPlayerQrDialog()
+                } else {
+                    showPairingDialog()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
     private fun showPairingDialog() {
         val serverUrl = serverUrlInput.text.toString().trim().ifBlank { "https://ccms.pixelspot.in" }
         val input = EditText(this).apply {
@@ -190,6 +213,109 @@ class SetupActivity : AppCompatActivity() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    private fun showPlayerQrDialog() {
+        val serverUrl = serverUrlInput.text.toString().trim().ifBlank { "https://ccms.pixelspot.in" }
+
+        val qrView = ImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(540, 540)
+            setBackgroundColor(Color.WHITE)
+            setPadding(12, 12, 12, 12)
+        }
+        val statusView = TextView(this).apply {
+            text = "Generating QR..."
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setPadding(0, 24, 0, 0)
+        }
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+            addView(qrView)
+            addView(statusView)
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Scan to register this player")
+            .setMessage("Scan using PixelSpot dashboard/app and complete the form.")
+            .setView(container)
+            .setNegativeButton("Close") { _, _ ->
+                pairingPollJob?.cancel()
+            }
+            .create()
+
+        dialog.setOnDismissListener {
+            pairingPollJob?.cancel()
+        }
+
+        dialog.show()
+
+        pairingPollJob?.cancel()
+        pairingPollJob = lifecycleScope.launch {
+            try {
+                playerConfig.configure(
+                    screenId = playerConfig.screenId ?: "00000000-0000-0000-0000-000000000000",
+                    apiKey = playerConfig.apiKey ?: "",
+                    serverUrl = serverUrl
+                )
+
+                val request = RequestPlayerPairingTokenRequest(
+                    deviceFingerprint = deviceFingerprint.generate(),
+                    deviceModel = Build.MODEL,
+                    osVersion = "Android ${Build.VERSION.RELEASE}",
+                    appVersion = "1.0.0-android"
+                )
+
+                val tokenRes = apiService.requestPlayerPairingToken(request)
+                val tokenBody = tokenRes.body()
+                if (!tokenRes.isSuccessful || tokenBody?.success != true || tokenBody.data == null) {
+                    statusView.text = "Failed to generate QR"
+                    return@launch
+                }
+
+                val tokenData = tokenBody.data
+                qrView.setImageBitmap(buildQrBitmap(tokenData.qrContent, 520, 520))
+                statusView.text = "Waiting for dashboard claim..."
+
+                while (dialog.isShowing) {
+                    delay(5000)
+                    val pollRes = apiService.getPlayerPairingStatus(tokenData.token)
+                    val pollBody = pollRes.body()
+                    val status = pollBody?.data ?: continue
+
+                    if (status.isExpired) {
+                        statusView.text = "QR expired. Generate a new one."
+                        break
+                    }
+
+                    if (status.isClaimed && !status.screenId.isNullOrBlank() && !status.apiKey.isNullOrBlank()) {
+                        playerConfig.configure(status.screenId, status.apiKey, serverUrl)
+                        statusView.text = "Paired successfully"
+                        Toast.makeText(this@SetupActivity, "Paired successfully", Toast.LENGTH_SHORT).show()
+                        dialog.dismiss()
+                        startActivity(Intent(this@SetupActivity, MainActivity::class.java))
+                        finish()
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                statusView.text = "Pairing error: ${e.message}"
+            }
+        }
+    }
+
+    private fun buildQrBitmap(content: String, width: Int, height: Int): Bitmap {
+        val matrix = QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, width, height)
+        val pixels = IntArray(width * height)
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                pixels[y * width + x] = if (matrix[x, y]) Color.BLACK else Color.WHITE
+            }
+        }
+        return Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
+            setPixels(pixels, 0, width, 0, 0, width, height)
+        }
     }
 
     private fun claimPairingCode(serverUrl: String, code: String) {

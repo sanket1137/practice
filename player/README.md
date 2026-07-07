@@ -57,6 +57,19 @@ Both implementations follow the same protocol:
 
 ## Future Work & Roadmap
 
+### Completed recently
+
+- Player-initiated QR registration flow implemented (ChromeOS + Android setup).
+- CMS dashboard pairing dialog now renders QR payload in addition to text code.
+- Remote control command support expanded with `Mute`, `Unmute`, and `SetBrightness`.
+
+### New follow-up TODOs
+
+1. Persist per-screen brightness level and apply on startup after reboot.
+2. Add visual on-player OSD for remote control actions (play/pause/brightness).
+3. Add automated integration tests for player pairing token lifecycle (request -> claim -> status).
+4. Auto-expire and cleanup stale player pairing tokens with a scheduled background job.
+
 ### 🔴 P0 — Offline Video Playback (ChromeOS)
 
 The current ChromeOS PWA **cannot play videos offline**. The Service Worker only caches the app shell (HTML, JS, CSS, icons). All video content streams directly from Cloudflare R2 URLs on every play via `<video>.src = item.creativeUrl`.
@@ -182,10 +195,10 @@ API responses are not cryptographically signed:
 - Allow server URL override via URL parameter for staging/testing
 - Add build version stamp (git hash) visible in diagnostic overlay
 
-#### Verification Flow Polish
-- Use `expiresAt` from challenge response to set QR refresh timer (instead of fixed 4-min interval)
-- Implement exponential backoff for verification status polling (10s → 30s → 60s)
-- Add 24-hour timeout with retry option if admin never verifies
+#### QR Flows Polish
+- Use `expiresAt` from pairing/verification responses to drive client refresh timers
+- Implement exponential backoff for pairing status polling (5s -> 10s -> 20s)
+- Add retry CTA for expired/invalid QR tokens in all setup surfaces
 
 ### 🔵 P6 — Operating Hours Precision
 Current implementation polls every 60 seconds:

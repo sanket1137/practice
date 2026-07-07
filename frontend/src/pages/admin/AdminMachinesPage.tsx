@@ -84,9 +84,22 @@ export default function AdminMachinesPage() {
 
     return (
         <Box>
-            <Typography variant="h4" fontWeight={700} mb={3}>
-                Authorized Machines
-            </Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                }}
+            >
+                <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Authorized machines</Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Manage which machines can process payouts and admin operations.
+                </Typography>
+            </Box>
 
             {/* Current Machine Status */}
             <Card sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>

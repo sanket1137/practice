@@ -18,12 +18,14 @@ public enum RemoteCommandType
     // Audio — both modes
     SetVolume = 10,
     Mute = 11,
+    Unmute = 12,
 
     // Display — both modes
     Blackout = 20,
     SetBrightness = 21,
     DisplayOn = 22,
     DisplayOff = 23,
+    SetOrientation = 24,
 
     // Content overlay — both modes
     PushAnnouncement = 30,

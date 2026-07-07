@@ -129,14 +129,34 @@ export default function CampaignsPage() {
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             {/* Header */}
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h4">Campaigns</Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 2,
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Campaigns</Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Plan, launch, and monitor your advertising campaigns.
+                    </Typography>
+                </Box>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => navigate('/campaigns/new')}
                 >
-                    Create Campaign
+                    Create campaign
                 </Button>
             </Box>
             {/* Search & View Toggle */}

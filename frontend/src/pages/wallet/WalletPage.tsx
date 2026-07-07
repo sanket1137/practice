@@ -95,7 +95,7 @@ export default function WalletPage() {
                         enqueueSnackbar('Payment received but confirmation failed. Contact support.', { variant: 'error' });
                     }
                 },
-                theme: { color: '#2e7d32' },
+                theme: { color: '#0a66d8' },
             };
 
             const rzp = new window.Razorpay(options);
@@ -133,12 +133,27 @@ export default function WalletPage() {
 
     return (
         <Container maxWidth="lg" sx={{ py: 3 }}>
-            <Typography variant="h4" fontWeight={700} gutterBottom>
-                Wallet
-            </Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                }}
+            >
+                <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>
+                    Wallet
+                </Typography>
+                <Typography variant="body1" color="text.secondary">
+                    Manage your balance, top-ups, and transaction history.
+                </Typography>
+            </Box>
 
             {/* Balance Card */}
-            <Card sx={{ mb: 4, background: 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)', color: 'white' }}>
+            <Card sx={{ mb: 4, background: 'linear-gradient(135deg, #0a66d8 0%, #084fa8 100%)', color: 'white', borderRadius: 3 }}>
                 <CardContent sx={{ py: 4, px: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <Box display="flex" alignItems="center" gap={2}>
                         <WalletIcon sx={{ fontSize: 48 }} />
@@ -155,9 +170,9 @@ export default function WalletPage() {
                         variant="contained"
                         startIcon={<AddIcon />}
                         onClick={() => setTopUpOpen(true)}
-                        sx={{ bgcolor: 'white', color: '#2e7d32', '&:hover': { bgcolor: '#e8f5e9' } }}
+                        sx={{ bgcolor: 'white', color: '#0a66d8', '&:hover': { bgcolor: '#eaf2ff' } }}
                     >
-                        Add Money
+                        Add money
                     </Button>
                 </CardContent>
             </Card>

@@ -12,6 +12,12 @@ public class Campaign : BaseEntity
     public decimal Budget { get; set; }
     public required string Currency { get; set; } = "INR";
     public CampaignStatus Status { get; set; } = CampaignStatus.Draft;
+
+    /// <summary>
+    /// Advertiser-declared campaign goal (Awareness, Promotion, etc.).
+    /// Optional — null means "generic / unspecified".
+    /// </summary>
+    public CampaignGoal? Goal { get; set; }
     
     // Navigation properties
     public virtual User Advertiser { get; set; } = null!;

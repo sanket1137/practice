@@ -7,10 +7,15 @@ import com.pixelspot.ccms.player.data.model.HandshakeRequest
 import com.pixelspot.ccms.player.data.model.HandshakeResponse
 import com.pixelspot.ccms.player.data.model.HeartbeatRequest
 import com.pixelspot.ccms.player.data.model.HeartbeatResponse
+import com.pixelspot.ccms.player.data.model.PlayerPairingStatusResponse
+import com.pixelspot.ccms.player.data.model.RequestPlayerPairingTokenRequest
+import com.pixelspot.ccms.player.data.model.RequestPlayerPairingTokenResponse
 import com.pixelspot.ccms.player.data.model.SyncRequest
 import com.pixelspot.ccms.player.data.model.SyncResponse
 import retrofit2.Response
+import retrofit2.http.GET
 import retrofit2.http.Body
+import retrofit2.http.Path
 import retrofit2.http.POST
 
 /**
@@ -54,4 +59,14 @@ interface PlayerApiService {
     suspend fun claimPairingCode(
         @Body request: ClaimPairingCodeRequest
     ): Response<ApiResponse<ClaimPairingCodeResponse>>
+
+    @POST("api/v1/player/pairing/request")
+    suspend fun requestPlayerPairingToken(
+        @Body request: RequestPlayerPairingTokenRequest
+    ): Response<ApiResponse<RequestPlayerPairingTokenResponse>>
+
+    @GET("api/v1/player/pairing/{token}/status")
+    suspend fun getPlayerPairingStatus(
+        @Path("token") token: String
+    ): Response<ApiResponse<PlayerPairingStatusResponse>>
 }

@@ -7,8 +7,10 @@ import {
     Button,
     Typography,
     Container,
-    Alert
+    Alert,
+    Stack,
 } from '@mui/material';
+import TvIcon from '@mui/icons-material/Tv';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -77,13 +79,45 @@ const LoginPage = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '100vh'
+            minHeight: '100vh',
+            py: 4,
+            position: 'relative',
+            '&::before': {
+                content: '""',
+                position: 'absolute',
+                inset: 0,
+                background:
+                    'radial-gradient(900px 420px at 50% -10%, rgba(10, 102, 216, 0.16), transparent 58%), radial-gradient(700px 300px at 50% 100%, rgba(10, 102, 216, 0.08), transparent 65%)',
+                pointerEvents: 'none',
+            },
         }}>
-            <Card sx={{ width: '100%', p: 2 }}>
+            <Card sx={{ width: '100%', maxWidth: 460, p: { xs: 1.5, sm: 2 }, borderRadius: 4, position: 'relative', zIndex: 1 }}>
                 <CardContent>
-                    <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
-                        CCMS Login
-                    </Typography>
+                    <Stack spacing={2.5} alignItems="center" sx={{ mb: 3 }}>
+                        <Box
+                            sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 3,
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 10px 24px rgba(10, 102, 216, 0.28)',
+                            }}
+                        >
+                            <TvIcon />
+                        </Box>
+                        <Box textAlign="center">
+                            <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
+                                Welcome back
+                            </Typography>
+                            <Typography variant="body1" color="text.secondary">
+                                Sign in to your PixelSpot account
+                            </Typography>
+                        </Box>
+                    </Stack>
 
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -92,6 +126,7 @@ const LoginPage = () => {
                             fullWidth
                             label="Email"
                             type="email"
+                            placeholder="you@company.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             margin="normal"
@@ -101,6 +136,7 @@ const LoginPage = () => {
                             fullWidth
                             label="Password"
                             type="password"
+                            placeholder="Enter password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             margin="normal"
@@ -112,9 +148,9 @@ const LoginPage = () => {
                             variant="contained"
                             size="large"
                             disabled={loading}
-                            sx={{ mt: 3 }}
+                            sx={{ mt: 3, py: 1.2, fontSize: '1.05rem' }}
                         >
-                            {loading ? 'Logging in...' : 'Login'}
+                            {loading ? 'Signing in...' : 'Sign in'}
                         </Button>
 
                         <Box sx={{ mt: 1, textAlign: 'right' }}>
@@ -136,7 +172,7 @@ const LoginPage = () => {
                                     onClick={() => navigate('/register')}
                                     sx={{ textTransform: 'none' }}
                                 >
-                                    Sign Up
+                                    Create account
                                 </Button>
                             </Typography>
                         </Box>

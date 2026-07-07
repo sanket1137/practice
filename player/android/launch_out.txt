@@ -1,1 +1,0 @@
-Starting: Intent { cmp=com.pixelspot.ccms.player.debug/com.pixelspot.ccms.player.MainActivity }

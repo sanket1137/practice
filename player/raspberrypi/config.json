@@ -1,7 +1,7 @@
 {
     "screen_id": "07362a2c-3161-44cb-9ff3-7a0418368315",
-    "api_key": "NEEDS_REGENERATION",
-    "server_url": "https://ccms.pixelspot.in",
+    "api_key": "84847d903fb754f6453e6f9fb2ef69531f8f058f4e9d01ccef2c20247d7a72ba",
+    "server_url": "http://localhost:5257",
     "sync_interval_minutes": 10,
     "webrtc": {
         "enabled": true,

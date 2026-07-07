@@ -1,5 +1,5 @@
 import { api } from './api';
-import type { NotificationsResponse } from '../types/notification';
+import type { NotificationsResponse, NotificationPreference, UpdateNotificationPreferenceRequest } from '../types/notification';
 
 interface ApiResponse<T> {
     success: boolean;
@@ -25,4 +25,15 @@ export const markAsRead = async (notificationId: string): Promise<void> => {
 
 export const markAllAsRead = async (): Promise<void> => {
     await api.post('/notifications/read-all');
+};
+
+export const getNotificationPreferences = async (): Promise<NotificationPreference[]> => {
+    const response = await api.get<ApiResponse<NotificationPreference[]>>('/notifications/preferences');
+    return response.data.data;
+};
+
+export const updateNotificationPreferences = async (
+    updates: UpdateNotificationPreferenceRequest[]
+): Promise<void> => {
+    await api.put('/notifications/preferences', updates);
 };

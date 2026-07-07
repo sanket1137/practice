@@ -225,4 +225,35 @@ public class CampaignsController : ControllerBase
                 ApiResponse<CampaignScreensStatsDto>.ErrorResponse($"Error retrieving campaign screen stats: {ex.Message}"));
         }
     }
+
+    /// <summary>
+    /// Atomically create a campaign, create bookings, and deduct wallet balance in a single DB transaction.
+    /// Either everything succeeds or everything is rolled back.
+    /// </summary>
+    [HttpPost("wizard")]
+    public async Task<ActionResult<ApiResponse<CampaignWizardResult>>> CreateWizard([FromBody] CampaignWizardRequest request)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _mediator.Send(new CreateCampaignWizardCommand
+            {
+                UserId = userId,
+                Request = request,
+            });
+            return Ok(ApiResponse<CampaignWizardResult>.SuccessResponse(result, "Campaign created successfully"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<CampaignWizardResult>.ErrorResponse(ex.Message));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<CampaignWizardResult>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<CampaignWizardResult>.ErrorResponse($"Error creating campaign: {ex.Message}"));
+        }
+    }
 }
