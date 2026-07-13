@@ -213,9 +213,9 @@ export default function PayoutsPage() {
                             {payouts.map((p) => (
                                 <TableRow key={p.id}>
                                     <TableCell>
-                                        {new Date(p.periodStart).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
+                                        {new Date(p.periodStart || '').toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                                         {' – '}
-                                        {new Date(p.periodEnd).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        {new Date(p.periodEnd || '').toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </TableCell>
                                     <TableCell align="right">
                                         ₹{p.grossAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}

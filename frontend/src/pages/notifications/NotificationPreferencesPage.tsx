@@ -5,7 +5,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { getNotificationPreferences, updateNotificationPreferences } from '../../services/notificationApi';
-import type { NotificationPreference, UpdateNotificationPreferenceRequest } from '../../types/notification';
+import type { UpdateNotificationPreferenceRequest } from '../../types/notification';
 import { useState, useEffect } from 'react';
 import ErrorState from '../../components/common/ErrorState';
 
@@ -65,7 +65,7 @@ export default function NotificationPreferencesPage() {
     }
 
     if (error) {
-        return <ErrorState title="Failed to load preferences" onRetry={() => refetch()} />;
+        return <ErrorState title="Failed to load preferences" action={{ label: 'Retry', onClick: () => refetch() }} />;
     }
 
     const categoryEntries = Object.entries(CATEGORY_MAP);

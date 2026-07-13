@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import {
-    Box, Button, Card, CardContent, Typography, Stack, Grid, TextField,
+    Box, Button, Typography, Stack, TextField,
     Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress,
     IconButton, Tooltip, Chip, List, ListItem, ListItemText, Accordion,
-    AccordionSummary, AccordionDetails, MenuItem, Select, InputLabel, FormControl,
-    Checkbox, ListItemIcon,
+    AccordionSummary, AccordionDetails, Checkbox, ListItemIcon, ListItemButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import GroupIcon from '@mui/icons-material/Group';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,7 +14,7 @@ import { useSnackbar } from 'notistack';
 import { cmsScreenGroupsApi, cmsCommandsApi } from '../../services/cmsApi';
 import { api } from '../../services/api';
 import EmptyState from '../../components/common/EmptyState';
-import type { ScreenGroupDto, CreateScreenGroupRequest, RemoteCommandType } from '../../types/cms';
+import type { CreateScreenGroupRequest, RemoteCommandType } from '../../types/cms';
 
 interface ScreenOption { id: string; name: string; }
 
@@ -24,7 +22,6 @@ export default function CmsScreenGroupsPage() {
     const { enqueueSnackbar } = useSnackbar();
     const queryClient = useQueryClient();
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [editGroup, setEditGroup] = useState<ScreenGroupDto | null>(null);
     const [form, setForm] = useState<{ name: string; description: string; screenIds: string[] }>({
         name: '', description: '', screenIds: [],
     });
@@ -69,7 +66,6 @@ export default function CmsScreenGroupsPage() {
     });
 
     const openAdd = () => {
-        setEditGroup(null);
         setForm({ name: '', description: '', screenIds: [] });
         setDialogOpen(true);
     };
@@ -100,7 +96,7 @@ export default function CmsScreenGroupsPage() {
             )}
 
             {!isLoading && groups.length === 0 && (
-                <EmptyState title="No groups" description="Create a screen group to manage multiple screens at once." />
+                <EmptyState title="No groups" message="Create a screen group to manage multiple screens at once." />
             )}
 
             <Stack spacing={2}>
@@ -189,12 +185,12 @@ export default function CmsScreenGroupsPage() {
                             </Typography>
                             <List dense sx={{ maxHeight: 220, overflow: 'auto', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 1 }}>
                                 {screens.map(s => (
-                                    <ListItem key={s.id} button onClick={() => toggleScreen(s.id)}>
+                                    <ListItemButton key={s.id} onClick={() => toggleScreen(s.id)}>
                                         <ListItemIcon>
                                             <Checkbox edge="start" checked={form.screenIds.includes(s.id)} size="small" />
                                         </ListItemIcon>
                                         <ListItemText primary={s.name} />
-                                    </ListItem>
+                                    </ListItemButton>
                                 ))}
                             </List>
                         </Box>

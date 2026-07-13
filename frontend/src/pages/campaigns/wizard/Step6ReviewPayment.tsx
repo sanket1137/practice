@@ -127,8 +127,8 @@ export function Step6ReviewPayment({ onComplete }: Step6Props) {
     for (const id of selectedScreenIds) {
       const s = selectedScreens.find((x) => x.id === id);
       if (!s) continue;
-      if (typeof s.dailyImpressions === 'number') {
-        dailyImpressions += s.dailyImpressions;
+      if (typeof s.dailyTotalImpressions === 'number') {
+        dailyImpressions += s.dailyTotalImpressions;
         counted++;
       }
       if (typeof s.pricePerSlot === 'number') {
@@ -337,7 +337,7 @@ export function Step6ReviewPayment({ onComplete }: Step6Props) {
                         <ListItemAvatar sx={{ minWidth: 44 }}>
                           <Avatar
                             variant="rounded"
-                            src={s?.primaryImageUrl}
+                            src={s?.primaryImage?.imageUrl}
                             sx={{ width: 36, height: 36, bgcolor: 'action.hover' }}
                           >
                             <ScreenshotMonitorIcon fontSize="small" />

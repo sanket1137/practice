@@ -9,7 +9,7 @@ vi.mock('../services/api', () => ({
     },
 }));
 
-const mockedApi = vi.mocked(api);
+const mockedApi = api as any;
 
 describe('notificationApi', () => {
     beforeEach(() => {

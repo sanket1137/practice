@@ -3,7 +3,7 @@ import {
     Box, Typography, Card, CardContent, Grid, Button, Table, TableBody,
     TableCell, TableContainer, TableHead, TableRow, Chip, Paper,
     CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
-    TextField, Alert, IconButton, Tooltip,
+    TextField, Alert,
 } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
@@ -42,7 +42,7 @@ export default function AdminMachinesPage() {
         queryFn: getAllMachines,
     });
 
-    const { data: myMachines, isLoading: myLoading } = useQuery({
+    const { data: myMachines } = useQuery({
         queryKey: ['admin-machines-my'],
         queryFn: getMyMachines,
     });

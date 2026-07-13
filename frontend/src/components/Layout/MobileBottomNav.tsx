@@ -40,7 +40,7 @@ export default function MobileBottomNav() {
     const filteredItems = getMobileNavigation({ role, isPrivate }).map((item) => ({
         ...item,
         label: item.text,
-        icon: iconMap[item.iconKey] ?? <DashboardIcon />,
+        icon: (iconMap as any)[item.iconKey] ?? <DashboardIcon />,
     }));
 
     // Update selected value based on current path

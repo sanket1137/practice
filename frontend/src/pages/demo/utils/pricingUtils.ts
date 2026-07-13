@@ -74,7 +74,7 @@ const getAdvertiserName = (slotNumber: number): string => {
 
 // Get specific video URL for each slot based on screen
 const getVideoForSlot = (screenId: string, slotNumber: number): string => {
-    const baseUrl = 'http://localhost:5257/demo-videos';
+    const baseUrl = '/demo-videos';
 
     if (screenId === 'screen-1') {
         // Bandra-Worli: video1, video2, video3, then Default_Vid

@@ -50,6 +50,8 @@ interface PlaceSuggestion {
     secondaryText: string;
 }
 
+declare const google: any;
+
 export function PlacesAutocompleteField({
     value,
     onPlaceSelect,
@@ -62,15 +64,15 @@ export function PlacesAutocompleteField({
     const [inputValue, setInputValue] = useState(value || '');
     const [options, setOptions] = useState<PlaceSuggestion[]>([]);
     const [loading, setLoading] = useState(false);
-    const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
-    const placesService = useRef<google.maps.places.PlacesService | null>(null);
+    const autocompleteService = useRef<any>(null);
+    const placesService = useRef<any>(null);
     const dummyDiv = useRef<HTMLDivElement>(document.createElement('div'));
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         const initMaps = async () => {
             try {
-                await getLoader().load();
+                await (getLoader() as any).load();
                 mapsLoaded = true;
                 autocompleteService.current = new google.maps.places.AutocompleteService();
                 placesService.current = new google.maps.places.PlacesService(dummyDiv.current);
@@ -96,14 +98,14 @@ export function PlacesAutocompleteField({
         setLoading(true);
         autocompleteService.current.getPlacePredictions(
             { input, types: ['geocode', 'establishment'] },
-            (predictions, status) => {
+            (predictions: any, status: any) => {
                 setLoading(false);
                 if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
                     setOptions([]);
                     return;
                 }
                 setOptions(
-                    predictions.map((p) => ({
+                    predictions.map((p: any) => ({
                         placeId: p.place_id,
                         description: p.description,
                         mainText: p.structured_formatting.main_text,
@@ -124,7 +126,7 @@ export function PlacesAutocompleteField({
         if (!selected || typeof selected === 'string' || !placesService.current) return;
         placesService.current.getDetails(
             { placeId: selected.placeId, fields: ['address_components', 'formatted_address', 'geometry'] },
-            (place, status) => {
+            (place: any, status: any) => {
                 if (status !== google.maps.places.PlacesServiceStatus.OK || !place) return;
                 const details: PlaceDetails = {
                     formattedAddress: place.formatted_address ?? selected.description,

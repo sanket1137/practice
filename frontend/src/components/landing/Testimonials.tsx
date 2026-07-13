@@ -1,61 +1,158 @@
-import { Box, Typography, Container, Stack } from '@mui/material';
-import StarIcon from '@mui/icons-material/Star';
-import { COLORS, FONTS, TESTIMONIALS_ROW_1, TESTIMONIALS_ROW_2 } from './landingData';
-import type { TestimonialData } from './landingData';
+import { Box, Typography, Container, Grid, Stack, Avatar } from '@mui/material';
+import ScreenShare from '@mui/icons-material/ScreenShare';
+import SentimentSatisfiedAlt from '@mui/icons-material/SentimentSatisfiedAlt';
+import ShowChart from '@mui/icons-material/ShowChart';
+import Security from '@mui/icons-material/Security';
 
-function TestimonialCard({ t }: { t: TestimonialData }) {
-  return (
-    <Box sx={{
-      minWidth: 320, maxWidth: 320, bgcolor: COLORS.surface, borderRadius: '16px', p: 3,
-      border: `1px solid ${COLORS.border}`, flexShrink: 0,
-      transition: 'all 300ms', '&:hover': { borderColor: `${COLORS.indigo}40`, transform: 'translateY(-2px)' },
-    }}>
-      <Stack direction="row" gap={0.25} mb={1.5}>
-        {Array.from({ length: t.stars }).map((_, i) => (
-          <StarIcon key={i} sx={{ fontSize: 14, color: COLORS.amber }} />
-        ))}
-      </Stack>
-      <Typography sx={{ fontFamily: FONTS.body, color: COLORS.text2, fontSize: '14px', lineHeight: 1.7, mb: 2 }}>
-        {t.text}
-      </Typography>
-      <Stack direction="row" alignItems="center" gap={1.5}>
-        <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: `${COLORS.indigo}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONTS.display, fontWeight: 700, fontSize: '13px', color: COLORS.indigo }}>
-          {t.initials}
-        </Box>
-        <Box>
-          <Typography sx={{ fontFamily: FONTS.body, fontWeight: 600, fontSize: '13px', color: COLORS.text1 }}>{t.name}</Typography>
-          <Typography sx={{ fontFamily: FONTS.body, fontSize: '12px', color: COLORS.text3 }}>{t.role}</Typography>
-        </Box>
-      </Stack>
-    </Box>
-  );
+import { COLORS, FONTS, STATS, TESTIMONIALS } from './landingData';
+
+interface SectionProps {
+  themeMode: 'light' | 'dark';
 }
 
-export default function Testimonials() {
-  const row1 = [...TESTIMONIALS_ROW_1, ...TESTIMONIALS_ROW_1];
-  const row2 = [...TESTIMONIALS_ROW_2, ...TESTIMONIALS_ROW_2];
+const STAT_ICONS = [
+  ScreenShare,
+  SentimentSatisfiedAlt,
+  ShowChart,
+  Security,
+];
+
+export default function Testimonials({ themeMode }: SectionProps) {
+  const c = COLORS[themeMode];
 
   return (
-    <Box className="reveal-section" sx={{ bgcolor: COLORS.bg, py: { xs: 8, md: 12 }, overflow: 'hidden' }}>
-      <Container maxWidth="lg" sx={{ mb: 5 }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography sx={{ fontFamily: FONTS.body, color: COLORS.indigo, fontSize: '13px', letterSpacing: '0.1em', textTransform: 'uppercase', mb: 1 }}>
-            Testimonials
-          </Typography>
-          <Typography sx={{ fontFamily: FONTS.display, color: COLORS.text1, fontSize: { xs: '28px', md: '40px' }, fontWeight: 800 }}>
-            Loved by screen owners & advertisers
-          </Typography>
-        </Box>
-      </Container>
+    <Box className="reveal-section" sx={{ py: { xs: 8, sm: 10, md: 14 }, bgcolor: c.bg, position: 'relative' }}>
+      <Container maxWidth="lg">
+        {/* --- Part A: Statistics Row --- */}
+        <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mb: { xs: 8, md: 14 } }}>
+          {STATS.map((stat, idx) => {
+            const Icon = STAT_ICONS[idx] || ScreenShare;
+            return (
+              <Grid size={{ xs: 6, md: 3 }} key={idx}>
+                <Box
+                  sx={{
+                    p: { xs: 2, md: 3 },
+                    borderRadius: '16px',
+                    border: `1px solid ${c.border}`,
+                    bgcolor: c.surfaceCard,
+                    textAlign: 'center',
+                    boxShadow: themeMode === 'light' ? '0 10px 20px rgba(0,0,0,0.02)' : 'none',
+                  }}
+                >
+                  {/* Icon */}
+                  <Box
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '10px',
+                      bgcolor: 'rgba(99, 102, 241, 0.06)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mb: 2,
+                      color: COLORS.primaryPurple,
+                    }}
+                  >
+                    <Icon sx={{ fontSize: 20 }} />
+                  </Box>
+                  {/* Value & Label */}
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.display,
+                      fontWeight: 800,
+                      fontSize: { xs: '20px', sm: '24px', md: '30px' },
+                      color: COLORS.primaryPurple,
+                      mb: 0.5,
+                    }}
+                  >
+                    {stat.val}
+                  </Typography>
+                  <Typography sx={{ fontFamily: FONTS.body, color: c.text2, fontSize: { xs: '11px', md: '13px' }, fontWeight: 500 }}>
+                    {stat.label}
+                  </Typography>
+                </Box>
+              </Grid>
+            );
+          })}
+        </Grid>
 
-      <Box className="testimonial-rows" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        <Box className="testimonial-row">
-          {row1.map((t, i) => <TestimonialCard key={i} t={t} />)}
+        {/* --- Part B: Testimonials --- */}
+        <Box sx={{ textAlign: 'center', mb: { xs: 5, md: 8 } }}>
+          <Typography
+            variant="h2"
+            sx={{
+              fontFamily: FONTS.display,
+              fontWeight: 800,
+              fontSize: { xs: '26px', sm: '32px', md: '42px' },
+              color: c.text1,
+              mb: 2,
+            }}
+          >
+            Loved by businesses. Trusted every day.
+          </Typography>
         </Box>
-        <Box className="testimonial-row reverse">
-          {row2.map((t, i) => <TestimonialCard key={i} t={t} />)}
-        </Box>
-      </Box>
+
+        {/* Testimonial Cards */}
+        <Grid container spacing={{ xs: 2, md: 4 }}>
+          {TESTIMONIALS.map((t, idx) => (
+            <Grid size={{ xs: 12, md: 4 }} key={idx}>
+              <Box
+                className="glass-card"
+                sx={{
+                  p: { xs: 3, md: 4.5 },
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  borderRadius: '20px',
+                  border: `1px solid ${c.border}`,
+                  bgcolor: c.surfaceCard,
+                  boxShadow: themeMode === 'light' ? '0 10px 25px rgba(0,0,0,0.03)' : '0 15px 35px rgba(0,0,0,0.3)',
+                }}
+              >
+                {/* Quote Text */}
+                <Typography
+                  sx={{
+                    fontFamily: FONTS.body,
+                    color: c.text2,
+                    fontSize: { xs: '13px', md: '14.5px' },
+                    lineHeight: 1.6,
+                    fontStyle: 'italic',
+                    mb: 4,
+                  }}
+                >
+                  &ldquo;{t.text}&rdquo;
+                </Typography>
+
+                {/* Profile Footer */}
+                <Stack direction="row" alignItems="center" gap={2} sx={{ borderTop: `1px solid ${c.border}`, pt: 3 }}>
+                  <Avatar
+                    sx={{
+                      bgcolor: COLORS.primaryPurple,
+                      fontFamily: FONTS.display,
+                      fontWeight: 700,
+                      fontSize: '13px',
+                      color: '#ffffff',
+                      width: 38,
+                      height: 38,
+                    }}
+                  >
+                    {t.name.split(' ').map(n => n[0]).join('')}
+                  </Avatar>
+                  <Box>
+                    <Typography sx={{ fontFamily: FONTS.body, fontWeight: 700, fontSize: '13.5px', color: c.text1 }}>
+                      {t.name}
+                    </Typography>
+                    <Typography sx={{ fontFamily: FONTS.body, fontSize: '11px', color: c.text3 }}>
+                      {t.role}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+      </Container>
     </Box>
   );
 }

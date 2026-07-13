@@ -157,7 +157,7 @@ export default function CmsSchedulePage() {
             </FormControl>
 
             {!screenId && (
-                <EmptyState title="Select a screen" description="Choose a screen to view and manage its schedule windows." />
+                <EmptyState title="Select a screen" message="Choose a screen to view and manage its schedule windows." />
             )}
 
             {screenId && isLoading && (
@@ -167,7 +167,7 @@ export default function CmsSchedulePage() {
             )}
 
             {screenId && !isLoading && windows.length === 0 && (
-                <EmptyState title="No schedule windows" description="Add a time window to start day-parting your content." />
+                <EmptyState title="No schedule windows" message="Add a time window to start day-parting your content." />
             )}
 
             <Grid container spacing={2}>

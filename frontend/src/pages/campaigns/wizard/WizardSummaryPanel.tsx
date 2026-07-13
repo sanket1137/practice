@@ -50,8 +50,8 @@ export function WizardSummaryPanel() {
     for (const id of selectedScreenIds) {
       const s = selectedScreens.find((x) => x.id === id);
       if (!s) continue;
-      if (typeof s.dailyImpressions === 'number') {
-        dailyImpressions += s.dailyImpressions;
+      if (typeof s.dailyTotalImpressions === 'number') {
+        dailyImpressions += s.dailyTotalImpressions;
         countedForImpressions++;
       }
       if (typeof s.pricePerSlot === 'number') {

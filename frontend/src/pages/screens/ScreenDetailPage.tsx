@@ -92,6 +92,7 @@ interface Screen {
     primaryImage?: ScreenImage;
     isOnline?: boolean;
     hasApiKey?: boolean;
+    revenueEstimate?: any;
 }
 
 export default function ScreenDetailPage() {

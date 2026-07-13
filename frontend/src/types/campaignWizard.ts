@@ -5,7 +5,7 @@ import { z } from 'zod';
 export const step1Schema = z.object({
   name: z.string().min(1, 'Campaign name is required').max(200),
   objective: z.enum(['brand_awareness', 'footfall', 'sales', 'engagement'], {
-    errorMap: () => ({ message: 'Please select an objective' }),
+    message: 'Please select an objective',
   }),
   description: z.string().max(500).optional(),
 });
@@ -33,7 +33,7 @@ export const step2Schema = z.object({
 
 export const step3Schema = z.object({
   budget: z.number().positive('Budget must be positive'),
-  currency: z.string().default('INR'),
+  currency: z.string(),
   startDate: z.string().min(1, 'Start date is required'), // YYYY-MM-DD
   endDate: z.string().min(1, 'End date is required'),
 }).refine(
@@ -50,7 +50,7 @@ export const step5Schema = z.object({
 });
 
 export const step6Schema = z.object({
-  confirmedPayment: z.literal(true, { errorMap: () => ({ message: 'Please confirm payment' }) }),
+  confirmedPayment: z.literal(true, { message: 'Please confirm payment' }),
 });
 
 // -- Inferred types ----------------------------------------------------------

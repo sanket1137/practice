@@ -278,7 +278,7 @@ export default function AdminCreativeReviewPage() {
             select
             fullWidth
             sx={{ mb: 2 }}
-            value={PRESET_REASONS.includes(rejectNotes) ? rejectNotes : rejectNotes ? 'custom' : ''}
+            value={(PRESET_REASONS as readonly string[]).includes(rejectNotes) ? rejectNotes : rejectNotes ? 'custom' : ''}
             onChange={(e) => {
               if (e.target.value === 'custom') setRejectNotes('');
               else setRejectNotes(e.target.value);
@@ -289,7 +289,7 @@ export default function AdminCreativeReviewPage() {
             ))}
             <MenuItem value="custom">Custom reason…</MenuItem>
           </TextField>
-          {(!PRESET_REASONS.includes(rejectNotes)) && (
+          {(!(PRESET_REASONS as readonly string[]).includes(rejectNotes)) && (
             <TextField
               label="Custom reason (shown to advertiser)"
               multiline

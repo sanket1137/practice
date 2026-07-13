@@ -130,7 +130,8 @@ export type RemoteCommandType =
     | 'SetVolume' | 'Mute' | 'Unmute'
     | 'TakeScreenshot' | 'PushLogs' | 'RefreshContent'
     | 'SetBrightness' | 'SetOrientation'
-    | 'ShowMessage' | 'PushAnnouncement' | 'Custom';
+    | 'ShowMessage' | 'PushAnnouncement' | 'Custom'
+    | 'DisplayOn' | 'DisplayOff';
 
 export type RemoteCommandStatus = 'Pending' | 'Sent' | 'Acked' | 'Failed' | 'Expired';
 

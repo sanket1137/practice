@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     Box, Button, Card, CardContent, Typography, Stack, IconButton, Tooltip,
-    Grid, Chip, CircularProgress, Badge, Menu, MenuItem, ListItemIcon, ListItemText,
-    TextField, ToggleButtonGroup, ToggleButton, Switch, FormControlLabel,
+    Grid, Chip, CircularProgress, Menu, MenuItem, ListItemIcon, ListItemText,
+    TextField, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -18,7 +18,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import MonitorIcon from '@mui/icons-material/Monitor';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { formatDistanceToNow } from 'date-fns';
@@ -44,7 +44,6 @@ type StatusFilter = 'all' | ScreenHealthStatus;
 
 export default function CmsScreensPage() {
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
     const { enqueueSnackbar } = useSnackbar();
     const [pairOpen, setPairOpen] = useState(false);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -206,14 +205,14 @@ export default function CmsScreensPage() {
                 <ErrorState
                     title="Failed to load screens"
                     message="We couldn't load screen health data."
-                    onRetry={() => refetch()}
+                    action={{ label: 'Retry', onClick: () => refetch() }}
                 />
             )}
 
             {!isLoading && !error && filtered.length === 0 && (
                 <EmptyState
                     title="No screens found"
-                    description={statusFilter !== 'all' ? 'No screens match the selected filter.' : 'Pair a screen to get started.'}
+                    message={statusFilter !== 'all' ? 'No screens match the selected filter.' : 'Pair a screen to get started.'}
                 />
             )}
 

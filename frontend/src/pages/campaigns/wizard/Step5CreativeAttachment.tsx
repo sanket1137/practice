@@ -28,7 +28,6 @@ import {
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
-import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import SearchIcon from '@mui/icons-material/Search';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -574,10 +573,10 @@ export function Step5CreativeAttachment({ onNext }: Step5Props) {
                           justifyContent: 'center',
                         }}
                       >
-                        {screen?.primaryImageUrl ? (
+                        {screen?.primaryImage?.imageUrl ? (
                           <CardMedia
                             component="img"
-                            image={screen.primaryImageUrl}
+                            image={screen.primaryImage.imageUrl}
                             alt={screen.name}
                             sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />

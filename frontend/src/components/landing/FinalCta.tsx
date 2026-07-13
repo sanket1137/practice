@@ -1,155 +1,314 @@
-import { useState, useCallback } from 'react';
-import { Box, Typography, Container, Stack, Button, IconButton } from '@mui/material';
-import TwitterIcon from '@mui/icons-material/Twitter';
-import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import InstagramIcon from '@mui/icons-material/Instagram';
-import { COLORS, FONTS } from './landingData';
+import { useState } from 'react';
+import { Box, Typography, Container, Stack, Button, IconButton, Accordion, AccordionSummary, AccordionDetails, Grid } from '@mui/material';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import Twitter from '@mui/icons-material/Twitter';
+import LinkedIn from '@mui/icons-material/LinkedIn';
+import Instagram from '@mui/icons-material/Instagram';
+import Language from '@mui/icons-material/Language';
 
-/* ── Confetti Burst ───────────────────────────────────────── */
-function Confetti({ active }: { active: boolean }) {
-  if (!active) return null;
-  const pieces = Array.from({ length: 20 }).map((_, i) => ({
-    color: [COLORS.indigo, COLORS.pink, COLORS.cyan, COLORS.green, COLORS.amber][i % 5],
-    x: `${(Math.random() - 0.5) * 300}px`,
-    delay: `${Math.random() * 0.3}s`,
-    dur: `${0.8 + Math.random() * 0.5}s`,
-  }));
+import { FAQS, COLORS, FONTS } from './landingData';
+import { useNavigate } from 'react-router-dom';
+
+interface SectionProps {
+  themeMode: 'light' | 'dark';
+}
+
+/* ── Section 12: FAQ Accordion ─────────────────────────────── */
+export function FAQ({ themeMode }: SectionProps) {
+  const c = COLORS[themeMode];
+  const [expanded, setExpanded] = useState<string | false>(false);
+
+  const handleChange = (panel: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
+    setExpanded(isExpanded ? panel : false);
+  };
+
   return (
-    <Box sx={{ position: 'absolute', top: '50%', left: '50%', pointerEvents: 'none', zIndex: 10 }}>
-      {pieces.map((p, i) => (
-        <Box key={i} sx={{
-          position: 'absolute', width: 8, height: 8, borderRadius: '2px', bgcolor: p.color,
-          animation: `confettiFall ${p.dur} ease-out ${p.delay} forwards`,
-          '--x': p.x,
-        } as React.CSSProperties} />
-      ))}
+    <Box className="reveal-section" sx={{ py: { xs: 8, sm: 10, md: 14 }, bgcolor: c.bg, position: 'relative' }}>
+      <Container maxWidth="md">
+        <Box sx={{ textAlign: 'center', mb: { xs: 5, md: 8 } }}>
+          <Typography
+            sx={{
+              fontFamily: FONTS.mono,
+              color: COLORS.primaryPurple,
+              fontSize: '12px',
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              mb: 2,
+            }}
+          >
+            Got Questions?
+          </Typography>
+          <Typography
+            variant="h2"
+            sx={{
+              fontFamily: FONTS.display,
+              fontWeight: 800,
+              fontSize: { xs: '26px', sm: '32px', md: '42px' },
+              color: c.text1,
+              mb: 2,
+            }}
+          >
+            Frequently Asked Questions
+          </Typography>
+        </Box>
+
+        <Box>
+          {FAQS.map((faq, idx) => {
+            const panelId = `panel-${idx}`;
+            return (
+              <Accordion
+                key={idx}
+                expanded={expanded === panelId}
+                onChange={handleChange(panelId)}
+                className={`faq-accordion ${expanded === panelId ? 'faq-accordion-expanded' : ''}`}
+                sx={{
+                  bgcolor: c.surfaceCard,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: '12px !important',
+                  mb: 2,
+                  boxShadow: 'none',
+                  '&:before': { display: 'none' },
+                  transition: 'border-color 0.3s ease',
+                  '&:hover': { borderColor: 'var(--border-focus)' },
+                }}
+              >
+                <AccordionSummary
+                  expandIcon={<ExpandMore sx={{ color: c.text2 }} />}
+                  sx={{ px: { xs: 2, md: 3 }, py: 1.5 }}
+                >
+                  <Typography
+                    sx={{
+                      fontFamily: FONTS.display,
+                      fontWeight: 700,
+                      fontSize: { xs: '14px', md: '15px' },
+                      color: expanded === panelId ? COLORS.primaryPurple : c.text1,
+                    }}
+                  >
+                    {faq.q}
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails sx={{ px: { xs: 2, md: 3 }, pb: 3, pt: 0 }}>
+                  <Typography sx={{ fontFamily: FONTS.body, color: c.text2, fontSize: '13.5px', lineHeight: 1.6 }}>
+                    {faq.a}
+                  </Typography>
+                </AccordionDetails>
+              </Accordion>
+            );
+          })}
+        </Box>
+      </Container>
     </Box>
   );
 }
 
-/* ── Final CTA ────────────────────────────────────────────── */
-export function FinalCta() {
-  const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
-  const [confetti, setConfetti] = useState(false);
-
-  const handleSubmit = useCallback(() => {
-    if (!email.trim()) return;
-    setConfetti(true);
-    setSent(true);
-    setTimeout(() => setConfetti(false), 2000);
-  }, [email]);
+/* ── Section 13: Massive CTA ────────────────────────────────── */
+export function FinalCta({ themeMode }: SectionProps) {
+  const c = COLORS[themeMode];
+  const navigate = useNavigate();
 
   return (
-    <Box sx={{ position: 'relative', overflow: 'hidden', py: { xs: 10, md: 14 } }}>
-      {/* Rotating gradient background */}
-      <Box sx={{ position: 'absolute', inset: 0, zIndex: 0 }}>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', width: '150%', height: '150%', transform: 'translate(-50%, -50%)', background: `conic-gradient(from 0deg, ${COLORS.indigo}15, ${COLORS.pink}10, ${COLORS.cyan}08, ${COLORS.indigo}15)`, animation: 'rotate 20s linear infinite', opacity: 0.5 }} />
-        <Box sx={{ position: 'absolute', top: '30%', left: '20%', width: 300, height: 300, borderRadius: '50%', bgcolor: `${COLORS.indigo}10`, filter: 'blur(80px)', animation: 'drift 15s ease-in-out infinite' }} />
-        <Box sx={{ position: 'absolute', bottom: '20%', right: '20%', width: 200, height: 200, borderRadius: '50%', bgcolor: `${COLORS.pink}10`, filter: 'blur(60px)', animation: 'drift 12s ease-in-out infinite reverse' }} />
-      </Box>
+    <Box className="reveal-section" sx={{ py: { xs: 8, sm: 10, md: 14 }, bgcolor: c.bg, position: 'relative', overflow: 'hidden' }}>
+      {/* Gradient Background Glow */}
+      <Box className="cta-gradient-bg" />
 
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 5, textAlign: 'center' }}>
-        <Typography sx={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: { xs: '32px', md: '48px' }, color: COLORS.text1, lineHeight: 1.15, mb: 2 }}>
-          Ready to turn screens into revenue?
+      <Container maxWidth="md" sx={{ textAlign: 'center', position: 'relative', zIndex: 10 }}>
+        {/* Free badge */}
+        <Box sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 1,
+          bgcolor: 'rgba(34, 197, 94, 0.06)',
+          border: '1px solid rgba(34, 197, 94, 0.2)',
+          borderRadius: '100px',
+          px: 2.5,
+          py: 0.75,
+          mb: 4,
+        }}
+          className="free-badge"
+        >
+          <Box className="pulse-dot" sx={{ bgcolor: COLORS.success, width: 6, height: 6 }} />
+          <Typography sx={{ fontFamily: FONTS.mono, fontSize: '11px', color: COLORS.success, fontWeight: 700 }}>
+            Free for Everyone — No Credit Card Required
+          </Typography>
+        </Box>
+
+        <Typography
+          variant="h2"
+          sx={{
+            fontFamily: FONTS.display,
+            fontWeight: 800,
+            fontSize: { xs: '28px', sm: '36px', md: '48px' },
+            lineHeight: 1.2,
+            mb: 2.5,
+            color: c.text1,
+          }}
+        >
+          Ready to turn your screens into<br />impact and revenue?
         </Typography>
-        <Typography sx={{ fontFamily: FONTS.body, color: COLORS.text2, fontSize: '16px', mb: 4, lineHeight: 1.6 }}>
-          Join 500+ screen owners and 200+ advertisers already on PixelSpot. Get started for free — no credit card required.
+        <Typography
+          sx={{
+            fontFamily: FONTS.body,
+            color: c.text2,
+            fontSize: { xs: '14px', sm: '15px', md: '17px' },
+            mb: 5,
+            lineHeight: 1.6,
+          }}
+        >
+          Join thousands of businesses already growing with PixelSpot. Get started in under 2 minutes — completely free.
         </Typography>
 
-        {sent ? (
-          <Box sx={{ animation: 'successPop 0.4s cubic-bezier(0.34,1.56,0.64,1)' }}>
-            <Typography sx={{ fontFamily: FONTS.display, fontWeight: 700, color: COLORS.green, fontSize: '20px' }}>🎉 You&apos;re in!</Typography>
-            <Typography sx={{ fontFamily: FONTS.body, color: COLORS.text2, fontSize: '14px', mt: 1 }}>Check your inbox for next steps.</Typography>
-          </Box>
-        ) : (
-          <Box sx={{ position: 'relative' }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} gap={1.5} justifyContent="center">
-              <Box component="input" value={email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                placeholder="name@company.com" type="email"
-                sx={{
-                  flex: 1, maxWidth: 360, bgcolor: COLORS.surface, border: `1px solid ${COLORS.border}`,
-                  borderRadius: '12px', px: 2.5, py: 1.5, fontFamily: FONTS.body, fontSize: '14px',
-                  color: COLORS.text1, outline: 'none',
-                  '&:focus': { borderColor: COLORS.indigo, boxShadow: `0 0 0 3px ${COLORS.indigoGlow}` },
-                  '&::placeholder': { color: COLORS.text3 },
-                }}
-              />
-              <Button variant="contained" onClick={handleSubmit}
-                sx={{
-                  fontFamily: FONTS.body, bgcolor: COLORS.indigo, textTransform: 'none', fontSize: '14px',
-                  borderRadius: '12px', px: 3, py: 1.5, fontWeight: 600,
-                  '&:hover': { bgcolor: '#5558e6' },
-                }}>
-                Get Early Access →
-              </Button>
-            </Stack>
-            <Confetti active={confetti} />
-          </Box>
-        )}
-
-        <Stack direction="row" justifyContent="center" gap={3} mt={3}>
-          {['No credit card', 'Free forever plan', 'Cancel anytime'].map(t => (
-            <Typography key={t} sx={{ fontFamily: FONTS.body, fontSize: '12px', color: COLORS.text3 }}>✓ {t}</Typography>
-          ))}
+        {/* Buttons */}
+        <Stack direction={{ xs: 'column', sm: 'row' }} gap={2} justifyContent="center" alignItems="center">
+          <Button
+            variant="contained"
+            onClick={() => navigate('/register')}
+            sx={{
+              fontFamily: FONTS.body,
+              bgcolor: COLORS.primaryPurple,
+              color: '#ffffff',
+              textTransform: 'none',
+              fontSize: '15px',
+              fontWeight: 700,
+              borderRadius: '10px',
+              px: 4.5,
+              py: 1.6,
+              boxShadow: `0 8px 24px rgba(99, 102, 241, 0.25)`,
+              '&:hover': {
+                bgcolor: COLORS.primaryPurpleHover,
+                boxShadow: `0 12px 32px rgba(99, 102, 241, 0.35)`,
+              },
+            }}
+          >
+            Get Started — It's Free
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => navigate('/explore')}
+            sx={{
+              fontFamily: FONTS.body,
+              borderColor: c.border,
+              color: c.text1,
+              bgcolor: themeMode === 'light' ? '#FFFFFF' : 'transparent',
+              textTransform: 'none',
+              fontSize: '15px',
+              fontWeight: 600,
+              borderRadius: '10px',
+              px: 4.5,
+              py: 1.6,
+              '&:hover': {
+                borderColor: c.text2,
+                bgcolor: 'rgba(255, 255, 255, 0.02)',
+              },
+            }}
+          >
+            Explore Screens
+          </Button>
         </Stack>
       </Container>
     </Box>
   );
 }
 
-/* ── Footer ───────────────────────────────────────────────── */
-export function LandingFooter() {
+/* ── Footer ─────────────────────────────────────────────────── */
+export function LandingFooter({ themeMode }: SectionProps) {
+  const c = COLORS[themeMode];
+
   const cols = [
-    { title: 'Product', links: ['Features', 'Pricing', 'Screen Map', 'API Docs'] },
-    { title: 'Company', links: ['About', 'Blog', 'Careers', 'Contact'] },
-    { title: 'Legal', links: ['Privacy Policy', 'Terms of Service', 'Cookie Policy'] },
+    {
+      title: 'Product',
+      links: ['Features', 'Solutions', 'Integrations', 'API Docs'],
+    },
+    {
+      title: 'Resources',
+      links: ['Documentation', 'Blog', 'Help Center', 'Webinars'],
+    },
+    {
+      title: 'Company',
+      links: ['About Us', 'Careers', 'Contact Us', 'Partners'],
+    },
+    {
+      title: 'Legal',
+      links: ['Privacy Policy', 'Terms of Service', 'Security'],
+    },
   ];
 
   return (
-    <Box component="footer" sx={{ bgcolor: COLORS.surface, borderTop: `1px solid ${COLORS.border}`, py: 6 }}>
+    <Box component="footer" sx={{ bgcolor: c.bg, borderTop: `1px solid ${c.border}`, pt: { xs: 6, md: 10 }, pb: 6 }}>
       <Container maxWidth="lg">
-        <Stack direction={{ xs: 'column', md: 'row' }} gap={6} mb={5}>
-          {/* Brand */}
-          <Box sx={{ flex: 1.2 }}>
-            <Stack direction="row" alignItems="center" gap={1.5} mb={2}>
-              <Box sx={{ width: 32, height: 32, borderRadius: 1, bgcolor: COLORS.indigo, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: FONTS.display, fontWeight: 800, fontSize: '14px', color: '#fff' }}>P</Box>
-              <Typography sx={{ fontFamily: FONTS.display, fontWeight: 700, fontSize: '18px', color: COLORS.text1 }}>PixelSpot</Typography>
+        <Grid container spacing={4} sx={{ mb: { xs: 6, md: 8 } }}>
+          {/* Brand Info */}
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Stack direction="row" alignItems="center" gap={1.5} mb={2.5}>
+              <Box sx={{
+                width: 32,
+                height: 32,
+                borderRadius: '8px',
+                background: `linear-gradient(135deg, ${COLORS.primaryPurple}, ${COLORS.primaryPurpleHover})`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: FONTS.display,
+                fontWeight: 800,
+                fontSize: '14px',
+                color: '#fff',
+              }}>
+                P
+              </Box>
+              <Typography sx={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: '18px', color: c.text1 }}>
+                PixelSpot
+              </Typography>
             </Stack>
-            <Typography sx={{ fontFamily: FONTS.body, color: COLORS.text3, fontSize: '14px', lineHeight: 1.6, maxWidth: 260 }}>
-              India&apos;s first slot-based Digital Out-of-Home advertising marketplace.
+            <Typography sx={{ fontFamily: FONTS.body, color: c.text2, fontSize: '14px', lineHeight: 1.6, mb: 3, maxWidth: 280 }}>
+              The free, all-in-one digital signage CMS to manage, automate and monetize your screen network.
             </Typography>
-            <Stack direction="row" gap={1} mt={2}>
-              {[TwitterIcon, LinkedInIcon, InstagramIcon].map((Icon, i) => (
-                <IconButton key={i} size="small" sx={{ color: COLORS.text3, '&:hover': { color: COLORS.text1, bgcolor: 'rgba(255,255,255,0.05)' } }}>
+            {/* Social Icons */}
+            <Stack direction="row" gap={1.5}>
+              {[Twitter, LinkedIn, Instagram].map((Icon, idx) => (
+                <IconButton key={idx} size="small" sx={{ color: c.text3, '&:hover': { color: c.text1, bgcolor: 'rgba(255,255,255,0.03)' } }}>
                   <Icon sx={{ fontSize: 18 }} />
                 </IconButton>
               ))}
             </Stack>
-          </Box>
+          </Grid>
 
+          {/* Links Columns */}
           {cols.map(col => (
-            <Box key={col.title} sx={{ flex: 1 }}>
-              <Typography sx={{ fontFamily: FONTS.body, fontWeight: 600, fontSize: '14px', color: COLORS.text1, mb: 2 }}>{col.title}</Typography>
+            <Grid size={{ xs: 6, sm: 3, md: 2 }} key={col.title}>
+              <Typography sx={{ fontFamily: FONTS.display, fontWeight: 700, fontSize: '14px', color: c.text1, mb: 2.5 }}>
+                {col.title}
+              </Typography>
               <Stack gap={1.5}>
                 {col.links.map(l => (
-                  <Typography key={l} component="a" href="#" sx={{
-                    fontFamily: FONTS.body, fontSize: '13px', color: COLORS.text3, textDecoration: 'none',
-                    transition: 'color 200ms', '&:hover': { color: COLORS.text2 },
-                  }}>{l}</Typography>
+                  <Typography
+                    key={l}
+                    component="a"
+                    href="#"
+                    className="footer-link"
+                    sx={{ fontFamily: FONTS.body, fontSize: '13px' }}
+                  >
+                    {l}
+                  </Typography>
                 ))}
               </Stack>
-            </Box>
+            </Grid>
           ))}
-        </Stack>
+        </Grid>
 
-        <Box sx={{ borderTop: `1px solid ${COLORS.border}`, pt: 3, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
-          <Typography sx={{ fontFamily: FONTS.body, fontSize: '12px', color: COLORS.text3 }}>
-            © 2025 PixelSpot Technologies Pvt. Ltd. All rights reserved.
+        {/* Bottom row */}
+        <Box sx={{ borderTop: `1px solid ${c.border}`, pt: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Typography sx={{ fontFamily: FONTS.body, fontSize: '13px', color: c.text3 }}>
+            © 2026 PixelSpot. All rights reserved.
           </Typography>
-          <Typography sx={{ fontFamily: FONTS.body, fontSize: '12px', color: COLORS.text3 }}>
-            Made with ❤️ in India <Box component="span" className="flag-wave">🇮🇳</Box>
-          </Typography>
+
+          {/* Language Selector Dropdown Mockup */}
+          <Stack direction="row" alignItems="center" gap={0.5} sx={{ cursor: 'pointer', color: c.text3, '&:hover': { color: c.text1 } }}>
+            <Language sx={{ fontSize: 16 }} />
+            <Typography sx={{ fontFamily: FONTS.body, fontSize: '13px', fontWeight: 500 }}>
+              English
+            </Typography>
+            <ExpandMore sx={{ fontSize: 16 }} />
+          </Stack>
         </Box>
       </Container>
     </Box>

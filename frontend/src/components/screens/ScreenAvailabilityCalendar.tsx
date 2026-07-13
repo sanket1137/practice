@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import {
   Box,
-  Chip,
   CircularProgress,
   Grid,
   IconButton,
@@ -18,7 +17,6 @@ import {
   eachDayOfInterval,
   format,
   getDay,
-  isSameMonth,
   addMonths,
   subMonths,
   parseISO,

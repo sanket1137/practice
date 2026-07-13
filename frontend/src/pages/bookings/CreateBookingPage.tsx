@@ -298,7 +298,7 @@ export default function CreateBookingPage() {
     }, [selectedScreenDetails, startDate, endDate, availabilityData]);
 
     const createMutation = useMutation({
-        mutationFn: async (data: BookingFormData) => {
+        mutationFn: async (data: any) => {
             const response = await api.post('/bookings', data);
             return response.data.data; // ApiResponse wrapper
         },

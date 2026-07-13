@@ -62,7 +62,7 @@ export default function PricingRulesPage() {
   const [editingRule, setEditingRule] = useState<PricingRuleDto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  const { data: rules = [], isLoading, error } = useQuery({
+  const { data: rules = [], isLoading } = useQuery({
     queryKey: ['pricing-rules', screenId],
     queryFn: () => fetchRules(screenId!),
     enabled: !!screenId,
