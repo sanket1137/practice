@@ -272,6 +272,49 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    /* Slide engine — prevent default browser scroll */
+    html, body {
+      overflow: hidden;
+    }
+
+    /* Slide sections that are not story-section */
+    .slide-section {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 4rem 2rem;
+    }
+
+    /* Progress dots — hide on mobile */
+    @media (max-width: 640px) {
+      #slide-dots { display: none !important; }
+    }
+
+    /* Slide navigation hint at bottom of first slide */
+    .scroll-hint {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      opacity: 0.35;
+      animation: hintbounce 2s ease infinite;
+      pointer-events: none;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+    @keyframes hintbounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(6px); }
+    }
   </style>
 </head>
 <body>
@@ -321,6 +364,21 @@
   <!-- HERO NARRATIVE -->
   <section class="story-section" id="slide-1">
     <div class="story-text active">Every screen is displaying something.</div>
+    <div class="scroll-hint">
+      <span>scroll</span>
+      <svg width="14" height="20" viewBox="0 0 14 20" fill="none"
+        xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="12" height="18" rx="6"
+          stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <rect x="5.5" y="4" width="3" height="5" rx="1.5"
+          fill="rgba(255,255,255,0.4)">
+          <animate attributeName="y" values="4;9;4" dur="1.8s"
+            repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0;1" dur="1.8s"
+            repeatCount="indefinite"/>
+        </rect>
+      </svg>
+    </div>
   </section>
 
   <section class="story-section" id="slide-2">
@@ -367,7 +425,7 @@
   </section>
 
   <!-- STATS STRIP -->
-  <section class="py-20 border-t border-white/5 border-b border-white/5 bg-black/40 backdrop-blur-sm">
+  <section class="slide-section py-20 border-t border-white/5 border-b border-white/5 bg-black/40 backdrop-blur-sm">
     <div class="container mx-auto px-4 max-w-4xl">
       <div class="grid grid-cols-3 gap-12 text-center">
         <div class="fade-in-up">
@@ -405,7 +463,7 @@
   </section>
 
   <!-- COMPARISON -->
-  <section class="py-32 bg-black/60 backdrop-blur-md border-t border-white/5">
+  <section class="slide-section py-32 bg-black/60 backdrop-blur-md border-t border-white/5">
     <div class="container mx-auto px-4 max-w-5xl">
       <div class="text-center mb-16 fade-in-up">
         <h2 class="text-3xl md:text-5xl font-light mb-4">The old way vs. the PixelSpot way</h2>
@@ -434,7 +492,7 @@
   </section>
 
   <!-- DECISION SECTION -->
-  <section class="min-h-screen py-24 flex items-center justify-center bg-black/80 backdrop-blur-md">
+  <section class="slide-section min-h-screen py-24 flex items-center justify-center bg-black/80 backdrop-blur-md">
     <div class="container mx-auto px-4 max-w-5xl">
       <div class="text-center mb-20 fade-in-up">
         <h2 class="text-3xl md:text-5xl font-light mb-4">Ready to change the way you work?</h2>
@@ -528,7 +586,7 @@
   </section>
 
   <!-- Dashboard mockup -->
-  <section class="min-h-screen py-32 flex flex-col items-center">
+  <section class="slide-section min-h-screen py-32 flex flex-col items-center">
     <div class="container mx-auto px-4 w-full max-w-5xl mb-24">
       <div class="dashboard-viz w-full p-6 md:p-8" style="aspect-ratio: 16/9; display:flex; flex-direction:column; gap:1.5rem;">
         <div class="flex justify-between items-center border-b border-white/10 pb-4">
@@ -577,7 +635,7 @@
   </section>
 
   <!-- Feature cards -->
-  <section class="py-24 px-4 bg-black/50 backdrop-blur-sm">
+  <section class="slide-section py-24 px-4 bg-black/50 backdrop-blur-sm">
     <div class="container mx-auto max-w-5xl">
       <div class="text-center mb-16 fade-in-up">
         <h2 class="text-3xl md:text-5xl font-light">Everything your screen needs to earn.</h2>
@@ -618,7 +676,7 @@
   </section>
 
   <!-- Closing -->
-  <section class="story-section flex-col gap-12 bg-black/90">
+  <section class="story-section slide-section flex-col gap-12 bg-black/90">
     <div class="fade-in-up text-center">
       <h2 class="text-5xl md:text-7xl font-light mb-6">You built the screen.</h2>
       <p class="text-3xl md:text-5xl text-gray-400 font-light">Now let it build your business.</p>
@@ -678,11 +736,10 @@
   </section>
 
   <!-- Feature sections -->
-  <section class="py-24 relative z-10">
+  <!-- Search & Book -->
+  <section class="slide-section py-24 relative z-10">
     <div class="container mx-auto px-4 max-w-5xl">
-
-      <!-- Search & Book -->
-      <div class="grid md:grid-cols-2 gap-16 items-center mb-32 fade-in-up">
+      <div class="grid md:grid-cols-2 gap-16 items-center fade-in-up">
         <div>
           <div class="text-xs font-medium tracking-widest uppercase mb-4" style="color:var(--accent)">Search & Book</div>
           <h3 class="text-3xl md:text-5xl font-light mb-8">Find your audience. Instantly.</h3>
@@ -705,9 +762,13 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- Live Stream -->
-      <div class="grid md:grid-cols-2 gap-16 items-center mb-32 fade-in-up">
+  <!-- Live Stream -->
+  <section class="slide-section py-24 relative z-10">
+    <div class="container mx-auto px-4 max-w-5xl">
+      <div class="grid md:grid-cols-2 gap-16 items-center fade-in-up">
         <div class="order-2 md:order-1 ui-element relative overflow-hidden">
           <div class="absolute top-0 right-0 p-4 flex gap-2 items-center">
             <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
@@ -735,9 +796,13 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- Proof -->
-      <div class="grid md:grid-cols-2 gap-16 items-center mb-12 fade-in-up">
+  <!-- Proof -->
+  <section class="slide-section py-24 relative z-10">
+    <div class="container mx-auto px-4 max-w-5xl">
+      <div class="grid md:grid-cols-2 gap-16 items-center fade-in-up">
         <div>
           <div class="text-xs font-medium tracking-widest uppercase mb-4" style="color:var(--accent)">Proof & ROI</div>
           <h3 class="text-3xl md:text-5xl font-light mb-8">Every impression. Verified.</h3>
@@ -768,7 +833,6 @@
           </div>
         </div>
       </div>
-
     </div>
   </section>
 
@@ -785,7 +849,7 @@
   </section>
 
   <!-- Final CTA -->
-  <section class="min-h-screen py-32 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
+  <section class="slide-section min-h-screen py-32 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
     <div class="container mx-auto px-4 max-w-4xl text-center fade-in-up">
       <h2 class="text-6xl md:text-9xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-600">
         Buy media.
@@ -822,6 +886,7 @@ function showPanel(which) {
     reinitObservers();
     if (which === 'advertiser') initAdvSequence();
     if (which === 'owner') initOwnerFeatureCascade();
+    if (window.resetSlideEngine) window.resetSlideEngine();
   }, 80);
 }
 
@@ -831,6 +896,7 @@ function showMain() {
   document.getElementById('panel-advertiser').style.display = 'none';
   document.getElementById('back-btn').classList.remove('show');
   window.scrollTo({ top: 0, behavior: 'instant' });
+  if (window.resetSlideEngine) window.resetSlideEngine();
 }
 
 function reinitObservers() {
@@ -940,6 +1006,207 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
+</script>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE ENGINE
+═══════════════════════════════════════════════ -->
+<script>
+(function () {
+
+  let currentSlide = 0;
+  let isAnimating = false;
+  const DURATION = 800; // ms per transition
+
+  function getSlides() {
+    // Only collect slides from the currently visible panel
+    const activePanel = ['panel-main', 'panel-owner', 'panel-advertiser']
+      .map(id => document.getElementById(id))
+      .find(el => el && el.style.display !== 'none');
+
+    if (!activePanel) return [];
+    return Array.from(activePanel.querySelectorAll('.story-section, .slide-section'));
+  }
+
+  function goToSlide(index, instant) {
+    const slides = getSlides();
+    if (!slides.length) return;
+
+    index = Math.max(0, Math.min(index, slides.length - 1));
+    currentSlide = index;
+
+    const target = slides[index];
+    const targetY = target.getBoundingClientRect().top + window.scrollY
+                    - (window.innerHeight / 2)
+                    + (target.offsetHeight / 2);
+
+    if (instant) {
+      window.scrollTo({ top: targetY });
+    } else {
+      isAnimating = true;
+      window.scrollTo({ top: targetY, behavior: 'smooth' });
+      setTimeout(() => { isAnimating = false; }, DURATION);
+    }
+
+    // Trigger story-text animation for this slide
+    target.querySelectorAll('.story-text').forEach(el => {
+      el.classList.remove('active');
+      setTimeout(() => el.classList.add('active'), instant ? 0 : 200);
+    });
+
+    // Trigger fade-in-up elements in this slide
+    target.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card').forEach((el, i) => {
+      el.classList.remove('visible');
+      setTimeout(() => el.classList.add('visible'), instant ? 0 : 300 + i * 120);
+    });
+  }
+
+  function nextSlide() {
+    if (isAnimating) return;
+    const slides = getSlides();
+    if (currentSlide < slides.length - 1) {
+      goToSlide(currentSlide + 1, false);
+    }
+  }
+
+  function prevSlide() {
+    if (isAnimating) return;
+    if (currentSlide > 0) {
+      goToSlide(currentSlide - 1, false);
+    }
+  }
+
+  // ── MOUSE WHEEL ──
+  let wheelTimeout = null;
+  window.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (isAnimating) return;
+    clearTimeout(wheelTimeout);
+    wheelTimeout = setTimeout(() => {
+      if (e.deltaY > 0) nextSlide();
+      else prevSlide();
+    }, 30);
+  }, { passive: false });
+
+  // ── TOUCH / SWIPE ──
+  let touchStartY = 0;
+  let touchMoved = false;
+  window.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+    touchMoved = false;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    touchMoved = true;
+  }, { passive: true });
+
+  window.addEventListener('touchend', (e) => {
+    if (!touchMoved) return;
+    const deltaY = touchStartY - e.changedTouches[0].clientY;
+    if (Math.abs(deltaY) < 40) return; // ignore tiny swipes
+    if (deltaY > 0) nextSlide();
+    else prevSlide();
+  }, { passive: true });
+
+  // ── KEYBOARD ──
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+      e.preventDefault();
+      nextSlide();
+    }
+    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+      e.preventDefault();
+      prevSlide();
+    }
+  });
+
+  // ── PROGRESS DOTS ──
+  // Creates a vertical dot indicator on the right side of the screen
+  function buildDots() {
+    const existing = document.getElementById('slide-dots');
+    if (existing) existing.remove();
+
+    const slides = getSlides();
+    if (!slides.length) return;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'slide-dots';
+    wrap.style.cssText = `
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    `;
+
+    slides.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.dataset.index = i;
+      dot.style.cssText = `
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        cursor: pointer;
+        transition: all 0.3s ease;
+      `;
+      dot.addEventListener('click', () => {
+        if (!isAnimating) goToSlide(i, false);
+      });
+      wrap.appendChild(dot);
+    });
+
+    document.body.appendChild(wrap);
+    updateDots();
+  }
+
+  function updateDots() {
+    const wrap = document.getElementById('slide-dots');
+    if (!wrap) return;
+    wrap.querySelectorAll('div').forEach((dot, i) => {
+      if (i === currentSlide) {
+        dot.style.background = 'rgba(255,255,255,0.9)';
+        dot.style.height = '20px';
+        dot.style.borderRadius = '3px';
+      } else {
+        dot.style.background = 'rgba(255,255,255,0.2)';
+        dot.style.height = '6px';
+        dot.style.borderRadius = '50%';
+      }
+    });
+  }
+
+  // ── RESET WHEN PANEL CHANGES ──
+  // Call this every time showPanel() or showMain() is called
+  window.resetSlideEngine = function () {
+    currentSlide = 0;
+    isAnimating = false;
+    setTimeout(() => {
+      buildDots();
+      goToSlide(0, true);
+    }, 120);
+  };
+
+  // ── INIT ON LOAD ──
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      buildDots();
+      goToSlide(0, true);
+    }, 5000); // wait for preloader to finish (4.8s)
+  });
+
+  // Hook into updateDots on navigation
+  const origGoToSlide = goToSlide;
+  goToSlide = function(index, instant) {
+    origGoToSlide(index, instant);
+    updateDots();
+  };
+
+})();
 </script>
 
 </body>
