@@ -45,11 +45,13 @@ services:
       - ComBirds__ApiKey=${COMBIRDS_API_KEY:-}
       - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-}
       - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-}
+      - ComBirds__UserId=${COMBIRDS_USER_ID:-}
+      - ComBirds__Password=${COMBIRDS_PASSWORD:-}
       # App Settings
       - App__BaseUrl=${FRONTEND_URL:-https://ccms.yourdomain.com}
       - TimeZone__Id=Asia/Kolkata
     ports:
-      - "5257:80"
+      - "5000:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s
@@ -77,7 +79,7 @@ services:
     container_name: ccms-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "8080:80"
     depends_on:
       - backend
     networks:
@@ -91,41 +93,38 @@ services:
   # ===========================================
   # NGINX REVERSE PROXY + SSL
   # ===========================================
-  nginx:
-    image: nginx:alpine
-    container_name: ccms-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.production.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - ccms-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ===========================================
-  # CERTBOT (SSL Certificate Auto-Renewal)
-  # ===========================================
-  certbot:
-    image: certbot/certbot
-    container_name: ccms-certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-    networks:
-      - ccms-network
+#  nginx:
+#    image: nginx:alpine
+#    container_name: ccms-nginx
+#    restart: unless-stopped
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    volumes:
+#      - ./nginx/nginx.production.conf:/etc/nginx/nginx.conf:ro
+#      - ./nginx/ssl:/etc/nginx/ssl:ro
+#      - ./certbot/conf:/etc/letsencrypt:ro
+#      - ./certbot/www:/var/www/certbot:ro
+#    depends_on:
+#      - backend
+#      - frontend
+#    networks:
+#      - ccms-network
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: "10m"
+#        max-file: "3"
+#
+#  certbot:
+#    image: certbot/certbot
+#    container_name: ccms-certbot
+#    volumes:
+#      - ./certbot/conf:/etc/letsencrypt
+#      - ./certbot/www:/var/www/certbot
+#    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+#    networks:
+#      - ccms-network
 
 networks:
   ccms-network:

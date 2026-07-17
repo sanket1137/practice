@@ -18,17 +18,19 @@ public class SmsService : ISmsService
     private readonly string _senderId;
     private readonly string _templateId;
     private readonly string _baseUrl;
+    private readonly string _userId;
+    private readonly string _password;
     private readonly bool _useDevelopmentMode;
 
     // Indian mobile number pattern: starts with 6-9, followed by 9 digits
     private static readonly Regex IndianMobileRegex = new(@"^[6-9]\d{9}$", RegexOptions.Compiled);
 
     // OTP message template registered with DLT
-    // Template: Your {#var#} OTP for verification is: {#var#}. OTP is confidential, refrain from sharing it with anyone. By Edumarc Technologies
-    // Variables: {#var#} = "PixelSpot", {#var#} = OTP code
+    // Template: Dear {#var#} user, your OTP for login is: {#var#}. This code is valid for 2 minutes. OTP is confidential. Do not share it with anyone. - EDUMARC
+    // Variables: {#var#} = "Pixelspot", {#var#} = OTP code
     // The message must be sent with variables already substituted
-    private const string OtpMessageTemplate = "Your {0} OTP for verification is: {1}. OTP is confidential, refrain from sharing it with anyone. By Edumarc Technologies";
-    private const string BrandName = "PixelSpot";
+    private const string OtpMessageTemplate = "Dear {0} user, your OTP for login is: {1}. This code is valid for 2 minutes. OTP is confidential. Do not share it with anyone. - EDUMARC";
+    private const string BrandName = "Pixelspot";
 
     public SmsService(
         IHttpClientFactory httpClientFactory,
@@ -45,6 +47,8 @@ public class SmsService : ISmsService
         _senderId = configuration["ComBirds:SenderId"] ?? "EDUMRC";
         _templateId = configuration["ComBirds:TemplateId"] ?? string.Empty;
         _baseUrl = configuration["ComBirds:BaseUrl"] ?? "https://smsapi.edumarcsms.com/api/v1";
+        _userId = configuration["ComBirds:UserId"] ?? string.Empty;
+        _password = configuration["ComBirds:Password"] ?? string.Empty;
         
         // Only validate credentials if not in development mode
         if (!_useDevelopmentMode)
@@ -81,15 +85,36 @@ public class SmsService : ISmsService
             // Substitute variables into the template message
             var message = string.Format(OtpMessageTemplate, BrandName, otp);
 
-            // Create POST request with JSON body as per Edumarc API documentation
-            // API expects: message (with variables substituted), senderId, number[], templateId
-            var requestBody = new
+            // Build the payload matching the structure in ComBirdsSmsSender.cs
+            object requestBody;
+            if (!string.IsNullOrWhiteSpace(_userId) && !string.IsNullOrWhiteSpace(_password))
             {
-                message = message,
-                senderId = _senderId,
-                number = new[] { normalizedPhone },
-                templateId = _templateId
-            };
+                requestBody = new
+                {
+                    apiKey = _apiKey,
+                    userId = _userId,
+                    password = _password,
+                    senderId = _senderId,
+                    header = _senderId,
+                    templateId = _templateId,
+                    number = normalizedPhone,
+                    mobile = normalizedPhone,
+                    message = message
+                };
+            }
+            else
+            {
+                requestBody = new
+                {
+                    apiKey = _apiKey,
+                    senderId = _senderId,
+                    header = _senderId,
+                    templateId = _templateId,
+                    number = normalizedPhone,
+                    mobile = normalizedPhone,
+                    message = message
+                };
+            }
 
             _logger.LogInformation(
                 "Sending OTP to {PhoneNumber} via Edumarc API. SenderId: {SenderId}, TemplateId: {TemplateId}",
@@ -100,12 +125,13 @@ public class SmsService : ISmsService
             
             var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
             
-            // Add API key header
+            // Add API key header and Bearer token for backward compatibility
             var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/sendsms")
             {
                 Content = content
             };
-            request.Headers.Add("apikey", _apiKey);
+            request.Headers.TryAddWithoutValidation("apikey", _apiKey);
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {_apiKey}");
 
             var response = await _httpClient.SendAsync(request);
             var responseContent = await response.Content.ReadAsStringAsync();

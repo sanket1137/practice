@@ -13,6 +13,18 @@ param(
     [string]$Service = "all"
 )
 
+# Load .env variables if .env exists
+if (Test-Path ".env") {
+    Get-Content ".env" | Where-Object { $_ -match "^[^#=]+=" } | ForEach-Object {
+        $parts = $_.Split('=', 2)
+        $name = $parts[0].Trim()
+        $value = $parts[1].Trim()
+        if (-not [System.Environment]::GetEnvironmentVariable($name)) {
+            [System.Environment]::SetEnvironmentVariable($name, $value)
+        }
+    }
+}
+
 # Configuration
 $RemoteUser = if ($env:REMOTE_USER) { $env:REMOTE_USER } else { "root" }
 $RemoteHost = if ($env:REMOTE_HOST) { $env:REMOTE_HOST } else { "your-hetzner-ip" }
@@ -66,7 +78,7 @@ mkdir -p /opt/ccms/nginx/ssl
 echo 'Server setup complete!'
 "@
     
-    ssh "${RemoteUser}@${RemoteHost}" $setupScript
+    ssh "${RemoteUser}@${RemoteHost}" ($setupScript -replace "`r", "")
     Write-Info "Server setup complete!"
 }
 
@@ -82,34 +94,17 @@ function Deploy-Application {
         exit 1
     }
     
-    # Use rsync through WSL or scp
-    Write-Info "Syncing files to server..."
+    # Compress files to sync
+    Write-Info "Archiving local files for transfer..."
+    if (Test-Path "ccms-deploy.tar") { Remove-Item "ccms-deploy.tar" }
     
-    # Create exclude file
-    $excludeFile = @"
-node_modules
-.git
-bin
-obj
-*.log
-.vs
-.idea
-"@
-    $excludeFile | Out-File -FilePath ".rsync-exclude" -Encoding utf8
+    # Run tar to package files excluding node_modules, build bins and git
+    tar --exclude="node_modules" --exclude=".git" --exclude="bin" --exclude="obj" --exclude="dist" --exclude=".venv" --exclude=".vs" --exclude="*.tar" -cf ccms-deploy.tar ./backend ./frontend ./nginx ./docker-compose.production.yml ./.env
     
-    # Try rsync through WSL, fallback to scp
-    if (Get-Command wsl -ErrorAction SilentlyContinue) {
-        wsl rsync -avz --progress --exclude-from='.rsync-exclude' ./ "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-    } else {
-        Write-Warn "WSL not available, using scp (slower)..."
-        scp -r ./backend "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-        scp -r ./frontend "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-        scp -r ./nginx "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-        scp ./docker-compose.production.yml "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-        scp ./.env "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-    }
+    Write-Info "Uploading deployment archive to server..."
+    scp ./ccms-deploy.tar "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
     
-    Remove-Item ".rsync-exclude" -ErrorAction SilentlyContinue
+    Remove-Item "ccms-deploy.tar" -ErrorAction SilentlyContinue
     
     # Deploy on server
     Write-Info "Building and starting containers..."
@@ -117,8 +112,16 @@ obj
     $deployScript = @"
 cd ${RemoteDir}
 
-# Load environment variables
-export `$(cat .env | grep -v '^#' | xargs)
+# Extract deployment archive
+tar -xf ccms-deploy.tar
+rm -f ccms-deploy.tar
+
+# Clean carriage returns from .env and configurations
+sed -i 's/\r$//' .env
+sed -i 's/\r$//' nginx/nginx.production.conf
+
+# Load environment variables (handling spaces correctly)
+export `$(grep -v '^#' .env | xargs -d '\n')
 
 # Update domain in nginx config
 sed -i "s/yourdomain.com/${Domain}/g" nginx/nginx.production.conf
@@ -136,7 +139,7 @@ docker image prune -f
 echo 'Deployment complete!'
 "@
     
-    ssh "${RemoteUser}@${RemoteHost}" $deployScript
+    ssh "${RemoteUser}@${RemoteHost}" ($deployScript -replace "`r", "")
     Write-Info "Deployment complete!"
 }
 
@@ -197,7 +200,7 @@ docker compose -f docker-compose.production.yml up -d
 echo 'SSL certificates installed!'
 "@
     
-    ssh "${RemoteUser}@${RemoteHost}" $sslScript
+    ssh "${RemoteUser}@${RemoteHost}" ($sslScript -replace "`r", "")
     Write-Info "SSL setup complete!"
 }
 
@@ -240,7 +243,7 @@ echo '=== Memory Usage ==='
 free -h
 "@
     
-    ssh "${RemoteUser}@${RemoteHost}" $statusScript
+    ssh "${RemoteUser}@${RemoteHost}" ($statusScript -replace "`r", "")
 }
 
 # ===========================================

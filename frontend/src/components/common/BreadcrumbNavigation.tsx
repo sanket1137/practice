@@ -9,6 +9,7 @@ interface BreadcrumbItem {
 
 interface BreadcrumbNavigationProps {
     items?: BreadcrumbItem[];
+    inAppBar?: boolean;
 }
 
 // Route-based breadcrumb generation
@@ -48,7 +49,7 @@ const generateBreadcrumbs = (pathname: string): BreadcrumbItem[] => {
     return breadcrumbs;
 };
 
-export default function BreadcrumbNavigation({ items }: BreadcrumbNavigationProps) {
+export default function BreadcrumbNavigation({ items, inAppBar = false }: BreadcrumbNavigationProps) {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -59,9 +60,16 @@ export default function BreadcrumbNavigation({ items }: BreadcrumbNavigationProp
     }
 
     return (
-        <Box mb={3}>
+        <Box mb={inAppBar ? 0 : 3}>
             <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
+                separator={
+                    <NavigateNextIcon 
+                        sx={{ 
+                            fontSize: '14px', 
+                            color: inAppBar ? '#333333' : 'inherit' 
+                        }} 
+                    />
+                }
                 aria-label="breadcrumb"
             >
                 {breadcrumbs.map((crumb, index) => {
@@ -71,8 +79,9 @@ export default function BreadcrumbNavigation({ items }: BreadcrumbNavigationProp
                         return (
                             <Typography
                                 key={index}
-                                color="text.primary"
-                                fontWeight="medium"
+                                color={inAppBar ? '#f0f0f0' : 'text.primary'}
+                                fontWeight={inAppBar ? 400 : 'medium'}
+                                sx={{ fontSize: inAppBar ? '12px' : 'inherit' }}
                             >
                                 {crumb.label}
                             </Typography>
@@ -90,9 +99,14 @@ export default function BreadcrumbNavigation({ items }: BreadcrumbNavigationProp
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 0.5,
+                                fontSize: inAppBar ? '12px' : 'inherit',
+                                color: inAppBar ? '#888888 !important' : 'inherit',
+                                '&:hover': {
+                                    color: inAppBar ? '#f0f0f0 !important' : 'inherit'
+                                }
                             }}
                         >
-                            {index === 0 && <HomeIcon fontSize="small" />}
+                            {index === 0 && <HomeIcon sx={{ fontSize: inAppBar ? '14px' : 'small' }} />}
                             {crumb.label}
                         </Link>
                     );
