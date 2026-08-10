@@ -2,6 +2,7 @@
  * REST API client for CCMS player endpoints.
  */
 import type { PlayerConfig } from '../config';
+import { generateUUID } from '../utils/uuid';
 
 // ── Response types ──
 
@@ -125,7 +126,7 @@ export class PlayerApi {
 
   async handshake(deviceFingerprint: string): Promise<HandshakeResponse | null> {
     try {
-      const nonce = crypto.randomUUID();
+      const nonce = generateUUID();
       const timestamp = Math.floor(Date.now() / 1000);
 
       const res = await fetch(`${this.baseUrl}/api/v1/player/handshake`, {

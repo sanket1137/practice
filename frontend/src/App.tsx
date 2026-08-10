@@ -37,7 +37,16 @@ import NotificationsPage from './pages/notifications/NotificationsPage';
 import MainLayout from './components/Layout/MainLayout';
 import DemoPage from './pages/demo/DemoPage';
 import ExploreScreensPage from './pages/public/ExploreScreensPage';
-import LandingPage from './pages/public/LandingPage';
+import AboutUs from './pages/legal/AboutUs';
+import ContactUs from './pages/legal/ContactUs';
+import PrivacyPolicy from './pages/legal/PrivacyPolicy';
+import RefundPolicy from './pages/legal/RefundPolicy';
+import TermsOfService from './pages/legal/TermsOfService';
+import CookiesPolicy from './pages/legal/CookiesPolicy';
+import ContentPolicy from './pages/legal/ContentPolicy';
+import CommunityGuidelines from './pages/legal/CommunityGuidelines';
+import Disclaimer from './pages/legal/Disclaimer';
+
 import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
 import AdminPayoutsPage from './pages/payouts/AdminPayoutsPage';
 import AdminMachinesPage from './pages/admin/AdminMachinesPage';
@@ -74,7 +83,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Shows landing page for guests; redirects authenticated users into the app
 const SmartRoot: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
 };
 
 // Component that initializes global handlers (must be inside SnackbarProvider)
@@ -111,6 +120,15 @@ function App() {
                 <Route path="/demo" element={<DemoPage />} />
                 <Route path="/explore" element={<ExploreScreensPage />} />
                 <Route path="/verify/:screenId" element={<VerifyScreenPage />} />
+                <Route path="/about" element={<AboutUs />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/refund" element={<RefundPolicy />} />
+                <Route path="/cookies" element={<CookiesPolicy />} />
+                <Route path="/content-policy" element={<ContentPolicy />} />
+                <Route path="/community-guidelines" element={<CommunityGuidelines />} />
+                <Route path="/disclaimer" element={<Disclaimer />} />
                 <Route
                   path="/"
                   element={

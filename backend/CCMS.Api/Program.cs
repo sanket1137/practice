@@ -162,7 +162,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -254,21 +254,27 @@ var fileStorageProvider = builder.Configuration["FileStorage:Provider"] ?? "Loca
 Console.WriteLine($"[CONFIG] FileStorage:Provider value read from config: '{fileStorageProvider}'");
 
 // Use Singleton for storage services to reuse connections and avoid repeated initialization
+var localFileService = new LocalFileStorageService(builder.Configuration);
+
 if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
-    Console.WriteLine("Using Azure Blob Storage for file uploads");
+    var azureService = new AzureBlobStorageService(builder.Configuration);
+    builder.Services.AddSingleton<IFileStorageService>(sp =>
+        new FallbackFileStorageService(azureService, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
+    Console.WriteLine("Using Azure Blob Storage for file uploads (with Local fallback)");
 }
 else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 {
-    builder.Services.AddSingleton<R2StorageService>();
-    builder.Services.AddSingleton<IFileStorageService>(sp => sp.GetRequiredService<R2StorageService>());
-    builder.Services.AddSingleton<IPresignedUploadService>(sp => sp.GetRequiredService<R2StorageService>());
-    Console.WriteLine("Using Cloudflare R2 Storage for file uploads (S3-compatible, zero egress)");
+    var r2Service = new R2StorageService(builder.Configuration);
+    builder.Services.AddSingleton(r2Service);
+    builder.Services.AddSingleton<IPresignedUploadService>(r2Service);
+    builder.Services.AddSingleton<IFileStorageService>(sp =>
+        new FallbackFileStorageService(r2Service, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
+    Console.WriteLine("Using Cloudflare R2 Storage for file uploads (with Local fallback)");
 }
 else
 {
-    builder.Services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+    builder.Services.AddSingleton<IFileStorageService>(localFileService);
     Console.WriteLine("Using Local File System for file uploads");
 }
 

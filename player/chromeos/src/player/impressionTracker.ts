@@ -2,6 +2,7 @@
  * Impression tracker using IndexedDB for offline persistence.
  * Generates SlotPlayKey for server-side deduplication.
  */
+import { generateUUID } from '../utils/uuid';
 export interface TrackedImpression {
   slotPlayKey: string;
   bookingId: string | null;
@@ -91,6 +92,6 @@ export class ImpressionTracker {
     const dateStr = playedAt.toISOString().split('T')[0]; // YYYY-MM-DD
     const hour = playedAt.getUTCHours().toString().padStart(2, '0');
     const min = playedAt.getUTCMinutes().toString().padStart(2, '0');
-    return `${screenId}_S${slotNumber}_${dateStr}_${hour}${min}_${crypto.randomUUID().substring(0, 8)}`;
+    return `${screenId}_S${slotNumber}_${dateStr}_${hour}${min}_${generateUUID().substring(0, 8)}`;
   }
 }

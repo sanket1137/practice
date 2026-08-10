@@ -36,11 +36,17 @@ services:
       - Cors__AllowedOrigins__2=https://www.pixelspot.in
       - Cors__AllowedOrigins__3=https://app.pixelspot.in
       - Cors__AllowedOrigins__4=http://localhost:3100
-      # Email (AWS SES)
+      # Email (AWS SES / SMTP)
       - AWS__SES__AccessKeyId=${AWS_SES_ACCESS_KEY_ID:-}
       - AWS__SES__SecretAccessKey=${AWS_SES_SECRET_ACCESS_KEY:-}
       - AWS__SES__Region=${AWS_SES_REGION:-ap-south-1}
-      - AWS__SES__FromEmail=${AWS_SES_FROM_EMAIL:-noreply@yourdomain.com}
+      - AWS__SES__FromEmail=${AWS_SES_FROM_EMAIL:-contact@pixelspot.in}
+      - Smtp__Host=${SMTP_HOST:-}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-contact@pixelspot.in}
+      - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
       # SMS (ComBirds)
       - ComBirds__ApiKey=${COMBIRDS_API_KEY:-}
       - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-}
@@ -48,10 +54,12 @@ services:
       - ComBirds__UserId=${COMBIRDS_USER_ID:-}
       - ComBirds__Password=${COMBIRDS_PASSWORD:-}
       # App Settings
-      - App__BaseUrl=${FRONTEND_URL:-https://ccms.yourdomain.com}
+      - App__BaseUrl=${FRONTEND_URL:-https://ccms.pixelspot.in}
       - TimeZone__Id=Asia/Kolkata
     ports:
       - "5000:80"
+    volumes:
+      - ./uploads:/app/uploads
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]
       interval: 30s

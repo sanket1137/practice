@@ -153,23 +153,23 @@ export default function CinematicNarrative() {
       </StorySlide>
 
       {/* ═══════════════ INDUSTRY REALITY CASCADE ═══════════════ */}
-      <StorySlide sx={{ py: 16 }}>
+      <StorySlide sx={{ py: { xs: 6, md: 10 } }}>
         <Container maxWidth="sm" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Box ref={cascadeRef} className="cascade-container" sx={{ width: '100%', textAlign: 'center' }}>
+          <Box ref={cascadeRef} className="cascade-container" sx={{ width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {CASCADE_WORDS.map(word => (
-              <Typography key={word} className="cascade-word" sx={{ fontFamily: FONT, py: 1.5 }}>
+              <Typography key={word} className="cascade-word" sx={{ fontFamily: FONT, py: 0.5, fontSize: { xs: '1.1rem', md: '1.65rem' } }}>
                 {word}
               </Typography>
             ))}
-            <Typography className="cascade-word" sx={{ fontFamily: FONT, py: 1.5, color: '#f87171 !important', fontWeight: 500 }}>
+            <Typography className="cascade-word" sx={{ fontFamily: FONT, py: 0.5, fontSize: { xs: '1.1rem', md: '1.65rem' }, color: '#f87171 !important', fontWeight: 500 }}>
               No Transparency
             </Typography>
           </Box>
 
-          <Box sx={{ mt: 16 }} className="fade-in-up">
+          <Box sx={{ mt: { xs: 3, md: 5 } }} className="fade-in-up">
             <Typography sx={{
               fontFamily: FONT, fontWeight: 300,
-              fontSize: { xs: '1.75rem', md: '3rem' },
+              fontSize: { xs: '1.5rem', md: '2.5rem' },
               textAlign: 'center', lineHeight: 1.3,
             }}>
               Somewhere,<br />everyone is losing.

@@ -19,18 +19,20 @@ if (Test-Path ".env") {
         $parts = $_.Split('=', 2)
         $name = $parts[0].Trim()
         $value = $parts[1].Trim()
-        if (-not [System.Environment]::GetEnvironmentVariable($name)) {
-            [System.Environment]::SetEnvironmentVariable($name, $value)
-        }
+        Set-Item "env:$name" $value
+        [System.Environment]::SetEnvironmentVariable($name, $value)
     }
 }
 
 # Configuration
 $RemoteUser = if ($env:REMOTE_USER) { $env:REMOTE_USER } else { "root" }
-$RemoteHost = if ($env:REMOTE_HOST) { $env:REMOTE_HOST } else { "your-hetzner-ip" }
+$RemoteHost = if ($env:REMOTE_HOST) { $env:REMOTE_HOST } else { "91.99.190.216" }
 $RemoteDir = "/opt/ccms"
-$Domain = if ($env:DOMAIN) { $env:DOMAIN } else { "yourdomain.com" }
-$SslEmail = if ($env:SSL_EMAIL) { $env:SSL_EMAIL } else { "admin@yourdomain.com" }
+$Domain = if ($env:DOMAIN) { $env:DOMAIN } else { "pixelspot.in" }
+$SslEmail = if ($env:SSL_EMAIL) { $env:SSL_EMAIL } else { "admin@pixelspot.in" }
+
+$SSHKeyPath = "$env:USERPROFILE\.ssh\ccms-hetzner"
+$SshArgs = if (Test-Path $SSHKeyPath) { @("-i", $SSHKeyPath) } else { @() }
 
 function Write-Info { param($Message) Write-Host "[INFO] $Message" -ForegroundColor Green }
 function Write-Warn { param($Message) Write-Host "[WARN] $Message" -ForegroundColor Yellow }
@@ -102,7 +104,11 @@ function Deploy-Application {
     tar --exclude="node_modules" --exclude=".git" --exclude="bin" --exclude="obj" --exclude="dist" --exclude=".venv" --exclude=".vs" --exclude="*.tar" -cf ccms-deploy.tar ./backend ./frontend ./nginx ./docker-compose.production.yml ./.env
     
     Write-Info "Uploading deployment archive to server..."
-    scp ./ccms-deploy.tar "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
+    if (Test-Path $SSHKeyPath) {
+        scp -i $SSHKeyPath ./ccms-deploy.tar "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
+    } else {
+        scp ./ccms-deploy.tar "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
+    }
     
     Remove-Item "ccms-deploy.tar" -ErrorAction SilentlyContinue
     
@@ -139,7 +145,11 @@ docker image prune -f
 echo 'Deployment complete!'
 "@
     
-    ssh "${RemoteUser}@${RemoteHost}" ($deployScript -replace "`r", "")
+    if (Test-Path $SSHKeyPath) {
+        ssh -i $SSHKeyPath "${RemoteUser}@${RemoteHost}" ($deployScript -replace "`r", "")
+    } else {
+        ssh "${RemoteUser}@${RemoteHost}" ($deployScript -replace "`r", "")
+    }
     Write-Info "Deployment complete!"
 }
 

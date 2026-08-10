@@ -13,9 +13,10 @@ public class LocalFileStorageService : IFileStorageService
         Console.WriteLine("[LocalFileStorage] Initializing LOCAL File Storage Service...");
         
         _storagePath = configuration["FileStorage:LocalPath"] ?? Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-        _baseUrl = configuration["FileStorage:BaseUrl"] ?? "http://localhost:5000/uploads";
+        var appBaseUrl = configuration["App:BaseUrl"] ?? configuration["FRONTEND_URL"] ?? "https://ccms.pixelspot.in";
+        _baseUrl = configuration["FileStorage:BaseUrl"] ?? $"{appBaseUrl.TrimEnd('/')}/uploads";
         
-        Console.WriteLine($"[LocalFileStorage] Storage path: {_storagePath}");
+        Console.WriteLine($"[LocalFileStorage] Storage path: {_storagePath}, BaseUrl: {_baseUrl}");
         
         // Ensure directory exists
         if (!Directory.Exists(_storagePath))
