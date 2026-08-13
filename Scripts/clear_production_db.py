@@ -1,12 +1,20 @@
-"""Clear production Neon PostgreSQL database entirely"""
+"""Clear production Neon PostgreSQL database entirely.
+
+DESTRUCTIVE: drops every table in the target database. Double-check
+NEON_DATABASE before running this against anything you care about.
+
+USAGE: set env vars before running:
+  export NEON_HOST=... NEON_DATABASE=... NEON_USER=... NEON_PASSWORD=...
+"""
+import os
+
 import psycopg2
 
-# Neon PostgreSQL Production
 conn = psycopg2.connect(
-    host='ep-snowy-haze-ag6lkc0h-pooler.c-2.eu-central-1.aws.neon.tech',
-    database='pixelspot_ccms',
-    user='neondb_owner',
-    password='npg_Y9bQL3rHdXPq',
+    host=os.environ['NEON_HOST'],
+    database=os.environ['NEON_DATABASE'],
+    user=os.environ['NEON_USER'],
+    password=os.environ['NEON_PASSWORD'],
     sslmode='require'
 )
 conn.autocommit = True
@@ -33,4 +41,4 @@ print(f"\nRemaining tables: {len(remaining)}")
 cur.close()
 conn.close()
 
-print("\n✅ Production database cleared!")
+print("\nProduction database cleared!")

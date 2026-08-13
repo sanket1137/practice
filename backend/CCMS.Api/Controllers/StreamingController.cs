@@ -24,6 +24,7 @@ public class StreamingController : ControllerBase
 {
     private readonly IHubContext<StreamingHub> _hubContext;
     private readonly ILogger<StreamingController> _logger;
+    private readonly IConfiguration _configuration;
 
     // Static methods below are also invoked from StreamingHub (SignalR), which has
     // no per-request ILogger of its own; capture the first constructed instance's
@@ -80,11 +81,42 @@ public class StreamingController : ControllerBase
 
     public StreamingController(
         IHubContext<StreamingHub> hubContext,
-        ILogger<StreamingController> logger)
+        ILogger<StreamingController> logger,
+        IConfiguration configuration)
     {
         _hubContext = hubContext;
         _logger = logger;
+        _configuration = configuration;
         _staticLogger ??= logger;
+    }
+
+    /// <summary>
+    /// ICE server configuration (STUN + TURN) for WebRTC peer connections.
+    /// Served from server config instead of being hardcoded in client code, so
+    /// TURN credentials can be rotated without a frontend/player redeploy and
+    /// never need to live in git history.
+    /// </summary>
+    [AllowAnonymous] // Player/viewer-facing: needed before any connection exists
+    [HttpGet("ice-config")]
+    public IActionResult GetIceConfig()
+    {
+        var stunServers = _configuration.GetSection("WebRTC:StunServers").Get<string[]>() ?? Array.Empty<string>();
+
+        var turnServers = _configuration.GetSection("WebRTC:TurnServers").GetChildren()
+            .Select(section => new
+            {
+                urls = section["Url"] ?? section["Urls"],
+                username = section["Username"],
+                credential = section["Credential"]
+            })
+            .Where(t => !string.IsNullOrEmpty(t.urls) && !string.IsNullOrEmpty(t.username))
+            .ToArray();
+
+        return Ok(new
+        {
+            stunServers,
+            turnServers
+        });
     }
 
     /// <summary>

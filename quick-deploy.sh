@@ -31,10 +31,10 @@ else
 fi
 
 echo "[2/6] Building new images (previous images are left intact until this succeeds)..."
-docker compose build
+docker compose -f docker-compose.production.yml build
 
 echo "[3/6] Starting new containers..."
-docker compose up -d
+docker compose -f docker-compose.production.yml up -d
 
 echo "[4/6] Waiting for backend health check..."
 ATTEMPTS=0
@@ -45,7 +45,7 @@ until curl -fsS http://localhost:5000/health/ready > /dev/null 2>&1 || [ $ATTEMP
 done
 
 if ! curl -fsS http://localhost:5000/health/ready > /dev/null 2>&1; then
-    echo "ERROR: backend did not become healthy after deploy. Check logs with: docker compose logs backend"
+    echo "ERROR: backend did not become healthy after deploy. Check logs with: docker compose -f docker-compose.production.yml logs backend"
     echo "The previous images were not deleted — you can investigate before deciding to roll back."
     exit 1
 fi
@@ -58,8 +58,8 @@ echo ""
 echo "=========================================="
 echo "Deployment Complete!"
 echo "=========================================="
-docker compose ps
+docker compose -f docker-compose.production.yml ps
 
 echo ""
-echo "View logs: docker compose logs -f"
+echo "View logs: docker compose -f docker-compose.production.yml logs -f"
 echo "=========================================="

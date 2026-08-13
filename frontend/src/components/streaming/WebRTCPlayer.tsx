@@ -26,6 +26,47 @@ import { useAuthStore } from '../../store/authStore';
 
 const BASE_URL = import.meta.env.VITE_API_URL?.replace(/\/api(\/v\d+)?/, '') || '';
 
+// Public STUN fallback (used if the backend's ICE config endpoint is
+// unreachable) plus a publicly-known free TURN relay — openrelay's demo
+// credentials are intentionally public, unlike our own TURN server's, so
+// keeping this one hardcoded doesn't leak anything.
+const FALLBACK_ICE_SERVERS: RTCIceServer[] = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+];
+const PUBLIC_TURN_FALLBACK: RTCIceServer = {
+    urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+};
+
+// Cached across component instances/renders — ICE config rarely changes and
+// every stream start would otherwise re-fetch it.
+let iceServersPromise: Promise<RTCIceServer[]> | null = null;
+
+/**
+ * Fetches STUN/TURN server config from the backend (see StreamingController.
+ * GetIceConfig) instead of hardcoding infrastructure details and TURN
+ * credentials in shipped client code.
+ */
+const getIceServers = (): Promise<RTCIceServer[]> => {
+    if (!iceServersPromise) {
+        iceServersPromise = api
+            .get<{ data: { stunServers: string[]; turnServers: RTCIceServer[] } }>('/streaming/ice-config')
+            .then((response) => {
+                const { stunServers, turnServers } = response.data.data;
+                const servers: RTCIceServer[] = [
+                    ...stunServers.map((urls) => ({ urls })),
+                    ...turnServers,
+                    PUBLIC_TURN_FALLBACK,
+                ];
+                return servers;
+            })
+            .catch(() => [...FALLBACK_ICE_SERVERS, PUBLIC_TURN_FALLBACK]);
+    }
+    return iceServersPromise;
+};
+
 // IST Logging utility - format timestamp in Indian Standard Time
 const getISTTimestamp = (): string => {
     const now = new Date();
@@ -177,30 +218,12 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 return;
             }
 
-            // Create peer connection with STUN and TURN servers
+            // Create peer connection with STUN and TURN servers, fetched from the
+            // backend rather than hardcoded (see getIceServers above).
             // TURN server is essential for connectivity across different networks
+            const iceServers = await getIceServers();
             const pc = new RTCPeerConnection({
-                iceServers: [
-                    { urls: 'stun:stun.l.google.com:19302' },
-                    { urls: 'stun:stun1.l.google.com:19302' },
-                    // Our own TURN server on the production VPS
-                    {
-                        urls: 'turn:91.99.190.216:3478',
-                        username: 'ccmsuser',
-                        credential: 'ccms2024secure',
-                    },
-                    {
-                        urls: 'turn:91.99.190.216:3478?transport=tcp',
-                        username: 'ccmsuser',
-                        credential: 'ccms2024secure',
-                    },
-                    // Fallback free TURN servers
-                    {
-                        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-                        username: 'openrelayproject',
-                        credential: 'openrelayproject',
-                    },
-                ],
+                iceServers,
                 iceCandidatePoolSize: 10,
             });
 

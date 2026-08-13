@@ -1,13 +1,20 @@
-"""Check both databases for the user"""
+"""Check both databases for the user.
+
+USAGE: set env vars before running:
+  export NEON_HOST=... NEON_DATABASE=... NEON_USER=... NEON_PASSWORD=...
+  export LOCAL_DB_HOST=localhost LOCAL_DB_PORT=5432 LOCAL_DB_NAME=... LOCAL_DB_USER=... LOCAL_DB_PASSWORD=...
+"""
+import os
+
 import psycopg2
 
 # Check production Neon
 print('=== PRODUCTION (Neon) ===')
 conn = psycopg2.connect(
-    host='ep-snowy-haze-ag6lkc0h-pooler.c-2.eu-central-1.aws.neon.tech',
-    database='pixelspot_ccms',
-    user='neondb_owner',
-    password='npg_Y9bQL3rHdXPq',
+    host=os.environ['NEON_HOST'],
+    database=os.environ['NEON_DATABASE'],
+    user=os.environ['NEON_USER'],
+    password=os.environ['NEON_PASSWORD'],
     sslmode='require'
 )
 cur = conn.cursor()
@@ -22,7 +29,7 @@ if tables:
         cur.execute('SELECT email FROM "Users"')
         users = cur.fetchall()
         print(f'Users in production: {users}')
-    except:
+    except Exception:
         pass
 cur.close()
 conn.close()
@@ -32,11 +39,11 @@ print()
 print('=== LOCAL (localhost) ===')
 try:
     conn2 = psycopg2.connect(
-        host='localhost',
-        port=5432,
-        database='pixelspotccms',
-        user='rootadmin',
-        password='rootadmin'
+        host=os.environ.get('LOCAL_DB_HOST', 'localhost'),
+        port=int(os.environ.get('LOCAL_DB_PORT', '5432')),
+        database=os.environ['LOCAL_DB_NAME'],
+        user=os.environ['LOCAL_DB_USER'],
+        password=os.environ['LOCAL_DB_PASSWORD']
     )
     cur2 = conn2.cursor()
     cur2.execute('SELECT email FROM "Users"')

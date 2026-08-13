@@ -1,14 +1,27 @@
 """
-Test script to verify Cloudflare R2 connectivity and upload
+Test script to verify Cloudflare R2 connectivity and upload.
+
+USAGE: set environment variables before running:
+  export R2_ACCOUNT_ID=your_account_id
+  export R2_ACCESS_KEY_ID=your_access_key
+  export R2_SECRET_ACCESS_KEY=your_secret_key
+  export R2_BUCKET_NAME=dev-ccms
+Then: python test_r2_upload.py
 """
+import os
+
 import boto3
 from botocore.config import Config
 
-# R2 credentials from appsettings
-account_id = '4f22ea89a2e684c242ace359b5706b03'
-access_key = 'aa934dbced6f083dcba7f9125590d20f'
-secret_key = '71ed546e79b20506e19af06054f929da7946178ea7938862a8185a7b9b86405f'
-bucket_name = 'dev-ccms'
+account_id = os.environ.get('R2_ACCOUNT_ID')
+access_key = os.environ.get('R2_ACCESS_KEY_ID')
+secret_key = os.environ.get('R2_SECRET_ACCESS_KEY')
+bucket_name = os.environ.get('R2_BUCKET_NAME', 'dev-ccms')
+
+if not all([account_id, access_key, secret_key]):
+    print('Missing R2 credentials. Set these environment variables:')
+    print('   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY')
+    raise SystemExit(1)
 
 # Create S3 client for R2
 r2_endpoint = f'https://{account_id}.r2.cloudflarestorage.com'
@@ -23,7 +36,7 @@ client = boto3.client(
 )
 
 # Test upload
-test_content = b'Hello from CCMS! This is a test file uploaded to Cloudflare R2 on 2026-01-10.'
+test_content = b'Hello from CCMS! This is a test file uploaded to Cloudflare R2.'
 test_key = 'test/dummy-upload-test.txt'
 
 print(f'Uploading test file to {bucket_name}/{test_key}...')
@@ -34,12 +47,12 @@ try:
         Body=test_content,
         ContentType='text/plain'
     )
-    print('✅ Upload SUCCESS!')
+    print('Upload SUCCESS!')
 
     # Verify by getting object info
     print('Verifying upload...')
     response = client.head_object(Bucket=bucket_name, Key=test_key)
-    print(f'✅ File exists! Size: {response["ContentLength"]} bytes')
+    print(f'File exists! Size: {response["ContentLength"]} bytes')
 
     # List objects in test folder
     print('\nListing objects in bucket:')
@@ -53,6 +66,6 @@ try:
     # Public URL (if public access enabled)
     url = f'https://pub-{account_id}.r2.dev/{test_key}'
     print(f'\nPublic URL (if enabled): {url}')
-    
+
 except Exception as e:
-    print(f'❌ Error: {e}')
+    print(f'Error: {e}')

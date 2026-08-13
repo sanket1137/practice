@@ -125,8 +125,59 @@ class WebRTCStreamer:
         self._pump_tasks: Dict[str, asyncio.Task] = {}
         
         self.is_streaming = False
-        
+
+        # Cached ICE server config fetched from the backend (see
+        # _fetch_ice_servers) — avoids hardcoding TURN server infra/credentials
+        # in this device client, so they can be rotated server-side only.
+        self._ice_servers: Optional[list] = None
+
         logger.info(f"WebRTC Streamer initialized for screen {screen_id} (max viewers: {max_viewers})")
+
+    async def _fetch_ice_servers(self) -> list:
+        """
+        Fetches STUN/TURN server config from the backend's ice-config endpoint,
+        caching the result for the lifetime of this streamer instance. Falls
+        back to public STUN + the openrelay demo TURN relay (its credentials
+        are intentionally public) if the backend is unreachable.
+        """
+        if self._ice_servers is not None:
+            return self._ice_servers
+
+        fallback = [
+            RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
+            RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
+            RTCIceServer(
+                urls=["turn:openrelay.metered.ca:443?transport=tcp"],
+                username="openrelayproject",
+                credential="openrelayproject"
+            ),
+        ]
+
+        import requests
+        try:
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: requests.get(f"{self.api_url}/api/v1/streaming/ice-config", timeout=5)
+            )
+            if response.status_code == 200:
+                config = response.json().get("data", {})
+                servers = [RTCIceServer(urls=[url]) for url in config.get("stunServers", [])]
+                for turn in config.get("turnServers", []):
+                    servers.append(RTCIceServer(
+                        urls=[turn["urls"]],
+                        username=turn.get("username"),
+                        credential=turn.get("credential"),
+                    ))
+                servers.append(fallback[-1])  # always keep the public TURN fallback available
+                self._ice_servers = servers if servers else fallback
+            else:
+                logger.warning(f"[WebRTC] ice-config returned {response.status_code}, using fallback ICE servers")
+                self._ice_servers = fallback
+        except Exception as e:
+            logger.warning(f"[WebRTC] Failed to fetch ice-config, using fallback ICE servers: {e}")
+            self._ice_servers = fallback
+
+        return self._ice_servers
     
     async def start_streaming(self, quality: str = "720p", fps: int = 15):
         """
@@ -252,31 +303,10 @@ class WebRTCStreamer:
         try:
             logger.info(f"New viewer connected: {viewer_id}")
             
-            # Create peer connection with STUN and TURN servers for NAT traversal
+            # Create peer connection with STUN and TURN servers for NAT traversal,
+            # fetched from the backend rather than hardcoded (see _fetch_ice_servers).
             # TURN server is essential for connectivity across different networks
-            config = RTCConfiguration(
-                iceServers=[
-                    RTCIceServer(urls=["stun:stun.l.google.com:19302"]),
-                    RTCIceServer(urls=["stun:stun1.l.google.com:19302"]),
-                    # Our own TURN server on production VPS
-                    RTCIceServer(
-                        urls=["turn:91.99.190.216:3478"],
-                        username="ccmsuser",
-                        credential="ccms2024secure"
-                    ),
-                    RTCIceServer(
-                        urls=["turn:91.99.190.216:3478?transport=tcp"],
-                        username="ccmsuser",
-                        credential="ccms2024secure"
-                    ),
-                    # Fallback free TURN servers
-                    RTCIceServer(
-                        urls=["turn:openrelay.metered.ca:443?transport=tcp"],
-                        username="openrelayproject",
-                        credential="openrelayproject"
-                    )
-                ]
-            )
+            config = RTCConfiguration(iceServers=await self._fetch_ice_servers())
             pc = RTCPeerConnection(configuration=config)
             self.peer_connections[viewer_id] = pc
             

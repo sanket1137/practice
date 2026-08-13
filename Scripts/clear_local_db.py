@@ -1,13 +1,18 @@
-"""Clear local PostgreSQL database entirely"""
+"""Clear local PostgreSQL database entirely.
+
+USAGE: set env vars before running:
+  export LOCAL_DB_HOST=localhost LOCAL_DB_PORT=5432 LOCAL_DB_NAME=... LOCAL_DB_USER=... LOCAL_DB_PASSWORD=...
+"""
+import os
+
 import psycopg2
 
-# Correct credentials from appsettings.json
 conn = psycopg2.connect(
-    host='localhost',
-    port=5432,
-    database='pixelspotccms',
-    user='rootadmin',
-    password='$@Nket1703'
+    host=os.environ.get('LOCAL_DB_HOST', 'localhost'),
+    port=int(os.environ.get('LOCAL_DB_PORT', '5432')),
+    database=os.environ['LOCAL_DB_NAME'],
+    user=os.environ['LOCAL_DB_USER'],
+    password=os.environ['LOCAL_DB_PASSWORD']
 )
 conn.autocommit = True
 cur = conn.cursor()
@@ -24,12 +29,12 @@ if not tables:
 else:
     # Drop all tables
     print(f'Dropping {len(tables)} tables...')
-    
+
     for table in tables:
         table_name = table[0]
         print(f'  Dropping: {table_name}')
         cur.execute(f'DROP TABLE IF EXISTS public."{table_name}" CASCADE')
 
-print('✅ Local database cleared!')
+print('Local database cleared!')
 cur.close()
 conn.close()
