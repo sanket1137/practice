@@ -7,9 +7,12 @@ import {
     Button,
     Typography,
     Container,
-    Alert
+    Alert,
+    Stack,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import TvIcon from '@mui/icons-material/Tv';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 
@@ -19,6 +22,7 @@ const LoginPage = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const setAuth = useAuthStore((state) => state.setAuth);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -28,12 +32,47 @@ const LoginPage = () => {
 
         try {
             const response = await api.post('/auth/login', { email, password });
-            const { user, accessToken, refreshToken } = response.data.data;
+            const data = response.data.data;
+            
+            // Check if user needs verification
+            if (data.requiresVerification) {
+                // Phone not verified - redirect to phone verification
+                if (!data.isPhoneVerified) {
+                    navigate('/verify-phone', { 
+                        state: { 
+                            email: data.email || email,
+                            phoneNumber: data.phoneNumber, // Masked phone from backend
+                            otpSent: false, // Will need to send OTP
+                            fromLogin: true // Indicate this is from login
+                        } 
+                    });
+                    return;
+                }
+                // Email not verified - redirect to email verification info
+                if (!data.isEmailVerified) {
+                    navigate('/resend-verification', { 
+                        state: { email: data.email || email } 
+                    });
+                    return;
+                }
+            }
 
-            setAuth(user, accessToken, refreshToken);
-            navigate('/dashboard');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed');
+            const { user, accessToken } = data;
+            setAuth(user, accessToken);
+            const returnUrl = searchParams.get('returnUrl');
+            if (returnUrl && returnUrl.startsWith('/')) {
+                navigate(returnUrl);
+            } else if (user?.accountType === 'CmsOwner') {
+                // CMS-mode owners get a dedicated self-hosted dashboard
+                navigate('/cms/screens');
+            } else {
+                navigate('/dashboard');
+            }
+        } catch (err) {
+            const message = axios.isAxiosError<{ message?: string }>(err)
+                ? err.response?.data?.message
+                : undefined;
+            setError(message || 'Login failed');
         } finally {
             setLoading(false);
         }
@@ -44,13 +83,45 @@ const LoginPage = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '100vh'
+            minHeight: '100vh',
+            py: 4,
+            position: 'relative',
+            '&::before': {
+                content: '""',
+                position: 'absolute',
+                inset: 0,
+                background:
+                    'radial-gradient(900px 420px at 50% -10%, rgba(10, 102, 216, 0.16), transparent 58%), radial-gradient(700px 300px at 50% 100%, rgba(10, 102, 216, 0.08), transparent 65%)',
+                pointerEvents: 'none',
+            },
         }}>
-            <Card sx={{ width: '100%', p: 2 }}>
+            <Card sx={{ width: '100%', maxWidth: 460, p: { xs: 1.5, sm: 2 }, borderRadius: 4, position: 'relative', zIndex: 1 }}>
                 <CardContent>
-                    <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
-                        CCMS Login
-                    </Typography>
+                    <Stack spacing={2.5} alignItems="center" sx={{ mb: 3 }}>
+                        <Box
+                            sx={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 3,
+                                bgcolor: 'primary.main',
+                                color: 'primary.contrastText',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 10px 24px rgba(10, 102, 216, 0.28)',
+                            }}
+                        >
+                            <TvIcon />
+                        </Box>
+                        <Box textAlign="center">
+                            <Typography variant="h4" component="h1" sx={{ mb: 0.5 }}>
+                                Welcome back
+                            </Typography>
+                            <Typography variant="body1" color="text.secondary">
+                                Sign in to your PixelSpot account
+                            </Typography>
+                        </Box>
+                    </Stack>
 
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -59,6 +130,7 @@ const LoginPage = () => {
                             fullWidth
                             label="Email"
                             type="email"
+                            placeholder="you@company.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             margin="normal"
@@ -68,6 +140,7 @@ const LoginPage = () => {
                             fullWidth
                             label="Password"
                             type="password"
+                            placeholder="Enter password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             margin="normal"
@@ -79,12 +152,23 @@ const LoginPage = () => {
                             variant="contained"
                             size="large"
                             disabled={loading}
-                            sx={{ mt: 3 }}
+                            sx={{ mt: 3, py: 1.2, fontSize: '1.05rem' }}
                         >
-                            {loading ? 'Logging in...' : 'Login'}
+                            {loading ? 'Signing in...' : 'Sign in'}
                         </Button>
 
-                        <Box sx={{ mt: 2, textAlign: 'center' }}>
+                        <Box sx={{ mt: 1, textAlign: 'right' }}>
+                            <Button
+                                variant="text"
+                                size="small"
+                                onClick={() => navigate('/forgot-password')}
+                                sx={{ textTransform: 'none' }}
+                            >
+                                Forgot password?
+                            </Button>
+                        </Box>
+
+                        <Box sx={{ mt: 1, textAlign: 'center' }}>
                             <Typography variant="body2">
                                 Don't have an account?{' '}
                                 <Button
@@ -92,7 +176,7 @@ const LoginPage = () => {
                                     onClick={() => navigate('/register')}
                                     sx={{ textTransform: 'none' }}
                                 >
-                                    Sign Up
+                                    Create account
                                 </Button>
                             </Typography>
                         </Box>

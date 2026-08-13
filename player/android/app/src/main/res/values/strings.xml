@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CCMS Player</string>
+
+    <!-- Setup screen -->
+    <string name="setup_title">CCMS Player Setup</string>
+    <string name="setup_subtitle">Connect this device to your PixelSpot screen</string>
+    <string name="hint_server_url">Server URL</string>
+    <string name="hint_screen_id">Screen ID (GUID)</string>
+    <string name="hint_api_key">API Key</string>
+    <string name="btn_connect">Connect &amp; Start</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_name">CCMS Player</string>
+    <string name="notification_starting">Starting player…</string>
+    <string name="notification_playing">Playing — %d items</string>
+    <string name="notification_paused">Paused — outside operating hours</string>
+    <string name="notification_error">Connection error — retrying</string>
+</resources>

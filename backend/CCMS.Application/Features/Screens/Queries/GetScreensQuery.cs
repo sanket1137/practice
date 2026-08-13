@@ -5,5 +5,6 @@ namespace CCMS.Application.Features.Screens.Queries;
 
 public class GetScreensQuery : IRequest<IEnumerable<ScreenDto>>
 {
-    // We can add filters here later if needed
+    public Guid? OwnerId { get; set; } // Filter screens by owner
+    public string? CallerRole { get; set; } // For visibility filtering
 }

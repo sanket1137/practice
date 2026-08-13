@@ -1,0 +1,158 @@
+# CCMS Production Docker Compose — the single canonical compose file for
+# production. Deploy to Hetzner VPS with PostgreSQL (Neon) + R2 Storage.
+#
+# TLS termination happens on a HOST-level nginx instance (see nginx/README.md
+# and nginx/ssl-nginx.conf), not inside a container — this file only runs the
+# backend and frontend, both bound to loopback/internal ports that nginx
+# reverse-proxies to.
+#
+# All secrets referenced below (${VAR}) come from the environment the deploy
+# process runs in — see .github/workflows/deploy.yml, which sources them from
+# GitHub Actions Secrets/Variables, or /opt/ccms/.env for a manual deploy.
+# Nothing here should ever contain a real credential value.
+#
+# IMAGE_TAG: set to a timestamp/commit-sha on every deploy so `docker compose
+# build` produces a uniquely tagged, rollback-able image instead of
+# overwriting the same floating tag. Defaults to "latest" for local/manual runs.
+
+services:
+  # ===========================================
+  # BACKEND API (.NET 8)
+  # ===========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ccms-backend:${IMAGE_TAG:-latest}
+    container_name: ccms-backend
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+      # Database (Neon PostgreSQL)
+      - Database__Provider=PostgreSQL
+      - ConnectionStrings__PostgresConnection=${POSTGRES_CONNECTION_STRING}
+      # Storage (Cloudflare R2)
+      - FileStorage__Provider=R2
+      - R2__AccountId=${R2_ACCOUNT_ID}
+      - R2__AccessKeyId=${R2_ACCESS_KEY_ID}
+      - R2__SecretAccessKey=${R2_SECRET_ACCESS_KEY}
+      - R2__BucketName=${R2_BUCKET_NAME:-prod-ccms}
+      - R2__PublicUrlBase=${R2_PUBLIC_URL_BASE}
+      # R2 admin credentials (optional) — used ONLY for bucket-config operations
+      # like PutBucketCors on startup. Keep the runtime token (above) scoped to
+      # object-level permissions. If unset, CORS auto-config is skipped.
+      - R2__AdminAccessKeyId=${R2_ADMIN_ACCESS_KEY_ID:-}
+      - R2__AdminSecretAccessKey=${R2_ADMIN_SECRET_ACCESS_KEY:-}
+      # JWT
+      - Jwt__SecretKey=${JWT_SECRET_KEY}
+      - Jwt__Issuer=PixelCCMS
+      - Jwt__Audience=PixelCCMSUsers
+      # CORS
+      - Cors__AllowedOrigins__0=${FRONTEND_URL}
+      - Cors__AllowedOrigins__1=http://localhost:3100
+      # Payments (Razorpay) — required; the app refuses to process payments
+      # without KeyId/KeySecret configured.
+      - Razorpay__KeyId=${RAZORPAY_KEY_ID}
+      - Razorpay__KeySecret=${RAZORPAY_KEY_SECRET}
+      - Razorpay__WebhookSecret=${RAZORPAY_WEBHOOK_SECRET:-}
+      # Google Places (screen auto-tagging)
+      - GooglePlaces__ApiKey=${GOOGLE_PLACES_API_KEY:-}
+      # Error tracking
+      - Sentry__Dsn=${SENTRY_DSN:-}
+      # WebRTC TURN server (NAT traversal for live streaming) — served to
+      # clients via GET /api/v1/streaming/ice-config, never hardcoded client-side.
+      - WebRTC__TurnServers__0__Url=${TURN_SERVER_URL:-}
+      - WebRTC__TurnServers__0__Username=${TURN_USERNAME:-}
+      - WebRTC__TurnServers__0__Credential=${TURN_PASSWORD:-}
+      # Email (AWS SES / SMTP)
+      - AWS__SES__AccessKeyId=${AWS_SES_ACCESS_KEY_ID:-}
+      - AWS__SES__SecretAccessKey=${AWS_SES_SECRET_ACCESS_KEY:-}
+      - AWS__SES__Region=${AWS_SES_REGION:-ap-south-1}
+      - AWS__SES__FromEmail=${AWS_SES_FROM_EMAIL:-}
+      - Smtp__Host=${SMTP_HOST:-}
+      - Smtp__Port=${SMTP_PORT:-587}
+      - Smtp__Username=${SMTP_USERNAME:-}
+      - Smtp__Password=${SMTP_PASSWORD:-}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-}
+      - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
+      # SMS (ComBirds)
+      - ComBirds__ApiKey=${COMBIRDS_API_KEY:-}
+      - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-}
+      - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-}
+      - ComBirds__UserId=${COMBIRDS_USER_ID:-}
+      - ComBirds__Password=${COMBIRDS_PASSWORD:-}
+      # App Settings
+      - App__BaseUrl=${FRONTEND_URL}
+      - TimeZone__Id=Asia/Kolkata
+    ports:
+      - "127.0.0.1:5000:80"
+    volumes:
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ccms-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1536M
+        reservations:
+          memory: 256M
+
+  # ===========================================
+  # FRONTEND (React + Nginx)
+  # ===========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Relative, not an absolute URL: nginx (ssl-nginx.conf) proxies /api/
+        # to the backend container under the SAME origin as the frontend —
+        # there is no separate api. subdomain in this architecture.
+        - VITE_API_URL=/api/v1
+        - VITE_SENTRY_DSN=${VITE_SENTRY_DSN:-}
+        - VITE_GOOGLE_MAPS_API_KEY=${VITE_GOOGLE_MAPS_API_KEY:-}
+    image: ccms-frontend:${IMAGE_TAG:-latest}
+    container_name: ccms-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ccms-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 256M
+        reservations:
+          memory: 64M
+
+networks:
+  ccms-network:
+    driver: bridge

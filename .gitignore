@@ -5,6 +5,54 @@
 
 # dotenv files
 .env
+.env.local
+.env.production
+.env.*.local
+
+# Local credentials files
+creds.local.json
+creds.local.md
+appsettings.*.local.json
+**/appsettings.*.local.json
+
+# Sensitive config files with credentials
+appsettings.Development.json
+appsettings.Production.json
+**/appsettings.Development.json
+**/appsettings.Production.json
+
+# Utility scripts with credentials (use templates instead)
+Scripts/
+*.csx
+TempDbFix/
+TempDbCreate/
+backend/TempDbCreate/
+backend/TempClean/
+backend/TempClean.csx
+
+# Temp/debug artifacts
+build_errors.txt
+build_output.txt
+backend-errors.log
+login.json
+temp_token.txt
+screen12_id.txt
+temp_nginx.conf
+deploy_output.txt
+_tmp_*
+**/build-output.txt
+eslint_out.txt
+lint_all.txt
+lint_clean.txt
+lint_full.txt
+__azurite_db_table__.json
+*.tar
+player.zip
+
+# Deployment
+backups/
+certbot/
+.rsync-exclude
 
 # User-specific files
 *.rsuser
@@ -488,3 +536,34 @@ node_modules/
 dist/
 .env
 .DS_Store
+
+# Azurite local dev artifacts
+__azurite_db_*.json
+AzuriteConfig
+__blobstorage__/
+__queuestorage__/
+
+# Player - Raspberry Pi
+player/raspberrypi/logs/
+player/raspberrypi/video_cache/
+player/raspberrypi/cache/
+player/raspberrypi/default_videos/
+player/raspberrypi/data/
+player/raspberrypi/mpv_lib/*.dll
+player/raspberrypi/mpv_lib/*.so
+player/raspberrypi/*.log
+player/raspberrypi/*.db
+player/raspberrypi/__pycache__/
+
+# Player - Android
+player/android/.gradle/
+player/android/build/
+player/android/app/build/
+player/android/local.properties
+player/android/.idea/
+player/android/app/release/
+player/android/output/
+
+# Player - ChromeOS
+player/chromeos/node_modules/
+player/chromeos/dist/

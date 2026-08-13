@@ -1,0 +1,14 @@
+﻿{
+  "id": "in.pixelspot.player",
+  "version": "1.0.0",
+  "vendor": "PixelSpot",
+  "type": "web",
+  "main": "index.html",
+  "title": "PixelSpot Player",
+  "icon": "icon.png",
+  "requiredPermissions": [
+    "LAUNCH",
+    "KEYMANAGER"
+  ],
+  "resolution": "1920x1080"
+}

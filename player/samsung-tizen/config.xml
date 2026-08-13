@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="in.pixelspot.player"
+        version="1.0.0">
+  <tizen:application id="in.pixelspot.player" package="in.pixelspot.player"
+                     required_version="3.0" />
+  <content src="index.html" />
+  <name>PixelSpot Player</name>
+  <tizen:privilege name="http://developer.samsung.com/privilege/productinfo" />
+  <tizen:privilege name="http://tizen.org/privilege/keymanager" />
+  <tizen:privilege name="http://tizen.org/privilege/internet" />
+  <tizen:setting screen-orientation="landscape" background-support="enable"
+                 encryption="disable" install-location="internal-only" />
+</widget>

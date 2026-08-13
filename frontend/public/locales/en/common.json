@@ -1,0 +1,69 @@
+﻿{
+  "nav": {
+    "dashboard": "Dashboard",
+    "screens": "Screens",
+    "campaigns": "Campaigns",
+    "bookings": "Bookings",
+    "analytics": "Analytics",
+    "wallet": "Wallet",
+    "payouts": "Payouts",
+    "notifications": "Notifications",
+    "settings": "Settings",
+    "admin": "Admin"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "noData": "No data found",
+    "active": "Active",
+    "inactive": "Inactive",
+    "pending": "Pending",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
+  },
+  "currency": {
+    "symbol": "₹",
+    "locale": "en-IN"
+  },
+  "analytics": {
+    "title": "Analytics",
+    "impressions": "Impressions",
+    "fullPlays": "Full Plays",
+    "playRate": "Play Rate",
+    "today": "Today",
+    "last7Days": "Last 7 Days",
+    "last30Days": "Last 30 Days",
+    "last90Days": "Last 90 Days",
+    "thisYear": "This Year",
+    "allTime": "All Time"
+  },
+  "screens": {
+    "title": "Screens",
+    "addScreen": "Add Screen",
+    "screenName": "Screen Name",
+    "location": "Location",
+    "status": "Status"
+  },
+  "bookings": {
+    "title": "Bookings",
+    "newBooking": "New Booking",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "status": "Status",
+    "amount": "Amount"
+  }
+}

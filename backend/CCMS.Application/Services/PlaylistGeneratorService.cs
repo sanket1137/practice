@@ -1,0 +1,203 @@
+using CCMS.Application.DTOs;
+using CCMS.Application.Helpers;
+using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
+using CCMS.Domain.Interfaces;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+
+namespace CCMS.Application.Services;
+
+public class PlaylistGeneratorService
+{
+    private readonly IRepository<Screen> _screenRepository;
+    private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<Creative> _creativeRepository;
+    private readonly IRepository<OwnerContent> _ownerContentRepository;
+    private readonly ILogger<PlaylistGeneratorService> _logger;
+    private readonly string _universalFallbackUrl;
+
+    public PlaylistGeneratorService(
+        IRepository<Screen> screenRepository,
+        IRepository<Booking> bookingRepository,
+        IRepository<Creative> creativeRepository,
+        IRepository<OwnerContent> ownerContentRepository,
+        ILogger<PlaylistGeneratorService> logger,
+        IConfiguration configuration)
+    {
+        _screenRepository = screenRepository;
+        _bookingRepository = bookingRepository;
+        _creativeRepository = creativeRepository;
+        _ownerContentRepository = ownerContentRepository;
+        _logger = logger;
+        
+        // Use IsNullOrWhiteSpace — the base appsettings.json may have "" which bypasses ?? null-coalesce
+        var configuredUrl = configuration["DefaultVideo:UniversalFallbackUrl"];
+        _universalFallbackUrl = string.IsNullOrWhiteSpace(configuredUrl)
+            ? "https://pub-8b275ed0704741b798c135d2ba0f55f9.r2.dev/Pixel_Universal.mp4"
+            : configuredUrl;
+    }
+
+    public async Task<PlaylistResponse?> GeneratePlaylistAsync(Guid screenId, DateTime date, CancellationToken cancellationToken = default)
+    {
+        // Fetch screen with configuration
+        var screen = await _screenRepository.GetByIdAsync(screenId, cancellationToken);
+        if (screen == null || screen.IsDeleted)
+            return null;
+
+        // Get operating hours for the specific day
+        var daySchedule = screen.Schedule.GetScheduleForDay(date.DayOfWeek);
+        
+        // Even on non-operating days, we populate the playlist with filler content.
+        // Both Android and Pi players enforce operating hours client-side via the
+        // operatingHours map — returning an empty playlist prevents the player from
+        // having any content ready when operating hours begin.
+        var isOperating = daySchedule.IsOperating;
+
+        // Fetch owner content for this screen
+        var allOwnerContent = await _ownerContentRepository.GetAllAsync(cancellationToken);
+        var ownerContentItems = allOwnerContent
+            .Where(oc => oc.ScreenId == screenId && !oc.IsDeleted && oc.IsActive)
+            .ToList();
+
+        // Fetch all approved/active bookings for this screen that overlap with the target date
+        var bookings = await _bookingRepository.GetAllAsync(cancellationToken);
+        var targetDateOnly = DateOnly.FromDateTime(date);
+        
+        var relevantBookings = bookings
+            .Where(b => b.ScreenId == screenId 
+                && !b.IsDeleted
+                && (b.Status == BookingStatus.Approved || b.Status == BookingStatus.Active || b.Status == BookingStatus.Completed)
+                && b.StartDate <= targetDateOnly 
+                && b.EndDate >= targetDateOnly)
+            .ToList();
+
+        // Build playlist - ONE ITEM PER SLOT (player will loop these)
+        var playlist = new List<PlaylistItemResponse>();
+        
+        // Calculate duration per slot in seconds
+        // TimeFrameMinutes is the duration for the entire rotation
+        // Each slot gets TimeFrameMinutes * 60 / SlotsPerFrame seconds
+        var durationPerSlot = (int)((screen.TimeFrameMinutes * 60.0) / screen.SlotsPerFrame);
+        
+        int bookedSlots = 0;
+        int fillerSlots = 0;
+
+        // Generate one playlist item per slot
+        for (int slotNumber = 1; slotNumber <= screen.SlotsPerFrame; slotNumber++)
+        {
+            // PRIORITY 1: Check for advertiser booking (highest priority - paid content)
+            var booking = FindBookingForSlot(relevantBookings, date, slotNumber);
+
+            if (booking != null)
+            {
+                // Fetch creative for this booking
+                var creative = await _creativeRepository.GetByIdAsync(booking.CreativeId, cancellationToken);
+                
+                playlist.Add(new PlaylistItemResponse
+                {
+                    StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
+                    EndTime = daySchedule.EndTime.ToString(@"hh\:mm"),
+                    SlotNumber = slotNumber,
+                    BookingId = booking.Id,
+                    CampaignId = booking.CampaignId,
+                    CreativeId = booking.CreativeId,
+                    CreativeUrl = creative?.FileUrl ?? "",
+                    CreativeMimeType = creative?.MimeType ?? "video/mp4",
+                    DurationSeconds = durationPerSlot,
+                    ImpressionId = Guid.NewGuid(),
+                    IsFillerContent = false
+                });
+                
+                bookedSlots++;
+                continue; // Skip owner content check for this slot
+            }
+            
+            // PRIORITY 2: Check for owner content in this slot
+            var ownerContent = ownerContentItems.FirstOrDefault(oc => oc.SlotNumber == slotNumber);
+            
+            if (ownerContent != null)
+            {
+                // Owner content fills unbookeد slots
+                playlist.Add(new PlaylistItemResponse
+                {
+                    StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
+                    EndTime = daySchedule.EndTime.ToString(@"hh\:mm"),
+                    SlotNumber = slotNumber,
+                    BookingId = null,
+                    CampaignId = null,
+                    CreativeId = null,
+                    CreativeUrl = ownerContent.FileUrl,
+                    CreativeMimeType = ownerContent.MimeType,
+                    DurationSeconds = ownerContent.Duration > 0 ? ownerContent.Duration : durationPerSlot,
+                    ImpressionId = Guid.NewGuid(),
+                    IsFillerContent = false,
+                    OwnerContentId = ownerContent.Id // Important for player to recognize
+                });
+                
+                continue; // Skip default video
+            }
+            
+            // PRIORITY 3: No booking or owner content - use default video
+            var defaultVideoUrl = screen.HasCustomDefaultVideo && !string.IsNullOrEmpty(screen.DefaultVideoUrl)
+                ? screen.DefaultVideoUrl
+                : _universalFallbackUrl; // Universal fallback from configuration
+            
+            playlist.Add(new PlaylistItemResponse
+            {
+                StartTime = daySchedule.StartTime.ToString(@"hh\:mm"),
+                EndTime = daySchedule.EndTime.ToString(@"hh\:mm"),
+                SlotNumber = slotNumber,
+                BookingId = null,
+                CampaignId = null,
+                CreativeId = null,
+                CreativeUrl = defaultVideoUrl,
+                CreativeMimeType = "video/mp4",
+                DurationSeconds = durationPerSlot,
+                ImpressionId = Guid.NewGuid(),
+                IsFillerContent = true
+            });
+            
+            fillerSlots++;
+        }
+
+        // DEBUG: Log what we generated
+        _logger.LogInformation($"[PLAYLIST DEBUG] Generated {playlist.Count} items for screen {screenId}");
+        foreach (var item in playlist)
+        {
+            var typeStr = item.OwnerContentId.HasValue ? "OwnerContent" : 
+                         item.BookingId.HasValue ? "Booking" : "Default";
+            _logger.LogInformation($"  Slot {item.SlotNumber}: {typeStr} - URL: {item.CreativeUrl}");
+        }
+
+        return new PlaylistResponse
+        {
+            ScreenId = screenId,
+            ScreenName = screen.Name,
+            Date = date,
+            OperatingStart = isOperating ? daySchedule.StartTime.ToString(@"hh\:mm") : "00:00",
+            OperatingEnd = isOperating ? daySchedule.EndTime.ToString(@"hh\:mm") : "00:00",
+            TimeFrameMinutes = screen.TimeFrameMinutes,
+            SlotsPerFrame = screen.SlotsPerFrame,
+            Playlist = playlist,
+            TotalSlots = screen.SlotsPerFrame,
+            BookedSlots = bookedSlots,
+            FillerSlots = fillerSlots
+        };
+    }
+
+    private Booking? FindBookingForSlot(List<Booking> bookings, DateTime date, int slotNumber)
+    {
+        foreach (var booking in bookings)
+        {
+            if (DailySlotAssignmentsHelper.HasSlotOnDate(
+                booking.DailySlotAssignmentsJson, date, slotNumber))
+            {
+                return booking;
+            }
+        }
+
+        return null;
+    }
+}

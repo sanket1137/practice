@@ -1,0 +1,69 @@
+﻿{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "screens": "الشاشات",
+    "campaigns": "الحملات",
+    "bookings": "الحجوزات",
+    "analytics": "التحليلات",
+    "wallet": "المحفظة",
+    "payouts": "المدفوعات",
+    "notifications": "الإشعارات",
+    "settings": "الإعدادات",
+    "admin": "المشرف"
+  },
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ ما",
+    "retry": "إعادة المحاولة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "view": "عرض",
+    "confirm": "تأكيد",
+    "back": "رجوع",
+    "next": "التالي",
+    "submit": "إرسال",
+    "search": "بحث",
+    "filter": "تصفية",
+    "clear": "مسح",
+    "noData": "لا توجد بيانات",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "pending": "معلق",
+    "approved": "موافق عليه",
+    "rejected": "مرفوض",
+    "cancelled": "ملغي"
+  },
+  "currency": {
+    "symbol": "₹",
+    "locale": "ar-IN"
+  },
+  "analytics": {
+    "title": "التحليلات",
+    "impressions": "مشاهدات",
+    "fullPlays": "تشغيل كامل",
+    "playRate": "معدل التشغيل",
+    "today": "اليوم",
+    "last7Days": "آخر 7 أيام",
+    "last30Days": "آخر 30 يومًا",
+    "last90Days": "آخر 90 يومًا",
+    "thisYear": "هذا العام",
+    "allTime": "كل الوقت"
+  },
+  "screens": {
+    "title": "الشاشات",
+    "addScreen": "إضافة شاشة",
+    "screenName": "اسم الشاشة",
+    "location": "الموقع",
+    "status": "الحالة"
+  },
+  "bookings": {
+    "title": "الحجوزات",
+    "newBooking": "حجز جديد",
+    "startDate": "تاريخ البدء",
+    "endDate": "تاريخ الانتهاء",
+    "status": "الحالة",
+    "amount": "المبلغ"
+  }
+}

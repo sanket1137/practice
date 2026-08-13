@@ -22,18 +22,29 @@ public class TokenService : ITokenService
         _secretKey = configuration["Jwt:SecretKey"] ?? throw new ArgumentNullException("JWT Secret Key not configured");
         _issuer = configuration["Jwt:Issuer"] ?? "CCMS";
         _audience = configuration["Jwt:Audience"] ?? "CCMS";
-        _accessTokenExpirationMinutes = int.Parse(configuration["Jwt:AccessTokenExpirationMinutes"] ?? "60");
+        // "Jwt:ExpiryMinutes" is the key every appsettings file defines; keep the
+        // legacy "AccessTokenExpirationMinutes" as a fallback for older configs.
+        var expiryValue = configuration["Jwt:ExpiryMinutes"]
+            ?? configuration["Jwt:AccessTokenExpirationMinutes"];
+        _accessTokenExpirationMinutes = int.TryParse(expiryValue, out var minutes) && minutes > 0
+            ? minutes
+            : 60;
     }
 
-    public string GenerateAccessToken(Guid userId, string email, string role)
+    public string GenerateAccessToken(Guid userId, string email, string role, string? accountType = null)
     {
-        var claims = new[]
+        var claimsList = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Role, role),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
+        if (!string.IsNullOrEmpty(accountType))
+        {
+            claimsList.Add(new Claim("account_type", accountType));
+        }
+        var claims = claimsList.ToArray();
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_secretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

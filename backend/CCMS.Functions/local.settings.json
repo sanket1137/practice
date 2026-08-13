@@ -1,0 +1,13 @@
+{
+    "IsEncrypted": false,
+    "Host": {
+        "LocalHttpPort": 7071,
+        "CORS": "*"
+    },
+    "Values": {
+        "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+        "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+        "ConnectionStrings__DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=PracticePixelCCMSDb;Trusted_Connection=true;MultipleActiveResultSets=true",
+        "BookingStatusUpdate__TimerSchedule": "0 */1 * * * *"
+    }
+}

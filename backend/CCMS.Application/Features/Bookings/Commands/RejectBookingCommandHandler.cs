@@ -1,4 +1,6 @@
 using AutoMapper;
+using CCMS.Application.Interfaces;
+using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
@@ -10,19 +12,28 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
 {
     private readonly IRepository<Booking> _bookingRepository;
     private readonly IRepository<Screen> _screenRepository;
+    private readonly IRepository<Campaign> _campaignRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
+    private readonly SlotAvailabilityService _slotAvailabilityService;
+    private readonly IBookingNotificationService _notificationService;
 
     public RejectBookingCommandHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
+        IRepository<Campaign> campaignRepository,
         IUnitOfWork unitOfWork,
-        IMapper mapper)
+        IMapper mapper,
+        SlotAvailabilityService slotAvailabilityService,
+        IBookingNotificationService notificationService)
     {
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
+        _campaignRepository = campaignRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _slotAvailabilityService = slotAvailabilityService;
+        _notificationService = notificationService;
     }
 
     public async Task<BookingDto> Handle(RejectBookingCommand request, CancellationToken cancellationToken)
@@ -41,9 +52,37 @@ public class RejectBookingCommandHandler : IRequestHandler<RejectBookingCommand,
         booking.RejectionReason = request.RejectionReason;
         booking.UpdatedAt = DateTime.UtcNow;
 
+        // Release the booked slot
+        if (booking.SlotNumbers != null && booking.SlotNumbers.Any())
+        {
+            var slotNumber = booking.SlotNumbers.First();
+            await _slotAvailabilityService.ReleaseSlot(
+                booking.ScreenId,
+                slotNumber,
+                booking.StartDate.ToDateTime(TimeOnly.MinValue),
+                booking.EndDate.ToDateTime(TimeOnly.MinValue),
+                cancellationToken);
+        }
+
         await _bookingRepository.UpdateAsync(booking, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<BookingDto>(booking);
+        var bookingDto = _mapper.Map<BookingDto>(booking);
+
+        // Notify advertiser that their booking has been rejected
+        try
+        {
+            var campaign = booking.CampaignId.HasValue ? await _campaignRepository.GetByIdAsync(booking.CampaignId.Value, cancellationToken) : null;
+            if (campaign != null)
+            {
+                await _notificationService.NotifyBookingRejectedAsync(bookingDto, campaign.AdvertiserId, request.RejectionReason);
+            }
+        }
+        catch (Exception)
+        {
+            // Don't fail the rejection if notification fails
+        }
+
+        return bookingDto;
     }
 }

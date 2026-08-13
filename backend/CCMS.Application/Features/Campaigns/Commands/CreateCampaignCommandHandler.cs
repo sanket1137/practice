@@ -24,6 +24,13 @@ public class CreateCampaignCommandHandler : IRequestHandler<CreateCampaignComman
 
     public async Task<CampaignDto> Handle(CreateCampaignCommand request, CancellationToken cancellationToken)
     {
+        // Parse date strings to DateOnly (no timezone issues - dates are dates!)
+        if (!DateOnly.TryParse(request.Request.StartDate, out var startDate))
+            throw new InvalidOperationException($"Invalid start date format: {request.Request.StartDate}. Expected YYYY-MM-DD.");
+        
+        if (!DateOnly.TryParse(request.Request.EndDate, out var endDate))
+            throw new InvalidOperationException($"Invalid end date format: {request.Request.EndDate}. Expected YYYY-MM-DD.");
+
         var campaign = new Campaign
         {
             AdvertiserId = request.UserId,
@@ -31,8 +38,8 @@ public class CreateCampaignCommandHandler : IRequestHandler<CreateCampaignComman
             Description = request.Request.Description,
             Budget = request.Request.Budget,
             Currency = request.Request.Currency,
-            StartDate = request.Request.StartDate,
-            EndDate = request.Request.EndDate,
+            StartDate = startDate,   // DateOnly - no timezone conversion needed!
+            EndDate = endDate,       // DateOnly - no timezone conversion needed!
             Status = Domain.Enums.CampaignStatus.Draft,
             CreatedAt = DateTime.UtcNow
         };

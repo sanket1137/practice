@@ -4,14 +4,7 @@ import {
     Container,
     Typography,
     Button,
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Chip,
+    Grid,
     IconButton,
     TextField,
     InputAdornment,
@@ -21,26 +14,35 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
-    LinearProgress,
+    ToggleButtonGroup,
+    ToggleButton,
 } from '@mui/material';
 import {
     Add as AddIcon,
     Search as SearchIcon,
-    MoreVert as MoreVertIcon,
     Edit as EditIcon,
     Delete as DeleteIcon,
     Visibility as ViewIcon,
+    ViewModule as GridViewIcon,
+    ViewList as ListViewIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
+import { getAdvertiserCampaigns } from '../../services/analyticsApi';
+import type { CampaignPerformanceSummary } from '../../services/analyticsApi';
+import EnhancedCampaignCard from '../../components/campaigns/EnhancedCampaignCard';
+import { CardSkeleton } from '../../components/common/LoadingSkeletons';
+import EmptyState from '../../components/common/EmptyState';
+import StatusChip from '../../components/common/StatusChip';
+import type { CampaignStatus } from '../../constants/statusConfig';
 
 interface Campaign {
     id: string;
     name: string;
     description: string;
-    status: string;
+    status: CampaignStatus;
     budget: number;
     currency: string;
     startDate: string;
@@ -53,6 +55,7 @@ export default function CampaignsPage() {
     const queryClient = useQueryClient();
     const { enqueueSnackbar } = useSnackbar();
     const [searchQuery, setSearchQuery] = useState('');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -62,9 +65,20 @@ export default function CampaignsPage() {
         queryKey: ['campaigns'],
         queryFn: async () => {
             const response = await api.get('/campaigns');
-            return response.data.data; // ApiResponse wrapper
+            return response.data.data;
         },
     });
+
+    // Fetch campaign analytics
+    const { data: campaignAnalytics } = useQuery<CampaignPerformanceSummary[]>({
+        queryKey: ['campaignAnalytics'],
+        queryFn: getAdvertiserCampaigns,
+        enabled: !!campaigns?.length,
+    });
+
+    // Build analytics lookup map
+    const analyticsMap = new Map<string, CampaignPerformanceSummary>();
+    campaignAnalytics?.forEach((a) => analyticsMap.set(a.campaignId, a));
 
     // Delete mutation
     const deleteMutation = useMutation({
@@ -90,41 +104,9 @@ export default function CampaignsPage() {
         setAnchorEl(null);
     };
 
-    const handleView = () => {
-        if (selectedCampaign) {
-            navigate(`/campaigns/${selectedCampaign.id}`);
-        }
-        handleMenuClose();
-    };
-
-    const handleEdit = () => {
-        if (selectedCampaign) {
-            navigate(`/campaigns/${selectedCampaign.id}/edit`);
-        }
-        handleMenuClose();
-    };
-
-    const handleDeleteClick = () => {
-        setDeleteDialogOpen(true);
-        handleMenuClose();
-    };
-
     const handleDeleteConfirm = () => {
         if (selectedCampaign) {
             deleteMutation.mutate(selectedCampaign.id);
-        }
-    };
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Active':
-                return 'success';
-            case 'Completed':
-                return 'default';
-            case 'Draft':
-                return 'warning';
-            default:
-                return 'default';
         }
     };
 
@@ -135,8 +117,11 @@ export default function CampaignsPage() {
 
     if (isLoading) {
         return (
-            <Container maxWidth="lg" sx={{ mt: 4 }}>
-                <LinearProgress />
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+                    <Typography variant="h4">Campaigns</Typography>
+                </Box>
+                <CardSkeleton count={6} />
             </Container>
         );
     }
@@ -144,19 +129,38 @@ export default function CampaignsPage() {
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             {/* Header */}
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Typography variant="h4">Campaigns</Typography>
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    justifyContent: 'space-between',
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    gap: 2,
+                }}
+            >
+                <Box>
+                    <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Campaigns</Typography>
+                    <Typography variant="body1" color="text.secondary">
+                        Plan, launch, and monitor your advertising campaigns.
+                    </Typography>
+                </Box>
                 <Button
                     variant="contained"
                     startIcon={<AddIcon />}
                     onClick={() => navigate('/campaigns/new')}
                 >
-                    Create Campaign
+                    Create campaign
                 </Button>
             </Box>
-
-            {/* Search */}
-            <Box mb={3}>
+            {/* Search & View Toggle */}
+            <Box display="flex" gap={2} mb={3}>
                 <TextField
                     fullWidth
                     placeholder="Search campaigns..."
@@ -170,119 +174,139 @@ export default function CampaignsPage() {
                         ),
                     }}
                 />
+                <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={(_, newMode) => newMode && setViewMode(newMode)}
+                    size="small"
+                >
+                    <ToggleButton value="grid">
+                        <GridViewIcon />
+                    </ToggleButton>
+                    <ToggleButton value="list">
+                        <ListViewIcon />
+                    </ToggleButton>
+                </ToggleButtonGroup>
             </Box>
-
-            {/* Table */}
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Name</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Budget</TableCell>
-                            <TableCell>Start Date</TableCell>
-                            <TableCell>End Date</TableCell>
-                            <TableCell>Created</TableCell>
-                            <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {filteredCampaigns && filteredCampaigns.length > 0 ? (
-                            filteredCampaigns.map((campaign) => (
-                                <TableRow
-                                    key={campaign.id}
-                                    hover
-                                    sx={{ cursor: 'pointer' }}
-                                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                                >
-                                    <TableCell>
-                                        <Typography variant="subtitle2">{campaign.name}</Typography>
-                                        <Typography variant="body2" color="textSecondary">
-                                            {campaign.description.substring(0, 50)}
-                                            {campaign.description.length > 50 ? '...' : ''}
+            {/* Campaign Grid/List */}
+            {!filteredCampaigns || filteredCampaigns.length === 0 ? (
+                <EmptyState
+                    title="No campaigns yet"
+                    message={
+                        searchQuery
+                            ? 'Try adjusting your search'
+                            : 'Create your first campaign to start advertising'
+                    }
+                    action={{
+                        label: 'Create Campaign',
+                        onClick: () => navigate('/campaigns/new'),
+                    }}
+                />
+            ) : viewMode === 'grid' ? (
+                <Grid container spacing={3}>
+                    {filteredCampaigns.map((campaign) => (
+                        <Grid
+                            key={campaign.id}
+                            size={{
+                                xs: 12,
+                                sm: 6,
+                                md: 4
+                            }}>
+                            <EnhancedCampaignCard
+                                campaign={{
+                                    ...campaign,
+                                    spent: analyticsMap.get(campaign.id)?.spent ?? 0,
+                                    impressions: analyticsMap.get(campaign.id)?.deliveredImpressions ?? 0,
+                                    expectedImpressions: analyticsMap.get(campaign.id)?.expectedImpressions ?? 0,
+                                }}
+                                onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                            />
+                        </Grid>
+                    ))}
+                </Grid>
+            ) : (
+                <Grid container spacing={2}>
+                    {filteredCampaigns.map((campaign) => (
+                        <Grid key={campaign.id} size={12}>
+                            <Box
+                                display="flex"
+                                alignItems="center"
+                                gap={2}
+                                p={2}
+                                border={1}
+                                borderColor="divider"
+                                borderRadius={1}
+                                sx={{
+                                    cursor: 'pointer',
+                                    '&:hover': { bgcolor: 'action.hover' },
+                                }}
+                                onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                            >
+                                <Box flex={1}>
+                                    <Typography variant="h6">{campaign.name}</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {campaign.description.length > 100
+                                            ? `${campaign.description.substring(0, 100)}...`
+                                            : campaign.description}
+                                    </Typography>
+                                    <Box display="flex" gap={2} mt={1}>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Budget: {campaign.currency} {campaign.budget.toLocaleString()}
                                         </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={campaign.status}
-                                            color={getStatusColor(campaign.status) as any}
-                                            size="small"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        {campaign.currency} {campaign.budget.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell>
-                                        {new Date(campaign.startDate).toLocaleDateString()}
-                                    </TableCell>
-                                    <TableCell>
-                                        {new Date(campaign.endDate).toLocaleDateString()}
-                                    </TableCell>
-                                    <TableCell>
-                                        {new Date(campaign.createdAt).toLocaleDateString()}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <IconButton
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleMenuOpen(e, campaign);
-                                            }}
-                                        >
-                                            <MoreVertIcon />
-                                        </IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={7} align="center">
-                                    <Box py={4}>
-                                        <Typography color="textSecondary" gutterBottom>
-                                            No campaigns found
+                                        <Typography variant="caption" color="text.secondary">
+                                            {new Date(campaign.startDate).toLocaleDateString()} -{' '}
+                                            {new Date(campaign.endDate).toLocaleDateString()}
                                         </Typography>
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<AddIcon />}
-                                            onClick={() => navigate('/campaigns/new')}
-                                            sx={{ mt: 2 }}
-                                        >
-                                            Create Your First Campaign
-                                        </Button>
                                     </Box>
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-
+                                </Box>
+                                <StatusChip status={campaign.status} type="campaign" />
+                                <IconButton
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleMenuOpen(e, campaign);
+                                    }}
+                                >
+                                    <ViewIcon />
+                                </IconButton>
+                            </Box>
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
             {/* Action Menu */}
-            <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-            >
-                <MenuItem onClick={handleView}>
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+                <MenuItem onClick={() => {
+                    if (selectedCampaign) navigate(`/campaigns/${selectedCampaign.id}`);
+                    handleMenuClose();
+                }}>
                     <ViewIcon sx={{ mr: 1 }} fontSize="small" />
                     View Details
                 </MenuItem>
-                <MenuItem onClick={handleEdit}>
+                <MenuItem onClick={() => {
+                    if (selectedCampaign) navigate(`/campaigns/${selectedCampaign.id}/edit`);
+                    handleMenuClose();
+                }}>
                     <EditIcon sx={{ mr: 1 }} fontSize="small" />
                     Edit
                 </MenuItem>
-                <MenuItem onClick={handleDeleteClick} sx={{ color: 'error.main' }}>
+                <MenuItem
+                    onClick={() => {
+                        setDeleteDialogOpen(true);
+                        handleMenuClose();
+                    }}
+                    sx={{ color: 'error.main' }}
+                >
                     <DeleteIcon sx={{ mr: 1 }} fontSize="small" />
                     Delete
                 </MenuItem>
             </Menu>
-
             {/* Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
                 <DialogTitle>Delete Campaign</DialogTitle>
                 <DialogContent>
                     <Typography>
-                        Are you sure you want to delete "{selectedCampaign?.name}"? This action cannot be
-                        undone.
+                        Are you sure you want to delete "{selectedCampaign?.name}"? This action cannot
+                        be undone.
                     </Typography>
                 </DialogContent>
                 <DialogActions>

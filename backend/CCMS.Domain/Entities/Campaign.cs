@@ -5,13 +5,19 @@ namespace CCMS.Domain.Entities;
 public class Campaign : BaseEntity
 {
     public Guid AdvertiserId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public required string Name { get; set; }
+    public string? Description { get; set; }
+    public DateOnly StartDate { get; set; }
+    public DateOnly? EndDate { get; set; } // Optional - null means indefinite campaign
     public decimal Budget { get; set; }
-    public string Currency { get; set; } = "USD";
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
+    public required string Currency { get; set; } = "INR";
     public CampaignStatus Status { get; set; } = CampaignStatus.Draft;
+
+    /// <summary>
+    /// Advertiser-declared campaign goal (Awareness, Promotion, etc.).
+    /// Optional — null means "generic / unspecified".
+    /// </summary>
+    public CampaignGoal? Goal { get; set; }
     
     // Navigation properties
     public virtual User Advertiser { get; set; } = null!;

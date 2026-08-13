@@ -6,17 +6,26 @@ using CCMS.Application.Features.Campaigns.Commands;
 using CCMS.Application.Features.Campaigns.Queries;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Campaigns;
+using CCMS.Shared.DTOs.Bookings;
+using Asp.Versioning;
+
 
 namespace CCMS.Api.Controllers;
 
 [Authorize]
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public class CampaignsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<CampaignsController> _logger;
 
-    public CampaignsController(IMediator mediator) => _mediator = mediator;
+    public CampaignsController(IMediator mediator, ILogger<CampaignsController> logger)
+    {
+        _mediator = mediator;
+        _logger = logger;
+    }
 
     // GET /api/campaigns
     [HttpGet]
@@ -31,8 +40,51 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving campaigns");
             return StatusCode(500,
-                ApiResponse<IEnumerable<CampaignDto>>.ErrorResponse($"Error retrieving campaigns: {ex.Message}"));
+                ApiResponse<IEnumerable<CampaignDto>>.ErrorResponse("Failed to retrieve campaigns."));
+        }
+    }
+
+    /// <summary>
+    /// Gets a paginated list of campaigns with optional filtering and sorting.
+    /// </summary>
+    /// <param name="search">Optional search term for campaign name.</param>
+    /// <param name="status">Optional filter by campaign status (Draft, Active, Paused, Completed).</param>
+    /// <param name="page">Page number (1-based). Defaults to 1.</param>
+    /// <param name="pageSize">Number of items per page. Defaults to 10.</param>
+    /// <param name="sortBy">Sort field (Name, CreatedAt, StartDate, EndDate). Defaults to CreatedAt.</param>
+    /// <param name="sortDirection">Sort direction (asc or desc). Defaults to desc.</param>
+    [HttpGet("paged")]
+    public async Task<ActionResult<ApiResponse<PagedResult<CampaignDto>>>> GetPaged(
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string sortBy = "CreatedAt",
+        [FromQuery] string sortDirection = "desc")
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var query = new GetCampaignsPagedQuery
+            {
+                UserId = User.IsInRole("Admin") ? Guid.Empty : userId,
+                PageNumber = page,
+                PageSize = pageSize,
+                SearchTerm = search,
+                Status = status,
+                SortBy = sortBy,
+                SortDirection = sortDirection
+            };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<PagedResult<CampaignDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving paged campaigns");
+            return StatusCode(500,
+                ApiResponse<PagedResult<CampaignDto>>.ErrorResponse("Failed to retrieve campaigns."));
         }
     }
 
@@ -51,8 +103,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error creating campaign");
             return StatusCode(500,
-                ApiResponse<CampaignDto>.ErrorResponse($"Error creating campaign: {ex.Message}"));
+                ApiResponse<CampaignDto>.ErrorResponse("Failed to create campaign."));
         }
     }
 
@@ -72,8 +125,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<CampaignDto>.ErrorResponse($"Error retrieving campaign: {ex.Message}"));
+                ApiResponse<CampaignDto>.ErrorResponse("Failed to retrieve campaign."));
         }
     }
 
@@ -106,8 +160,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error updating campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<CampaignDto>.ErrorResponse($"Error updating campaign: {ex.Message}"));
+                ApiResponse<CampaignDto>.ErrorResponse("Failed to update campaign."));
         }
     }
 
@@ -139,8 +194,80 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error deleting campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<object>.ErrorResponse($"Error deleting campaign: {ex.Message}"));
+                ApiResponse<object>.ErrorResponse("Failed to delete campaign."));
+        }
+    }
+
+    // GET /api/campaigns/{id}/bookings
+    [HttpGet("{id}/bookings")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<BookingDto>>>> GetCampaignBookings(Guid id)
+    {
+        try
+        {
+            var query = new Application.Features.Bookings.Queries.GetBookingsQuery 
+            { 
+                CampaignId = id 
+            };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<IEnumerable<BookingDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bookings for campaign {CampaignId}", id);
+            return StatusCode(500,
+                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse("Failed to retrieve campaign bookings."));
+        }
+    }
+
+    // GET /api/campaigns/{id}/screens/stats
+    [HttpGet("{id}/screens/stats")]
+    public async Task<ActionResult<ApiResponse<CampaignScreensStatsDto>>> GetCampaignScreensStats(Guid id)
+    {
+        try
+        {
+            var query = new GetCampaignScreensStatsQuery { CampaignId = id };
+            var result = await _mediator.Send(query);
+            return Ok(ApiResponse<CampaignScreensStatsDto>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving campaign screen stats for {CampaignId}", id);
+            return StatusCode(500,
+                ApiResponse<CampaignScreensStatsDto>.ErrorResponse("Failed to retrieve campaign screen stats."));
+        }
+    }
+
+    /// <summary>
+    /// Atomically create a campaign, create bookings, and deduct wallet balance in a single DB transaction.
+    /// Either everything succeeds or everything is rolled back.
+    /// </summary>
+    [HttpPost("wizard")]
+    public async Task<ActionResult<ApiResponse<CampaignWizardResult>>> CreateWizard([FromBody] CampaignWizardRequest request)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var result = await _mediator.Send(new CreateCampaignWizardCommand
+            {
+                UserId = userId,
+                Request = request,
+            });
+            return Ok(ApiResponse<CampaignWizardResult>.SuccessResponse(result, "Campaign created successfully"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<CampaignWizardResult>.ErrorResponse(ex.Message));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<CampaignWizardResult>.ErrorResponse(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating campaign via wizard");
+            return StatusCode(500, ApiResponse<CampaignWizardResult>.ErrorResponse("Failed to create campaign."));
         }
     }
 }

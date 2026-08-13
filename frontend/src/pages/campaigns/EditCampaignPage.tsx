@@ -19,6 +19,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { api } from '../../services/api';
 
 const campaignSchema = z.object({
@@ -95,9 +96,12 @@ export default function EditCampaignPage() {
             enqueueSnackbar('Campaign updated successfully', { variant: 'success' });
             navigate(`/campaigns/${id}`);
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to update campaign',
+                message || 'Failed to update campaign',
                 { variant: 'error' }
             );
         },
@@ -125,19 +129,28 @@ export default function EditCampaignPage() {
 
     return (
         <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-            <Box mb={3}>
-                <Typography variant="h4" gutterBottom>
-                    Edit Campaign
+            <Box
+                sx={{
+                    p: { xs: 2.5, md: 3.5 },
+                    mb: 3,
+                    borderRadius: 3,
+                    background:
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                }}
+            >
+                <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>
+                    Edit campaign
                 </Typography>
-                <Typography variant="body1" color="textSecondary">
-                    Update your campaign details
+                <Typography variant="body1" color="text.secondary">
+                    Update your campaign details and metadata.
                 </Typography>
             </Box>
-
-            <Paper sx={{ p: 4 }}>
+            <Paper sx={{ p: 4, borderRadius: 3 }}>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <Grid container spacing={3}>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Controller
                                 name="name"
                                 control={control}
@@ -154,7 +167,7 @@ export default function EditCampaignPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Controller
                                 name="description"
                                 control={control}
@@ -173,7 +186,11 @@ export default function EditCampaignPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
                                 <Controller
                                     name="startDate"
@@ -196,7 +213,11 @@ export default function EditCampaignPage() {
                             </LocalizationProvider>
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <LocalizationProvider dateAdapter={AdapterDateFns}>
                                 <Controller
                                     name="endDate"
@@ -219,7 +240,11 @@ export default function EditCampaignPage() {
                             </LocalizationProvider>
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <Controller
                                 name="budget"
                                 control={control}
@@ -239,7 +264,11 @@ export default function EditCampaignPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} sm={6}>
+                        <Grid
+                            size={{
+                                xs: 12,
+                                sm: 6
+                            }}>
                             <Controller
                                 name="currency"
                                 control={control}
@@ -256,7 +285,7 @@ export default function EditCampaignPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Controller
                                 name="status"
                                 control={control}
@@ -279,7 +308,7 @@ export default function EditCampaignPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Box display="flex" gap={2} justifyContent="flex-end">
                                 <Button
                                     variant="outlined"

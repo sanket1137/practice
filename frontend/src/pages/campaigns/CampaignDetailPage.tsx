@@ -20,17 +20,21 @@ import {
     LinearProgress,
     Divider,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
     Add as AddIcon,
     Image as CreativeIcon,
     Visibility as ViewIcon,
+    Assessment as ReportIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
+import LivePreviewWidget from '../../components/common/LivePreviewWidget';
+import CampaignScreenStats from '../../components/campaigns/CampaignScreenStats';
 
 interface Campaign {
     id: string;
@@ -51,6 +55,9 @@ interface Creative {
     fileUrl: string;
     durationSeconds: number;
     status: string;
+    mimeType?: string;
+    duration?: number;
+    fileSize?: number;
 }
 
 interface Booking {
@@ -63,6 +70,9 @@ interface Booking {
     createdAt?: string;
     totalPrice: number;
     currency: string;
+    playsToday?: number;
+    isLive?: boolean;
+    lastPlayed?: string;
 }
 
 export default function CampaignDetailPage() {
@@ -114,7 +124,7 @@ export default function CampaignDetailPage() {
         },
     });
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): ChipProps['color'] => {
         switch (status) {
             case 'Active':
                 return 'success';
@@ -152,13 +162,20 @@ export default function CampaignDetailPage() {
                         {campaign.name}
                     </Typography>
                     <Box display="flex" gap={1} alignItems="center">
-                        <Chip label={campaign.status} color={getStatusColor(campaign.status) as any} />
+                        <Chip label={campaign.status} color={getStatusColor(campaign.status)} />
                         <Typography variant="body2" color="textSecondary">
                             Created on {new Date(campaign.createdAt).toLocaleDateString()}
                         </Typography>
                     </Box>
                 </Box>
                 <Box display="flex" gap={1}>
+                    <Button
+                        variant="contained"
+                        startIcon={<ReportIcon />}
+                        onClick={() => navigate(`/reports/campaigns/${id}`)}
+                    >
+                        View Report
+                    </Button>
                     <Button
                         variant="outlined"
                         startIcon={<EditIcon />}
@@ -177,10 +194,13 @@ export default function CampaignDetailPage() {
                     </Button>
                 </Box>
             </Box>
-
             {/* Campaign Info */}
             <Grid container spacing={3} mb={3}>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography color="textSecondary" gutterBottom>
@@ -192,7 +212,11 @@ export default function CampaignDetailPage() {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography color="textSecondary" gutterBottom>
@@ -204,7 +228,11 @@ export default function CampaignDetailPage() {
                         </CardContent>
                     </Card>
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 4
+                    }}>
                     <Card>
                         <CardContent>
                             <Typography color="textSecondary" gutterBottom>
@@ -217,7 +245,6 @@ export default function CampaignDetailPage() {
                     </Card>
                 </Grid>
             </Grid>
-
             {/* Description */}
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -225,12 +252,12 @@ export default function CampaignDetailPage() {
                 </Typography>
                 <Typography color="textSecondary">{campaign.description}</Typography>
             </Paper>
-
             {/* Tabs */}
             <Paper sx={{ mb: 3 }}>
                 <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
                     <Tab label="Creatives" />
                     <Tab label="Bookings" />
+                    <Tab label="Live Activity" />
                 </Tabs>
                 <Divider />
 
@@ -252,7 +279,13 @@ export default function CampaignDetailPage() {
                         ) : creatives && creatives.length > 0 ? (
                             <Grid container spacing={2}>
                                 {creatives.map((creative) => (
-                                    <Grid item xs={12} sm={6} md={4} key={creative.id}>
+                                    <Grid
+                                        key={creative.id}
+                                        size={{
+                                            xs: 12,
+                                            sm: 6,
+                                            md: 4
+                                        }}>
                                         <Card>
                                             <Box
                                                 sx={{
@@ -295,9 +328,11 @@ export default function CampaignDetailPage() {
                                                 <Typography variant="body2" color="textSecondary">
                                                     {creative.mimeType} • {creative.duration}s
                                                 </Typography>
-                                                <Typography variant="caption" color="textSecondary" display="block">
-                                                    {(creative.fileSize / 1024 / 1024).toFixed(2)} MB
-                                                </Typography>
+                                                {creative.fileSize && (
+                                                    <Typography variant="caption" color="textSecondary" display="block">
+                                                        {(creative.fileSize / 1024 / 1024).toFixed(2)} MB
+                                                    </Typography>
+                                                )}
                                             </CardContent>
                                         </Card>
                                     </Grid>
@@ -344,8 +379,9 @@ export default function CampaignDetailPage() {
                                             <TableCell>Screen</TableCell>
                                             <TableCell>Creative</TableCell>
                                             <TableCell>Status</TableCell>
+                                            <TableCell>Plays Today</TableCell>
                                             <TableCell>Period</TableCell>
-                                            <TableCell>Created</TableCell>
+                                            <TableCell>Last Played</TableCell>
                                             <TableCell>Price</TableCell>
                                             <TableCell align="right">Actions</TableCell>
                                         </TableRow>
@@ -368,11 +404,24 @@ export default function CampaignDetailPage() {
                                                     />
                                                 </TableCell>
                                                 <TableCell>
+                                                    <Box display="flex" alignItems="center" gap={0.5}>
+                                                        <Typography variant="body2" fontWeight="bold" color="primary">
+                                                            {booking.playsToday || 0}
+                                                        </Typography>
+                                                        {booking.isLive && (
+                                                            <Chip label="LIVE" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell>
                                                     {new Date(booking.startDate).toLocaleDateString()} -{' '}
                                                     {new Date(booking.endDate).toLocaleDateString()}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {new Date(booking.createdAt || booking.startDate).toLocaleDateString()}
+                                                    {booking.lastPlayed
+                                                        ? new Date(booking.lastPlayed).toLocaleTimeString()
+                                                        : '-'
+                                                    }
                                                 </TableCell>
                                                 <TableCell>
                                                     {booking.currency} {booking.totalPrice.toLocaleString()}
@@ -406,6 +455,26 @@ export default function CampaignDetailPage() {
                                 </Button>
                             </Box>
                         )}
+                    </Box>
+                )}
+
+                {/* Live Activity Tab */}
+                {tabValue === 2 && (
+                    <Box p={3}>
+                        <Typography variant="h6" gutterBottom>
+                            Real-Time Campaign Activity
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Monitor live playback of your campaign across all booked screens
+                        </Typography>
+
+                        {/* Screen-level breakdown */}
+                        <CampaignScreenStats campaignId={id!} />
+
+                        {/* Original live preview widget */}
+                        <Box mt={3}>
+                            <LivePreviewWidget campaignId={id!} mode="campaign" />
+                        </Box>
                     </Box>
                 )}
             </Paper>

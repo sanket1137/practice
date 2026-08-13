@@ -1,0 +1,69 @@
+﻿{
+  "nav": {
+    "dashboard": "ڈیش بورڈ",
+    "screens": "اسکرینیں",
+    "campaigns": "مہمات",
+    "bookings": "بکنگز",
+    "analytics": "تجزیات",
+    "wallet": "بٹوہ",
+    "payouts": "ادائیگیاں",
+    "notifications": "اطلاعات",
+    "settings": "ترتیبات",
+    "admin": "ایڈمن"
+  },
+  "common": {
+    "loading": "لوڈ ہو رہا ہے...",
+    "error": "کچھ غلط ہو گیا",
+    "retry": "دوبارہ کوشش کریں",
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "delete": "حذف کریں",
+    "edit": "ترمیم کریں",
+    "view": "دیکھیں",
+    "confirm": "تصدیق کریں",
+    "back": "واپس",
+    "next": "اگلا",
+    "submit": "جمع کریں",
+    "search": "تلاش کریں",
+    "filter": "فلٹر",
+    "clear": "صاف کریں",
+    "noData": "کوئی ڈیٹا نہیں ملا",
+    "active": "فعال",
+    "inactive": "غیر فعال",
+    "pending": "زیر التواء",
+    "approved": "منظور شدہ",
+    "rejected": "مسترد",
+    "cancelled": "منسوخ"
+  },
+  "currency": {
+    "symbol": "₹",
+    "locale": "ur-PK"
+  },
+  "analytics": {
+    "title": "تجزیات",
+    "impressions": "امپریشنز",
+    "fullPlays": "مکمل پلے",
+    "playRate": "پلے کی شرح",
+    "today": "آج",
+    "last7Days": "پچھلے 7 دن",
+    "last30Days": "پچھلے 30 دن",
+    "last90Days": "پچھلے 90 دن",
+    "thisYear": "اس سال",
+    "allTime": "ہر وقت"
+  },
+  "screens": {
+    "title": "اسکرینیں",
+    "addScreen": "اسکرین شامل کریں",
+    "screenName": "اسکرین کا نام",
+    "location": "مقام",
+    "status": "حالت"
+  },
+  "bookings": {
+    "title": "بکنگز",
+    "newBooking": "نئی بکنگ",
+    "startDate": "شروع کی تاریخ",
+    "endDate": "ختم کی تاریخ",
+    "status": "حالت",
+    "amount": "رقم"
+  }
+}

@@ -9,18 +9,17 @@ import {
     Card,
     CardMedia,
     CardContent,
-    Button,
     Grid,
     Chip,
 } from '@mui/material';
 import {
     CloudUpload as UploadIcon,
     Delete as DeleteIcon,
-    PlayArrow as PlayIcon,
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
-import { api } from '../../services/api';
+import { isAxiosError } from 'axios';
+import { api } from '../services/api';
 
 interface CreativeUploadProps {
     campaignId: string;
@@ -50,7 +49,7 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
-                onUploadProgress: (progressEvent) => {
+                onUploadProgress: (progressEvent: { loaded: number; total?: number }) => {
                     const progress = progressEvent.total
                         ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
                         : 0;
@@ -75,9 +74,12 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
             enqueueSnackbar('Creative uploaded successfully', { variant: 'success' });
             onUploadComplete?.();
         },
-        onError: (error: any, file) => {
+        onError: (error: unknown, file) => {
+            const message = isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to upload creative',
+                message || 'Failed to upload creative',
                 { variant: 'error' }
             );
             setFiles((prev) => prev.filter((f) => f.file !== file));
@@ -154,7 +156,6 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
                     Supported formats: MP4, MOV, AVI, MKV, PNG, JPG, JPEG, GIF (Max 100MB)
                 </Typography>
             </Paper>
-
             {/* Uploaded Files */}
             {files.length > 0 && (
                 <Box mt={3}>
@@ -163,7 +164,13 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
                     </Typography>
                     <Grid container spacing={2}>
                         {files.map((uploadedFile, index) => (
-                            <Grid item xs={12} sm={6} md={4} key={index}>
+                            <Grid
+                                key={index}
+                                size={{
+                                    xs: 12,
+                                    sm: 6,
+                                    md: 4
+                                }}>
                                 <Card>
                                     <Box sx={{ position: 'relative' }}>
                                         {isVideo(uploadedFile.file) ? (
