@@ -32,6 +32,7 @@ import {
     Timer as TimerIcon,
     Tv as ScreenIcon,
 } from '@mui/icons-material';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 
 interface ScreenSummary {
@@ -92,8 +93,9 @@ export default function CampaignReportPage() {
             } else {
                 setError(response.data.message || 'Failed to load report');
             }
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to load report');
+        } catch (err: unknown) {
+            const message = isAxiosError(err) ? (err.response?.data as { message?: string } | undefined)?.message : undefined;
+            setError(message || 'Failed to load report');
         } finally {
             setLoading(false);
         }

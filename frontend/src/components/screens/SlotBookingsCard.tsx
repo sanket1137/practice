@@ -58,7 +58,7 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
         enabled: !!screenId,
     });
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): 'success' | 'warning' | 'error' | 'default' => {
         switch (status) {
             case 'Approved':
                 return 'success';
@@ -235,7 +235,7 @@ const SlotBookingsCard: React.FC<SlotBookingsCardProps> = ({ screenId }) => {
                                         <TableCell>
                                             <Chip
                                                 label={booking.status}
-                                                color={getStatusColor(booking.status) as any}
+                                                color={getStatusColor(booking.status)}
                                                 size="small"
                                             />
                                         </TableCell>

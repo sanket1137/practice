@@ -13,13 +13,25 @@ interface CurrentCreative {
     timestamp: Date;
 }
 
+interface AdStartedEvent {
+    ScreenId: string;
+    CreativeId: string;
+    CreativeName?: string;
+    ThumbnailUrl?: string;
+}
+
+interface ScreenStatusChangedEvent {
+    screenId: string;
+    status: string;
+}
+
 export function LivePreviewWidget({ screenId, screenName }: LivePreviewWidgetProps) {
     const [currentCreative, setCurrentCreative] = useState<CurrentCreative | null>(null);
     const [isOnline, setIsOnline] = useState(false);
 
     useEffect(() => {
         // Subscribe to AdStarted events for this specific screen
-        const handleAdStarted = (data: any) => {
+        const handleAdStarted = (data: AdStartedEvent) => {
             if (data.ScreenId === screenId) {
                 setCurrentCreative({
                     creativeId: data.CreativeId,
@@ -32,7 +44,7 @@ export function LivePreviewWidget({ screenId, screenName }: LivePreviewWidgetPro
         };
 
         // Subscribe to screen status events
-        const handleScreenStatus = (data: any) => {
+        const handleScreenStatus = (data: ScreenStatusChangedEvent) => {
             if (data.screenId === screenId) {
                 setIsOnline(data.status === 'online');
             }

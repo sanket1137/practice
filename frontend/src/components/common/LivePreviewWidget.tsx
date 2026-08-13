@@ -53,6 +53,12 @@ interface Stats {
     lastUpdated: string;
 }
 
+interface ImpressionUpdateEvent {
+    screenId?: string;
+    campaignId?: string;
+    playCount: number;
+}
+
 export default function LivePreviewWidget({ screenId, campaignId, mode, isScreenOnline }: LivePreviewWidgetProps) {
     const [nowPlaying, setNowPlaying] = useState<PlayEvent | null>(null);
     const [realtimeCount, setRealtimeCount] = useState(0);
@@ -140,7 +146,7 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
             }
         };
 
-        const handleImpressionUpdate = (eventData: any) => {
+        const handleImpressionUpdate = (eventData: ImpressionUpdateEvent) => {
             if (!isSubscribed) return;
 
             if (mode === 'screen' && eventData.screenId === screenId) {
@@ -296,8 +302,8 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
                                         height: '100%',
                                         objectFit: 'cover'
                                     }}
-                                    onError={(e: any) => {
-                                        e.target.style.display = 'none';
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                        e.currentTarget.style.display = 'none';
                                     }}
                                 />
                                 {/* Live indicator overlay */}

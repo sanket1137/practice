@@ -14,12 +14,12 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { useAuthStore } from '../../store/authStore';
 
 // Auto-login response type
 interface CompleteVerificationResponse {
     accessToken: string;
-    refreshToken: string;
     user: {
         id: string;
         email: string;
@@ -43,8 +43,14 @@ export default function VerifyEmailPage() {
     const { enqueueSnackbar } = useSnackbar();
     const setAuth = useAuthStore((state) => state.setAuth);
     const token = searchParams.get('token');
-    const [status, setStatus] = useState<'verifying' | 'success' | 'error' | 'auto-login' | 'phone-pending'>('verifying');
-    const [message, setMessage] = useState('');
+    // Lazy-initialize from `token` instead of using an effect to react to its
+    // absence — this is the initial render state, not a synchronized side effect.
+    const [status, setStatus] = useState<'verifying' | 'success' | 'error' | 'auto-login' | 'phone-pending'>(
+        () => (token ? 'verifying' : 'error')
+    );
+    const [message, setMessage] = useState(() =>
+        token ? '' : 'Invalid verification link. No token provided.'
+    );
     const [email, setEmail] = useState('');
 
     const verifyMutation = useMutation({
@@ -66,11 +72,11 @@ export default function VerifyEmailPage() {
                         '/auth/complete-verification',
                         { email: data.email }
                     );
-                    const { user, accessToken, refreshToken } = loginResponse.data.data;
-                    setAuth(user, accessToken, refreshToken);
+                    const { user, accessToken } = loginResponse.data.data;
+                    setAuth(user, accessToken);
                     enqueueSnackbar('Welcome! You are now logged in.', { variant: 'success' });
                     navigate('/dashboard');
-                } catch (error) {
+                } catch {
                     // Auto-login failed, show success with login button
                     setStatus('success');
                     setMessage('Email verified successfully! Please log in to continue.');
@@ -84,18 +90,18 @@ export default function VerifyEmailPage() {
                 setMessage(data.message || 'Email verified successfully!');
             }
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const apiMessage = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             setStatus('error');
-            setMessage(error.response?.data?.message || 'Email verification failed');
+            setMessage(apiMessage || 'Email verification failed');
         },
     });
 
     useEffect(() => {
         if (token) {
             verifyMutation.mutate(token);
-        } else {
-            setStatus('error');
-            setMessage('Invalid verification link. No token provided.');
         }
     }, [token]);
 

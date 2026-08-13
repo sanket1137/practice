@@ -34,7 +34,16 @@ import {
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import { isAxiosError } from 'axios';
 import mediaApi, { type MediaCreative } from '../../services/mediaApi';
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (isAxiosError(err)) {
+    const message = (err.response?.data as { message?: string } | undefined)?.message;
+    if (message) return message;
+  }
+  return fallback;
+}
 
 const STATUS_COLOR: Record<MediaCreative['status'], 'warning' | 'success' | 'error'> = {
   PendingReview: 'warning',
@@ -94,8 +103,8 @@ export default function MediaLibraryPage() {
       enqueueSnackbar('Updated', { variant: 'success' });
       setEditing(null);
     },
-    onError: (err: any) =>
-      enqueueSnackbar(err?.response?.data?.message ?? 'Update failed', { variant: 'error' }),
+    onError: (err: unknown) =>
+      enqueueSnackbar(getErrorMessage(err, 'Update failed'), { variant: 'error' }),
   });
 
   const deleteMutation = useMutation({
@@ -105,8 +114,8 @@ export default function MediaLibraryPage() {
       enqueueSnackbar('Deleted', { variant: 'success' });
       setConfirmDelete(null);
     },
-    onError: (err: any) =>
-      enqueueSnackbar(err?.response?.data?.message ?? 'Delete failed', { variant: 'error' }),
+    onError: (err: unknown) =>
+      enqueueSnackbar(getErrorMessage(err, 'Delete failed'), { variant: 'error' }),
   });
 
   return (
@@ -424,8 +433,8 @@ function UploadDialog({ open, onClose, onUploaded }: UploadDialogProps) {
       setProgress(0);
       onUploaded();
     },
-    onError: (err: any) =>
-      enqueueSnackbar(err?.response?.data?.message ?? 'Upload failed', { variant: 'error' }),
+    onError: (err: unknown) =>
+      enqueueSnackbar(getErrorMessage(err, 'Upload failed'), { variant: 'error' }),
   });
 
   const isVideo = file?.type.startsWith('video/');

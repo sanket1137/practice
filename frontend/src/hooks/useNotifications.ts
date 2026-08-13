@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as signalR from '@microsoft/signalr';
 import { useAuthStore } from '../store/authStore';
 import { getUnreadCount, getNotifications, markAsRead, markAllAsRead } from '../services/notificationApi';
-import type { Notification, NotificationsResponse } from '../types/notification';
+import type { NotificationsResponse } from '../types/notification';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 const BASE_URL = API_URL.replace(/\/api(\/v\d+)?/, '');
@@ -42,7 +42,7 @@ export function useNotifications() {
             .configureLogging(signalR.LogLevel.Warning)
             .build();
 
-        connection.on('NotificationReceived', (_notification: Notification) => {
+        connection.on('NotificationReceived', () => {
             // Invalidate queries to refresh UI
             queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] });
             queryClient.invalidateQueries({ queryKey: ['notifications-recent'] });

@@ -943,6 +943,7 @@ export default function BookingsPage() {
                             onChange={(e) => setNewStartDate(e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             inputProps={{
+                                // eslint-disable-next-line react-hooks/purity -- intentional: "tomorrow" as the min selectable date
                                 min: new Date(Date.now() + 86400000).toISOString().split('T')[0],
                             }}
                         />
@@ -954,6 +955,7 @@ export default function BookingsPage() {
                             onChange={(e) => setNewEndDate(e.target.value)}
                             InputLabelProps={{ shrink: true }}
                             inputProps={{
+                                // eslint-disable-next-line react-hooks/purity -- intentional: "tomorrow" as the fallback min selectable date
                                 min: newStartDate || new Date(Date.now() + 86400000).toISOString().split('T')[0],
                             }}
                         />

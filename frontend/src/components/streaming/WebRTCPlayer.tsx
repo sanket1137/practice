@@ -20,6 +20,7 @@ import {
     SignalWifiOff,
 } from '@mui/icons-material';
 import * as signalR from '@microsoft/signalr';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 
@@ -161,8 +162,9 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                 if (validUntil) {
                     logIST('[WebRTC]', 'Access valid until:', validUntil);
                 }
-            } catch (accessError: any) {
-                const errorMessage = accessError.response?.data?.message || 'Failed to verify streaming access';
+            } catch (accessError: unknown) {
+                const errorMessage = (isAxiosError<{ message?: string }>(accessError) ? accessError.response?.data?.message : undefined)
+                    || 'Failed to verify streaming access';
                 setError(errorMessage);
                 setStatus('error');
                 logErrorIST('[WebRTC]', 'Access check failed:', accessError);
@@ -376,7 +378,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                     logIST('[WebRTC]', 'Stream became available, auto-requesting...');
                     setError(null);
                     setStatus('connecting');
-                    streamingHubRef.current?.invoke('RequestStream', screenId).catch((err: any) => {
+                    streamingHubRef.current?.invoke('RequestStream', screenId).catch((err: unknown) => {
                         logErrorIST('[WebRTC]', 'Auto-retry RequestStream failed:', err);
                     });
                 }

@@ -4,19 +4,32 @@
 services:
   # SQL Server Database
   db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04
     container_name: ccms-db-dev
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=DevPassword123!
+      # Dev-only credential — this container never leaves localhost (see loopback
+      # port binding below) and never runs in production.
+      - MSSQL_SA_PASSWORD=${DEV_MSSQL_SA_PASSWORD:-DevPassword123!}
       - MSSQL_PID=Express
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqlserver-data-dev:/var/opt/mssql
     networks:
       - ccms-network-dev
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
 
   # Backend API (Development mode)
   backend:
@@ -26,8 +39,8 @@ services:
     container_name: ccms-backend-dev
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=db;Database=CCMSDb;User Id=SA;Password=DevPassword123!;TrustServerCertificate=true
-      - Jwt__SecretKey=dev-secret-key-minimum-32-characters-long-for-testing
+      - ConnectionStrings__DefaultConnection=Server=db;Database=CCMSDb;User Id=SA;Password=${DEV_MSSQL_SA_PASSWORD:-DevPassword123!};TrustServerCertificate=true
+      - Jwt__SecretKey=${DEV_JWT_SECRET_KEY:-dev-secret-key-minimum-32-characters-long-for-testing}
       - Jwt__Issuer=PixelCCMS
       - Jwt__Audience=PixelCCMSUsers
       - Cors__AllowedOrigins__0=http://localhost:5173
@@ -36,14 +49,21 @@ services:
       - FileStorage__LocalPath=/app/uploads
       - FileStorage__BaseUrl=http://localhost:5000/uploads
     ports:
-      - "5000:8080"
+      - "127.0.0.1:5000:8080"
     volumes:
       - uploads-data-dev:/app/uploads
     networks:
       - ccms-network-dev
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   sqlserver-data-dev:

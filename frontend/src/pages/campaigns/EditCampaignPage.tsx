@@ -19,6 +19,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { api } from '../../services/api';
 
 const campaignSchema = z.object({
@@ -95,9 +96,12 @@ export default function EditCampaignPage() {
             enqueueSnackbar('Campaign updated successfully', { variant: 'success' });
             navigate(`/campaigns/${id}`);
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to update campaign',
+                message || 'Failed to update campaign',
                 { variant: 'error' }
             );
         },

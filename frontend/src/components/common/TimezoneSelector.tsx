@@ -1,5 +1,6 @@
 import { Autocomplete, TextField, Box, Typography } from '@mui/material';
 import { useMemo } from 'react';
+import { getBrowserTimezone } from '../../utils/timezone';
 
 // Common timezones with their display names and UTC offsets
 const COMMON_TIMEZONES = [
@@ -71,17 +72,6 @@ interface TimezoneSelectorProps {
     error?: boolean;
     fullWidth?: boolean;
     disabled?: boolean;
-}
-
-/**
- * Get the browser's current timezone
- */
-export function getBrowserTimezone(): string {
-    try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-        return 'UTC';
-    }
 }
 
 /**

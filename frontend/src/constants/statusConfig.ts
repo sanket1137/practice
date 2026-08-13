@@ -8,6 +8,7 @@ import {
     DoNotDisturbOn as CancelledIcon,
     Payment as PaymentPendingIcon,
 } from '@mui/icons-material';
+import type { SvgIconComponent } from '@mui/icons-material';
 
 export type BookingStatus = 'Pending' | 'Approved' | 'Active' | 'Completed' | 'Rejected' | 'Draft' | 'Cancelled' | 'PaymentPending';
 export type CampaignStatus = 'Draft' | 'Active' | 'Paused' | 'Completed';
@@ -15,7 +16,7 @@ export type CampaignStatus = 'Draft' | 'Active' | 'Paused' | 'Completed';
 export interface StatusConfig {
     label: string;
     color: 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'info' | 'success';
-    icon: any;
+    icon: SvgIconComponent;
     description: string;
 }
 

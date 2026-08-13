@@ -18,6 +18,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { api } from '../../services/api';
 
 const registerSchema = z.object({
@@ -104,17 +105,20 @@ export default function RegisterPage({ mode = 'public' }: RegisterPageProps) {
                 navigate('/login');
             }
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Registration failed',
+                message || 'Registration failed',
                 { variant: 'error' }
             );
         },
     });
 
     const onSubmit = (data: RegisterFormData) => {
-        const { confirmPassword, ...registerData } = data;
-        registerMutation.mutate(registerData);
+        const { email, password, firstName, lastName, phoneNumber, role, accountType } = data;
+        registerMutation.mutate({ email, password, firstName, lastName, phoneNumber, role, accountType });
     };
 
     return (

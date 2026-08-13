@@ -5,8 +5,10 @@ import {
     CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions,
     TextField, Alert, Tabs, Tab,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import { isAxiosError } from 'axios';
 import {
     getPendingPayouts, processPayout, failPayout,
     releaseFinalPayout, getDeliverySummary, getAdminPayoutHistory,
@@ -24,6 +26,14 @@ function getBrowserFingerprint(): string {
         nav.hardwareConcurrency,
     ].join('|');
     return raw;
+}
+
+function getErrorMessage(err: unknown, fallback: string): string {
+    if (isAxiosError(err)) {
+        const message = (err.response?.data as { message?: string } | undefined)?.message;
+        if (message) return message;
+    }
+    return fallback;
 }
 
 export default function AdminPayoutsPage() {
@@ -60,8 +70,8 @@ export default function AdminPayoutsPage() {
             setProcessDialogOpen(false);
             enqueueSnackbar('Payout processed successfully', { variant: 'success' });
         },
-        onError: (err: any) => {
-            enqueueSnackbar(err?.response?.data?.message || 'Failed to process payout', { variant: 'error' });
+        onError: (err: unknown) => {
+            enqueueSnackbar(getErrorMessage(err, 'Failed to process payout'), { variant: 'error' });
         },
     });
 
@@ -74,8 +84,8 @@ export default function AdminPayoutsPage() {
             setFailReason('');
             enqueueSnackbar('Payout marked as failed', { variant: 'info' });
         },
-        onError: (err: any) => {
-            enqueueSnackbar(err?.response?.data?.message || 'Failed to update payout', { variant: 'error' });
+        onError: (err: unknown) => {
+            enqueueSnackbar(getErrorMessage(err, 'Failed to update payout'), { variant: 'error' });
         },
     });
 
@@ -89,8 +99,8 @@ export default function AdminPayoutsPage() {
             setAdminNotes('');
             enqueueSnackbar('Final payout released', { variant: 'success' });
         },
-        onError: (err: any) => {
-            enqueueSnackbar(err?.response?.data?.message || 'Failed to release final payout', { variant: 'error' });
+        onError: (err: unknown) => {
+            enqueueSnackbar(getErrorMessage(err, 'Failed to release final payout'), { variant: 'error' });
         },
     });
 
@@ -104,7 +114,7 @@ export default function AdminPayoutsPage() {
         }
     };
 
-    const statusColor = (status: string) => {
+    const statusColor = (status: string): ChipProps['color'] => {
         switch (status) {
             case 'Pending': return 'warning';
             case 'Completed': return 'success';
@@ -256,7 +266,7 @@ export default function AdminPayoutsPage() {
                                         <TableCell align="right">{p.commissionPercentage}%</TableCell>
                                         <TableCell align="right">{p.currency} {p.netAmount.toFixed(2)}</TableCell>
                                         <TableCell>
-                                            <Chip label={p.status} size="small" color={statusColor(p.status) as any} />
+                                            <Chip label={p.status} size="small" color={statusColor(p.status)} />
                                         </TableCell>
                                         <TableCell>{new Date(p.createdAt).toLocaleDateString()}</TableCell>
                                         <TableCell>{p.processedAt ? new Date(p.processedAt).toLocaleDateString() : '—'}</TableCell>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
     Box,
     Typography,
@@ -37,9 +37,14 @@ import {
     DeleteOutline as RevokeIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
 import { useAuthStore } from '../../store/authStore';
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+    return (isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined) || fallback;
+}
 
 interface DeviceBindingStatus {
     screenId: string;
@@ -121,9 +126,9 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
             queryClient.invalidateQueries({ queryKey: ['device-binding', screenId] });
             queryClient.invalidateQueries({ queryKey: ['device-history', screenId] });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to request device override',
+                getApiErrorMessage(error, 'Failed to request device override'),
                 { variant: 'error' }
             );
         },
@@ -140,9 +145,9 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
             queryClient.invalidateQueries({ queryKey: ['device-binding', screenId] });
             queryClient.invalidateQueries({ queryKey: ['device-history', screenId] });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to clear device binding',
+                getApiErrorMessage(error, 'Failed to clear device binding'),
                 { variant: 'error' }
             );
         },
@@ -160,9 +165,9 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
             enqueueSnackbar('API key generated successfully', { variant: 'success' });
             queryClient.invalidateQueries({ queryKey: ['screen', screenId] });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to generate API key',
+                getApiErrorMessage(error, 'Failed to generate API key'),
                 { variant: 'error' }
             );
         },
@@ -179,9 +184,9 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
             enqueueSnackbar('API key revoked', { variant: 'success' });
             queryClient.invalidateQueries({ queryKey: ['screen', screenId] });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to revoke API key',
+                getApiErrorMessage(error, 'Failed to revoke API key'),
                 { variant: 'error' }
             );
         },
@@ -205,7 +210,7 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
         return new Date(dateStr).toLocaleString();
     };
 
-    const getActionColor = (action: string) => {
+    const getActionColor = (action: string): 'success' | 'warning' | 'info' | 'error' | 'default' => {
         switch (action) {
             case 'First_Binding': return 'success';
             case 'Override_Requested': return 'warning';
@@ -215,13 +220,13 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
         }
     };
 
-    const getRemainingTime = () => {
+    const remainingOverrideMinutes = useMemo(() => {
         if (!bindingStatus?.pendingOverrideExpiresAt) return null;
         const expires = new Date(bindingStatus.pendingOverrideExpiresAt).getTime();
+        // eslint-disable-next-line react-hooks/purity -- intentional: reads wall-clock time for a "minutes remaining" countdown
         const now = Date.now();
-        const remaining = Math.max(0, Math.floor((expires - now) / 60000));
-        return remaining;
-    };
+        return Math.max(0, Math.floor((expires - now) / 60000));
+    }, [bindingStatus?.pendingOverrideExpiresAt]);
 
     if (statusLoading) {
         return (
@@ -391,7 +396,7 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
                     {bindingStatus?.hasPendingOverride && (
                         <Alert severity="warning" icon={<PendingIcon />}>
                             Override window is active! A new device can connect within{' '}
-                            <strong>{getRemainingTime()} minutes</strong>.
+                            <strong>{remainingOverrideMinutes} minutes</strong>.
                             {bindingStatus.pendingOverrideExpiresAt && (
                                 <> Expires at {formatDate(bindingStatus.pendingOverrideExpiresAt)}.</>
                             )}
@@ -476,7 +481,7 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
                                             <Chip
                                                 label={entry.action.replace(/_/g, ' ')}
                                                 size="small"
-                                                color={getActionColor(entry.action) as any}
+                                                color={getActionColor(entry.action)}
                                                 variant="outlined"
                                             />
                                         </TableCell>

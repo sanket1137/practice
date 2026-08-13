@@ -19,8 +19,13 @@ namespace CCMS.Api.Controllers;
 public class CampaignsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly ILogger<CampaignsController> _logger;
 
-    public CampaignsController(IMediator mediator) => _mediator = mediator;
+    public CampaignsController(IMediator mediator, ILogger<CampaignsController> logger)
+    {
+        _mediator = mediator;
+        _logger = logger;
+    }
 
     // GET /api/campaigns
     [HttpGet]
@@ -35,8 +40,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving campaigns");
             return StatusCode(500,
-                ApiResponse<IEnumerable<CampaignDto>>.ErrorResponse($"Error retrieving campaigns: {ex.Message}"));
+                ApiResponse<IEnumerable<CampaignDto>>.ErrorResponse("Failed to retrieve campaigns."));
         }
     }
 
@@ -76,8 +82,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving paged campaigns");
             return StatusCode(500,
-                ApiResponse<PagedResult<CampaignDto>>.ErrorResponse($"Error retrieving campaigns: {ex.Message}"));
+                ApiResponse<PagedResult<CampaignDto>>.ErrorResponse("Failed to retrieve campaigns."));
         }
     }
 
@@ -96,8 +103,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error creating campaign");
             return StatusCode(500,
-                ApiResponse<CampaignDto>.ErrorResponse($"Error creating campaign: {ex.Message}"));
+                ApiResponse<CampaignDto>.ErrorResponse("Failed to create campaign."));
         }
     }
 
@@ -117,8 +125,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<CampaignDto>.ErrorResponse($"Error retrieving campaign: {ex.Message}"));
+                ApiResponse<CampaignDto>.ErrorResponse("Failed to retrieve campaign."));
         }
     }
 
@@ -151,8 +160,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error updating campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<CampaignDto>.ErrorResponse($"Error updating campaign: {ex.Message}"));
+                ApiResponse<CampaignDto>.ErrorResponse("Failed to update campaign."));
         }
     }
 
@@ -184,8 +194,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error deleting campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<object>.ErrorResponse($"Error deleting campaign: {ex.Message}"));
+                ApiResponse<object>.ErrorResponse("Failed to delete campaign."));
         }
     }
 
@@ -204,8 +215,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving bookings for campaign {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse($"Error retrieving campaign bookings: {ex.Message}"));
+                ApiResponse<IEnumerable<BookingDto>>.ErrorResponse("Failed to retrieve campaign bookings."));
         }
     }
 
@@ -221,8 +233,9 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving campaign screen stats for {CampaignId}", id);
             return StatusCode(500,
-                ApiResponse<CampaignScreensStatsDto>.ErrorResponse($"Error retrieving campaign screen stats: {ex.Message}"));
+                ApiResponse<CampaignScreensStatsDto>.ErrorResponse("Failed to retrieve campaign screen stats."));
         }
     }
 
@@ -253,7 +266,8 @@ public class CampaignsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<CampaignWizardResult>.ErrorResponse($"Error creating campaign: {ex.Message}"));
+            _logger.LogError(ex, "Error creating campaign via wizard");
+            return StatusCode(500, ApiResponse<CampaignWizardResult>.ErrorResponse("Failed to create campaign."));
         }
     }
 }

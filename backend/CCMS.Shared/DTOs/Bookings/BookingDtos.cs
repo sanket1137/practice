@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CCMS.Shared.DTOs.Bookings;
 
 public class BookingDto
@@ -62,10 +64,21 @@ public class BookingDateBreakdown
 
 public class CreateBookingRequest
 {
+    [Required]
     public Guid ScreenId { get; set; }
+
+    [Required]
     public Guid CampaignId { get; set; }
+
+    [Required]
     public Guid CreativeId { get; set; }
+
+    [Required]
+    [StringLength(10)]
     public string StartDate { get; set; } = string.Empty; // YYYY-MM-DD format (date-only, no timezone issues)
+
+    [Required]
+    [StringLength(10)]
     public string EndDate { get; set; } = string.Empty;   // YYYY-MM-DD format
     public int? SlotNumber { get; set; } // null = auto-assign, 1-6 = specific slot
 
@@ -79,22 +92,33 @@ public class CreateBookingRequest
 
 public class ApproveBookingRequest
 {
+    [Required]
     public Guid BookingId { get; set; }
 }
 
 public class RejectBookingRequest
 {
+    [Required]
     public Guid BookingId { get; set; }
+
+    [Required]
+    [StringLength(1000)]
     public string Reason { get; set; } = string.Empty;
 }
 
 public class CancelBookingRequest
 {
+    [StringLength(1000)]
     public string? Reason { get; set; }
 }
 
 public class UpdateBookingDatesRequest
 {
+    [Required]
+    [StringLength(10)]
     public string NewStartDate { get; set; } = string.Empty; // YYYY-MM-DD format
+
+    [Required]
+    [StringLength(10)]
     public string NewEndDate { get; set; } = string.Empty;   // YYYY-MM-DD format
 }

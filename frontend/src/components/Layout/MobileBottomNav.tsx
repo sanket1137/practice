@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import {
     BottomNavigation,
     BottomNavigationAction,
@@ -18,6 +18,7 @@ import {
 import { useUserRole } from '../../hooks/useUserRole';
 import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 import { getMobileNavigation } from '../../constants/roleRouteMatrix';
+import type { NavIconKey } from '../../constants/roleRouteMatrix';
 
 export default function MobileBottomNav() {
     const theme = useTheme();
@@ -26,9 +27,7 @@ export default function MobileBottomNav() {
     const { role } = useUserRole();
     const { isPrivate } = useAccountVisibility();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const [value, setValue] = useState(0);
-
-    const iconMap = {
+    const iconMap: Partial<Record<NavIconKey, ReactNode>> = {
         dashboard: <DashboardIcon />,
         campaigns: <CampaignIcon />,
         screens: <ScreenIcon />,
@@ -40,18 +39,13 @@ export default function MobileBottomNav() {
     const filteredItems = getMobileNavigation({ role, isPrivate }).map((item) => ({
         ...item,
         label: item.text,
-        icon: (iconMap as any)[item.iconKey] ?? <DashboardIcon />,
+        icon: iconMap[item.iconKey] ?? <DashboardIcon />,
     }));
 
-    // Update selected value based on current path
-    useEffect(() => {
-        const currentIndex = filteredItems.findIndex(item =>
-            location.pathname.startsWith(item.path)
-        );
-        if (currentIndex !== -1) {
-            setValue(currentIndex);
-        }
-    }, [location.pathname, filteredItems]);
+    // Selected tab is purely derived from the current path — compute it during
+    // render instead of syncing it into state via an effect.
+    const derivedIndex = filteredItems.findIndex(item => location.pathname.startsWith(item.path));
+    const value = derivedIndex !== -1 ? derivedIndex : 0;
 
     // Only show on mobile devices
     if (!isMobile) {
@@ -72,7 +66,6 @@ export default function MobileBottomNav() {
             <BottomNavigation
                 value={value}
                 onChange={(_event, newValue) => {
-                    setValue(newValue);
                     navigate(filteredItems[newValue].path);
                 }}
                 showLabels

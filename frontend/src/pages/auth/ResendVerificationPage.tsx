@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     Box,
@@ -13,6 +13,7 @@ import {
 import EmailIcon from '@mui/icons-material/Email';
 import { useMutation } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { api } from '../../services/api';
 
 interface LocationState {
@@ -30,7 +31,9 @@ export default function ResendVerificationPage() {
     
     const [email, setEmail] = useState(emailFromState);
     const [sent, setSent] = useState(false);
-    const [autoSent, setAutoSent] = useState(false);
+    // Not rendered — only guards against re-triggering the auto-send effect below,
+    // so a ref (not state) avoids an extra render-triggering setState in the effect.
+    const autoSentRef = useRef(false);
 
     const resendMutation = useMutation({
         mutationFn: async (emailAddress: string) => {
@@ -41,9 +44,12 @@ export default function ResendVerificationPage() {
             setSent(true);
             enqueueSnackbar('Verification email sent!', { variant: 'success' });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to send verification email',
+                message || 'Failed to send verification email',
                 { variant: 'error' }
             );
         },
@@ -51,11 +57,11 @@ export default function ResendVerificationPage() {
     
     // If email is provided via state, auto-send the verification email
     useEffect(() => {
-        if (emailFromState && !sent && !autoSent && !resendMutation.isPending) {
-            setAutoSent(true);
+        if (emailFromState && !sent && !autoSentRef.current && !resendMutation.isPending) {
+            autoSentRef.current = true;
             resendMutation.mutate(emailFromState);
         }
-    }, [emailFromState, sent, autoSent, resendMutation]);
+    }, [emailFromState, sent, resendMutation]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -128,7 +134,7 @@ export default function ResendVerificationPage() {
                                 variant="outlined"
                                 onClick={() => {
                                     setSent(false);
-                                    setAutoSent(false);
+                                    autoSentRef.current = false;
                                 }}
                                 sx={{ mr: 2 }}
                             >

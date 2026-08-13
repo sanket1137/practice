@@ -43,10 +43,12 @@ export default function EnhancedCampaignCard({ campaign, onClick }: CampaignCard
         (new Date(campaign.endDate).getTime() - new Date(campaign.startDate).getTime()) /
         (1000 * 60 * 60 * 24)
     );
+    // eslint-disable-next-line react-hooks/purity -- intentional: reads wall-clock time for a "time elapsed" progress bar
+    const nowMs = Date.now();
     const daysElapsed = Math.max(
         0,
         Math.ceil(
-            (Date.now() - new Date(campaign.startDate).getTime()) / (1000 * 60 * 60 * 24)
+            (nowMs - new Date(campaign.startDate).getTime()) / (1000 * 60 * 60 * 24)
         )
     );
     const timeProgress = Math.min(100, (daysElapsed / daysTotal) * 100);

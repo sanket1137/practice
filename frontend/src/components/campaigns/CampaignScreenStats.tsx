@@ -34,6 +34,13 @@ interface CampaignScreenStatsProps {
     campaignId: string;
 }
 
+interface CampaignScreenUpdateEvent {
+    CampaignId: string;
+    ScreenId: string;
+    PlayCount: number;
+    Timestamp: string;
+}
+
 export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsProps) {
     const [screens, setScreens] = useState<ScreenStats[]>([]);
     const [totalPlays, setTotalPlays] = useState(0);
@@ -64,7 +71,7 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
 
     // Subscribe to real-time updates
     useEffect(() => {
-        const handleScreenUpdate = (data: any) => {
+        const handleScreenUpdate = (data: CampaignScreenUpdateEvent) => {
             if (data.CampaignId !== campaignId) return;
 
             setScreens(prev => prev.map(screen =>

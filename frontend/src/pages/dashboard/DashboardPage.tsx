@@ -13,6 +13,7 @@ import {
     IconButton,
     Tooltip,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
     Campaign as CampaignIcon,
     Tv as ScreenIcon,
@@ -155,7 +156,7 @@ export default function DashboardPage() {
         }
     };
 
-    const getRoleColor = () => {
+    const getRoleColor = (): ChipProps['color'] => {
         switch (role) {
             case 'ScreenOwner': return 'primary';
             case 'Advertiser': return 'secondary';
@@ -274,7 +275,7 @@ export default function DashboardPage() {
                         <Typography variant="h4">
                             {ownerTitle}
                         </Typography>
-                        <Chip label={getRoleLabel()} color={getRoleColor() as any} size="small" />
+                        <Chip label={getRoleLabel()} color={getRoleColor()} size="small" />
                         <Chip
                             label={isPrivate ? 'Mode: Private' : 'Mode: Public'}
                             color={isPrivate ? 'warning' : 'success'}
@@ -409,7 +410,7 @@ export default function DashboardPage() {
                         <Typography variant="h4">
                             Advertiser Command Center
                         </Typography>
-                        <Chip label={getRoleLabel()} color={getRoleColor() as any} size="small" />
+                        <Chip label={getRoleLabel()} color={getRoleColor()} size="small" />
                     </Box>
                     <Typography variant="body1" color="textSecondary">
                         Create campaigns and track your advertising performance
@@ -640,7 +641,7 @@ export default function DashboardPage() {
                     <Typography variant="h4">
                         Platform Control Center
                     </Typography>
-                    <Chip label={getRoleLabel()} color={getRoleColor() as any} size="small" />
+                    <Chip label={getRoleLabel()} color={getRoleColor()} size="small" />
                 </Box>
                 <Typography variant="body1" color="textSecondary">
                     Platform overview and management

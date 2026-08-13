@@ -20,7 +20,8 @@ import { api } from '../../services/api';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
 import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
 import { useRevenueCalculation } from '../../hooks/useRevenueCalculation';
-import TimezoneSelector, { getBrowserTimezone } from '../../components/common/TimezoneSelector';
+import TimezoneSelector from '../../components/common/TimezoneSelector';
+import { getBrowserTimezone } from '../../utils/timezone';
 import { generateScreenTags } from '../../services/screenTagsService';
 
 export default function CreateScreenPage() {
@@ -76,7 +77,7 @@ export default function CreateScreenPage() {
     const isEvenDivision = adDurationSeconds === 0 || Number.isInteger(adDurationSeconds);
 
     const createScreenMutation = useMutation({
-        mutationFn: async (data: any) => {
+        mutationFn: async (data: typeof formData & { schedule: typeof schedule }) => {
             const response = await api.post('/screens', {
                 name: data.name,
                 description: data.description,

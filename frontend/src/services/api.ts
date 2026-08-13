@@ -4,11 +4,21 @@ import { useAuthStore } from '../store/authStore';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
+/** Error rejected by the response interceptor when the API returns 429. */
+export interface RateLimitError extends Error {
+    isRateLimit: true;
+    retryAfter: number;
+}
+
 const api = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
+    // Required so the browser sends the HttpOnly refresh-token cookie on
+    // auth requests (login/refresh/revoke); harmless no-op for every other
+    // same-origin request.
+    withCredentials: true,
 });
 
 // Rate limiting state
@@ -62,20 +72,23 @@ api.interceptors.request.use(
     (error: AxiosError) => Promise.reject(error)
 );
 
-// Refresh token deduplication — only one refresh in-flight at a time
-let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | null = null;
+// Refresh token deduplication — only one refresh in-flight at a time.
+// The refresh token itself is never handled here: it lives in an HttpOnly
+// cookie the browser attaches automatically (see `withCredentials` above).
+let refreshPromise: Promise<{ accessToken: string }> | null = null;
 
-const doRefresh = (): Promise<{ accessToken: string; refreshToken: string }> => {
+export const doRefresh = (): Promise<{ accessToken: string }> => {
     if (refreshPromise) return refreshPromise;
 
     refreshPromise = (async () => {
-        const refreshToken = useAuthStore.getState().refreshToken;
-        if (!refreshToken) throw new Error('No refresh token');
-
-        const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
-        useAuthStore.getState().setTokens(accessToken, newRefreshToken);
-        return { accessToken, refreshToken: newRefreshToken };
+        const response = await axios.post(
+            `${API_URL}/auth/refresh`,
+            {},
+            { withCredentials: true }
+        );
+        const { accessToken } = response.data.data;
+        useAuthStore.getState().setAccessToken(accessToken);
+        return { accessToken };
     })().finally(() => {
         refreshPromise = null;
     });
@@ -95,11 +108,10 @@ api.interceptors.response.use(
             showRateLimitNotification(retryAfter);
             
             // Create a more descriptive error
-            const rateLimitError = new Error(
-                `Rate limit exceeded. Please wait ${retryAfter} seconds before retrying.`
+            const rateLimitError: RateLimitError = Object.assign(
+                new Error(`Rate limit exceeded. Please wait ${retryAfter} seconds before retrying.`),
+                { isRateLimit: true as const, retryAfter }
             );
-            (rateLimitError as any).isRateLimit = true;
-            (rateLimitError as any).retryAfter = retryAfter;
             return Promise.reject(rateLimitError);
         }
 
@@ -125,6 +137,24 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+/**
+ * Logs the user out everywhere: revokes the refresh token server-side (which
+ * also clears the HttpOnly cookie) before clearing local auth state. Without
+ * the server round-trip, the refresh cookie would outlive a client-side-only
+ * logout — a real risk on a shared/public computer, since it could still be
+ * used to silently re-authenticate. Best-effort: local state is always
+ * cleared even if the network call fails (e.g. already offline).
+ */
+export const logoutAndRevoke = async (): Promise<void> => {
+    try {
+        await api.post('/auth/revoke', {});
+    } catch {
+        // Ignore — local logout must proceed regardless.
+    } finally {
+        useAuthStore.getState().logout();
+    }
+};
 
 export { api };
 export default api;

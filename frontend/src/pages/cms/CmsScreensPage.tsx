@@ -26,7 +26,7 @@ import EmptyState from '../../components/common/EmptyState';
 import ErrorState from '../../components/common/ErrorState';
 import PairingCodeDialog from '../../components/cms/PairingCodeDialog';
 import { cmsScreensApi, cmsCommandsApi } from '../../services/cmsApi';
-import type { ScreenHealthDto, ScreenHealthStatus } from '../../types/cms';
+import type { ScreenHealthDto, ScreenHealthStatus, RemoteCommandType } from '../../types/cms';
 
 const STATUS_COLORS: Record<ScreenHealthStatus, 'success' | 'warning' | 'error'> = {
     online: 'success',
@@ -79,9 +79,9 @@ export default function CmsScreensPage() {
         offline: screens.filter(s => s.status === 'offline').length,
     };
 
-    const sendCommand = (commandType: string) => {
+    const sendCommand = (commandType: RemoteCommandType) => {
         if (!menuScreenId) return;
-        issueMutation.mutate({ screenId: menuScreenId, commandType: commandType as any, payload: null });
+        issueMutation.mutate({ screenId: menuScreenId, commandType, payload: null });
     };
 
     const [exportingPdf, setExportingPdf] = useState(false);

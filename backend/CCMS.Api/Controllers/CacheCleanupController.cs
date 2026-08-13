@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Interfaces;
@@ -7,6 +8,7 @@ using Asp.Versioning;
 
 namespace CCMS.Api.Controllers;
 
+[Authorize(Roles = "Admin")]
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/player")]

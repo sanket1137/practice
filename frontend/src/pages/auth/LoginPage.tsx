@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import TvIcon from '@mui/icons-material/Tv';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import axios from 'axios';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 
@@ -56,8 +57,8 @@ const LoginPage = () => {
                 }
             }
 
-            const { user, accessToken, refreshToken } = data;
-            setAuth(user, accessToken, refreshToken);
+            const { user, accessToken } = data;
+            setAuth(user, accessToken);
             const returnUrl = searchParams.get('returnUrl');
             if (returnUrl && returnUrl.startsWith('/')) {
                 navigate(returnUrl);
@@ -67,8 +68,11 @@ const LoginPage = () => {
             } else {
                 navigate('/dashboard');
             }
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Login failed');
+        } catch (err) {
+            const message = axios.isAxiosError<{ message?: string }>(err)
+                ? err.response?.data?.message
+                : undefined;
+            setError(message || 'Login failed');
         } finally {
             setLoading(false);
         }

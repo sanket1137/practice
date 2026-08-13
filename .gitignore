@@ -38,6 +38,13 @@ login.json
 temp_token.txt
 screen12_id.txt
 temp_nginx.conf
+deploy_output.txt
+_tmp_*
+**/build-output.txt
+eslint_out.txt
+lint_all.txt
+lint_clean.txt
+lint_full.txt
 __azurite_db_table__.json
 *.tar
 player.zip

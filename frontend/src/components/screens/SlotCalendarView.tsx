@@ -9,6 +9,22 @@ interface SlotCalendarViewProps {
     screenId: string;
 }
 
+interface SlotCalendarSlot {
+    slotNumber: number;
+    status: string;
+}
+
+interface SlotCalendarDay {
+    date: string;
+    isOperating: boolean;
+    slots: SlotCalendarSlot[];
+}
+
+interface SlotCalendarResponse {
+    slotsPerFrame: number;
+    days: SlotCalendarDay[];
+}
+
 export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -17,7 +33,7 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
     const startDate = startOfWeek(monthStart);
     const endDate = endOfWeek(monthEnd);
 
-    const { data: calendar, isLoading } = useQuery({
+    const { data: calendar, isLoading } = useQuery<SlotCalendarResponse>({
         queryKey: ['slot-calendar', screenId, format(startDate, 'yyyy-MM-dd')],
         queryFn: async () => {
             const response = await api.get(`/screens/${screenId}/calendar`, {
@@ -33,11 +49,11 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
     const prevMonth = () => setCurrentMonth(addMonths(currentMonth, -1));
     const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-    const getAvailabilityColor = (day: any) => {
+    const getAvailabilityColor = (day: SlotCalendarDay | undefined) => {
         if (!day?.isOperating) return '#424242'; // Gray - not operating
         if (!day?.slots) return '#424242';
 
-        const bookedCount = day.slots.filter((s: any) => s.status === 'booked').length;
+        const bookedCount = day.slots.filter((s) => s.status === 'booked').length;
         const totalSlots = day.slots.length;
 
         if (bookedCount === 0) return '#4caf50'; // Green - all available
@@ -51,10 +67,10 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
 
         while (day <= endDate) {
             const calendarDay = calendar?.days?.find(
-                (d: any) => format(new Date(d.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+                (d) => format(new Date(d.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
             );
 
-            const bookedSlots = calendarDay?.slots?.filter((s: any) => s.status === 'booked') || [];
+            const bookedSlots = calendarDay?.slots?.filter((s) => s.status === 'booked') || [];
             const totalSlots = calendarDay?.slots?.length || calendar?.slotsPerFrame || 6;
 
             days.push(

@@ -9,7 +9,10 @@ vi.mock('../services/api', () => ({
     },
 }));
 
-const mockedApi = api as any;
+const mockedApi = api as unknown as {
+    get: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
+};
 
 describe('notificationApi', () => {
     beforeEach(() => {

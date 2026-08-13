@@ -49,8 +49,8 @@ public class PlaylistsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error generating playlist for screen {screenId}");
-            return StatusCode(500, ApiResponse<PlaylistResponse>.ErrorResponse($"Error generating playlist: {ex.Message}"));
+            _logger.LogError(ex, "Error generating playlist for screen {ScreenId}", screenId);
+            return StatusCode(500, ApiResponse<PlaylistResponse>.ErrorResponse("Failed to generate playlist."));
         }
     }
 
@@ -93,8 +93,8 @@ public class PlaylistsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error generating playlist range for screen {screenId}");
-            return StatusCode(500, ApiResponse<List<PlaylistResponse>>.ErrorResponse($"Error generating playlists: {ex.Message}"));
+            _logger.LogError(ex, "Error generating playlist range for screen {ScreenId}", screenId);
+            return StatusCode(500, ApiResponse<List<PlaylistResponse>>.ErrorResponse("Failed to generate playlists."));
         }
     }
 }

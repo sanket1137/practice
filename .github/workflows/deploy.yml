@@ -9,8 +9,12 @@ on:
 env:
   SERVER_IP: ${{ secrets.SERVER_IP }}
   SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-  REMOTE_USER: root
+  # Prefer a dedicated deploy user (docker group + passwordless sudo for the
+  # specific commands below) over root. Falls back to root only if
+  # DEPLOY_USER isn't configured as a repo secret.
+  REMOTE_USER: ${{ secrets.DEPLOY_USER || 'root' }}
   REMOTE_PATH: /opt/ccms
+  IMAGE_TAG: ${{ github.sha }}
 
 jobs:
   ci:
@@ -31,7 +35,17 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          if [ -n "${{ secrets.SSH_KNOWN_HOSTS }}" ]; then
+            # Pinned host key — set this repo secret once via:
+            #   ssh-keyscan -H <server-ip> > known_hosts   (verify the fingerprint
+            #   out-of-band, e.g. against the host's console/rescue system, before trusting it)
+            echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            echo "::warning::SSH_KNOWN_HOSTS secret not set — falling back to ssh-keyscan," \
+                 "which trusts whatever host answers on first connect (MITM-able). Set the" \
+                 "secret to pin the host key instead."
+            ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          fi
 
       - name: Create backend archive
         run: |
@@ -56,9 +70,24 @@ jobs:
             backend-src.tar frontend-src.tar infra.tar \
             ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }}:${{ env.REMOTE_PATH }}/
 
+      - name: Backup database before deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} << 'BACKUP_SCRIPT'
+            set -e
+            cd ${{ env.REMOTE_PATH }}
+            mkdir -p backups
+            set -a; source .env; set +a
+            if [ -n "$POSTGRES_CONNECTION_STRING" ]; then
+              pg_dump "$POSTGRES_CONNECTION_STRING" > backups/ccms_backup_$(date +%Y%m%d_%H%M%S).sql
+              ls -1t backups/ccms_backup_*.sql | tail -n +15 | xargs -r rm --
+            else
+              echo "WARN: POSTGRES_CONNECTION_STRING not set, skipping backup"
+            fi
+          BACKUP_SCRIPT
+
       - name: Deploy on server
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} << 'DEPLOY_SCRIPT'
+          ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} "IMAGE_TAG='${{ env.IMAGE_TAG }}' bash -s" << 'DEPLOY_SCRIPT'
             set -e
             cd ${{ env.REMOTE_PATH }}
 
@@ -68,11 +97,21 @@ jobs:
             tar -xf infra.tar
             rm -f backend-src.tar frontend-src.tar infra.tar
 
-            # Rebuild and restart containers
-            docker compose -f docker-compose.yml -f docker-compose.production.yml build --no-cache
+            # Host nginx config (TLS termination happens outside Docker)
+            cp nginx/ssl-nginx.conf /etc/nginx/sites-available/ccms.conf
+            ln -sf /etc/nginx/sites-available/ccms.conf /etc/nginx/sites-enabled/ccms.conf
+            nginx -t
+            systemctl reload nginx
+
+            # Rebuild and restart containers, tagged by commit SHA for rollback
+            export IMAGE_TAG
+            docker compose -f docker-compose.yml -f docker-compose.production.yml build
             docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
 
-            # Cleanup old images
+            echo "$IMAGE_TAG" >> .deployed_tags
+            tail -n 5 .deployed_tags > .deployed_tags.tmp && mv .deployed_tags.tmp .deployed_tags
+
+            # Only prune dangling layers — never the images backing recent deploys
             docker image prune -f
 
             echo "Deployment complete!"
@@ -82,8 +121,25 @@ jobs:
         run: |
           sleep 15
           ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} \
-            "curl -sf http://localhost:5000/api/v1/health || echo 'Health check failed'"
+            "curl -sf http://localhost:5000/health/ready"
 
       - name: Public health check
         run: |
           curl -f https://ccms.pixelspot.in/health || exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.REMOTE_USER }}@${{ env.SERVER_IP }} << 'ROLLBACK_SCRIPT'
+            set -e
+            cd ${{ env.REMOTE_PATH }}
+            if [ -f .deployed_tags ] && [ $(wc -l < .deployed_tags) -ge 2 ]; then
+              PREVIOUS_TAG=$(tail -n 2 .deployed_tags | head -n 1)
+              echo "Deployment verification failed — rolling back to $PREVIOUS_TAG"
+              set -a; source .env; set +a
+              export IMAGE_TAG=$PREVIOUS_TAG
+              docker compose -f docker-compose.yml -f docker-compose.production.yml up -d
+            else
+              echo "No previous tag recorded — manual intervention required."
+            fi
+          ROLLBACK_SCRIPT

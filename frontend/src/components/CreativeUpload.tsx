@@ -18,6 +18,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import { isAxiosError } from 'axios';
 import { api } from '../services/api';
 
 interface CreativeUploadProps {
@@ -73,9 +74,12 @@ export default function CreativeUpload({ campaignId, onUploadComplete }: Creativ
             enqueueSnackbar('Creative uploaded successfully', { variant: 'success' });
             onUploadComplete?.();
         },
-        onError: (error: any, file) => {
+        onError: (error: unknown, file) => {
+            const message = isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to upload creative',
+                message || 'Failed to upload creative',
                 { variant: 'error' }
             );
             setFiles((prev) => prev.filter((f) => f.file !== file));

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CCMS.Api.Hubs;
@@ -8,6 +9,7 @@ using Asp.Versioning;
 
 namespace CCMS.Api.Controllers;
 
+[Authorize]
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/stats")]
@@ -50,8 +52,8 @@ public class StatsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failed to get stats for screen {screenId}");
-            return StatusCode(500, ApiResponse<ScreenStatsDto>.ErrorResponse($"Failed to get stats: {ex.Message}"));
+            _logger.LogError(ex, "Failed to get stats for screen {ScreenId}", screenId);
+            return StatusCode(500, ApiResponse<ScreenStatsDto>.ErrorResponse("Failed to get screen stats."));
         }
     }
 
@@ -81,8 +83,8 @@ public class StatsController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failed to get stats for campaign {campaignId}");
-            return StatusCode(500, ApiResponse<CampaignStatsDto>.ErrorResponse($"Failed to get stats: {ex.Message}"));
+            _logger.LogError(ex, "Failed to get stats for campaign {CampaignId}", campaignId);
+            return StatusCode(500, ApiResponse<CampaignStatsDto>.ErrorResponse("Failed to get campaign stats."));
         }
     }
 

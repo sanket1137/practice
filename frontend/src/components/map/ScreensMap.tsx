@@ -25,7 +25,11 @@ const DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // Custom cluster icon creator (AdOnMo style - dark circles with count)
-const createClusterCustomIcon = (cluster: any) => {
+interface MarkerClusterLike {
+    getChildCount: () => number;
+}
+
+const createClusterCustomIcon = (cluster: MarkerClusterLike) => {
     const count = cluster.getChildCount();
     let size = 40;
     let className = 'cluster-marker';

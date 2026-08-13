@@ -41,6 +41,28 @@ const UPI_APPS = [
     { name: 'BHIM', scheme: 'upi://pay', icon: '🏦' },
 ];
 
+function CopyButton({
+    text,
+    label,
+    copiedField,
+    onCopy,
+}: {
+    text: string;
+    label: string;
+    copiedField: string | null;
+    onCopy: (text: string, label: string) => void;
+}) {
+    return (
+        <IconButton
+            size="small"
+            onClick={() => onCopy(text, label)}
+            sx={{ color: copiedField === label ? 'success.main' : 'text.secondary' }}
+        >
+            {copiedField === label ? <CheckIcon fontSize="small" /> : <CopyIcon fontSize="small" />}
+        </IconButton>
+    );
+}
+
 function CountdownTimer({ expiresAt }: { expiresAt: string }) {
     const [timeLeft, setTimeLeft] = useState('');
 
@@ -115,16 +137,6 @@ export default function PaymentScreen({
     if (!orderDetails) return null;
 
     const upiPayString = `upi://pay?pa=pixelspot@razorpay&pn=PixelSpot&am=${orderDetails.amount}&cu=${orderDetails.currency}&tn=Booking${orderDetails.bookingId}`;
-
-    const CopyButton = ({ text, label }: { text: string; label: string }) => (
-        <IconButton
-            size="small"
-            onClick={() => handleCopy(text, label)}
-            sx={{ color: copiedField === label ? 'success.main' : 'text.secondary' }}
-        >
-            {copiedField === label ? <CheckIcon fontSize="small" /> : <CopyIcon fontSize="small" />}
-        </IconButton>
-    );
 
     return (
         <Dialog open={open} onClose={isCaptured ? onClose : undefined} maxWidth="sm" fullWidth>
@@ -266,7 +278,7 @@ export default function PaymentScreen({
                                                 {orderDetails.virtualAccountNumber}
                                             </Typography>
                                         </Box>
-                                        <CopyButton text={orderDetails.virtualAccountNumber} label="Account Number" />
+                                        <CopyButton text={orderDetails.virtualAccountNumber} label="Account Number" copiedField={copiedField} onCopy={handleCopy} />
                                     </Box>
                                     <Divider sx={{ my: 1 }} />
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -278,7 +290,7 @@ export default function PaymentScreen({
                                                 {orderDetails.virtualAccountIfsc}
                                             </Typography>
                                         </Box>
-                                        <CopyButton text={orderDetails.virtualAccountIfsc!} label="IFSC Code" />
+                                        <CopyButton text={orderDetails.virtualAccountIfsc!} label="IFSC Code" copiedField={copiedField} onCopy={handleCopy} />
                                     </Box>
                                     <Divider sx={{ my: 1 }} />
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -290,7 +302,7 @@ export default function PaymentScreen({
                                                 {orderDetails.currency} {orderDetails.amount.toLocaleString()}
                                             </Typography>
                                         </Box>
-                                        <CopyButton text={orderDetails.amount.toString()} label="Amount" />
+                                        <CopyButton text={orderDetails.amount.toString()} label="Amount" copiedField={copiedField} onCopy={handleCopy} />
                                     </Box>
                                 </Box>
                                 <Alert severity="warning" sx={{ mt: 2 }}>

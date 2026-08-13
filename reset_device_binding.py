@@ -1,14 +1,21 @@
+import os
+import sys
+
 import psycopg2
 
 conn = psycopg2.connect(
-    host='ep-snowy-haze-ag6lkc0h-pooler.c-2.eu-central-1.aws.neon.tech',
-    database='pixelspot_ccms',
-    user='neondb_owner',
-    password='npg_Y9bQL3rHdXPq',
-    sslmode='require'
+    host=os.environ["PGHOST"],
+    database=os.environ["PGDATABASE"],
+    user=os.environ["PGUSER"],
+    password=os.environ["PGPASSWORD"],
+    sslmode="require",
 )
 cur = conn.cursor()
-screen_id = '2070e7ed-8f59-4858-958e-a4d8ec056ab7'
+
+if len(sys.argv) < 2:
+    print("Usage: python reset_device_binding.py <screen_id>")
+    sys.exit(1)
+screen_id = sys.argv[1]
 
 # Check current state
 cur.execute('SELECT "DeviceFingerprintHash", "DeviceBoundAt", "VerificationStatus" FROM "Screens" WHERE "Id" = %s', (screen_id,))

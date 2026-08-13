@@ -13,6 +13,7 @@ export interface User {
 
 export interface AuthResponse {
     accessToken: string;
+    /** Always empty — the backend delivers the refresh token via an HttpOnly cookie instead. */
     refreshToken: string;
     expiresAt: string;
     user: User;

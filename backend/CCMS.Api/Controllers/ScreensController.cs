@@ -32,17 +32,20 @@ public class ScreensController : ControllerBase
     private readonly ScreenTaggingService _taggingService;
     private readonly ApplicationDbContext _context;
     private readonly IScreenImageService _imageService;
+    private readonly ILogger<ScreensController> _logger;
 
     public ScreensController(
         IMediator mediator,
         ScreenTaggingService taggingService,
         ApplicationDbContext context,
-        IScreenImageService imageService)
+        IScreenImageService imageService,
+        ILogger<ScreensController> logger)
     {
         _mediator = mediator;
         _taggingService = taggingService;
         _context = context;
         _imageService = imageService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -75,7 +78,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<ScreenDto>>.ErrorResponse($"Error retrieving screens: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving screens list");
+            return StatusCode(500, ApiResponse<IEnumerable<ScreenDto>>.ErrorResponse("Failed to retrieve screens."));
         }
     }
 
@@ -131,7 +135,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<PagedResult<ScreenDto>>.ErrorResponse($"Error retrieving screens: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving paged screens list");
+            return StatusCode(500, ApiResponse<PagedResult<ScreenDto>>.ErrorResponse("Failed to retrieve screens."));
         }
     }
 
@@ -159,7 +164,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse($"Error retrieving screen: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse("Failed to retrieve screen."));
         }
     }
 
@@ -182,12 +188,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            var errorMessage = $"Error creating screen: {ex.Message}";
-            if (ex.InnerException != null)
-            {
-                errorMessage += $" Inner: {ex.InnerException.Message}";
-            }
-            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse(errorMessage));
+            _logger.LogError(ex, "Error creating screen");
+            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse("Failed to create screen."));
         }
     }
 
@@ -222,7 +224,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<ScreenAvailabilityDto>.ErrorResponse($"Error checking availability: {ex.Message}"));
+            _logger.LogError(ex, "Error checking availability for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<ScreenAvailabilityDto>.ErrorResponse("Failed to check screen availability."));
         }
     }
 
@@ -257,7 +260,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<SlotCalendarDto>.ErrorResponse($"Error retrieving calendar: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving slot calendar for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<SlotCalendarDto>.ErrorResponse("Failed to retrieve slot calendar."));
         }
     }
 
@@ -288,7 +292,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse($"Error updating screen: {ex.Message}"));
+            _logger.LogError(ex, "Error updating screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse("Failed to update screen."));
         }
     }
 
@@ -318,7 +323,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error deleting screen: {ex.Message}"));
+            _logger.LogError(ex, "Error deleting screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to delete screen."));
         }
     }
     
@@ -339,7 +345,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<List<ScreenImageDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving images for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<List<ScreenImageDto>>.ErrorResponse("Failed to retrieve screen images."));
         }
     }
     
@@ -412,7 +419,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<UploadScreenImagesResponse>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error uploading images for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<UploadScreenImagesResponse>.ErrorResponse("Failed to upload screen images."));
         }
     }
     
@@ -456,7 +464,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error deleting image {ImageId} for screen {ScreenId}", imageId, id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to delete screen image."));
         }
     }
     
@@ -499,7 +508,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error setting primary image {ImageId} for screen {ScreenId}", imageId, id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to set primary image."));
         }
     }
     
@@ -544,7 +554,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error reordering images for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to reorder screen images."));
         }
     }
     
@@ -566,7 +577,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<List<SlotStatusDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving slot status for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<List<SlotStatusDto>>.ErrorResponse("Failed to retrieve slot status."));
         }
     }
     
@@ -594,7 +606,7 @@ public class ScreensController : ControllerBase
         catch (UnauthorizedAccessException ex) { return StatusCode(403, ApiResponse<OwnerContentDto>.ErrorResponse(ex.Message)); }
         catch (KeyNotFoundException ex) { return NotFound(ApiResponse<OwnerContentDto>.ErrorResponse(ex.Message)); }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<OwnerContentDto>.ErrorResponse(ex.Message)); }
-        catch (Exception ex) { return StatusCode(500, ApiResponse<OwnerContentDto>.ErrorResponse($"Error: {ex.Message}")); }
+        catch (Exception ex) { _logger.LogError(ex, "Error uploading slot content for screen {ScreenId}, slot {SlotNumber}", id, slotNumber); return StatusCode(500, ApiResponse<OwnerContentDto>.ErrorResponse("Failed to upload slot content.")); }
     }
     
     [HttpDelete("{id}/slots/{slotNumber}/content")]
@@ -611,7 +623,7 @@ public class ScreensController : ControllerBase
         }
         catch (UnauthorizedAccessException ex) { return StatusCode(403, ApiResponse<object>.ErrorResponse(ex.Message)); }
         catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.ErrorResponse(ex.Message)); }
-        catch (Exception ex) { return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}")); }
+        catch (Exception ex) { _logger.LogError(ex, "Error deleting slot content for screen {ScreenId}, slot {SlotNumber}", id, slotNumber); return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to delete slot content.")); }
     }
     
     /// <summary>
@@ -669,7 +681,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<GenerateApiKeyResponse>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error generating API key for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<GenerateApiKeyResponse>.ErrorResponse("Failed to generate API key."));
         }
     }
 
@@ -710,7 +723,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error revoking API key for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to revoke API key."));
         }
     }
 
@@ -749,7 +763,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<DeviceOverrideResponse>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error requesting device override for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<DeviceOverrideResponse>.ErrorResponse("Failed to request device override."));
         }
     }
     
@@ -802,7 +817,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<DeviceBindingStatusResponse>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving device status for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<DeviceBindingStatusResponse>.ErrorResponse("Failed to retrieve device status."));
         }
     }
     
@@ -870,7 +886,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<MasterTagDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving master tag list");
+            return StatusCode(500, ApiResponse<IEnumerable<MasterTagDto>>.ErrorResponse("Failed to retrieve tags."));
         }
     }
     
@@ -911,7 +928,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<ScreenTagDetailDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving tags for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<IEnumerable<ScreenTagDetailDto>>.ErrorResponse("Failed to retrieve screen tags."));
         }
     }
     
@@ -964,7 +982,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<GenerateTagsResult>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error generating tags for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<GenerateTagsResult>.ErrorResponse("Failed to generate tags."));
         }
     }
     
@@ -1007,10 +1026,11 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error adding tag {TagId} to screen {ScreenId}", request.TagId, id);
+            return StatusCode(500, ApiResponse<bool>.ErrorResponse("Failed to add tag."));
         }
     }
-    
+
     /// <summary>
     /// Remove a tag from a screen
     /// </summary>
@@ -1051,10 +1071,11 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<bool>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error removing tag {TagId} from screen {ScreenId}", tagId, id);
+            return StatusCode(500, ApiResponse<bool>.ErrorResponse("Failed to remove tag."));
         }
     }
-    
+
     // ==========================================
     // PUBLIC SCREEN DISCOVERY (No Auth Required)
     // ==========================================
@@ -1213,7 +1234,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<PublicSearchScreensResult>.ErrorResponse($"Error exploring screens: {ex.Message}"));
+            _logger.LogError(ex, "Error exploring screens");
+            return StatusCode(500, ApiResponse<PublicSearchScreensResult>.ErrorResponse("Failed to explore screens."));
         }
     }
     
@@ -1610,7 +1632,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<SearchScreensResult>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error searching screens");
+            return StatusCode(500, ApiResponse<SearchScreensResult>.ErrorResponse("Failed to search screens."));
         }
     }
 
@@ -1680,7 +1703,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<LocationSuggestionDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving location suggestions");
+            return StatusCode(500, ApiResponse<IEnumerable<LocationSuggestionDto>>.ErrorResponse("Failed to retrieve location suggestions."));
         }
     }
 
@@ -1742,7 +1766,8 @@ public class ScreensController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse($"Error upgrading screen: {ex.Message}"));
+            _logger.LogError(ex, "Error upgrading screen {ScreenId} to marketplace", id);
+            return StatusCode(500, ApiResponse<ScreenDto>.ErrorResponse("Failed to upgrade screen to marketplace."));
         }
     }
 

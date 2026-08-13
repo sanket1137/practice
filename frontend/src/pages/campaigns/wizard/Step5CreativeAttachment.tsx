@@ -38,6 +38,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import campaignWizardApi from '../../../services/campaignWizardApi';
 import type { Creative } from '../../../services/campaignWizardApi';
 import mediaApi from '../../../services/mediaApi';
@@ -218,9 +219,12 @@ export function Step5CreativeAttachment({ onNext }: Step5Props) {
         setPickerOpen(false);
       }
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       setUploadProgress(0);
-      enqueueSnackbar(err?.response?.data?.message ?? 'Upload failed', { variant: 'error' });
+      const message = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message
+        : undefined;
+      enqueueSnackbar(message ?? 'Upload failed', { variant: 'error' });
     },
   });
 

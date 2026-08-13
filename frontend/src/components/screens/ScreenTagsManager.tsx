@@ -19,6 +19,7 @@ import AddIcon from '@mui/icons-material/Add';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import { isAxiosError } from 'axios';
 import {
     getScreenTags,
     getAllTags,
@@ -74,9 +75,10 @@ export default function ScreenTagsManager({
                 { variant: 'success' }
             );
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to generate tags',
+                message || 'Failed to generate tags',
                 { variant: 'error' }
             );
         },
@@ -90,9 +92,10 @@ export default function ScreenTagsManager({
             setSelectedTagToAdd(null);
             enqueueSnackbar('Tag added successfully', { variant: 'success' });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to add tag',
+                message || 'Failed to add tag',
                 { variant: 'error' }
             );
         },
@@ -105,9 +108,10 @@ export default function ScreenTagsManager({
             queryClient.invalidateQueries({ queryKey: ['screen-tags', screenId] });
             enqueueSnackbar('Tag removed', { variant: 'success' });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to remove tag',
+                message || 'Failed to remove tag',
                 { variant: 'error' }
             );
         },

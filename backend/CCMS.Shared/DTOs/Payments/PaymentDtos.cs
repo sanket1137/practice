@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CCMS.Shared.DTOs.Payments;
 
 public class PaymentDto
@@ -17,6 +19,7 @@ public class PaymentDto
 
 public class CreateOrderRequest
 {
+    [Required]
     public Guid BookingId { get; set; }
 }
 
@@ -34,16 +37,31 @@ public class CreateOrderResponse
 
 public class VerifyPaymentRequest
 {
+    [Required]
+    [StringLength(100)]
     public string RazorpayOrderId { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string RazorpayPaymentId { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(500)]
     public string RazorpaySignature { get; set; } = string.Empty;
+
+    [Required]
     public Guid BookingId { get; set; }
 }
 
 public class RefundRequest
 {
+    [Required]
     public Guid PaymentId { get; set; }
+
+    [Range(1, double.MaxValue)]
     public decimal? Amount { get; set; }
+
+    [StringLength(1000)]
     public string? Reason { get; set; }
 }
 
@@ -79,6 +97,7 @@ public class WalletTransactionDto
 
 public class TopUpWalletRequest
 {
+    [Range(1, double.MaxValue, ErrorMessage = "Amount must be greater than 0.")]
     public decimal Amount { get; set; }
 }
 
@@ -110,6 +129,9 @@ public class PayoutSummaryDto
 
 public class RequestPayoutRequest
 {
+    [Required]
     public DateOnly PeriodStart { get; set; }
+
+    [Required]
     public DateOnly PeriodEnd { get; set; }
 }

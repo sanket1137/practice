@@ -42,7 +42,7 @@ public class BookingStatusController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during manual booking status update");
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to update booking statuses."));
         }
     }
 }

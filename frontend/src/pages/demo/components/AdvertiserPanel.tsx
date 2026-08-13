@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import type { Campaign, AdvertiserStats, Booking, Screen } from '../types';
+import type { Campaign, AdvertiserStats, Booking, Screen, CampaignLog, SlotState } from '../types';
 import { CampaignCard } from './CampaignCard';
 import { CampaignLogs } from './CampaignLogs';
 import { LiveCampaignPreview } from './LiveCampaignPreview';
@@ -11,12 +11,12 @@ import { BookingHistory } from './BookingHistory';
 interface AdvertiserPanelProps {
     campaign: Campaign;
     screens: Array<{ id: string; name: string; location: string }>;
-    campaignLogs: Array<any>;
+    campaignLogs: CampaignLog[];
     pricePerSlot: number;
     advertiserStats: AdvertiserStats;
     bookings: Booking[];
     fullScreens: Screen[];
-    slots: Record<string, any[]>;
+    slots: Record<string, SlotState[]>;
     onUploadVideo: (file: File, duration: number) => void;
     onCreateBooking: (screenId: string) => void;
 }

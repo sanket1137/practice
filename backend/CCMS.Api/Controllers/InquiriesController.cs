@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using CCMS.Api.Extensions;
 using CCMS.Application.Interfaces;
 using CCMS.Domain.Enums;
 using CCMS.Shared.Common;
@@ -11,6 +13,7 @@ namespace CCMS.Api.Controllers;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/inquiries")]
+[EnableRateLimiting(RateLimitingExtensions.AuthPolicy)]
 public class InquiriesController : ControllerBase
 {
     private readonly INotificationService _notificationService;

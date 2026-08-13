@@ -25,6 +25,7 @@ import {
     Lock
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { websocketService } from '../../services/websocket';
 
@@ -74,11 +75,12 @@ function UploadSlotDialog({ open, slotNumber, onClose, screenId }: UploadDialogP
             queryClient.invalidateQueries({ queryKey: ['slot-status', screenId] });
             handleClose();
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             // Extract the actual error message from the backend response
-            const backendMessage = error?.response?.data?.message 
-                || error?.response?.data?.errors?.[0]
-                || error?.message
+            const backendMessage = (isAxiosError<{ message?: string; errors?: string[] }>(error)
+                ? error.response?.data?.message || error.response?.data?.errors?.[0]
+                : undefined)
+                || (error instanceof Error ? error.message : undefined)
                 || 'Upload failed. Please try again.';
             setErrorMessage(backendMessage);
         }

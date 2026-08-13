@@ -16,8 +16,12 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import EmailIcon from '@mui/icons-material/Email';
 import { useMutation } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+
+const getApiErrorMessage = (error: unknown): string | undefined =>
+    axios.isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
 
 interface LocationState {
     email?: string;
@@ -30,7 +34,6 @@ interface LocationState {
 // Auto-login response type
 interface CompleteVerificationResponse {
     accessToken: string;
-    refreshToken: string;
     user: {
         id: string;
         email: string;
@@ -118,9 +121,9 @@ export default function VerifyPhonePage() {
                 setRemainingAttempts(data.remainingAttempts);
             }
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to send OTP',
+                getApiErrorMessage(error) || 'Failed to send OTP',
                 { variant: 'error' }
             );
         },
@@ -151,9 +154,9 @@ export default function VerifyPhonePage() {
                 setRemainingAttempts(data.remainingAttempts);
             }
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to resend OTP',
+                getApiErrorMessage(error) || 'Failed to resend OTP',
                 { variant: 'error' }
             );
         },
@@ -176,11 +179,11 @@ export default function VerifyPhonePage() {
                         '/auth/complete-verification',
                         { email }
                     );
-                    const { user, accessToken, refreshToken } = loginResponse.data.data;
-                    setAuth(user, accessToken, refreshToken);
+                    const { user, accessToken } = loginResponse.data.data;
+                    setAuth(user, accessToken);
                     enqueueSnackbar('Welcome! You are now logged in.', { variant: 'success' });
                     navigate('/dashboard');
-                } catch (error) {
+                } catch {
                     // Auto-login failed, show success and manual login button
                     setStep('success');
                     enqueueSnackbar('Verification complete! Please log in.', { variant: 'info' });
@@ -191,8 +194,8 @@ export default function VerifyPhonePage() {
                 enqueueSnackbar('Phone verified! Please check your email to complete verification.', { variant: 'info' });
             }
         },
-        onError: (error: any) => {
-            const message = error.response?.data?.message || 'Invalid OTP';
+        onError: (error: unknown) => {
+            const message = getApiErrorMessage(error) || 'Invalid OTP';
             enqueueSnackbar(message, { variant: 'error' });
             // Clear OTP fields on error
             setOtp(['', '', '', '', '', '']);

@@ -35,7 +35,7 @@ export default function CmsScreenGroupsPage() {
         queryKey: ['screens-list'],
         queryFn: async () => {
             const res = await api.get('/screens');
-            return (res.data?.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
+            return (res.data?.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
         },
         staleTime: 5 * 60 * 1000,
     });

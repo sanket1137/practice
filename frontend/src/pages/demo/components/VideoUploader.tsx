@@ -34,6 +34,7 @@ export const VideoUploader: React.FC<VideoUploaderProps> = ({ onUpload, currentV
 
             onUpload(file, duration);
         } catch (err) {
+            console.error('Failed to validate video', err);
             setError('Failed to validate video');
         } finally {
             setIsValidating(false);

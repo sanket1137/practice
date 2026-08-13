@@ -1,25 +1,53 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CCMS.Shared.DTOs.Auth;
 
 public class RegisterRequest
 {
+    [Required]
+    [EmailAddress]
+    [StringLength(256)]
     public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100, MinimumLength = 8)]
     public string Password { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string FirstName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string LastName { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(20)]
     public string PhoneNumber { get; set; } = string.Empty; // Required for registration
+
+    [StringLength(50)]
     public string Role { get; set; } = "Advertiser"; // "ScreenOwner" or "Advertiser"
+
+    [StringLength(20)]
     public string? Visibility { get; set; } // "Public" (default) or "Private" — only applies to ScreenOwner
 
     /// <summary>
     /// Product mode chosen at registration: "CmsOwner", "MediaOwner", or "Advertiser".
     /// Optional — if omitted, derived from Role (ScreenOwner→MediaOwner, Advertiser→Advertiser).
     /// </summary>
+    [StringLength(50)]
     public string? AccountType { get; set; }
 }
 
 public class LoginRequest
 {
+    [Required]
+    [EmailAddress]
+    [StringLength(256)]
     public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string Password { get; set; } = string.Empty;
 }
 

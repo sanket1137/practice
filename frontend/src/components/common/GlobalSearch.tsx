@@ -112,10 +112,20 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps) {
         );
     };
 
+    // Reset the query when the dialog transitions to open. Adjusting state during
+    // render (rather than in an effect) avoids the extra render an effect-based
+    // reset would cause. See: https://react.dev/learn/you-might-not-need-an-effect
+    const [wasOpen, setWasOpen] = useState(open);
+    if (open !== wasOpen) {
+        setWasOpen(open);
+        if (open) {
+            setQuery('');
+        }
+    }
+
     useEffect(() => {
         if (open) {
             inputRef.current?.focus();
-            setQuery('');
             performSearch('').then(setResults);
         }
     }, [open]);
@@ -217,23 +227,4 @@ export default function GlobalSearch({ open, onClose }: GlobalSearchProps) {
             </Box>
         </Dialog>
     );
-}
-
-// Hook to use global search with keyboard shortcut
-export function useGlobalSearch() {
-    const [open, setOpen] = useState(false);
-
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-                event.preventDefault();
-                setOpen(true);
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
-
-    return { open, setOpen };
 }

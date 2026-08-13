@@ -11,6 +11,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import GroupIcon from '@mui/icons-material/Group';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useAuthStore } from '../../store/authStore';
+import { logoutAndRevoke } from '../../services/api';
 
 const DRAWER_WIDTH = 240;
 
@@ -27,7 +28,7 @@ export default function CmsLayout() {
     const location = useLocation();
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-    const { user, logout } = useAuthStore();
+    const { user } = useAuthStore();
 
     const activePath = useMemo(() => {
         const match = navItems.find((n) => location.pathname.startsWith(n.path));
@@ -58,7 +59,7 @@ export default function CmsLayout() {
             </List>
             <Divider />
             <List>
-                <ListItemButton onClick={() => { logout(); navigate('/login'); }}>
+                <ListItemButton onClick={() => { void logoutAndRevoke(); navigate('/login'); }}>
                     <ListItemIcon><LogoutIcon /></ListItemIcon>
                     <ListItemText primary="Sign out" secondary={user?.email} />
                 </ListItemButton>

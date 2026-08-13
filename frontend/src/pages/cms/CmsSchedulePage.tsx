@@ -11,6 +11,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { useSearchParams } from 'react-router-dom';
+import { isAxiosError } from 'axios';
 import { cmsScheduleApi } from '../../services/cmsApi';
 import { api } from '../../services/api';
 import EmptyState from '../../components/common/EmptyState';
@@ -57,7 +58,7 @@ export default function CmsSchedulePage() {
         queryKey: ['screens-list'],
         queryFn: async () => {
             const res = await api.get('/screens');
-            return (res.data?.data ?? []).map((s: any) => ({ id: s.id, name: s.name }));
+            return (res.data?.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
         },
     });
 
@@ -65,7 +66,7 @@ export default function CmsSchedulePage() {
         queryKey: ['playlists-list'],
         queryFn: async () => {
             const res = await api.get('/playlists');
-            return (res.data?.data ?? []).map((p: any) => ({ id: p.id, name: p.name }));
+            return (res.data?.data ?? []).map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }));
         },
         staleTime: 5 * 60 * 1000,
     });
@@ -83,7 +84,10 @@ export default function CmsSchedulePage() {
             queryClient.invalidateQueries({ queryKey: ['schedule-windows', screenId] });
             setDialogOpen(false);
         },
-        onError: (e: any) => enqueueSnackbar(e.response?.data?.message ?? 'Conflict or error', { variant: 'error' }),
+        onError: (e: unknown) => {
+            const message = isAxiosError(e) ? (e.response?.data as { message?: string } | undefined)?.message : undefined;
+            enqueueSnackbar(message ?? 'Conflict or error', { variant: 'error' });
+        },
     });
 
     const deleteMutation = useMutation({

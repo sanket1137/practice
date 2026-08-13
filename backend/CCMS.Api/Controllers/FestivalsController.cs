@@ -13,6 +13,7 @@ namespace CCMS.Api.Controllers;
 [ApiVersion("1.0")]
 [ApiController]
 [Route("api/v{version:apiVersion}/festivals")]
+[Authorize]
 public class FestivalsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
@@ -25,6 +26,8 @@ public class FestivalsController : ControllerBase
     }
 
     /// <summary>Get festival entries for a year</summary>
+    // Public: festival calendar data feeds marketplace pricing suggestions shown to
+    // unauthenticated visitors browsing screens, so it must stay reachable without auth.
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> GetFestivals([FromQuery] int year = 0)

@@ -24,12 +24,14 @@ public class CreativesController : ControllerBase
     private readonly IMediator _mediator;
     private readonly IRepository<Creative> _creativeRepository;
     private readonly string _r2PublicUrlBase;
+    private readonly ILogger<CreativesController> _logger;
 
-    public CreativesController(IMediator mediator, IRepository<Creative> creativeRepository, IConfiguration configuration)
+    public CreativesController(IMediator mediator, IRepository<Creative> creativeRepository, IConfiguration configuration, ILogger<CreativesController> logger)
     {
         _mediator = mediator;
         _creativeRepository = creativeRepository;
         _r2PublicUrlBase = configuration["R2:PublicUrlBase"] ?? "";
+        _logger = logger;
     }
 
     // POST /api/creatives/upload
@@ -86,8 +88,9 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error uploading creative for campaign {CampaignId}", campaignId);
             return StatusCode(500,
-                ApiResponse<CreativeDto>.ErrorResponse($"Error uploading creative: {ex.Message}"));
+                ApiResponse<CreativeDto>.ErrorResponse("Failed to upload creative."));
         }
     }
 
@@ -121,8 +124,9 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving creative {CreativeId}", id);
             return StatusCode(500,
-                ApiResponse<CreativeDto>.ErrorResponse($"Error retrieving creative: {ex.Message}"));
+                ApiResponse<CreativeDto>.ErrorResponse("Failed to retrieve creative."));
         }
     }
 
@@ -141,8 +145,9 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving creatives for current user");
             return StatusCode(500,
-                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse($"Error retrieving creatives: {ex.Message}"));
+                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse("Failed to retrieve creatives."));
         }
     }
 
@@ -162,8 +167,9 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving media library for current user");
             return StatusCode(500,
-                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse($"Error retrieving library: {ex.Message}"));
+                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse("Failed to retrieve media library."));
         }
     }
 
@@ -192,7 +198,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse($"Error updating creative: {ex.Message}"));
+            _logger.LogError(ex, "Error updating creative {CreativeId}", id);
+            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse("Failed to update creative."));
         }
     }
 
@@ -219,7 +226,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error deleting creative: {ex.Message}"));
+            _logger.LogError(ex, "Error deleting creative {CreativeId}", id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to delete creative."));
         }
     }
 
@@ -291,7 +299,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse($"Error attaching creative: {ex.Message}"));
+            _logger.LogError(ex, "Error attaching creative {CreativeId} to campaign", id);
+            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse("Failed to attach creative to campaign."));
         }
     }
 
@@ -319,7 +328,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse($"Error detaching creative: {ex.Message}"));
+            _logger.LogError(ex, "Error detaching creative {CreativeId} from campaign", id);
+            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse("Failed to detach creative from campaign."));
         }
     }
 
@@ -370,8 +380,9 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error retrieving creatives for campaign {CampaignId}", campaignId);
             return StatusCode(500,
-                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse($"Error retrieving creatives: {ex.Message}"));
+                ApiResponse<IEnumerable<CreativeDto>>.ErrorResponse("Failed to retrieve creatives."));
         }
     }
 
@@ -396,8 +407,9 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error validating creative {CreativeId} for screen {ScreenId}", id, screenId);
             return StatusCode(500,
-                ApiResponse<CreativeValidationDto>.ErrorResponse($"Error validating creative: {ex.Message}"));
+                ApiResponse<CreativeValidationDto>.ErrorResponse("Failed to validate creative for screen."));
         }
     }
 
@@ -427,7 +439,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<AdminCreativeDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving admin creative review queue");
+            return StatusCode(500, ApiResponse<IEnumerable<AdminCreativeDto>>.ErrorResponse("Failed to retrieve review queue."));
         }
     }
 
@@ -463,7 +476,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error reviewing creative {CreativeId}", id);
+            return StatusCode(500, ApiResponse<CreativeDto>.ErrorResponse("Failed to review creative."));
         }
     }
 
@@ -486,7 +500,8 @@ public class CreativesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error bulk-approving creatives");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to bulk-approve creatives."));
         }
     }
 }

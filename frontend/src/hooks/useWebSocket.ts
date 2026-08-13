@@ -37,7 +37,7 @@ export function useWebSocket() {
         return () => clearInterval(interval);
     }, []);
 
-    const subscribeToScreen = useCallback(async (screenId: string, callback: (data: any) => void) => {
+    const subscribeToScreen = useCallback(async <TData = unknown>(screenId: string, callback: (data: TData) => void) => {
         try {
             await websocketService.subscribeToScreen(screenId, callback);
         } catch (err) {
@@ -50,7 +50,7 @@ export function useWebSocket() {
         await websocketService.unsubscribeFromScreen(screenId);
     }, []);
 
-    const subscribeToCampaign = useCallback(async (campaignId: string, callback: (data: any) => void) => {
+    const subscribeToCampaign = useCallback(async <TData = unknown>(campaignId: string, callback: (data: TData) => void) => {
         try {
             await websocketService.subscribeToCampaign(campaignId, callback);
         } catch (err) {

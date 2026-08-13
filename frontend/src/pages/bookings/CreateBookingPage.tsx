@@ -21,6 +21,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import axios from 'axios';
 import { api } from '../../services/api';
 import SlotAvailabilityCard from '../../components/bookings/SlotAvailabilityCard';
 
@@ -87,6 +88,23 @@ interface DaySchedule {
     isOperating: boolean;
     startTime: string;
     endTime: string;
+}
+
+interface AvailabilityDay {
+    date: string;
+    availableSlots: number;
+}
+
+interface AvailabilityResponse {
+    availability: AvailabilityDay[];
+}
+
+interface CreateBookingPayload {
+    campaignId: string;
+    creativeId: string;
+    screenId: string;
+    startDate: string;
+    endDate: string;
 }
 
 export default function CreateBookingPage() {
@@ -197,7 +215,7 @@ export default function CreateBookingPage() {
     }, [selectedCreative, selectedScreenDetails]);
 
     // Fetch availability data for accurate calculation
-    const { data: availabilityData } = useQuery({
+    const { data: availabilityData } = useQuery<AvailabilityResponse>({
         queryKey: ['screen-availability-calc', selectedScreenId, startDate, endDate],
         queryFn: async () => {
             // Format dates in local timezone to avoid UTC offset issues
@@ -243,7 +261,7 @@ export default function CreateBookingPage() {
 
             // Find availability for this specific date (improved date matching)
             const currentDateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-            const dayAvailability = availabilityData.availability.find((a: any) => {
+            const dayAvailability = availabilityData.availability.find((a) => {
                 const availDate = a.date.split('T')[0];
                 return availDate === currentDateStr;
             });
@@ -298,7 +316,7 @@ export default function CreateBookingPage() {
     }, [selectedScreenDetails, startDate, endDate, availabilityData]);
 
     const createMutation = useMutation({
-        mutationFn: async (data: any) => {
+        mutationFn: async (data: CreateBookingPayload) => {
             const response = await api.post('/bookings', data);
             return response.data.data; // ApiResponse wrapper
         },
@@ -307,9 +325,12 @@ export default function CreateBookingPage() {
             enqueueSnackbar('Booking created successfully', { variant: 'success' });
             navigate('/bookings');
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = axios.isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to create booking',
+                message || 'Failed to create booking',
                 { variant: 'error' }
             );
         },

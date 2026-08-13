@@ -77,7 +77,7 @@ public class HealthController : ControllerBase
             health.checks["database"] = new
             {
                 status = "unhealthy",
-                message = ex.Message
+                message = "Database connectivity check failed."
             };
 
             return StatusCode(503, new
@@ -118,7 +118,7 @@ public class HealthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Readiness check failed");
-            return StatusCode(503, $"not ready - {ex.Message}");
+            return StatusCode(503, "not ready - database unavailable");
         }
     }
 }

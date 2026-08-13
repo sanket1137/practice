@@ -13,7 +13,10 @@ interface UsePaymentPollerOptions {
 export function usePaymentPoller({ bookingId, enabled, onConfirmed }: UsePaymentPollerOptions) {
     const queryClient = useQueryClient();
     const onConfirmedRef = useRef(onConfirmed);
-    onConfirmedRef.current = onConfirmed;
+
+    useEffect(() => {
+        onConfirmedRef.current = onConfirmed;
+    }, [onConfirmed]);
 
     const { data: paymentStatus, isLoading } = useQuery({
         queryKey: ['payment-status', bookingId],

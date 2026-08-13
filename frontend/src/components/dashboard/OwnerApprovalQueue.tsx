@@ -23,10 +23,10 @@ export default function OwnerApprovalQueue() {
     const { data: bookings, isLoading } = useQuery<PendingBooking[]>({
         queryKey: ['pending-bookings'],
         queryFn: async () => {
-            const response = await api.get('/bookings');
+            const response = await api.get<{ data: Array<PendingBooking & { status: string }> }>('/bookings');
             const allBookings = response.data?.data || [];
             // Filter only pending bookings
-            return allBookings.filter((b: any) => b.status === 'Pending');
+            return allBookings.filter((b) => b.status === 'Pending');
         },
     });
 

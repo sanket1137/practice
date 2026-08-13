@@ -27,6 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import type { ScreenImage, UploadScreenImagesResponse } from '../../types/screen';
 import { SCREEN_IMAGE_VALIDATION } from '../../types/screen';
@@ -100,9 +101,10 @@ export default function ScreenImageUpload({ screenId, onImagesChanged, disabled 
             }
             onImagesChanged?.();
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
             setPendingFiles([]);
-            enqueueSnackbar(error.response?.data?.message || 'Failed to upload images', { variant: 'error' });
+            const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
+            enqueueSnackbar(message || 'Failed to upload images', { variant: 'error' });
         },
     });
 
@@ -117,8 +119,9 @@ export default function ScreenImageUpload({ screenId, onImagesChanged, disabled 
             enqueueSnackbar('Image deleted', { variant: 'success' });
             onImagesChanged?.();
         },
-        onError: (error: any) => {
-            enqueueSnackbar(error.response?.data?.message || 'Failed to delete image', { variant: 'error' });
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
+            enqueueSnackbar(message || 'Failed to delete image', { variant: 'error' });
         },
     });
 
@@ -133,8 +136,9 @@ export default function ScreenImageUpload({ screenId, onImagesChanged, disabled 
             enqueueSnackbar('Primary image updated', { variant: 'success' });
             onImagesChanged?.();
         },
-        onError: (error: any) => {
-            enqueueSnackbar(error.response?.data?.message || 'Failed to set primary image', { variant: 'error' });
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
+            enqueueSnackbar(message || 'Failed to set primary image', { variant: 'error' });
         },
     });
 

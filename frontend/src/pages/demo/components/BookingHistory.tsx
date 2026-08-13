@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Box, Typography, Paper, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PendingIcon from '@mui/icons-material/Pending';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -42,7 +43,7 @@ export const BookingHistory: React.FC<BookingHistoryProps> = ({
     };
 
     const getStatusChip = (status: string) => {
-        const colors: Record<string, any> = {
+        const colors: Record<string, ChipProps['color']> = {
             approved: 'success',
             pending: 'warning',
             rejected: 'error',

@@ -24,6 +24,7 @@ import {
 } from '@mui/material';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { logoutAndRevoke } from '../../services/api';
 import { useAccountVisibility } from '../../hooks/useAccountVisibility';
 import { getSidebarNavigation } from '../../constants/roleRouteMatrix';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -31,9 +32,11 @@ import { useNotifications } from '../../hooks/useNotifications';
 import ConnectionStatus from '../common/ConnectionStatus';
 import MobileBottomNav from './MobileBottomNav';
 import BreadcrumbNavigation from '../common/BreadcrumbNavigation';
-import GlobalSearch, { useGlobalSearch } from '../common/GlobalSearch';
+import GlobalSearch from '../common/GlobalSearch';
+import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import QuickActions from '../common/QuickActions';
-import KeyboardShortcutsPanel, { useKeyboardShortcuts } from '../common/KeyboardShortcutsPanel';
+import KeyboardShortcutsPanel from '../common/KeyboardShortcutsPanel';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import {
     Menu as MenuIcon,
     Dashboard as DashboardIcon,
@@ -60,7 +63,7 @@ const drawerWidth = 240;
 const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { user, logout } = useAuthStore();
+    const { user } = useAuthStore();
     const { isPrivate } = useAccountVisibility();
     const { connectionState } = useWebSocket();
     const { unreadCount, notifications: recentNotifications, markAsRead, markAllAsRead } = useNotifications();
@@ -83,7 +86,7 @@ const MainLayout = () => {
     };
 
     const handleLogout = () => {
-        logout();
+        void logoutAndRevoke();
         navigate('/login');
     };
 

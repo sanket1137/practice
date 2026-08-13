@@ -29,6 +29,10 @@ const STEPS = ['Scan QR', 'Record video', 'Admin review'];
 
 type VerifyStep = 'authenticating' | 'scanning' | 'recording' | 'uploading' | 'submitted';
 
+// Sentinel distinct from any real auth-store `user` value (including `null`/`undefined`),
+// used to make the render-time auth-sync check below also run on the first render.
+const AUTH_SYNC_UNSET = Symbol('auth-sync-unset');
+
 export default function VerifyScreenPage() {
   const { screenId } = useParams<{ screenId: string }>();
   const [searchParams] = useSearchParams();
@@ -46,14 +50,19 @@ export default function VerifyScreenPage() {
   const [error, setError] = useState<string | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Check auth
-  useEffect(() => {
+  // Check auth — the step transition is purely derived from `user` becoming
+  // available/unavailable, so adjust it during render (guarded by state tracking
+  // the last-seen `user`) instead of syncing it via an effect. The sentinel
+  // initial value ensures the very first render (mount) also runs this check.
+  const [authSyncedUser, setAuthSyncedUser] = useState<typeof user | typeof AUTH_SYNC_UNSET>(AUTH_SYNC_UNSET);
+  if (user !== authSyncedUser) {
+    setAuthSyncedUser(user);
     if (!user) {
       setStep('authenticating');
     } else if (step === 'authenticating') {
       setStep('scanning');
     }
-  }, [user, step]);
+  }
 
   // Auto-submit QR scan when authenticated and code is present
   const submitQrScan = useCallback(async () => {
@@ -92,9 +101,12 @@ export default function VerifyScreenPage() {
     }
   }, [screenId, challengeCode, user, scanQrMutation]);
 
-  // Trigger scan when step becomes 'scanning'
+  // Trigger scan when step becomes 'scanning'. This is a legitimate effect —
+  // triggering a network mutation (GPS lookup + QR scan API call) in response
+  // to state, not a synchronous state derivation.
   useEffect(() => {
     if (step === 'scanning' && challengeCode && user && !scanQrMutation.isPending && !verificationId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- submitQrScan performs an async mutation; its setState calls happen after awaits, not synchronously in this effect
       submitQrScan();
     }
   }, [step, challengeCode, user, scanQrMutation.isPending, verificationId, submitQrScan]);

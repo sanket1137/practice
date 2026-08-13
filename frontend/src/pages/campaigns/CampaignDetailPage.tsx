@@ -20,6 +20,7 @@ import {
     LinearProgress,
     Divider,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
@@ -69,6 +70,9 @@ interface Booking {
     createdAt?: string;
     totalPrice: number;
     currency: string;
+    playsToday?: number;
+    isLive?: boolean;
+    lastPlayed?: string;
 }
 
 export default function CampaignDetailPage() {
@@ -120,7 +124,7 @@ export default function CampaignDetailPage() {
         },
     });
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): ChipProps['color'] => {
         switch (status) {
             case 'Active':
                 return 'success';
@@ -158,7 +162,7 @@ export default function CampaignDetailPage() {
                         {campaign.name}
                     </Typography>
                     <Box display="flex" gap={1} alignItems="center">
-                        <Chip label={campaign.status} color={getStatusColor(campaign.status) as any} />
+                        <Chip label={campaign.status} color={getStatusColor(campaign.status)} />
                         <Typography variant="body2" color="textSecondary">
                             Created on {new Date(campaign.createdAt).toLocaleDateString()}
                         </Typography>
@@ -402,9 +406,9 @@ export default function CampaignDetailPage() {
                                                 <TableCell>
                                                     <Box display="flex" alignItems="center" gap={0.5}>
                                                         <Typography variant="body2" fontWeight="bold" color="primary">
-                                                            {(booking as any).playsToday || 0}
+                                                            {booking.playsToday || 0}
                                                         </Typography>
-                                                        {(booking as any).isLive && (
+                                                        {booking.isLive && (
                                                             <Chip label="LIVE" size="small" color="success" sx={{ height: 20, fontSize: '0.7rem' }} />
                                                         )}
                                                     </Box>
@@ -414,8 +418,8 @@ export default function CampaignDetailPage() {
                                                     {new Date(booking.endDate).toLocaleDateString()}
                                                 </TableCell>
                                                 <TableCell>
-                                                    {(booking as any).lastPlayed
-                                                        ? new Date((booking as any).lastPlayed).toLocaleTimeString()
+                                                    {booking.lastPlayed
+                                                        ? new Date(booking.lastPlayed).toLocaleTimeString()
                                                         : '-'
                                                     }
                                                 </TableCell>

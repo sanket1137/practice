@@ -71,9 +71,8 @@ public static class BookingStatusHelper
     /// </summary>
     public static bool CanEdit(this BookingStatus status)
     {
-        return status == BookingStatus.Pending || 
-               status == BookingStatus.Approved ||
-               status == BookingStatus.Rejected;
+        return status == BookingStatus.Pending ||
+               status == BookingStatus.Approved;
     }
     
     /// <summary>

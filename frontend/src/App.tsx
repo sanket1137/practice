@@ -1,14 +1,21 @@
-import React from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from 'notistack';
 import * as Sentry from '@sentry/react';
+import { isAxiosError } from 'axios';
 import theme from './theme';
 import { useAuthStore } from './store/authStore';
+import { isTokenExpired } from './utils/tokenUtils';
+import { doRefresh } from './services/api';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { OfflineBanner } from './components/common/OfflineBanner';
 import { useRateLimitHandler } from './hooks/useRateLimitHandler';
+import MainLayout from './components/Layout/MainLayout';
+import RoleAccessGate from './components/common/RoleAccessGate';
+
+// Auth pages (kept eager — first screens a guest sees)
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
@@ -16,68 +23,152 @@ import VerifyPhonePage from './pages/auth/VerifyPhonePage';
 import ResendVerificationPage from './pages/auth/ResendVerificationPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
-import DashboardPage from './pages/dashboard/DashboardPage';
-import CampaignsPage from './pages/campaigns/CampaignsPage';
-import CreateCampaignPage from './pages/campaigns/CreateCampaignPage';
-import EditCampaignPage from './pages/campaigns/EditCampaignPage';
-import CampaignDetailPage from './pages/campaigns/CampaignDetailPage';
-import ScreensPage from './pages/screens/ScreensPage';
-import CreateScreenPage from './pages/screens/CreateScreenPage';
-import UpdateScreenPage from './pages/screens/UpdateScreenPage';
-import ScreenDetailPage from './pages/screens/ScreenDetailPage';
-import DiscoverScreensPage from './pages/screens/DiscoverScreensPage';
-import BookingsPage from './pages/bookings/BookingsPage';
-import CreateBookingPage from './pages/bookings/CreateBookingPage';
-import BookingDetailPage from './pages/bookings/BookingDetailPage';
-import AnalyticsPage from './pages/analytics/AnalyticsPage';
-import AdvertiserReportPage from './pages/reports/AdvertiserReportPage';
-import CampaignReportPage from './pages/reports/CampaignReportPage';
-import PayoutsPage from './pages/payouts/PayoutsPage';
-import NotificationsPage from './pages/notifications/NotificationsPage';
-import MainLayout from './components/Layout/MainLayout';
-import DemoPage from './pages/demo/DemoPage';
-import ExploreScreensPage from './pages/public/ExploreScreensPage';
-import AboutUs from './pages/legal/AboutUs';
-import ContactUs from './pages/legal/ContactUs';
-import PrivacyPolicy from './pages/legal/PrivacyPolicy';
-import RefundPolicy from './pages/legal/RefundPolicy';
-import TermsOfService from './pages/legal/TermsOfService';
-import CookiesPolicy from './pages/legal/CookiesPolicy';
-import ContentPolicy from './pages/legal/ContentPolicy';
-import CommunityGuidelines from './pages/legal/CommunityGuidelines';
-import Disclaimer from './pages/legal/Disclaimer';
 
-import ProfileSettingsPage from './pages/profile/ProfileSettingsPage';
-import AdminPayoutsPage from './pages/payouts/AdminPayoutsPage';
-import AdminMachinesPage from './pages/admin/AdminMachinesPage';
-import AdminVerificationsPage from './pages/admin/AdminVerificationsPage';
-import AdminVisibilityRequestsPage from './pages/admin/AdminVisibilityRequestsPage';
-import VerifyScreenPage from './pages/verification/VerifyScreenPage';
-import ClaimPlayerQrPage from './pages/player-pairing/ClaimPlayerQrPage';
-import PricingRulesPage from './pages/screens/PricingRulesPage';
-import AdminCreativeReviewPage from './pages/admin/AdminCreativeReviewPage';
-import MediaLibraryPage from './pages/media/MediaLibraryPage';
-import { FestivePricingPage } from './pages/screens/FestivePricingPage';
-import { CmsBillingPage } from './pages/cms/CmsBillingPage';
+// Route-level code splitting: all app pages are lazy-loaded
+const DashboardPage = lazy(() => import('./pages/dashboard/DashboardPage'));
+const CampaignsPage = lazy(() => import('./pages/campaigns/CampaignsPage'));
+const CreateCampaignPage = lazy(() => import('./pages/campaigns/CreateCampaignPage'));
+const EditCampaignPage = lazy(() => import('./pages/campaigns/EditCampaignPage'));
+const CampaignDetailPage = lazy(() => import('./pages/campaigns/CampaignDetailPage'));
+const ScreensPage = lazy(() => import('./pages/screens/ScreensPage'));
+const CreateScreenPage = lazy(() => import('./pages/screens/CreateScreenPage'));
+const UpdateScreenPage = lazy(() => import('./pages/screens/UpdateScreenPage'));
+const ScreenDetailPage = lazy(() => import('./pages/screens/ScreenDetailPage'));
+const DiscoverScreensPage = lazy(() => import('./pages/screens/DiscoverScreensPage'));
+const BookingsPage = lazy(() => import('./pages/bookings/BookingsPage'));
+const CreateBookingPage = lazy(() => import('./pages/bookings/CreateBookingPage'));
+const BookingDetailPage = lazy(() => import('./pages/bookings/BookingDetailPage'));
+const AnalyticsPage = lazy(() => import('./pages/analytics/AnalyticsPage'));
+const AdvertiserReportPage = lazy(() => import('./pages/reports/AdvertiserReportPage'));
+const CampaignReportPage = lazy(() => import('./pages/reports/CampaignReportPage'));
+const PayoutsPage = lazy(() => import('./pages/payouts/PayoutsPage'));
+const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
+const DemoPage = lazy(() => import('./pages/demo/DemoPage'));
+const ExploreScreensPage = lazy(() => import('./pages/public/ExploreScreensPage'));
+const AboutUs = lazy(() => import('./pages/legal/AboutUs'));
+const ContactUs = lazy(() => import('./pages/legal/ContactUs'));
+const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy'));
+const RefundPolicy = lazy(() => import('./pages/legal/RefundPolicy'));
+const TermsOfService = lazy(() => import('./pages/legal/TermsOfService'));
+const CookiesPolicy = lazy(() => import('./pages/legal/CookiesPolicy'));
+const ContentPolicy = lazy(() => import('./pages/legal/ContentPolicy'));
+const CommunityGuidelines = lazy(() => import('./pages/legal/CommunityGuidelines'));
+const Disclaimer = lazy(() => import('./pages/legal/Disclaimer'));
+const ProfileSettingsPage = lazy(() => import('./pages/profile/ProfileSettingsPage'));
+const AdminPayoutsPage = lazy(() => import('./pages/payouts/AdminPayoutsPage'));
+const AdminMachinesPage = lazy(() => import('./pages/admin/AdminMachinesPage'));
+const AdminVerificationsPage = lazy(() => import('./pages/admin/AdminVerificationsPage'));
+const AdminVisibilityRequestsPage = lazy(() => import('./pages/admin/AdminVisibilityRequestsPage'));
+const VerifyScreenPage = lazy(() => import('./pages/verification/VerifyScreenPage'));
+const ClaimPlayerQrPage = lazy(() => import('./pages/player-pairing/ClaimPlayerQrPage'));
+const PricingRulesPage = lazy(() => import('./pages/screens/PricingRulesPage'));
+const AdminCreativeReviewPage = lazy(() => import('./pages/admin/AdminCreativeReviewPage'));
+const MediaLibraryPage = lazy(() => import('./pages/media/MediaLibraryPage'));
+const FestivePricingPage = lazy(() =>
+  import('./pages/screens/FestivePricingPage').then((m) => ({ default: m.FestivePricingPage }))
+);
+const CmsBillingPage = lazy(() =>
+  import('./pages/cms/CmsBillingPage').then((m) => ({ default: m.CmsBillingPage }))
+);
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 // CMS subsystem
-import CmsLayout from './pages/cms/CmsLayout';
-import CmsScreensPage from './pages/cms/CmsScreensPage';
-import CmsMediaPage from './pages/cms/CmsMediaPage';
-import CmsPlaylistsPage from './pages/cms/CmsPlaylistsPage';
-import CmsRemoteControlPage from './pages/cms/CmsRemoteControlPage';
-import CmsSchedulePage from './pages/cms/CmsSchedulePage';
-import CmsScreenGroupsPage from './pages/cms/CmsScreenGroupsPage';
-import CmsMosaicEditorPage from './pages/cms/CmsMosaicEditorPage';
-import LedZoneConfigPage from './pages/screens/LedZoneConfigPage';
-import NotificationPreferencesPage from './pages/notifications/NotificationPreferencesPage';
-import RoleAccessGate from './components/common/RoleAccessGate';
+const CmsLayout = lazy(() => import('./pages/cms/CmsLayout'));
+const CmsScreensPage = lazy(() => import('./pages/cms/CmsScreensPage'));
+const CmsMediaPage = lazy(() => import('./pages/cms/CmsMediaPage'));
+const CmsPlaylistsPage = lazy(() => import('./pages/cms/CmsPlaylistsPage'));
+const CmsRemoteControlPage = lazy(() => import('./pages/cms/CmsRemoteControlPage'));
+const CmsSchedulePage = lazy(() => import('./pages/cms/CmsSchedulePage'));
+const CmsScreenGroupsPage = lazy(() => import('./pages/cms/CmsScreenGroupsPage'));
+const CmsMosaicEditorPage = lazy(() => import('./pages/cms/CmsMosaicEditorPage'));
+const LedZoneConfigPage = lazy(() => import('./pages/screens/LedZoneConfigPage'));
+const NotificationPreferencesPage = lazy(
+  () => import('./pages/notifications/NotificationPreferencesPage')
+);
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      retry: (failureCount, error) => {
+        // Never retry client (4xx) errors — they won't succeed on retry
+        if (isAxiosError(error)) {
+          const status = error.response?.status;
+          if (status !== undefined && status >= 400 && status < 500) {
+            return false;
+          }
+        }
+        // Retry network / 5xx errors up to 2 times
+        return failureCount < 2;
+      },
+    },
+  },
+});
+
+const SuspenseFallback = () => (
+  <Box
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60vh',
+      width: '100%',
+    }}
+  >
+    <CircularProgress />
+  </Box>
+);
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const logout = useAuthStore((state) => state.logout);
+
+  // The refresh token lives in an HttpOnly cookie now — JavaScript can't read
+  // it to decide "is a refresh possible" up front. So: a valid access token
+  // means usable immediately; an expired one means we don't know yet and
+  // must ask the server (a silent refresh call, which succeeds only if the
+  // browser still holds a valid refresh cookie).
+  const [checking, setChecking] = useState(() => isAuthenticated && isTokenExpired(accessToken));
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setChecking(false);
+      return;
+    }
+    if (!isTokenExpired(accessToken)) {
+      setChecking(false);
+      return;
+    }
+
+    let cancelled = false;
+    setChecking(true);
+    doRefresh()
+      .catch(() => {
+        if (!cancelled) logout();
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Only re-run when auth identity or the specific token value changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, accessToken]);
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  if (checking) {
+    return <SuspenseFallback />;
+  }
+  if (isTokenExpired(accessToken)) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
 };
 
 // Shows landing page for guests; redirects authenticated users into the app
@@ -107,12 +198,15 @@ function App() {
           <SnackbarProvider maxSnack={3}>
             <AppGlobalHandlers>
               <BrowserRouter>
+                <Suspense fallback={<SuspenseFallback />}>
                 <Routes>
                 {/* Landing page — public for guests, redirects to dashboard if authenticated */}
                 <Route path="/" element={<SmartRoot />} />
                 {/* Public Routes */}
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />                  <Route path="/register/private" element={<RegisterPage mode="private" />} />                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/register/private" element={<RegisterPage mode="private" />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/verify-phone" element={<VerifyPhonePage />} />
                 <Route path="/resend-verification" element={<ResendVerificationPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -189,7 +283,11 @@ function App() {
                   <Route path="groups/:groupId/mosaic" element={<CmsMosaicEditorPage />} />
                   <Route path="billing" element={<CmsBillingPage />} />
                 </Route>
+
+                {/* 404 catch-all */}
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
+                </Suspense>
               </BrowserRouter>
             </AppGlobalHandlers>
           </SnackbarProvider>

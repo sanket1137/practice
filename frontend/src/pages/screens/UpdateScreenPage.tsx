@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
     Container,
     Paper,
@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
@@ -64,38 +65,41 @@ export default function UpdateScreenPage() {
         },
     });
 
-    // Pre-populate form when screen data loads
-    useEffect(() => {
-        if (screen) {
-            setFormData({
-                name: screen.name || '',
-                description: screen.description || '',
-                physicalWidth: screen.physicalWidth?.toString() || '',
-                physicalHeight: screen.physicalHeight?.toString() || '',
-                resolutionWidth: screen.resolutionWidth?.toString() || '',
-                resolutionHeight: screen.resolutionHeight?.toString() || '',
-                street: screen.location?.street || '',
-                city: screen.location?.city || '',
-                state: screen.location?.state || '',
-                country: screen.location?.country || '',
-                postalCode: screen.location?.postalCode || '',
-                latitude: screen.latitude?.toString() || '',
-                longitude: screen.longitude?.toString() || '',
-                timeFrameMinutes: screen.timeFrameMinutes?.toString() || '',
-                slotsPerFrame: screen.slotsPerFrame?.toString() || '',
-                pricePerSlot: screen.pricePerSlot?.toString() || '',
-                status: screen.status || 'Active',
-                timezone: screen.timezone || 'UTC',
-            });
+    // Pre-populate the (subsequently user-editable) form the first time screen
+    // data loads. A state guard + render-time check avoids deriving this in an
+    // effect, which would cause an extra render and could stomp user edits if
+    // `screen` were ever re-fetched.
+    const [prePopulated, setPrePopulated] = useState(false);
+    if (screen && !prePopulated) {
+        setPrePopulated(true);
+        setFormData({
+            name: screen.name || '',
+            description: screen.description || '',
+            physicalWidth: screen.physicalWidth?.toString() || '',
+            physicalHeight: screen.physicalHeight?.toString() || '',
+            resolutionWidth: screen.resolutionWidth?.toString() || '',
+            resolutionHeight: screen.resolutionHeight?.toString() || '',
+            street: screen.location?.street || '',
+            city: screen.location?.city || '',
+            state: screen.location?.state || '',
+            country: screen.location?.country || '',
+            postalCode: screen.location?.postalCode || '',
+            latitude: screen.latitude?.toString() || '',
+            longitude: screen.longitude?.toString() || '',
+            timeFrameMinutes: screen.timeFrameMinutes?.toString() || '',
+            slotsPerFrame: screen.slotsPerFrame?.toString() || '',
+            pricePerSlot: screen.pricePerSlot?.toString() || '',
+            status: screen.status || 'Active',
+            timezone: screen.timezone || 'UTC',
+        });
 
-            if (screen.schedule) {
-                setSchedule(screen.schedule);
-            }
+        if (screen.schedule) {
+            setSchedule(screen.schedule);
         }
-    }, [screen]);
+    }
 
     const updateScreenMutation = useMutation({
-        mutationFn: async (data: any) => {
+        mutationFn: async (data: typeof formData & { schedule: typeof schedule }) => {
             const response = await api.put(`/screens/${id}`, {
                 name: data.name,
                 description: data.description,
@@ -125,8 +129,9 @@ export default function UpdateScreenPage() {
             enqueueSnackbar('Screen updated successfully', { variant: 'success' });
             navigate(`/screens/${id}`);
         },
-        onError: (error: any) => {
-            enqueueSnackbar(error.response?.data?.message || 'Failed to update screen', { variant: 'error' });
+        onError: (error: unknown) => {
+            const message = isAxiosError(error) ? (error.response?.data as { message?: string } | undefined)?.message : undefined;
+            enqueueSnackbar(message || 'Failed to update screen', { variant: 'error' });
         },
     });
 

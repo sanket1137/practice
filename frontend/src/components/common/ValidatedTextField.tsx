@@ -1,6 +1,6 @@
 import { TextField } from '@mui/material';
 import type { TextFieldProps } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 interface ValidatedTextFieldProps extends Omit<TextFieldProps, 'error'> {
     value: string;
@@ -14,6 +14,41 @@ interface ValidatedTextFieldProps extends Omit<TextFieldProps, 'error'> {
     onValidationChange?: (isValid: boolean) => void;
 }
 
+function computeError(
+    value: string,
+    touched: boolean,
+    validationRules?: ValidatedTextFieldProps['validationRules']
+): string | null {
+    if (!touched || !validationRules) {
+        return null;
+    }
+
+    if (validationRules.required && !value.trim()) {
+        return 'This field is required';
+    }
+
+    if (validationRules.minLength && value.length < validationRules.minLength) {
+        return `Minimum ${validationRules.minLength} characters required`;
+    }
+
+    if (validationRules.maxLength && value.length > validationRules.maxLength) {
+        return `Maximum ${validationRules.maxLength} characters allowed`;
+    }
+
+    if (validationRules.pattern && !validationRules.pattern.test(value)) {
+        return 'Invalid format';
+    }
+
+    if (validationRules.custom) {
+        const customError = validationRules.custom(value);
+        if (customError) {
+            return customError;
+        }
+    }
+
+    return null;
+}
+
 export default function ValidatedTextField({
     value,
     validationRules,
@@ -22,56 +57,19 @@ export default function ValidatedTextField({
     ...props
 }: ValidatedTextFieldProps) {
     const [touched, setTouched] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
+    // Error is a pure derivation of value/touched/validationRules — compute it
+    // directly during render instead of syncing it into state via an effect.
+    const error = useMemo(
+        () => computeError(value, touched, validationRules),
+        [value, touched, validationRules]
+    );
+
+    // Notifying the parent is a side effect (it calls into code we don't own),
+    // so it stays in an effect — but no local setState happens here anymore.
     useEffect(() => {
-        if (!touched || !validationRules) {
-            setError(null);
-            onValidationChange?.(true);
-            return;
-        }
-
-        // Required validation
-        if (validationRules.required && !value.trim()) {
-            setError('This field is required');
-            onValidationChange?.(false);
-            return;
-        }
-
-        // Min length validation
-        if (validationRules.minLength && value.length < validationRules.minLength) {
-            setError(`Minimum ${validationRules.minLength} characters required`);
-            onValidationChange?.(false);
-            return;
-        }
-
-        // Max length validation
-        if (validationRules.maxLength && value.length > validationRules.maxLength) {
-            setError(`Maximum ${validationRules.maxLength} characters allowed`);
-            onValidationChange?.(false);
-            return;
-        }
-
-        // Pattern validation
-        if (validationRules.pattern && !validationRules.pattern.test(value)) {
-            setError('Invalid format');
-            onValidationChange?.(false);
-            return;
-        }
-
-        // Custom validation
-        if (validationRules.custom) {
-            const customError = validationRules.custom(value);
-            if (customError) {
-                setError(customError);
-                onValidationChange?.(false);
-                return;
-            }
-        }
-
-        setError(null);
-        onValidationChange?.(true);
-    }, [value, touched, validationRules, onValidationChange]);
+        onValidationChange?.(error === null);
+    }, [error, onValidationChange]);
 
     const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
         setTouched(true);

@@ -25,11 +25,13 @@ public class PricingRulesController : ControllerBase
 {
     private readonly IMediator _mediator;
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<PricingRulesController> _logger;
 
-    public PricingRulesController(IMediator mediator, ApplicationDbContext context)
+    public PricingRulesController(IMediator mediator, ApplicationDbContext context, ILogger<PricingRulesController> logger)
     {
         _mediator = mediator;
         _context = context;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -46,7 +48,8 @@ public class PricingRulesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<PricingRuleDto>>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error retrieving pricing rules for screen {ScreenId}", screenId);
+            return StatusCode(500, ApiResponse<IEnumerable<PricingRuleDto>>.ErrorResponse("Failed to retrieve pricing rules."));
         }
     }
 
@@ -68,7 +71,8 @@ public class PricingRulesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<PricingRuleDto>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error creating pricing rule for screen {ScreenId}", screenId);
+            return StatusCode(500, ApiResponse<PricingRuleDto>.ErrorResponse("Failed to create pricing rule."));
         }
     }
 
@@ -95,7 +99,8 @@ public class PricingRulesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<PricingRuleDto>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error updating pricing rule {RuleId} for screen {ScreenId}", ruleId, screenId);
+            return StatusCode(500, ApiResponse<PricingRuleDto>.ErrorResponse("Failed to update pricing rule."));
         }
     }
 
@@ -119,7 +124,8 @@ public class PricingRulesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error deleting pricing rule {RuleId} for screen {ScreenId}", ruleId, screenId);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to delete pricing rule."));
         }
     }
 
@@ -143,7 +149,8 @@ public class PricingRulesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<PricingRuleDto>.ErrorResponse($"Error: {ex.Message}"));
+            _logger.LogError(ex, "Error toggling pricing rule {RuleId} for screen {ScreenId}", ruleId, screenId);
+            return StatusCode(500, ApiResponse<PricingRuleDto>.ErrorResponse("Failed to toggle pricing rule."));
         }
     }
 
@@ -175,7 +182,8 @@ public class PricingRulesController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { error = $"Error creating pricing rules: {ex.Message}" });
+            _logger.LogError(ex, "Error bulk creating pricing rules for screen {ScreenId}", screenId);
+            return StatusCode(500, new { error = "Failed to create pricing rules." });
         }
     }
 }

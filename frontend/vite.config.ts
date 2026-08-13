@@ -1,14 +1,15 @@
 import { defineConfig } from 'vitest/config'
+import type { ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     {
       name: 'spa-fallback',
-      configureServer(server: any) {
-        server.middlewares.use((req: any, _res: any, next: any) => {
+      configureServer(server: ViteDevServer) {
+        server.middlewares.use((req, _res, next) => {
           const url = req.url || '';
           const accept = req.headers.accept || '';
           if (
@@ -28,6 +29,8 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['@microsoft/signalr']
   },
+  // Strip console/debugger statements from production builds only; keep dev logs.
+  esbuild: command === 'build' ? { drop: ['console', 'debugger'] as ('console' | 'debugger')[] } : {},
   test: {
     globals: true,
     environment: 'jsdom',
@@ -35,11 +38,24 @@ export default defineConfig({
     css: true,
   },
   build: {
+    // Source maps so Sentry can symbolicate production stack traces
+    sourcemap: true,
     rollupOptions: {
       input: {
         main: './index.html',
         app: './app.html'
-      }
+      },
+      output: {
+        // Group heavyweight vendors into stable chunks; route-level code
+        // splitting (React.lazy in src/App.tsx) handles the per-page splits.
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          mui: ['@mui/material', '@mui/icons-material', '@mui/x-date-pickers'],
+          charts: ['recharts'],
+          maps: ['leaflet', 'react-leaflet', 'react-leaflet-cluster'],
+          signalr: ['@microsoft/signalr'],
+        },
+      },
     }
   },
   server: {
@@ -64,4 +80,4 @@ export default defineConfig({
       port: 5173
     }
   }
-})
+}))

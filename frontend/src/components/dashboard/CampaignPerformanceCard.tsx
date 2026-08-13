@@ -40,7 +40,7 @@ export default function CampaignPerformanceCard() {
     const totalBudget = activeCampaigns.reduce((sum, c) => sum + c.budget, 0);
     const currency = activeCampaigns[0]?.currency || 'INR';
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): 'success' | 'default' | 'warning' | 'info' => {
         switch (status) {
             case 'Active': return 'success';
             case 'Draft': return 'default';
@@ -188,7 +188,7 @@ export default function CampaignPerformanceCard() {
                             </Box>
                             <Chip
                                 label={campaign.status}
-                                color={getStatusColor(campaign.status) as any}
+                                color={getStatusColor(campaign.status)}
                                 size="small"
                             />
                         </Box>

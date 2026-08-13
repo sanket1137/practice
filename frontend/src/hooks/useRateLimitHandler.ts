@@ -48,10 +48,18 @@ export function useRateLimitHandler() {
 }
 
 /**
+ * Error shape produced by the API layer when a request is rate limited.
+ */
+interface RateLimitError extends Error {
+    isRateLimit: true;
+    retryAfter?: number;
+}
+
+/**
  * Helper function to check if an error is a rate limit error
  */
-export function isRateLimitError(error: unknown): boolean {
-    return error instanceof Error && (error as any).isRateLimit === true;
+export function isRateLimitError(error: unknown): error is RateLimitError {
+    return error instanceof Error && (error as Partial<RateLimitError>).isRateLimit === true;
 }
 
 /**
@@ -59,7 +67,7 @@ export function isRateLimitError(error: unknown): boolean {
  */
 export function getRetryAfter(error: unknown): number | undefined {
     if (isRateLimitError(error)) {
-        return (error as any).retryAfter;
+        return error.retryAfter;
     }
     return undefined;
 }

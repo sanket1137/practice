@@ -88,7 +88,8 @@ public class BookingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, CCMS.Shared.Common.ApiResponse<IEnumerable<BookingDto>>.ErrorResponse(ex.Message));
+            _logger.LogError(ex, "Error fetching bookings for user {UserId}", User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<IEnumerable<BookingDto>>.ErrorResponse("Failed to fetch bookings."));
         }
     }
 
@@ -150,7 +151,8 @@ public class BookingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, CCMS.Shared.Common.ApiResponse<CCMS.Shared.Common.PagedResult<BookingDto>>.ErrorResponse(ex.Message));
+            _logger.LogError(ex, "Error fetching paged bookings for user {UserId}", User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<CCMS.Shared.Common.PagedResult<BookingDto>>.ErrorResponse("Failed to fetch bookings."));
         }
     }
 
@@ -198,7 +200,8 @@ public class BookingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse(ex.Message));
+            _logger.LogError(ex, "Error fetching booking {BookingId}", id);
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDto>.ErrorResponse("Failed to fetch booking."));
         }
     }
 
@@ -236,7 +239,7 @@ public class BookingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating booking");
-            return StatusCode(500, new { message = $"Error creating booking: {ex.Message}", innerException = ex.InnerException?.Message });
+            return StatusCode(500, new { message = "Failed to create booking." });
         }
     }
 
@@ -284,7 +287,7 @@ public class BookingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error approving booking {BookingId}", id);
-            return StatusCode(500, new { message = ex.Message });
+            return StatusCode(500, new { message = "Failed to approve booking." });
         }
     }
 
@@ -325,7 +328,7 @@ public class BookingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error rejecting booking {BookingId}", id);
-            return StatusCode(500, new { message = ex.Message });
+            return StatusCode(500, new { message = "Failed to reject booking." });
         }
     }
 
@@ -350,7 +353,8 @@ public class BookingsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDateBreakdown>.ErrorResponse(ex.Message));
+            _logger.LogError(ex, "Error checking booking availability for screen {ScreenId}", screenId);
+            return StatusCode(500, CCMS.Shared.Common.ApiResponse<BookingDateBreakdown>.ErrorResponse("Failed to check booking availability."));
         }
     }
 

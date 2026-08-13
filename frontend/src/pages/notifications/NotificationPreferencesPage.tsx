@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { getNotificationPreferences, updateNotificationPreferences } from '../../services/notificationApi';
 import type { UpdateNotificationPreferenceRequest } from '../../types/notification';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ErrorState from '../../components/common/ErrorState';
 
 const CATEGORY_MAP: Record<string, number[]> = {
@@ -27,13 +27,17 @@ export default function NotificationPreferencesPage() {
         queryFn: getNotificationPreferences,
     });
 
-    useEffect(() => {
-        if (prefs.length > 0) {
-            const map: Record<number, { inApp: boolean; email: boolean }> = {};
-            prefs.forEach(p => { map[p.notificationType] = { inApp: p.inAppEnabled, email: p.emailEnabled }; });
-            setLocal(map);
-        }
-    }, [prefs]);
+    // Tracks whether `local` has been initialized from the last-loaded `prefs`,
+    // so we can re-sync (via the render-time check below) when a fresh fetch
+    // completes, without re-deriving state in an effect.
+    const [syncedPrefs, setSyncedPrefs] = useState(prefs);
+
+    if (prefs.length > 0 && syncedPrefs !== prefs) {
+        setSyncedPrefs(prefs);
+        const map: Record<number, { inApp: boolean; email: boolean }> = {};
+        prefs.forEach(p => { map[p.notificationType] = { inApp: p.inAppEnabled, email: p.emailEnabled }; });
+        setLocal(map);
+    }
 
     const saveMutation = useMutation({
         mutationFn: (updates: UpdateNotificationPreferenceRequest[]) => updateNotificationPreferences(updates),

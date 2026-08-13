@@ -11,6 +11,7 @@ using CCMS.Infrastructure.Data;
 using CCMS.Shared.Common;
 using CCMS.Shared.DTOs.Payments;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 using Asp.Versioning;
 
 
@@ -524,18 +525,24 @@ public class WalletController : ControllerBase
 
 public class WalletTopUpConfirmRequest
 {
+    [Required, StringLength(200)]
     public string RazorpayOrderId { get; set; } = string.Empty;
+    [Required, StringLength(200)]
     public string RazorpayPaymentId { get; set; } = string.Empty;
+    [Required, StringLength(500)]
     public string RazorpaySignature { get; set; } = string.Empty;
+    [Range(1, double.MaxValue)]
     public decimal Amount { get; set; }
 }
 
 public class WalletPayRequest
 {
+    [Required]
     public Guid BookingId { get; set; }
 }
 
 public class CampaignWalletPayRequest
 {
+    [Required]
     public Guid CampaignId { get; set; }
 }

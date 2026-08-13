@@ -35,6 +35,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 
 interface DailyBreakdown {
@@ -116,8 +117,9 @@ const AdvertiserReportPage: React.FC = () => {
             } else {
                 setError(response.data.message || 'Failed to load report');
             }
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to load report');
+        } catch (err: unknown) {
+            const message = isAxiosError(err) ? (err.response?.data as { message?: string } | undefined)?.message : undefined;
+            setError(message || 'Failed to load report');
         } finally {
             setLoading(false);
         }

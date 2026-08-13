@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Backdrop, CircularProgress, Typography } from '@mui/material';
 
 interface GlobalLoadingProps {
@@ -25,27 +24,4 @@ export default function GlobalLoading({ open, message }: GlobalLoadingProps) {
             )}
         </Backdrop>
     );
-}
-
-// Hook to manage global loading state
-export function useGlobalLoading() {
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState<string>();
-
-    const showLoading = (msg?: string) => {
-        setMessage(msg);
-        setLoading(true);
-    };
-
-    const hideLoading = () => {
-        setLoading(false);
-        setMessage(undefined);
-    };
-
-    return {
-        loading,
-        message,
-        showLoading,
-        hideLoading,
-    };
 }

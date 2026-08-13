@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CCMS.Shared.DTOs.Screens;
 
 public class ScreenDto
@@ -62,46 +64,97 @@ public class ScreenDto
 
 public class CreateScreenRequest
 {
+    [Required]
+    [StringLength(200)]
     public string Name { get; set; } = string.Empty;
+
+    [StringLength(2000)]
     public string Description { get; set; } = string.Empty;
+
+    [Range(0.01, double.MaxValue)]
     public decimal PhysicalWidth { get; set; }
+
+    [Range(0.01, double.MaxValue)]
     public decimal PhysicalHeight { get; set; }
+
+    [StringLength(20)]
     public string DimensionUnit { get; set; } = "feet";
+
+    [Range(1, int.MaxValue)]
     public int ResolutionWidth { get; set; }
+
+    [Range(1, int.MaxValue)]
     public int ResolutionHeight { get; set; }
+
+    [Required]
     public AddressDto Location { get; set; } = new();
     public decimal Latitude { get; set; }
     public decimal Longitude { get; set; }
     public OperatingScheduleDto Schedule { get; set; } = new();
+
+    [Range(1, int.MaxValue)]
     public int TimeFrameMinutes { get; set; }
+
+    [Range(1, int.MaxValue)]
     public int SlotsPerFrame { get; set; }
+
+    [StringLength(200)]
     public string DeviceId { get; set; } = string.Empty;
+
+    [Range(0, double.MaxValue)]
     public decimal PricePerSlot { get; set; }
+
+    [Required]
+    [StringLength(10)]
     public string Currency { get; set; } = "USD";
+
+    [Required]
+    [StringLength(100)]
     public string Timezone { get; set; } = "UTC"; // IANA timezone identifier (e.g., "Asia/Kolkata", "America/New_York")
-    
+
     // Manual tags to add during creation
     public List<Guid>? ManualTagIds { get; set; }
 }
 
 public class UpdateScreenRequest
 {
+    [StringLength(200)]
     public string? Name { get; set; }
+
+    [StringLength(2000)]
     public string? Description { get; set; }
+
+    [Range(0.01, double.MaxValue)]
     public decimal? PhysicalWidth { get; set; }
+
+    [Range(0.01, double.MaxValue)]
     public decimal? PhysicalHeight { get; set; }
+
+    [Range(1, int.MaxValue)]
     public int? ResolutionWidth { get; set; }
+
+    [Range(1, int.MaxValue)]
     public int? ResolutionHeight { get; set; }
     public AddressDto? Location { get; set; }
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
     public OperatingScheduleDto? Schedule { get; set; }
+
+    [Range(1, int.MaxValue)]
     public int? TimeFrameMinutes { get; set; }
+
+    [Range(1, int.MaxValue)]
     public int? SlotsPerFrame { get; set; }
+
+    [Range(0, double.MaxValue)]
     public decimal? PricePerSlot { get; set; }
+
+    [StringLength(50)]
     public string? Status { get; set; }
+
+    [StringLength(100)]
     public string? Timezone { get; set; } // IANA timezone identifier (e.g., "Asia/Kolkata", "America/New_York")
-    
+
     // Tags to add/remove during update
     public List<Guid>? AddTagIds { get; set; }
     public List<Guid>? RemoveTagIds { get; set; }
@@ -109,10 +162,21 @@ public class UpdateScreenRequest
 
 public class AddressDto
 {
+    [StringLength(300)]
     public string Street { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string City { get; set; } = string.Empty;
+
+    [StringLength(100)]
     public string State { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(100)]
     public string Country { get; set; } = string.Empty;
+
+    [StringLength(20)]
     public string PostalCode { get; set; } = string.Empty;
 }
 

@@ -58,8 +58,39 @@ import {
     type PublicSearchRequest,
     type BoundingBox,
 } from '../../services/publicScreensService';
+import type { Screen } from '../../types/screen';
 
 const DRAWER_WIDTH = 380;
+
+// ScreensMap expects the full owner-facing Screen shape; adapt the lighter
+// public search result into it, filling in fields the map/marker don't use.
+function toMapScreen(s: PublicScreen): Screen {
+    return {
+        id: s.id,
+        name: s.name,
+        description: '',
+        location: (s.city || s.state || s.country)
+            ? { street: '', city: s.city ?? '', state: s.state ?? '', country: s.country ?? '', postalCode: '' }
+            : undefined,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        status: s.isOnline ? 'Active' : 'Inactive',
+        pricePerSlot: s.startingPrice,
+        currency: s.currency,
+        isOnline: s.isOnline,
+        createdAt: '',
+        primaryTags: (s.primaryTagCategory || s.primaryTagName)
+            ? [{
+                tagId: s.id,
+                slug: '',
+                displayName: s.primaryTagName ?? '',
+                category: s.primaryTagCategory ?? '',
+                isPrimary: true,
+                source: 'Auto',
+            }]
+            : undefined,
+    };
+}
 
 interface FilterState {
     searchText: string;
@@ -144,8 +175,21 @@ export default function ExploreScreensPage() {
         setHoveredScreen(screen);
     }, []);
 
+    // ScreensMap works with the owner-facing Screen type; adapt the list once
+    // and translate its callbacks back to the original PublicScreen objects.
+    const mapScreens = useMemo(() => screens.map(toMapScreen), [screens]);
+
+    const handleMapScreenClick = useCallback((mapScreen: Screen) => {
+        const original = screens.find(s => s.id === mapScreen.id);
+        if (original) handleScreenClick(original);
+    }, [screens, handleScreenClick]);
+
+    const handleMapScreenHover = useCallback((mapScreen: Screen | null) => {
+        handleScreenHover(mapScreen ? screens.find(s => s.id === mapScreen.id) ?? null : null);
+    }, [screens, handleScreenHover]);
+
     // Handle map bounds change
-    const handleBoundsChange = useCallback((bounds: any) => {
+    const handleBoundsChange = useCallback((bounds: BoundingBox) => {
         setMapBounds({
             north: bounds.north,
             south: bounds.south,
@@ -161,7 +205,7 @@ export default function ExploreScreensPage() {
     }, []);
 
     // Handle filter change
-    const handleFilterChange = (field: keyof FilterState, value: any) => {
+    const handleFilterChange = <K extends keyof FilterState>(field: K, value: FilterState[K]) => {
         setFilters(prev => ({ ...prev, [field]: value }));
         // Reset location search when filters change
         setSearchCenter(null);
@@ -619,10 +663,10 @@ export default function ExploreScreensPage() {
                 {/* Map View */}
                 {viewMode === 'map' && (
                     <ScreensMap
-                        screens={screens as any} // Convert PublicScreen to Screen type
+                        screens={mapScreens}
                         isLoading={isLoading}
-                        onScreenClick={handleScreenClick as any}
-                        onScreenHover={handleScreenHover as any}
+                        onScreenClick={handleMapScreenClick}
+                        onScreenHover={handleMapScreenHover}
                         onBoundsChange={handleBoundsChange}
                         onSearchArea={handleSearchArea}
                         selectedScreenId={selectedScreen?.id}

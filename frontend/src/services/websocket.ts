@@ -5,10 +5,13 @@ import * as signalR from '@microsoft/signalr';
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 const BASE_URL = API_URL.replace(/\/api(\/v\d+)?/, '');  // Remove /api or /api/v1 suffix for hub URLs
 
+/** Generic hub event callback. Payloads are typed by the caller via generics. */
+export type WebSocketEventCallback = (...args: unknown[]) => void;
+
 class WebSocketService {
     private connection: signalR.HubConnection | null = null;
     private connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
-    private listeners: Map<string, Set<Function>> = new Map();
+    private listeners: Map<string, Set<WebSocketEventCallback>> = new Map();
     private connectionPromise: Promise<void> | null = null;
 
     async connect(): Promise<void> {
@@ -105,7 +108,7 @@ class WebSocketService {
     }
 
     // Subscribe to screen events (for screen owners)
-    async subscribeToScreen(screenId: string, callback: (data: any) => void) {
+    async subscribeToScreen<TData = unknown>(screenId: string, callback: (data: TData) => void) {
         if (!this.isConnected()) {
             throw new Error('WebSocket not connected');
         }
@@ -135,7 +138,7 @@ class WebSocketService {
     }
 
     // Subscribe to campaign events (for advertisers)
-    async subscribeToCampaign(campaignId: string, callback: (data: any) => void) {
+    async subscribeToCampaign<TData = unknown>(campaignId: string, callback: (data: TData) => void) {
         if (!this.isConnected()) {
             throw new Error('WebSocket not connected');
         }
@@ -189,14 +192,14 @@ class WebSocketService {
     }
 
     // Generic event listener
-    on(eventName: string, callback: Function) {
+    on<TArgs extends unknown[] = unknown[]>(eventName: string, callback: (...args: TArgs) => void) {
         if (!this.connection) return;
 
         if (!this.listeners.has(eventName)) {
             this.listeners.set(eventName, new Set());
 
             // Register with SignalR hub
-            this.connection.on(eventName, (...args: any[]) => {
+            this.connection.on(eventName, (...args: unknown[]) => {
                 const callbacks = this.listeners.get(eventName);
                 if (callbacks) {
                     callbacks.forEach(cb => cb(...args));
@@ -204,18 +207,18 @@ class WebSocketService {
             });
         }
 
-        this.listeners.get(eventName)!.add(callback);
+        this.listeners.get(eventName)!.add(callback as WebSocketEventCallback);
     }
 
-    off(eventName: string, callback: Function) {
+    off<TArgs extends unknown[] = unknown[]>(eventName: string, callback: (...args: TArgs) => void) {
         const callbacks = this.listeners.get(eventName);
         if (callbacks) {
-            callbacks.delete(callback);
+            callbacks.delete(callback as WebSocketEventCallback);
         }
     }
 
     // Generic invoke method for signaling calls
-    async invoke(methodName: string, ...args: any[]): Promise<any> {
+    async invoke<TResult = unknown>(methodName: string, ...args: unknown[]): Promise<TResult> {
         // If not connected, try to connect first
         if (!this.isConnected()) {
             try {
@@ -232,7 +235,7 @@ class WebSocketService {
         }
 
         try {
-            return await this.connection!.invoke(methodName, ...args);
+            return await this.connection!.invoke<TResult>(methodName, ...args);
         } catch (error) {
             console.error(`[WebSocket] Error invoking ${methodName}:`, error);
             throw error;
@@ -240,14 +243,14 @@ class WebSocketService {
     }
 
     // Safe invoke that doesn't throw if not connected - useful for cleanup
-    async invokeIfConnected(methodName: string, ...args: any[]): Promise<any> {
+    async invokeIfConnected<TResult = unknown>(methodName: string, ...args: unknown[]): Promise<TResult | undefined> {
         if (!this.isConnected()) {
             console.log(`[WebSocket] Skipping ${methodName} - not connected`);
             return;
         }
 
         try {
-            return await this.connection!.invoke(methodName, ...args);
+            return await this.connection!.invoke<TResult>(methodName, ...args);
         } catch (error) {
             console.warn(`[WebSocket] Error invoking ${methodName}:`, error);
             // Don't throw - this is a "best effort" call

@@ -276,8 +276,8 @@ public class PlayerController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Handshake error for screen {request.ScreenId}");
-            return StatusCode(500, ApiResponse<HandshakeResponse>.ErrorResponse($"Handshake failed: {ex.Message}"));
+            _logger.LogError(ex, "Handshake error for screen {ScreenId}", request.ScreenId);
+            return StatusCode(500, ApiResponse<HandshakeResponse>.ErrorResponse("Handshake failed."));
         }
     }
 
@@ -598,8 +598,8 @@ public class PlayerController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Sync error for screen {request.ScreenId}");
-            return StatusCode(500, ApiResponse<SyncResponse>.ErrorResponse($"Sync failed: {ex.Message}"));
+            _logger.LogError(ex, "Sync error for screen {ScreenId}", request.ScreenId);
+            return StatusCode(500, ApiResponse<SyncResponse>.ErrorResponse("Sync failed."));
         }
     }
 
@@ -653,8 +653,8 @@ public class PlayerController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Heartbeat error for screen {request.ScreenId}");
-            return StatusCode(500, ApiResponse<HeartbeatResponse>.ErrorResponse($"Heartbeat failed: {ex.Message}"));
+            _logger.LogError(ex, "Heartbeat error for screen {ScreenId}", request.ScreenId);
+            return StatusCode(500, ApiResponse<HeartbeatResponse>.ErrorResponse("Heartbeat failed."));
         }
     }
 }

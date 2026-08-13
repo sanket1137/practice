@@ -1,11 +1,16 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using CCMS.Api.Extensions;
 using CCMS.Api.Hubs;
+using CCMS.Api.Middleware;
 using CCMS.Api.Services;
+using CCMS.Application.Behaviors;
+using FluentValidation;
+using MediatR;
+using Microsoft.AspNetCore.HttpOverrides;
 using CCMS.Application.Interfaces;
 using CCMS.Application.Mappings;
 using CCMS.Application.Services;
@@ -41,7 +46,13 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
-    .WriteTo.Console());
+    .WriteTo.Console()
+    .WriteTo.File(
+        path: Path.Combine("logs", "ccms-.log"),
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        fileSizeLimitBytes: 50 * 1024 * 1024,
+        rollOnFileSizeLimit: true));
 
 // Sentry error tracking
 var sentryDsn = builder.Configuration["Sentry:Dsn"];
@@ -60,6 +71,18 @@ if (!string.IsNullOrWhiteSpace(sentryDsn))
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Global exception handling — RFC 7807 ProblemDetails, no internal detail leakage
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
+// Behind nginx: trust forwarded headers so rate limiting and logging see real client IPs
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // API Versioning
 builder.Services.AddApiVersioning(options =>
@@ -119,7 +142,7 @@ builder.Services.AddSwaggerGen(c =>
 
 // Database - Support both SQL Server and PostgreSQL
 var databaseProvider = builder.Configuration["Database:Provider"] ?? "SqlServer";
-Console.WriteLine($"[CONFIG] Database:Provider = '{databaseProvider}'");
+Log.Information("[CONFIG] Database:Provider = {DatabaseProvider}", databaseProvider);
 
 if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
 {
@@ -136,7 +159,7 @@ if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
                 npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
             }
         ));
-    Console.WriteLine("Using PostgreSQL database with SplitQuery optimization");
+    Log.Information("Using PostgreSQL database with SplitQuery optimization");
 }
 else
 {
@@ -149,7 +172,7 @@ else
                 errorNumbersToAdd: null
             )
         ));
-    Console.WriteLine("Using SQL Server database");
+    Log.Information("Using SQL Server database");
 }
 
 
@@ -162,16 +185,25 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
     });
 });
 
-// JWT Authentication
-var jwtSecretKey = builder.Configuration["Jwt:SecretKey"] 
-    ?? throw new InvalidOperationException("JWT Secret Key not configured");
+// JWT Authentication — refuse to boot on a missing, short, or placeholder key.
+// A weak signing key means anyone can forge tokens, so this must fail loudly.
+var jwtSecretKey = builder.Configuration["Jwt:SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtSecretKey)
+    || jwtSecretKey.Length < 32
+    || jwtSecretKey.Contains("${")
+    || jwtSecretKey.Contains("your-super-secret-key"))
+{
+    throw new InvalidOperationException(
+        "Jwt:SecretKey is missing, a placeholder, or shorter than 32 characters. " +
+        "Set a cryptographically random key via the Jwt__SecretKey environment variable.");
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -213,15 +245,17 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// SignalR
-builder.Services.AddSignalR();
-
 // AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfiles));
 
-// MediatR
-builder.Services.AddMediatR(cfg => 
-    cfg.RegisterServicesFromAssembly(typeof(MappingProfiles).Assembly));
+// MediatR with validation pipeline — every command/query runs its FluentValidation
+// validators before the handler executes.
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(MappingProfiles).Assembly);
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+});
+builder.Services.AddValidatorsFromAssembly(typeof(MappingProfiles).Assembly);
 
 // Repository and Unit of Work
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
@@ -251,7 +285,7 @@ builder.Services.AddHttpClient("ComBirds"); // HttpClient for SMS API
 // File Storage Service - configurable via appsettings
 // Supports: "Local", "AzureBlob", "R2" (Cloudflare)
 var fileStorageProvider = builder.Configuration["FileStorage:Provider"] ?? "Local";
-Console.WriteLine($"[CONFIG] FileStorage:Provider value read from config: '{fileStorageProvider}'");
+Log.Information("[CONFIG] FileStorage:Provider = {FileStorageProvider}", fileStorageProvider);
 
 // Use Singleton for storage services to reuse connections and avoid repeated initialization
 var localFileService = new LocalFileStorageService(builder.Configuration);
@@ -261,7 +295,7 @@ if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
     var azureService = new AzureBlobStorageService(builder.Configuration);
     builder.Services.AddSingleton<IFileStorageService>(sp =>
         new FallbackFileStorageService(azureService, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
-    Console.WriteLine("Using Azure Blob Storage for file uploads (with Local fallback)");
+    Log.Information("Using Azure Blob Storage for file uploads (with Local fallback)");
 }
 else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 {
@@ -270,12 +304,12 @@ else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
     builder.Services.AddSingleton<IPresignedUploadService>(r2Service);
     builder.Services.AddSingleton<IFileStorageService>(sp =>
         new FallbackFileStorageService(r2Service, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
-    Console.WriteLine("Using Cloudflare R2 Storage for file uploads (with Local fallback)");
+    Log.Information("Using Cloudflare R2 Storage for file uploads (with Local fallback)");
 }
 else
 {
     builder.Services.AddSingleton<IFileStorageService>(localFileService);
-    Console.WriteLine("Using Local File System for file uploads");
+    Log.Information("Using Local File System for file uploads");
 }
 
 builder.Services.AddScoped<IPlaylistService, PlaylistService>();
@@ -285,36 +319,48 @@ builder.Services.AddScoped<SlotAvailabilityService>();
 builder.Services.AddScoped<PlaylistGeneratorService>();
 builder.Services.AddScoped<CreativeValidationService>();
 
-// Set up FFmpeg - download in background to avoid blocking
-var ffmpegPath = Path.Combine(Path.GetTempPath(), "ffmpeg");
-Directory.CreateDirectory(ffmpegPath);
+// Set up FFmpeg. Prefer a system-installed binary (the Docker image installs
+// ffmpeg via apt); only fall back to a background download for bare-metal dev
+// machines. Downloading executables at boot is a supply-chain risk in prod.
+var systemFfmpeg = new[] { "/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg" }
+    .FirstOrDefault(File.Exists);
 
-// Download FFmpeg in background, don't block startup
-_ = Task.Run(async () =>
+if (systemFfmpeg is not null)
 {
-    try
-    {
-        if (!File.Exists(Path.Combine(ffmpegPath, "ffmpeg.exe")))
-        {
-            Console.WriteLine("⏬ Downloading FFmpeg binaries in background (~100MB, may take 1-2 minutes)...");
-            await Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(
-                Xabe.FFmpeg.Downloader.FFmpegVersion.Official, 
-                ffmpegPath);
-            Console.WriteLine("✅ FFmpeg downloaded successfully!");
-        }
-        else
-        {
-            Console.WriteLine("✅ FFmpeg already available at: " + ffmpegPath);
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ FFmpeg download failed: {ex.Message}");
-        Console.WriteLine("Video uploads will fail until FFmpeg is available.");
-    }
-});
+    Xabe.FFmpeg.FFmpeg.SetExecutablesPath(Path.GetDirectoryName(systemFfmpeg)!);
+    Log.Information("Using system FFmpeg at {FfmpegPath}", systemFfmpeg);
+}
+else
+{
+    var ffmpegPath = Path.Combine(Path.GetTempPath(), "ffmpeg");
+    Directory.CreateDirectory(ffmpegPath);
+    var ffmpegBinary = OperatingSystem.IsWindows() ? "ffmpeg.exe" : "ffmpeg";
 
-Xabe.FFmpeg.FFmpeg.SetExecutablesPath(ffmpegPath);
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            if (!File.Exists(Path.Combine(ffmpegPath, ffmpegBinary)))
+            {
+                Log.Information("Downloading FFmpeg binaries in background (~100MB)...");
+                await Xabe.FFmpeg.Downloader.FFmpegDownloader.GetLatestVersion(
+                    Xabe.FFmpeg.Downloader.FFmpegVersion.Official,
+                    ffmpegPath);
+                Log.Information("FFmpeg downloaded successfully.");
+            }
+            else
+            {
+                Log.Information("FFmpeg already available at {FfmpegPath}", ffmpegPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "FFmpeg download failed; video uploads will fail until FFmpeg is available.");
+        }
+    });
+
+    Xabe.FFmpeg.FFmpeg.SetExecutablesPath(ffmpegPath);
+}
 
 builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
@@ -327,7 +373,7 @@ builder.Services.AddScoped<ReportExportService>();
 // Memory cache for caching (used by Google Places Service)
 builder.Services.AddMemoryCache();
 
-// ── Phase 2: Distributed cache (Redis in production, in-memory fallback in dev) ──
+// -- Phase 2: Distributed cache (Redis in production, in-memory fallback in dev) --
 var redisConnection = builder.Configuration["Redis:ConnectionString"];
 if (!string.IsNullOrWhiteSpace(redisConnection))
 {
@@ -409,10 +455,10 @@ builder.Services.AddHealthChecks()
         failureStatus: HealthStatus.Unhealthy,
         tags: new[] { "db", "postgresql" });
 
-// Static Files (for uploads)
-builder.Services.AddDirectoryBrowser();
-
 var app = builder.Build();
+
+app.UseForwardedHeaders();
+app.UseExceptionHandler();
 
 // Eagerly resolve the storage singleton so its constructor-side background
 // tasks (e.g. R2 bucket CORS configuration) run at startup instead of lazily
@@ -481,6 +527,19 @@ app.MapHub<CmsControlHub>("/hubs/cms").AllowAnonymous();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Liveness: process is up — never touches dependencies, so a transient DB blip
+// doesn't get healthy pods killed by the orchestrator.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false
+}).AllowAnonymous();
+
+// Readiness: dependencies (Postgres) are reachable.
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("db")
+}).AllowAnonymous();
+
 // Health check endpoint — returns JSON with postgres status
 app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -514,17 +573,17 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<ApplicationDbContext>();
         var seedLogger = services.GetRequiredService<ILogger<Program>>();
         context.Database.Migrate();
-        Console.WriteLine("Database migration applied successfully.");
+        seedLogger.LogInformation("Database migration applied successfully.");
 
         // Seed data in development mode — isolated so a partial failure here
-        // does not block subsequent independent seeders (tags, India screens…).
+        // does not block subsequent independent seeders (tags, India screens...).
         var env = services.GetRequiredService<IWebHostEnvironment>();
         if (env.IsDevelopment())
         {
             try
             {
                 await DataSeeder.SeedAsync(context);
-                Console.WriteLine("Seed data applied successfully.");
+                Log.Information("Seed data applied successfully.");
             }
             catch (Exception seedEx)
             {
@@ -535,33 +594,38 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // Always seed/refresh marketplace-ready Indian demo screens (idempotent).
-        try
+        // Demo marketplace screens are development/staging data — never write them
+        // into a production database. Opt in explicitly via Seeding:DemoScreens.
+        var seedDemoScreens = env.IsDevelopment()
+            || app.Configuration.GetValue<bool>("Seeding:DemoScreens");
+        if (seedDemoScreens)
         {
-            await IndianScreensSeeder.SeedAsync(context);
-            Console.WriteLine("Indian marketplace screens seeded successfully.");
-        }
-        catch (Exception seedEx)
-        {
-            seedLogger.LogWarning(seedEx, "IndianScreensSeeder failed.");
+            try
+            {
+                await IndianScreensSeeder.SeedAsync(context);
+                seedLogger.LogInformation("Indian marketplace demo screens seeded successfully.");
+            }
+            catch (Exception seedEx)
+            {
+                seedLogger.LogWarning(seedEx, "IndianScreensSeeder failed.");
+            }
         }
 
-        // Always seed screen tags (master data)
+        // Master data (idempotent): screen tags and festival calendar.
         try
         {
             await ScreenTagSeeder.SeedTagsAsync(context);
-            Console.WriteLine("Screen tags seeded successfully.");
+            seedLogger.LogInformation("Screen tags seeded successfully.");
         }
         catch (Exception seedEx)
         {
             seedLogger.LogWarning(seedEx, "ScreenTagSeeder failed.");
         }
 
-        // Always seed festival calendar (Phase 4)
         try
         {
             await FestivalSeeder.SeedAsync(context);
-            Console.WriteLine("Festival calendar seeded successfully.");
+            seedLogger.LogInformation("Festival calendar seeded successfully.");
         }
         catch (Exception seedEx)
         {
@@ -572,6 +636,11 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "An error occurred while migrating the database.");
+        // A half-migrated schema must never serve production traffic.
+        if (app.Environment.IsProduction())
+        {
+            throw;
+        }
     }
 }
 

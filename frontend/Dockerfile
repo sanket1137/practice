@@ -15,15 +15,18 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Build arguments for environment variables
+# (websocket service derives the hub URL from VITE_API_URL — no separate SignalR arg needed)
 ARG VITE_API_URL=/api/v1
-ARG VITE_SIGNALR_URL=
+ARG VITE_SENTRY_DSN=
+ARG VITE_GOOGLE_MAPS_API_KEY=
 
 # Set environment variables for build
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_SIGNALR_URL=$VITE_SIGNALR_URL
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 
-# Build the application (skip TypeScript checking for faster builds)
-RUN npx vite build
+# Build the application (type check + bundle)
+RUN npm run build
 
 # Stage 2: Production with Nginx
 FROM nginx:alpine AS runtime

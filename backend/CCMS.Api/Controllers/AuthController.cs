@@ -20,12 +20,63 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IMediator _mediator;
     private readonly IEmailService _emailService;
+    private readonly ILogger<AuthController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public AuthController(IAuthService authService, IMediator mediator, IEmailService emailService)
+    // Refresh tokens live in an HttpOnly cookie, never in the JSON response body —
+    // that keeps them out of localStorage/sessionStorage, so an XSS payload that can
+    // read JS-accessible storage still can't steal a long-lived credential. Scoped to
+    // the auth route prefix so it isn't sent on every unrelated API request.
+    private const string RefreshTokenCookieName = "refreshToken";
+    private const string RefreshTokenCookiePath = "/api/v1/auth";
+
+    public AuthController(IAuthService authService, IMediator mediator, IEmailService emailService, ILogger<AuthController> logger, IWebHostEnvironment environment)
     {
         _authService = authService;
         _mediator = mediator;
         _emailService = emailService;
+        _logger = logger;
+        _environment = environment;
+    }
+
+    private void SetRefreshTokenCookie(string refreshToken)
+    {
+        Response.Cookies.Append(RefreshTokenCookieName, refreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = !_environment.IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Path = RefreshTokenCookiePath,
+            Expires = DateTimeOffset.UtcNow.AddDays(7)
+        });
+    }
+
+    private void ClearRefreshTokenCookie()
+    {
+        Response.Cookies.Delete(RefreshTokenCookieName, new CookieOptions { Path = RefreshTokenCookiePath });
+    }
+
+    /// <summary>
+    /// Moves the refresh token from an AuthResponse body into the HttpOnly cookie and
+    /// strips it from the body, so it never lands in a JS-readable response.
+    /// </summary>
+    private AuthResponse IssueViaCookie(AuthResponse result)
+    {
+        if (!string.IsNullOrEmpty(result.RefreshToken))
+        {
+            SetRefreshTokenCookie(result.RefreshToken);
+            result.RefreshToken = string.Empty;
+        }
+        return result;
+    }
+
+    private string? ResolveRefreshToken(RefreshTokenRequest? request)
+    {
+        if (!string.IsNullOrEmpty(request?.RefreshToken))
+        {
+            return request.RefreshToken;
+        }
+        return Request.Cookies.TryGetValue(RefreshTokenCookieName, out var cookieToken) ? cookieToken : null;
     }
 
     [HttpPost("register")]
@@ -42,7 +93,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse($"Registration failed: {ex.Message}"));
+            _logger.LogError(ex, "Registration failed for email {Email}", request.Email);
+            return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse("Registration failed."));
         }
     }
 
@@ -52,14 +104,14 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.LoginAsync(request);
-            
+
             // Check if verification is required
             if (result.RequiresVerification)
             {
                 return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, result.VerificationMessage));
             }
-            
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Login successful"));
+
+            return Ok(ApiResponse<AuthResponse>.SuccessResponse(IssueViaCookie(result), "Login successful"));
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -67,40 +119,58 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse($"Login failed: {ex.Message}"));
+            _logger.LogError(ex, "Login failed for email {Email}", request.Email);
+            return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse("Login failed."));
         }
     }
 
     [HttpPost("refresh")]
     [DisableRateLimiting]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> Refresh([FromBody] RefreshTokenRequest request)
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Refresh([FromBody] RefreshTokenRequest? request)
     {
+        var token = ResolveRefreshToken(request);
+        if (string.IsNullOrEmpty(token))
+        {
+            return Unauthorized(ApiResponse<AuthResponse>.ErrorResponse("No refresh token provided."));
+        }
+
         try
         {
-            var result = await _authService.RefreshTokenAsync(request.RefreshToken);
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Token refreshed successfully"));
+            var result = await _authService.RefreshTokenAsync(token);
+            return Ok(ApiResponse<AuthResponse>.SuccessResponse(IssueViaCookie(result), "Token refreshed successfully"));
         }
         catch (UnauthorizedAccessException ex)
         {
+            ClearRefreshTokenCookie();
             return Unauthorized(ApiResponse<AuthResponse>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse($"Token refresh failed: {ex.Message}"));
+            _logger.LogError(ex, "Token refresh failed");
+            return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse("Token refresh failed."));
         }
     }
 
     [HttpPost("revoke")]
-    public async Task<ActionResult<ApiResponse<object>>> Revoke([FromBody] RefreshTokenRequest request)
+    public async Task<ActionResult<ApiResponse<object>>> Revoke([FromBody] RefreshTokenRequest? request)
     {
+        var token = ResolveRefreshToken(request);
         try
         {
-            await _authService.RevokeTokenAsync(request.RefreshToken);
+            if (!string.IsNullOrEmpty(token))
+            {
+                await _authService.RevokeTokenAsync(token);
+            }
             return Ok(ApiResponse<object>.SuccessResponse(null, "Token revoked successfully"));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Token revocation failed: {ex.Message}"));
+            _logger.LogError(ex, "Token revocation failed");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Token revocation failed."));
+        }
+        finally
+        {
+            ClearRefreshTokenCookie();
         }
     }
 
@@ -114,7 +184,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Password reset request failed: {ex.Message}"));
+            _logger.LogError(ex, "Password reset request failed");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Password reset request failed."));
         }
     }
 
@@ -132,7 +203,8 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<object>.ErrorResponse($"Password reset failed: {ex.Message}"));
+            _logger.LogError(ex, "Password reset failed");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Password reset failed."));
         }
     }
 
@@ -157,8 +229,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to send verification email for {Email}", request.Email);
             return StatusCode(500, ApiResponse<SendEmailVerificationResult>.ErrorResponse(
-                $"Failed to send verification email: {ex.Message}"));
+                "Failed to send verification email."));
         }
     }
 
@@ -190,8 +263,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Email verification failed");
             return StatusCode(500, ApiResponse<VerifyEmailResult>.ErrorResponse(
-                $"Email verification failed: {ex.Message}"));
+                "Email verification failed."));
         }
     }
 
@@ -219,8 +293,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to send phone OTP for {Email}", request.Email);
             return StatusCode(500, ApiResponse<SendPhoneOtpResult>.ErrorResponse(
-                $"Failed to send OTP: {ex.Message}"));
+                "Failed to send OTP."));
         }
     }
 
@@ -244,8 +319,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to resend phone OTP for {Email}", request.Email);
             return StatusCode(500, ApiResponse<SendPhoneOtpResult>.ErrorResponse(
-                $"Failed to resend OTP: {ex.Message}"));
+                "Failed to resend OTP."));
         }
     }
 
@@ -278,8 +354,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Phone verification failed for {Email}", request.Email);
             return StatusCode(500, ApiResponse<VerifyPhoneOtpResult>.ErrorResponse(
-                $"Phone verification failed: {ex.Message}"));
+                "Phone verification failed."));
         }
     }
 
@@ -296,8 +373,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to get verification status for {Email}", email);
             return StatusCode(500, ApiResponse<VerificationStatusResponse>.ErrorResponse(
-                $"Failed to get verification status: {ex.Message}"));
+                "Failed to get verification status."));
         }
     }
 
@@ -311,7 +389,7 @@ public class AuthController : ControllerBase
         try
         {
             var result = await _authService.CompleteVerificationAsync(request.Email);
-            return Ok(ApiResponse<AuthResponse>.SuccessResponse(result, "Verification complete. Welcome!"));
+            return Ok(ApiResponse<AuthResponse>.SuccessResponse(IssueViaCookie(result), "Verification complete. Welcome!"));
         }
         catch (InvalidOperationException ex)
         {
@@ -319,8 +397,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Auto-login failed for {Email}", request.Email);
             return StatusCode(500, ApiResponse<AuthResponse>.ErrorResponse(
-                $"Auto-login failed: {ex.Message}"));
+                "Auto-login failed."));
         }
     }
 
@@ -357,8 +436,9 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error sending test email to {Email}", request.Email);
             return StatusCode(500, ApiResponse<object>.ErrorResponse(
-                $"Error sending test email: {ex.Message}"));
+                "Error sending test email."));
         }
     }
 

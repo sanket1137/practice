@@ -16,6 +16,7 @@ import {
     Info,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
 
@@ -75,9 +76,12 @@ export default function DefaultVideoSettings({ screenId }: DefaultVideoSettingsP
             setUploading(false);
             setUploadProgress(0);
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to upload default video',
+                message || 'Failed to upload default video',
                 { variant: 'error' }
             );
             setUploading(false);
@@ -94,9 +98,12 @@ export default function DefaultVideoSettings({ screenId }: DefaultVideoSettingsP
             enqueueSnackbar('Default video deleted, using universal default', { variant: 'success' });
             queryClient.invalidateQueries({ queryKey: ['defaultVideo', screenId] });
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
+            const message = isAxiosError<{ message?: string }>(error)
+                ? error.response?.data?.message
+                : undefined;
             enqueueSnackbar(
-                error.response?.data?.message || 'Failed to delete default video',
+                message || 'Failed to delete default video',
                 { variant: 'error' }
             );
         },

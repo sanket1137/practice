@@ -87,6 +87,8 @@ const SORT_OPTIONS: { value: SortKey; label: string; backend?: string; direction
   { value: 'cpm', label: 'Best CPM', backend: 'cpm', direction: 'asc' },
 ];
 
+const SLOTS_PER_DAY = 6 * 24; // 6 ten-minute slots per hour × 24 hours
+
 export function Step4ScreenSelection({ onNext }: Step4Props) {
   const { step1, step2, step3, step4: savedData, setStep4, setSelectedScreens } = useCampaignWizardStore();
   const [selectedIds, setSelectedIds] = useState<string[]>(savedData?.selectedScreenIds ?? []);
@@ -124,7 +126,10 @@ export function Step4ScreenSelection({ onNext }: Step4Props) {
   );
 
   const { data: searchResult, isFetching: searchLoading } = useScreenSearch(searchFilters, true);
-  const screens = searchResult?.screens ?? [];
+  // Memoized so `screens` has a stable reference across renders when there's no
+  // result yet (`searchResult?.screens ?? []` would otherwise create a new
+  // array every render, breaking memoization of everything derived from it).
+  const screens = useMemo(() => searchResult?.screens ?? [], [searchResult]);
 
   const { data: recommendations = [], isLoading: recLoading } = useQuery({
     queryKey: ['wizard-recommendations', step1, step2, step3],
@@ -228,7 +233,11 @@ export function Step4ScreenSelection({ onNext }: Step4Props) {
   };
 
   // Lookup of all screens we've seen (search + recommendations) so the summary
-  // panel can render details for screens selected on different tabs.
+  // panel can render details for screens selected on different tabs. React
+  // Compiler can't verify this memoization even though `screens` and
+  // `recommendedScreens` are both themselves stably memoized above; this Map
+  // merge is cheap and correctness doesn't depend on the compiler's auto-memo.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- see comment above
   const allKnownScreens = useMemo(() => {
     const m = new Map<string, Screen>();
     screens.forEach((s) => m.set(s.id, s));
@@ -248,8 +257,6 @@ export function Step4ScreenSelection({ onNext }: Step4Props) {
       )
     : 7;
 
-  const SLOTS_PER_DAY = 6 * 24; // 6 ten-minute slots per hour × 24 hours
-
   const selectionStats = useMemo(() => {
     let cost = 0;
     let impressions = 0;
@@ -261,6 +268,7 @@ export function Step4ScreenSelection({ onNext }: Step4Props) {
     }
     const budget = step3?.budget ?? 0;
     return { cost, impressions, budget, pctOfBudget: budget > 0 ? (cost / budget) * 100 : 0 };
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- cascades from allKnownScreens above, which the compiler already can't auto-memo; see comment there
   }, [selectedIds, allKnownScreens, estimatedDays, step3?.budget]);
 
   const mapCenter: [number, number] = useMemo(() => {

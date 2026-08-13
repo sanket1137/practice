@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace CCMS.Shared.DTOs.Payouts;
 
 public class PendingPayoutDto
@@ -90,16 +92,22 @@ public class RelatedPayoutDto
 
 public class ProcessPayoutRequest
 {
+    [StringLength(2000)]
     public string? AdminNotes { get; set; }
 }
 
 public class ReleasePayoutRequest
 {
+    [Range(0, double.MaxValue)]
     public decimal? AdjustedNetAmount { get; set; }
+
+    [StringLength(2000)]
     public string? AdminNotes { get; set; }
 }
 
 public class FailPayoutRequest
 {
+    [Required]
+    [StringLength(1000)]
     public string Reason { get; set; } = string.Empty;
 }

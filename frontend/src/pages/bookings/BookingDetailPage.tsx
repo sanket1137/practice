@@ -15,6 +15,7 @@ import {
     LinearProgress,
     Alert,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
     ArrowBack as BackIcon,
     Assessment as ReportIcon,
@@ -74,7 +75,7 @@ export default function BookingDetailPage() {
         );
     }
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): ChipProps['color'] => {
         switch (status) {
             case 'Approved': case 'Active': case 'Completed':
                 return 'success';
@@ -98,7 +99,7 @@ export default function BookingDetailPage() {
                         <Typography variant="h4" gutterBottom>
                             Booking Details
                         </Typography>
-                        <Chip label={booking.status} color={getStatusColor(booking.status) as any} />
+                        <Chip label={booking.status} color={getStatusColor(booking.status)} />
                     </Box>
                     <Box display="flex" gap={1}>
                         {['Active', 'Approved', 'Completed'].includes(booking.status) && (

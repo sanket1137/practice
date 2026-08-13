@@ -25,7 +25,7 @@ interface DayBreakdown {
     revenue: number;
 }
 
-interface RevenueEstimate {
+export interface RevenueEstimate {
     perFrame: number;
     perHour: number;
     daily?: Record<string, number>;           // legacy

@@ -22,6 +22,7 @@ import {
     Tab,
     Alert,
 } from '@mui/material';
+import type { ChipProps } from '@mui/material';
 import {
     LocationOn as LocationIcon,
     Tv as TvIcon,
@@ -42,6 +43,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useSnackbar } from 'notistack';
@@ -55,7 +57,7 @@ import ScreenTagChip from '../../components/screens/ScreenTagChip';
 import ScreenImageUpload from '../../components/screens/ScreenImageUpload';
 import ScreenImageGallery from '../../components/screens/ScreenImageGallery';
 import DeviceManagementTab from '../../components/screens/DeviceManagementTab';
-import RevenueEstimateCard from '../../components/screens/RevenueEstimateCard';
+import RevenueEstimateCard, { type RevenueEstimate } from '../../components/screens/RevenueEstimateCard';
 import SelfReserveDialog from '../../components/bookings/SelfReserveDialog';
 import VerificationTab from '../../components/screens/VerificationTab';
 import { ScreenAvailabilityCalendar } from '../../components/screens/ScreenAvailabilityCalendar';
@@ -92,7 +94,7 @@ interface Screen {
     primaryImage?: ScreenImage;
     isOnline?: boolean;
     hasApiKey?: boolean;
-    revenueEstimate?: any;
+    revenueEstimate?: RevenueEstimate;
 }
 
 export default function ScreenDetailPage() {
@@ -143,8 +145,9 @@ export default function ScreenDetailPage() {
             queryClient.invalidateQueries({ queryKey: ['screens'] });
             navigate('/screens');
         },
-        onError: (error: any) => {
-            enqueueSnackbar(error.response?.data?.message || 'Failed to delete screen', { variant: 'error' });
+        onError: (error: unknown) => {
+            const message = isAxiosError(error) ? (error.response?.data as { message?: string } | undefined)?.message : undefined;
+            enqueueSnackbar(message || 'Failed to delete screen', { variant: 'error' });
         },
     });
 
@@ -195,7 +198,7 @@ export default function ScreenDetailPage() {
         setDeleteDialogOpen(false);
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string): ChipProps['color'] => {
         switch (status) {
             case 'Active':
                 return 'success';
@@ -236,7 +239,7 @@ export default function ScreenDetailPage() {
                         {screen.name}
                     </Typography>
                     <Box display="flex" gap={1} alignItems="center">
-                        <Chip label={screen.status} color={getStatusColor(screen.status) as any} />
+                        <Chip label={screen.status} color={getStatusColor(screen.status)} />
                         <Box display="flex" alignItems="center" gap={0.5} ml={2}>
                             <LocationIcon fontSize="small" color="action" />
                             <Typography variant="body2" color="textSecondary">
