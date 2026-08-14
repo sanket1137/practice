@@ -1364,21 +1364,29 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- ═══════════════════════════════════════════════
-     SLIDE ENGINE
+     SLIDE ENGINE (NATIVE SCROLL & OBSERVER)
 ═══════════════════════════════════════════════ -->
 <script>
 (function () {
 
   let currentSlide = 0;
   let isAnimating = false;
-  const DURATION = 800; // ms per transition
 
   function getSlides() {
-    // Only collect slides from the currently visible panel
-    const activePanel = ['panel-main', 'panel-owner', 'panel-advertiser']
-      .map(id => document.getElementById(id))
-      .find(el => el && el.style.display !== 'none');
+    const panels = ['panel-main', 'panel-screen-owner', 'panel-advertiser'];
+    let activePanel = null;
+    for (let i = 0; i < panels.length; i++) {
+      const el = document.getElementById(panels[i]);
+      if (el) {
+        const style = window.getComputedStyle(el);
+        if (style.display !== 'none' && style.visibility !== 'hidden') {
+          activePanel = el;
+          break;
+        }
+      }
+    }
 
+    if (!activePanel) activePanel = document.getElementById('panel-main');
     if (!activePanel) return [];
     return Array.from(activePanel.querySelectorAll('.story-section, .slide-section'));
   }
@@ -1391,28 +1399,27 @@ document.addEventListener('DOMContentLoaded', function() {
     currentSlide = index;
 
     const target = slides[index];
-    const targetY = target.getBoundingClientRect().top + window.scrollY
-                    - (window.innerHeight / 2)
-                    + (target.offsetHeight / 2);
+    const targetY = target.getBoundingClientRect().top + window.scrollY;
 
     if (instant) {
       window.scrollTo({ top: targetY });
     } else {
       isAnimating = true;
       window.scrollTo({ top: targetY, behavior: 'smooth' });
-      setTimeout(() => { isAnimating = false; }, DURATION);
+      setTimeout(() => { isAnimating = false; }, 800);
     }
 
-    // Trigger story-text animation for this slide
-    target.querySelectorAll('.story-text').forEach(el => {
-      el.classList.remove('active');
-      setTimeout(() => el.classList.add('active'), instant ? 0 : 200);
-    });
+    triggerSlideAnimations(target);
+    updateDots();
+  }
 
-    // Trigger fade-in-up and cascade elements in this slide
+  function triggerSlideAnimations(target) {
+    if (!target) return;
+    target.querySelectorAll('.story-text').forEach(el => {
+      el.classList.add('active');
+    });
     target.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .cascade-word, .cascade-card').forEach((el, i) => {
-      el.classList.remove('visible');
-      setTimeout(() => el.classList.add('visible'), instant ? 0 : 250 + i * 90);
+      setTimeout(() => el.classList.add('visible'), i * 80);
     });
   }
 
@@ -1431,41 +1438,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // ── MOUSE WHEEL ──
-  let wheelTimeout = null;
-  window.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    if (isAnimating) return;
-    clearTimeout(wheelTimeout);
-    wheelTimeout = setTimeout(() => {
-      if (e.deltaY > 0) nextSlide();
-      else prevSlide();
-    }, 30);
-  }, { passive: false });
-
-  // ── TOUCH / SWIPE ──
-  let touchStartY = 0;
-  let touchMoved = false;
-  window.addEventListener('touchstart', (e) => {
-    touchStartY = e.touches[0].clientY;
-    touchMoved = false;
-  }, { passive: true });
-
-  window.addEventListener('touchmove', (e) => {
-    touchMoved = true;
-  }, { passive: true });
-
-  window.addEventListener('touchend', (e) => {
-    if (!touchMoved) return;
-    const deltaY = touchStartY - e.changedTouches[0].clientY;
-    if (Math.abs(deltaY) < 40) return; // ignore tiny swipes
-    if (deltaY > 0) nextSlide();
-    else prevSlide();
-  }, { passive: true });
-
-  // ── KEYBOARD ──
+  // ── KEYBOARD NAVIGATION ──
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
       e.preventDefault();
       nextSlide();
     }
@@ -1475,8 +1450,31 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
+  // ── INTERSECTION OBSERVER FOR NATIVE SCROLL ──
+  let slideObserver = null;
+  function setupSlideObserver() {
+    if (slideObserver) slideObserver.disconnect();
+
+    const slides = getSlides();
+    if (!slides.length) return;
+
+    slideObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          triggerSlideAnimations(entry.target);
+          const idx = slides.indexOf(entry.target);
+          if (idx !== -1 && !isAnimating) {
+            currentSlide = idx;
+            updateDots();
+          }
+        }
+      });
+    }, { threshold: 0.3 });
+
+    slides.forEach(slide => slideObserver.observe(slide));
+  }
+
   // ── PROGRESS DOTS ──
-  // Creates a vertical dot indicator on the right side of the screen
   function buildDots() {
     const existing = document.getElementById('slide-dots');
     if (existing) existing.remove();
@@ -1505,12 +1503,12 @@ document.addEventListener('DOMContentLoaded', function() {
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.25);
         cursor: pointer;
         transition: all 0.3s ease;
       `;
       dot.addEventListener('click', () => {
-        if (!isAnimating) goToSlide(i, false);
+        goToSlide(i, false);
       });
       wrap.appendChild(dot);
     });
@@ -1524,42 +1522,32 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!wrap) return;
     wrap.querySelectorAll('div').forEach((dot, i) => {
       if (i === currentSlide) {
-        dot.style.background = 'rgba(255,255,255,0.9)';
+        dot.style.background = 'rgba(255,255,255,0.95)';
         dot.style.height = '20px';
         dot.style.borderRadius = '3px';
       } else {
-        dot.style.background = 'rgba(255,255,255,0.2)';
+        dot.style.background = 'rgba(255,255,255,0.25)';
         dot.style.height = '6px';
         dot.style.borderRadius = '50%';
       }
     });
   }
 
-  // ── RESET WHEN PANEL CHANGES ──
-  // Call this every time showPanel() or showMain() is called
   window.resetSlideEngine = function () {
     currentSlide = 0;
     isAnimating = false;
     setTimeout(() => {
       buildDots();
-      goToSlide(0, true);
+      setupSlideObserver();
     }, 120);
   };
 
-  // ── INIT ON LOAD ──
   document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       buildDots();
-      goToSlide(0, true);
-    }, 5000); // wait for preloader to finish (4.8s)
+      setupSlideObserver();
+    }, 1000);
   });
-
-  // Hook into updateDots on navigation
-  const origGoToSlide = goToSlide;
-  goToSlide = function(index, instant) {
-    origGoToSlide(index, instant);
-    updateDots();
-  };
 
 })();
 </script>
