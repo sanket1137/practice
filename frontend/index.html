@@ -146,17 +146,166 @@
       padding: 4rem 2rem;
     }
     .story-text {
-      font-size: clamp(1.8rem, 4.5vw, 4rem);
-      font-weight: 300;
-      letter-spacing: -0.02em;
-      line-height: 1.2;
+      font-size: clamp(2rem, 5.5vw, 4.5rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
       text-align: center;
-      max-width: 860px;
+      max-width: 960px;
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(24px);
       transition: all 1.1s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
     .story-text.active { opacity: 1; transform: translateY(0); }
+
+    /* ── DYNAMIC GRADIENT & INTERACTIVE TEXT ── */
+    @keyframes textGradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .text-gradient-animated {
+      background: linear-gradient(135deg, #ffffff 0%, #a855f7 35%, #6366f1 70%, #38bdf8 100%);
+      background-size: 250% 250%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: textGradientShift 6s ease infinite;
+    }
+
+    .text-gradient-purple {
+      background: linear-gradient(135deg, #c084fc 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .text-gradient-amber {
+      background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .text-gradient-cyan {
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .text-gradient-danger {
+      background: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.35));
+    }
+
+    .glow-headline {
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.25), 0 0 80px rgba(99, 102, 241, 0.2);
+    }
+
+    /* Live Badge Pill */
+    .pill-badge-interactive {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(16px);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .pill-badge-interactive:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.35);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(99, 102, 241, 0.35);
+    }
+
+    /* Buttons */
+    .btn-blue-interactive {
+      background: linear-gradient(135deg, #0070f3 0%, #0051a8 100%);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 1.05rem;
+      padding: 14px 32px;
+      border-radius: 9999px;
+      text-decoration: none;
+      box-shadow: 0 8px 30px rgba(0, 112, 243, 0.45);
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-blue-interactive:hover {
+      background: linear-gradient(135deg, #1a82ff 0%, #0060cb 100%);
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 12px 35px rgba(0, 112, 243, 0.65);
+    }
+
+    .btn-link-interactive {
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 600;
+      font-size: 1.05rem;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-link-interactive:hover {
+      color: #ffffff;
+      transform: translateX(4px);
+    }
+
+    /* Interactive Cascade Cards */
+    .cascade-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .cascade-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 9999px;
+      padding: 10px 22px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      opacity: 0;
+      transform: translateY(14px) scale(0.96);
+      transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+      backdrop-filter: blur(12px);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cascade-card.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      color: var(--text-main);
+    }
+    .cascade-card:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-4px) scale(1.04);
+      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
+    }
+    .cascade-card.alert-card {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #f87171;
+    }
+    .cascade-card.alert-card.visible {
+      color: #f87171;
+      box-shadow: 0 0 24px rgba(239, 68, 68, 0.3);
+    }
 
     /* ── FADE ANIMATIONS ── */
     .fade-in-up {
@@ -367,63 +516,102 @@
 ══════════════════════════════════════════════════════ -->
 <div id="panel-main">
 
-  <!-- HERO NARRATIVE -->
-  <section class="story-section" id="slide-1">
-    <div class="story-text active">Every screen is displaying something.</div>
+  <!-- HERO NARRATIVE / SLIDE 1 (MATCHING USER REFERENCE IMAGE) -->
+  <section class="story-section flex-col justify-center items-center text-center px-4" id="slide-1">
+    <div class="pill-badge-interactive mb-6 fade-in-up">
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#34d399]"></span>
+      <span>6,500+ screens across India. One platform.</span>
+    </div>
+    
+    <h1 class="text-6xl sm:text-7xl md:text-9xl font-black tracking-tight text-white glow-headline mb-4 uppercase">
+      DOOH<br>Advertising.
+    </h1>
+    
+    <div class="text-2xl sm:text-3xl md:text-5xl font-black text-gradient-animated tracking-tight mb-6">
+      Fast. Fair. Fearless.
+    </div>
+
+    <p class="text-base sm:text-xl text-gray-300 font-medium max-w-2xl mx-auto mb-8 leading-relaxed">
+      See what's playing. Change it instantly. Watch your ROI climb.
+    </p>
+
+    <div class="flex flex-wrap items-center justify-center gap-6 mb-12">
+      <a href="/screens" target="_parent" class="btn-blue-interactive">
+        <span>See Your Screens</span>
+        <iconify-icon icon="lucide:arrow-right" class="text-lg"></iconify-icon>
+      </a>
+      <a href="#slide-2" class="btn-link-interactive">
+        <span>See how it works</span>
+        <iconify-icon icon="lucide:chevron-right" class="text-xl"></iconify-icon>
+      </a>
+    </div>
+
     <div class="scroll-hint">
       <span>scroll</span>
-      <svg width="14" height="20" viewBox="0 0 14 20" fill="none"
-        xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="1" width="12" height="18" rx="6"
-          stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-        <rect x="5.5" y="4" width="3" height="5" rx="1.5"
-          fill="rgba(255,255,255,0.4)">
-          <animate attributeName="y" values="4;9;4" dur="1.8s"
-            repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="1;0;1" dur="1.8s"
-            repeatCount="indefinite"/>
+      <svg width="14" height="20" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="12" height="18" rx="6" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
+        <rect x="5.5" y="4" width="3" height="5" rx="1.5" fill="rgba(255,255,255,0.4)">
+          <animate attributeName="y" values="4;9;4" dur="1.8s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="1;0;1" dur="1.8s" repeatCount="indefinite"/>
         </rect>
       </svg>
     </div>
   </section>
 
   <section class="story-section" id="slide-2">
-    <div class="story-text">But very few are earning what they should.</div>
+    <div class="story-text font-black text-white leading-tight">
+      Every screen is <span class="text-gradient-purple font-black">displaying something.</span>
+    </div>
   </section>
 
-  <section class="story-section flex-col" id="slide-3">
-    <div class="story-text mb-4">Every day,</div>
-    <div class="story-text text-gray-400 text-3xl md:text-5xl">millions of people walk past digital screens.</div>
+  <section class="story-section" id="slide-3">
+    <div class="story-text font-black text-white leading-tight">
+      But very few are <span class="text-gradient-amber font-black">earning what they should.</span>
+    </div>
   </section>
 
   <section class="story-section flex-col" id="slide-4">
-    <div class="story-text mb-4">Every day,</div>
-    <div class="story-text text-gray-400 text-3xl md:text-5xl">brands spend millions trying to reach them.</div>
+    <div class="story-text text-gray-400 font-bold mb-4 text-xl sm:text-2xl tracking-widest uppercase">Every single day,</div>
+    <div class="story-text text-4xl sm:text-6xl md:text-7xl font-black text-white leading-none">
+      <span class="text-gradient-cyan font-black">Millions of people</span> walk past digital screens.
+    </div>
   </section>
 
-  <section class="story-section" id="slide-5">
-    <div class="story-text">
+  <section class="story-section flex-col" id="slide-5">
+    <div class="story-text text-gray-400 font-bold mb-4 text-xl sm:text-2xl tracking-widest uppercase">And every single day,</div>
+    <div class="story-text text-4xl sm:text-6xl md:text-7xl font-black text-white leading-none">
+      Brands spend <span class="text-gradient-purple font-black">Millions</span> trying to reach them.
+    </div>
+  </section>
+
+  <section class="story-section flex-col" id="slide-6">
+    <div class="story-text font-black text-white max-w-4xl">
       Yet the industry still runs...<br>
-      <span class="text-gray-500">like it's twenty years behind.</span>
+      <span class="text-gradient-danger font-black text-5xl sm:text-7xl md:text-8xl mt-6 block tracking-tight">like it's 20 years behind.</span>
     </div>
   </section>
 
   <!-- INDUSTRY REALITY CASCADE -->
-  <section class="story-section py-8 md:py-12" id="reality-section">
+  <section class="story-section py-16 md:py-24" id="reality-section">
     <div class="container mx-auto px-4 flex flex-col items-center justify-center">
-      <div class="flex flex-col items-center gap-1.5 md:gap-2 w-full max-w-lg text-center" id="cascade-list">
-        <div class="cascade-word py-0.5 md:py-1">Agency</div>
-        <div class="cascade-word py-0.5 md:py-1">Broker</div>
-        <div class="cascade-word py-0.5 md:py-1">Phone Call</div>
-        <div class="cascade-word py-0.5 md:py-1">WhatsApp</div>
-        <div class="cascade-word py-0.5 md:py-1">Excel Sheets</div>
-        <div class="cascade-word py-0.5 md:py-1">Manual Reports</div>
-        <div class="cascade-word py-0.5 md:py-1">Commission</div>
-        <div class="cascade-word py-0.5 md:py-1">Negotiation</div>
-        <div class="cascade-word py-0.5 md:py-1 text-red-400 font-medium">No Transparency</div>
+      <div class="text-xs text-gray-400 tracking-[5px] uppercase font-bold mb-8 fade-in-up text-center">
+        Legacy Outdoor Advertising Bottlenecks
       </div>
-      <div class="mt-6 md:mt-10 fade-in-up">
-        <h2 class="text-2xl sm:text-3xl md:text-4xl font-light text-center leading-tight">
+
+      <div class="cascade-grid" id="cascade-list">
+        <div class="cascade-card"><iconify-icon icon="lucide:building-2" class="text-indigo-400 text-lg"></iconify-icon> Agency</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:users" class="text-purple-400 text-lg"></iconify-icon> Broker</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:phone-call" class="text-blue-400 text-lg"></iconify-icon> Phone Call</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:message-square" class="text-emerald-400 text-lg"></iconify-icon> WhatsApp</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:file-spreadsheet" class="text-amber-400 text-lg"></iconify-icon> Excel Sheets</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:file-text" class="text-pink-400 text-lg"></iconify-icon> Manual Reports</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:percent" class="text-cyan-400 text-lg"></iconify-icon> Commission</div>
+        <div class="cascade-card"><iconify-icon icon="lucide:handshake" class="text-orange-400 text-lg"></iconify-icon> Negotiation</div>
+        <div class="cascade-card alert-card"><iconify-icon icon="lucide:shield-alert" class="text-red-400 text-xl animate-pulse"></iconify-icon> No Transparency</div>
+      </div>
+
+      <div class="mt-12 md:mt-16 fade-in-up">
+        <h2 class="text-3xl sm:text-4xl md:text-6xl font-black text-center text-gradient-danger leading-tight tracking-tight">
           Somewhere,<br>everyone is losing.
         </h2>
       </div>
@@ -1247,10 +1435,10 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(() => el.classList.add('active'), instant ? 0 : 200);
     });
 
-    // Trigger fade-in-up elements in this slide
-    target.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card').forEach((el, i) => {
+    // Trigger fade-in-up and cascade elements in this slide
+    target.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .cascade-card').forEach((el, i) => {
       el.classList.remove('visible');
-      setTimeout(() => el.classList.add('visible'), instant ? 0 : 300 + i * 120);
+      setTimeout(() => el.classList.add('visible'), instant ? 0 : 250 + i * 90);
     });
   }
 
