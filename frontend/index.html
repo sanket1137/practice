@@ -768,49 +768,50 @@
 <div id="panel-owner">
 
   <section class="story-section">
-    <div class="story-text active">You invested.</div>
+    <div class="story-text active font-black text-gradient-animated">You invested.</div>
   </section>
 
   <section class="story-section flex-col gap-6">
-    <div class="story-text text-gray-400 text-3xl md:text-5xl">
-      Into screens.<br>Electricity.<br>Internet.<br>Maintenance.
+    <div class="story-text font-bold text-gray-200 text-3xl md:text-5xl">
+      Into screens.<br>
+      <span class="text-gradient-cyan">Electricity. Internet. Maintenance.</span>
     </div>
   </section>
 
   <section class="story-section">
-    <div class="story-text">
+    <div class="story-text font-bold">
       But getting campaigns...<br>
-      <span class="text-gray-500 text-3xl">still depends on someone else.</span>
+      <span class="text-gradient-amber text-3xl md:text-5xl block mt-4">still depends on someone else.</span>
     </div>
   </section>
 
   <section class="story-section">
-    <div class="story-text">You wait for agencies.</div>
+    <div class="story-text font-bold text-gray-200">You wait for agencies.</div>
   </section>
 
   <section class="story-section">
-    <div class="story-text">They negotiate. They take the commission.</div>
+    <div class="story-text font-bold text-gray-300">They negotiate. They take the commission.</div>
   </section>
 
   <section class="story-section flex-col gap-4">
-    <div class="story-text">Sometimes...</div>
-    <div class="story-text text-gray-400 text-3xl">they simply don't have campaigns.</div>
+    <div class="story-text font-bold">Sometimes...</div>
+    <div class="story-text font-semibold text-gray-400 text-3xl md:text-4xl">they simply don't have campaigns.</div>
   </section>
 
   <section class="story-section">
-    <div class="story-text text-red-400">Your screen stays empty.</div>
+    <div class="story-text font-black text-gradient-danger text-4xl md:text-7xl">Your screen stays empty.</div>
   </section>
 
   <section class="story-section">
-    <div class="story-text text-gray-400 text-3xl md:text-5xl">
+    <div class="story-text font-bold text-gray-300 text-3xl md:text-5xl">
       Even though thousands of people walk past it.
     </div>
   </section>
 
   <section class="story-section bg-black/90" style="z-index: 10;">
     <div class="story-text flex flex-col gap-4 text-center">
-      <div class="text-4xl md:text-6xl text-white">Empty screens don't lose impressions.</div>
-      <div class="text-4xl md:text-6xl text-red-500 font-medium">They lose revenue.</div>
+      <div class="text-4xl md:text-6xl font-black text-white">Empty screens don't lose impressions.</div>
+      <div class="text-4xl md:text-6xl font-black text-gradient-danger">They lose revenue.</div>
     </div>
   </section>
 
@@ -992,36 +993,36 @@
 <div id="panel-advertiser">
 
   <section class="story-section">
-    <div class="story-text active">
+    <div class="story-text active font-black text-gradient-animated">
       You don't buy billboards.<br>
-      <span class="text-gray-400 mt-3 block">You buy attention.</span>
+      <span class="text-gradient-cyan mt-3 block">You buy attention.</span>
     </div>
   </section>
 
   <section class="story-section">
-    <div class="story-text">Every agency says campaign completed.</div>
+    <div class="story-text font-bold text-gray-200">Every agency says campaign completed.</div>
   </section>
 
   <section class="story-section flex-col" id="adv-seq-section">
-    <div class="story-text mb-12">But...</div>
+    <div class="story-text font-bold mb-12">But...</div>
     <div class="flex flex-col items-center gap-5 mt-4">
-      <div class="sequence-item text-2xl md:text-4xl text-gray-400 font-light">Did your ad actually play?</div>
-      <div class="sequence-item text-2xl md:text-4xl text-gray-500 font-light">Where? When?</div>
-      <div class="sequence-item text-2xl md:text-4xl text-gray-500 font-light">For how long?</div>
-      <div class="sequence-item text-2xl md:text-4xl text-gray-600 font-light">Did anyone actually see it?</div>
+      <div class="sequence-item text-2xl md:text-4xl text-gray-300 font-semibold">Did your ad actually play?</div>
+      <div class="sequence-item text-2xl md:text-4xl text-gray-400 font-semibold">Where? When?</div>
+      <div class="sequence-item text-2xl md:text-4xl text-gray-400 font-semibold">For how long?</div>
+      <div class="sequence-item text-2xl md:text-4xl text-gradient-danger font-bold">Did anyone actually see it?</div>
     </div>
   </section>
 
   <section class="story-section flex-col">
-    <div class="story-text text-gray-400">Advertising without proof<br>isn't advertising.</div>
-    <div class="story-text mt-8 text-white font-medium">It's trust.</div>
+    <div class="story-text font-bold text-gray-300">Advertising without proof<br>isn't advertising.</div>
+    <div class="story-text mt-8 text-gradient-animated font-black text-4xl md:text-6xl">It's trust.</div>
   </section>
 
   <section class="story-section">
     <div class="container mx-auto px-4 text-center max-w-4xl">
-      <h2 class="text-3xl md:text-6xl font-light leading-tight fade-in-up">
+      <h2 class="text-3xl md:text-6xl font-black text-gradient-purple leading-tight fade-in-up">
         Imagine buying outdoor media<br>
-        <span class="text-gray-400">the way you book a flight.</span>
+        <span class="text-gray-300 font-light">the way you book a flight.</span>
       </h2>
     </div>
   </section>
@@ -1259,10 +1260,9 @@ function reinitObservers() {
     entries.forEach(function(e) {
       if (e.isIntersecting) e.target.classList.add('active');
     });
-  }, { threshold: 0.3 });
+  }, { threshold: 0.05, rootMargin: '100px 0px 100px 0px' });
 
   document.querySelectorAll('.story-text').forEach(function(el) {
-    el.classList.remove('active');
     textObs.observe(el);
   });
 
@@ -1270,12 +1270,15 @@ function reinitObservers() {
     entries.forEach(function(e) {
       if (e.isIntersecting) e.target.classList.add('visible');
     });
-  }, { threshold: 0.1 });
+  }, { threshold: 0.05, rootMargin: '50px 0px 50px 0px' });
 
-  document.querySelectorAll('.fade-in-up, .dashboard-viz').forEach(function(el) {
-    el.classList.remove('visible');
+  document.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .ui-element, .sequence-item, .cascade-card').forEach(function(el) {
     fadeObs.observe(el);
   });
+
+  if (typeof checkVisibilityFallback === 'function') {
+    checkVisibilityFallback();
+  }
 }
 
 function initAdvSequence() {
@@ -1286,11 +1289,11 @@ function initAdvSequence() {
   var obs = new IntersectionObserver(function(entries) {
     if (entries[0].isIntersecting) {
       items.forEach(function(item, i) {
-        setTimeout(function() { item.classList.add('visible'); }, i * 700);
+        setTimeout(function() { item.classList.add('visible'); }, i * 250);
       });
       obs.disconnect();
     }
-  }, { threshold: 0.4 });
+  }, { threshold: 0.05 });
   obs.observe(section);
 }
 
@@ -1302,11 +1305,11 @@ function initOwnerFeatureCascade() {
   var obs = new IntersectionObserver(function(entries) {
     if (entries[0].isIntersecting) {
       cards.forEach(function(c, i) {
-        setTimeout(function() { c.classList.add('visible'); }, i * 180);
+        setTimeout(function() { c.classList.add('visible'); }, i * 100);
       });
       obs.disconnect();
     }
-  }, { threshold: 0.15 });
+  }, { threshold: 0.05 });
   obs.observe(container);
 }
 
