@@ -1319,22 +1319,22 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('preloader').classList.add('hidden');
   }, 4800);
 
-  // Initial observers for main panel
+  // Initial observers for main panel — low threshold (0.05) for immediate visibility
   var textObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(e) {
       if (e.isIntersecting) e.target.classList.add('active');
     });
-  }, { threshold: 0.3 });
+  }, { threshold: 0.05, rootMargin: '100px 0px 100px 0px' });
   document.querySelectorAll('.story-text').forEach(function(el) { textObs.observe(el); });
 
   var fadeObs = new IntersectionObserver(function(entries) {
     entries.forEach(function(e) {
       if (e.isIntersecting) e.target.classList.add('visible');
     });
-  }, { threshold: 0.1 });
+  }, { threshold: 0.05, rootMargin: '50px 0px 50px 0px' });
   document.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .ui-element').forEach(function(el) { fadeObs.observe(el); });
 
-  // Cascade words — staggered reveal
+  // Cascade words — staggered reveal with low threshold
   var cascadeSection = document.getElementById('reality-section');
   var cascadeWords = document.querySelectorAll('.cascade-word');
   var cascadeStarted = false;
@@ -1343,12 +1343,35 @@ document.addEventListener('DOMContentLoaded', function() {
       if (entries[0].isIntersecting && !cascadeStarted) {
         cascadeStarted = true;
         cascadeWords.forEach(function(word, i) {
-          setTimeout(function() { word.classList.add('visible'); }, i * 350);
+          setTimeout(function() { word.classList.add('visible'); }, i * 150);
         });
       }
-    }, { threshold: 0.5 });
+    }, { threshold: 0.05 });
     cascadeObs.observe(cascadeSection);
   }
+
+  // Fallback viewport check for scroll visibility
+  function checkVisibilityFallback() {
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    document.querySelectorAll('.story-text').forEach(function(el) {
+      var rect = el.getBoundingClientRect();
+      if (rect.top < vh * 0.92 && rect.bottom > 0) {
+        el.classList.add('active');
+      }
+    });
+    document.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .cascade-word, .cascade-card').forEach(function(el, i) {
+      var rect = el.getBoundingClientRect();
+      if (rect.top < vh * 0.95 && rect.bottom > 0) {
+        el.classList.add('visible');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', checkVisibilityFallback, { passive: true });
+  window.addEventListener('resize', checkVisibilityFallback, { passive: true });
+  setTimeout(checkVisibilityFallback, 100);
+  setTimeout(checkVisibilityFallback, 1000);
+  setTimeout(checkVisibilityFallback, 3000);
 
   // Nav scroll behaviour
   window.addEventListener('scroll', function() {
@@ -1419,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', function() {
       el.classList.add('active');
     });
     target.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .cascade-word, .cascade-card').forEach((el, i) => {
-      setTimeout(() => el.classList.add('visible'), i * 80);
+      setTimeout(() => el.classList.add('visible'), i * 60);
     });
   }
 
@@ -1469,7 +1492,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
         }
       });
-    }, { threshold: 0.3 });
+    }, { threshold: 0.05 });
 
     slides.forEach(slide => slideObserver.observe(slide));
   }
