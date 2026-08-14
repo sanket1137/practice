@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -309,6 +309,8 @@ else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 else
 {
     builder.Services.AddSingleton<IFileStorageService>(localFileService);
+    var r2Service = new R2StorageService(builder.Configuration);
+    builder.Services.AddSingleton<IPresignedUploadService>(r2Service);
     Log.Information("Using Local File System for file uploads");
 }
 
