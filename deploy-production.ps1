@@ -153,10 +153,10 @@ cd ${RemoteDir}
 tar -xf ccms-deploy.tar
 rm -f ccms-deploy.tar
 
-cp nginx/ssl-nginx.conf /etc/nginx/sites-available/ccms.conf
-ln -sf /etc/nginx/sites-available/ccms.conf /etc/nginx/sites-enabled/ccms.conf
-nginx -t
-systemctl reload nginx
+# The server's /etc/nginx/nginx.conf is self-contained (has all server{} blocks).
+# We do NOT overwrite it from ssl-nginx.conf to avoid duplicate-directive errors.
+# Just verify nginx config is still valid and reload if needed.
+nginx -t && systemctl reload nginx
 
 export IMAGE_TAG=$ImageTag
 docker compose -f docker-compose.production.yml build
