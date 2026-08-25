@@ -78,10 +78,12 @@ services:
       - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
       # SMS (ComBirds)
       - ComBirds__ApiKey=${COMBIRDS_API_KEY:-}
-      - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-}
-      - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-}
+      - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-EDUMRC}
+      - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-1707178064151587006}
       - ComBirds__UserId=${COMBIRDS_USER_ID:-}
       - ComBirds__Password=${COMBIRDS_PASSWORD:-}
+      - ComBirds__DevelopmentMode=false
+      - Email__DevelopmentMode=false
       # App Settings
       - App__BaseUrl=${FRONTEND_URL}
       - TimeZone__Id=Asia/Kolkata
