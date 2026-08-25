@@ -3,45 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PixelSpot | The OS for DOOH</title>
+  <title>PixelSpot — The Connected Layer for Outdoor Media</title>
   <!--
     NOTE: This standalone landing page intentionally uses the Tailwind Play CDN
-    (runtime JIT). The page relies on ~400 utility class usages incl. responsive
-    variants and arbitrary values, so a static extraction is impractical here.
-    The version is PINNED below and the origin is allow-listed in nginx.conf CSP.
-    The React app bundle does NOT use this CDN.
+    (runtime JIT). The page relies on hundreds of utility class usages incl.
+    responsive variants and arbitrary values, so a static extraction is
+    impractical here. The version is PINNED below and the origin is
+    allow-listed in nginx.conf CSP. The React app bundle does NOT use this CDN.
+
+    CSP MAINTENANCE: the two inline script blocks below (head bootstrap +
+    end-of-body main script) are allow-listed in frontend/nginx.conf by exact
+    SHA-256 hash. If you edit either script, regenerate both hashes and update
+    the two Content-Security-Policy add_header lines, or the page's scripts
+    will silently stop running.
   -->
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" crossorigin="anonymous"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 
     :root {
-      --bg-color: #050505;
-      --text-main: #ffffff;
-      --text-muted: #888888;
-      --accent: #5e6ad2;
+      --bg: #0a0b0f;
+      --bg-raised: #14161c;
+      --text-main: #f5f6f8;
+      --text-muted: #9ca1ad;
+      --accent: #3b6ef5;
+      --accent-bright: #5c86ff;
+      --live: #34d27b;
+      --broken: #d96a4a;
     }
 
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background-color: var(--bg-color);
+      background-color: var(--bg);
       color: var(--text-main);
       font-family: 'Inter', sans-serif;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── VIDEO BACKGROUND ── */
+    .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif !important; }
+    .font-mono-x { font-family: 'Space Mono', monospace !important; }
+
+    .act-label {
+      font-family: 'Space Mono', monospace !important;
+      font-size: 0.72rem !important;
+      letter-spacing: 0.24em !important;
+      text-transform: uppercase;
+      color: var(--accent-bright);
+    }
+    .act-label--light { color: var(--accent); }
+
+    .display-hero {
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(2.4rem, 8vw, 7rem) !important;
+      line-height: 0.99 !important;
+      letter-spacing: -0.03em !important;
+      font-weight: 700 !important;
+      overflow-wrap: break-word;
+    }
+    .display-act {
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(1.8rem, 5.2vw, 4.5rem) !important;
+      line-height: 1.03 !important;
+      letter-spacing: -0.025em !important;
+      font-weight: 700 !important;
+    }
+    .display-panel {
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(1.7rem, 3.1vw, 2.8rem) !important;
+      line-height: 1.06 !important;
+      letter-spacing: -0.02em !important;
+      font-weight: 600 !important;
+    }
+    .window-line {
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(1.6rem, 4.2vw, 3.6rem) !important;
+      line-height: 1.15 !important;
+      letter-spacing: -0.02em !important;
+      font-weight: 500 !important;
+      text-shadow: 0 2px 24px rgba(0,0,0,0.6);
+    }
+
+    /* ── VIDEO BACKGROUND (fixed, shows through transparent "window" sections) ── */
     #video-bg-wrap {
       position: fixed;
       inset: 0;
       z-index: -2;
       overflow: hidden;
       pointer-events: none;
+      background:
+        radial-gradient(ellipse 60% 45% at 22% 30%, rgba(58, 84, 176, 0.35), transparent 65%),
+        radial-gradient(ellipse 50% 40% at 78% 62%, rgba(42, 96, 128, 0.28), transparent 60%),
+        #08090c; /* cinematic fallback while the video loads / if embed fails */
     }
     #yt-iframe {
       position: absolute;
@@ -59,12 +116,29 @@
       position: fixed;
       inset: 0;
       z-index: -1;
-      background: rgba(0, 0, 0, 0.72);
+      background: rgba(4, 5, 8, 0.66);
       pointer-events: none;
     }
 
+    /* Solid acts cover the video; windows let it through */
+    .act-solid { position: relative; background: var(--bg); }
+    .act-light { position: relative; background: #fafafb; color: #17181d !important; }
+    .act-light .muted { color: #6b7080 !important; }
+    .video-window {
+      position: relative;
+      min-height: 88vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 6rem 1.5rem;
+      /* transparent — the fixed video + overlay show through */
+    }
+    /* soft edges so solid acts melt into the windows instead of hard-cutting */
+    .fade-top    { background: linear-gradient(180deg, transparent, var(--bg) 90%); height: 140px; margin-top: -140px; position: relative; pointer-events: none; }
+    .fade-bottom { background: linear-gradient(0deg, transparent, var(--bg) 90%); height: 140px; margin-bottom: -140px; position: relative; pointer-events: none; }
 
-    /* ── PRELOADER ── */
+    /* ── PRELOADER (kept from original) ── */
     #preloader {
       position: fixed;
       inset: 0;
@@ -107,387 +181,232 @@
     #main-nav {
       position: fixed;
       top: 0; left: 0; right: 0;
-      padding: 1rem 1.5rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       z-index: 50;
-      background: transparent !important;
-      transition: all 0.4s ease;
+      transition: background 0.4s, backdrop-filter 0.4s, border-color 0.4s;
+      border-bottom: 1px solid transparent;
     }
     #main-nav.scrolled {
-      background: transparent !important;
-      backdrop-filter: none;
-      padding: 1rem 1.5rem;
-      border-bottom: none;
-    }
-    .nav-back-btn {
-      display: none;
-      align-items: center;
-      gap: 6px;
-      font-size: 13px;
-      color: rgba(255,255,255,0.5);
-      cursor: pointer;
-      background: none;
-      border: none;
-      font-family: inherit;
-      transition: color 0.2s;
-    }
-    .nav-back-btn:hover { color: #fff; }
-    .nav-back-btn.show { display: flex; }
-
-    /* ── STORY SECTIONS ── */
-    .story-section {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      padding: 4rem 2rem;
-    }
-    .story-text {
-      font-size: clamp(2rem, 5.5vw, 4.5rem);
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      line-height: 1.15;
-      text-align: center;
-      max-width: 960px;
-      opacity: 0;
-      transform: translateY(24px);
-      transition: all 1.1s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    .story-text.active { opacity: 1; transform: translateY(0); }
-
-    /* ── DYNAMIC GRADIENT & INTERACTIVE TEXT ── */
-    @keyframes textGradientShift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
-    .text-gradient-animated {
-      background: linear-gradient(135deg, #ffffff 0%, #a855f7 35%, #6366f1 70%, #38bdf8 100%);
-      background-size: 250% 250%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: textGradientShift 6s ease infinite;
-    }
-
-    .text-gradient-purple {
-      background: linear-gradient(135deg, #c084fc 0%, #818cf8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .text-gradient-amber {
-      background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .text-gradient-cyan {
-      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .text-gradient-danger {
-      background: linear-gradient(135deg, #f87171 0%, #ef4444 50%, #dc2626 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.35));
-    }
-
-    .glow-headline {
-      text-shadow: 0 0 40px rgba(255, 255, 255, 0.25), 0 0 80px rgba(99, 102, 241, 0.2);
-    }
-
-    /* Live Badge Pill */
-    .pill-badge-interactive {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 20px;
-      border-radius: 9999px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(10, 11, 15, 0.82);
       backdrop-filter: blur(16px);
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.95);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .pill-badge-interactive:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: rgba(255, 255, 255, 0.35);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(99, 102, 241, 0.35);
+      border-color: rgba(255,255,255,0.08);
     }
 
-    /* Buttons */
-    .btn-blue-interactive {
-      background: linear-gradient(135deg, #0070f3 0%, #0051a8 100%);
-      color: #ffffff;
-      font-weight: 800;
-      font-size: 1.05rem;
-      padding: 14px 32px;
-      border-radius: 9999px;
-      text-decoration: none;
-      box-shadow: 0 8px 30px rgba(0, 112, 243, 0.45);
-      transition: all 0.3s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+    .btn-primary {
+      background: var(--accent); color: #fff !important;
+      border-radius: 999px; font-weight: 600;
+      transition: all 0.24s cubic-bezier(0.22,1,0.36,1);
     }
-    .btn-blue-interactive:hover {
-      background: linear-gradient(135deg, #1a82ff 0%, #0060cb 100%);
-      transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 12px 35px rgba(0, 112, 243, 0.65);
+    .btn-primary:hover { background: var(--accent-bright); box-shadow: 0 0 42px -8px rgba(59,110,245,0.55); transform: translateY(-1px); }
+    .btn-ghost {
+      border: 1px solid rgba(255,255,255,0.25); color: #fff !important;
+      border-radius: 999px; font-weight: 600; transition: all 0.24s;
+      backdrop-filter: blur(6px);
+    }
+    .btn-ghost:hover { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.06); }
+
+    /* ── REVEALS (progressive enhancement: visible unless .js-anim confirms frames) ── */
+    html.js-anim .rv { opacity: 0; transform: translateY(28px); transition: opacity 0.9s cubic-bezier(0.22,1,0.36,1), transform 0.9s cubic-bezier(0.22,1,0.36,1); }
+    html.js-anim .rv.in { opacity: 1; transform: none; }
+    html.js-anim .rv-d1 { transition-delay: 0.12s; } html.js-anim .rv-d2 { transition-delay: 0.24s; }
+    html.js-anim .rv-d3 { transition-delay: 0.36s; } html.js-anim .rv-d4 { transition-delay: 0.48s; }
+
+    /* ── ACT 2: FRAGMENTATION ── */
+    .frag-node {
+      border: 1px dashed rgba(217,106,74,0.55);
+      color: #d9a08e;
+      background: rgba(20,22,28,0.72);
+      border-radius: 12px;
+      font-family: 'Space Mono', monospace !important; font-size: 0.75rem;
+      animation: frag-drift 7s ease-in-out infinite;
+    }
+    .frag-node:nth-child(odd) { animation-duration: 8.5s; animation-delay: -2s; }
+    .frag-node:nth-child(3n) { animation-duration: 9.5s; animation-delay: -4s; }
+    @keyframes frag-drift {
+      0%,100% { transform: translate(0,0) rotate(-0.6deg); }
+      50% { transform: translate(6px,-10px) rotate(0.8deg); }
+    }
+    .frag-line { stroke: rgba(217,106,74,0.4); stroke-dasharray: 6 7; animation: frag-dash 1.4s linear infinite; }
+    @keyframes frag-dash { to { stroke-dashoffset: -13; } }
+
+    /* ── ACT 3: THE SNAP ── */
+    #connect-stage .c-node {
+      background: var(--bg-raised); border: 1px solid rgba(59,110,245,0.5);
+      border-radius: 14px;
+    }
+    html.js-anim #connect-stage .c-node { transition: all 1s cubic-bezier(0.85,0,0.15,1); opacity: 0.4; transform: translateY(20px) scale(0.92); border-color: rgba(255,255,255,0.1); }
+    html.js-anim #connect-stage.connected .c-node { opacity: 1; transform: none; border-color: rgba(59,110,245,0.5); }
+    #connect-stage .c-core {
+      background: var(--accent); border-radius: 18px;
+      box-shadow: 0 0 64px -8px rgba(59,110,245,0.6);
+    }
+    html.js-anim #connect-stage .c-core { transition: all 1.1s cubic-bezier(0.85,0,0.15,1) 0.15s; opacity: 0; transform: scale(0.6); box-shadow: none; }
+    html.js-anim #connect-stage.connected .c-core { opacity: 1; transform: scale(1); box-shadow: 0 0 64px -8px rgba(59,110,245,0.6); }
+    #connect-line { transform-origin: center; background: linear-gradient(90deg, transparent, var(--accent), transparent); height: 2px; }
+    html.js-anim #connect-line { transform: scaleX(0); transition: transform 1.2s cubic-bezier(0.85,0,0.15,1) 0.3s; }
+    html.js-anim #connect-stage.connected #connect-line { transform: scaleX(1); }
+
+    /* ── ACT 4: PANELS ── */
+    .panel-dark { background: var(--bg-raised); border: 1px solid rgba(255,255,255,0.08); border-radius: 2rem; }
+    .panel-light { background: #fafafb; color: #17181d !important; border-radius: 2rem; }
+    .panel-light .muted { color: #6b7080 !important; }
+    .mini-stat { background: rgba(10,11,15,0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+    .bar-anim { transform-origin: left; }
+    html.js-anim .bar-anim { transform: scaleX(0); transition: transform 1.4s cubic-bezier(0.22,1,0.36,1) 0.3s; }
+    html.js-anim .in .bar-anim { transform: scaleX(1); }
+    .tick { color: var(--live); }
+
+    /* animated line chart (advertiser panel) */
+    .chart-line { fill: none; stroke: var(--accent-bright); stroke-width: 2.5; stroke-linecap: round; }
+    html.js-anim .chart-line { stroke-dasharray: 480; stroke-dashoffset: 480; transition: stroke-dashoffset 2.2s cubic-bezier(0.22,1,0.36,1) 0.4s; }
+    html.js-anim .in .chart-line { stroke-dashoffset: 0; }
+    .chart-fill { fill: url(#chartGrad); opacity: 0; transition: opacity 1s ease 1.6s; }
+    html.js-anim .in .chart-fill { opacity: 1; }
+
+    /* ── ACT 5: MAP ── */
+    #map-stage {
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 42%, rgba(38,58,120,0.55), transparent 70%),
+        #0d0e13;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 2rem;
+    }
+    .pin { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #6a9bd8; box-shadow: 0 0 12px 2px rgba(106,155,216,0.5); animation: pin-pulse 3s ease-in-out infinite; }
+    @keyframes pin-pulse { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+    .pin--hot { width: 10px; height: 10px; background: var(--accent); box-shadow: 0 0 18px 4px rgba(59,110,245,0.6); }
+    #inv-card { background: rgba(20,22,28,0.92); backdrop-filter: blur(12px); border: 1px solid rgba(59,110,245,0.4); border-radius: 1.25rem; }
+
+    /* ── ACT 6: PIXELPLAYER (LIGHT) ── */
+    .flow-step { border: 1px solid #e4e5ea; background: #fff; border-radius: 1rem; transition: all 0.3s; }
+    .flow-step:hover { border-color: rgba(59,110,245,0.5); transform: translateY(-3px); box-shadow: 0 12px 32px -12px rgba(0,0,0,0.15); }
+    .flow-arrow { color: var(--accent); }
+    .device {
+      background: linear-gradient(145deg, #1a1c22, #0b0c10);
+      border-radius: 1.4rem; box-shadow: 0 24px 64px -20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
     }
 
-    .btn-link-interactive {
-      color: rgba(255, 255, 255, 0.85);
-      font-weight: 600;
-      font-size: 1.05rem;
-      text-decoration: none;
-      transition: all 0.25s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+    /* ── ACT 6B: PIXELOS 3D ── */
+    .pixelos-scene {
+      perspective: 1100px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 460px;
     }
-    .btn-link-interactive:hover {
-      color: #ffffff;
-      transform: translateX(4px);
+    .pixelos-device {
+      position: relative;
+      transform-style: preserve-3d;
+      transform: rotateX(14deg) rotateY(-18deg);
+      transition: transform 0.35s cubic-bezier(0.22,1,0.36,1);
+      animation: device-float 7s ease-in-out infinite;
     }
-
-    /* Interactive Cascade Cards */
-    .cascade-grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-      max-width: 680px;
-      margin: 0 auto;
+    @keyframes device-float {
+      0%,100% { translate: 0 0; }
+      50% { translate: 0 -12px; }
     }
-    .cascade-card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 9999px;
-      padding: 10px 22px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      opacity: 0;
-      transform: translateY(14px) scale(0.96);
-      transition: all 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
-      backdrop-filter: blur(12px);
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .cascade-card.visible {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      color: var(--text-main);
-    }
-    .cascade-card:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.25);
-      transform: translateY(-4px) scale(1.04);
-      box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
-    }
-    .cascade-card.alert-card {
-      background: rgba(239, 68, 68, 0.12);
-      border-color: rgba(239, 68, 68, 0.35);
-      color: #f87171;
-    }
-    .cascade-card.alert-card.visible {
-      color: #f87171;
-      box-shadow: 0 0 24px rgba(239, 68, 68, 0.3);
-    }
-
-    /* ── FADE ANIMATIONS ── */
-    .fade-in-up {
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 1.2s cubic-bezier(0.2, 0.8, 0.2, 1), transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    .fade-in-up.visible { opacity: 1; transform: translateY(0); }
-
-    /* ── SEQUENCE ── */
-    .sequence-item {
-      opacity: 0;
-      transform: translateY(12px);
-      transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    .sequence-item.visible { opacity: 1; transform: translateY(0); }
-
-    /* ── CASCADE WORDS ── */
-    .cascade-word {
-      font-size: clamp(1.1rem, 2vw, 1.65rem);
-      color: var(--text-muted);
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.5s ease;
-    }
-    .cascade-word.visible { opacity: 1; transform: translateY(0); color: var(--text-main); }
-
-    /* ── FEATURE CARDS ── */
-    .feature-card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 16px;
-      padding: 2rem;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    .feature-card.visible { opacity: 1; transform: translateY(0); }
-    .feature-card:hover {
-      background: rgba(255,255,255,0.05);
-      border-color: rgba(255,255,255,0.1);
-    }
-
-    /* ── UI ELEMENT ── */
-    .ui-element {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 1.5rem;
-      backdrop-filter: blur(10px);
-    }
-
-    /* ── DASHBOARD MOCK ── */
-    .dashboard-viz {
-      background: rgba(12,12,14,0.85);
-      border: 1px solid rgba(255,255,255,0.1);
+    .pixelos-slab {
+      width: 300px; height: 190px;
       border-radius: 24px;
-      box-shadow: 0 30px 60px -15px rgba(0,0,0,0.9);
-      backdrop-filter: blur(20px);
-      transform: scale(0.95) translateY(20px);
-      opacity: 0;
-      transition: all 1.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-    .dashboard-viz.visible { transform: scale(1) translateY(0); opacity: 1; }
-
-    /* ── DECISION CARDS ── */
-    .decision-card {
-      display: block;
-      overflow: hidden;
-      padding: 3rem;
-      border-radius: 24px;
-      border: 1px solid rgba(255,255,255,0.05);
-      background: rgba(255,255,255,0.02);
-      text-align: left;
-      cursor: pointer;
-      text-decoration: none;
-      color: inherit;
-      transition: all 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      background: linear-gradient(148deg, #23252d 0%, #101116 55%, #06070a 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.12),
+        inset 0 -14px 24px rgba(0,0,0,0.55),
+        0 1px 2px rgba(0,0,0,0.4);
       position: relative;
     }
-    .decision-card:hover {
-      background: rgba(255,255,255,0.07);
-      transform: translateY(-6px);
-      border-color: rgba(255,255,255,0.12);
-      box-shadow: 0 20px 40px -10px rgba(0,0,0,0.6);
+    .pixelos-slab::after { /* side thickness illusion */
+      content: ""; position: absolute; left: 6px; right: 6px; bottom: -10px; height: 14px;
+      border-radius: 0 0 22px 22px;
+      background: linear-gradient(180deg, #0a0b0f, #000);
+      transform: translateZ(-12px);
     }
-    .shimmer {
-      position: absolute; top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
-      transform: translateX(-100%);
-      transition: transform 600ms ease-in-out;
+    .pixelos-etch {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 6px;
     }
-    .decision-card:hover .shimmer { transform: translateX(100%); }
-
-    /* ── SECTION PANELS ── */
-    #panel-main,
-    #panel-owner,
-    #panel-advertiser {
-      transition: opacity 0.4s ease;
+    .pixelos-ports {
+      position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) translateZ(2px);
+      display: flex; gap: 10px;
     }
-    #panel-owner,
-    #panel-advertiser { display: none; }
-
-    /* ── LIVE DOT ── */
-    .live-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #4ade80;
-      animation: livepulse 1.8s ease infinite;
-      display: inline-block;
-      margin-right: 6px;
+    .pixelos-ports span {
+      display: block; height: 7px; border-radius: 2px;
+      background: #000; border: 1px solid rgba(255,255,255,0.12);
     }
-    @keyframes livepulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.4;transform:scale(.7);} }
-
-    /* ── COMPARISON ── */
-    .compare-card {
-      padding: 2.5rem 3rem;
-      border-radius: 28px;
+    .pixelos-screenlet {
+      position: absolute; left: 50%; top: -76px;
+      width: 210px; margin-left: -105px;
+      transform: translateZ(70px);
+      background: rgba(16,18,24,0.92);
+      border: 1px solid rgba(92,134,255,0.4);
+      border-radius: 14px;
+      box-shadow: 0 24px 48px -18px rgba(59,110,245,0.45);
+      padding: 12px 14px;
     }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-
-    /* Slide engine — prevent default browser scroll */
-    html, body {
-      overflow: hidden;
+    .pixelos-shadow {
+      position: absolute; left: 50%; bottom: -64px; width: 320px; height: 44px;
+      margin-left: -160px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(0,0,0,0.45), transparent 70%);
+      transform: translateZ(-60px);
+      filter: blur(6px);
     }
-
-    /* Slide sections that are not story-section */
-    .slide-section {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      padding: 4rem 2rem;
-    }
-
-    /* Progress dots — hide on mobile */
     @media (max-width: 640px) {
-      #slide-dots { display: none !important; }
+      .pixelos-device { scale: 0.68; }
+      .pixelos-scene { min-height: 360px; }
     }
+    .solve-chip {
+      background: #fff; border: 1px solid #e4e5ea; border-radius: 1rem;
+      box-shadow: 0 12px 32px -16px rgba(0,0,0,0.18);
+      transition: all 0.3s cubic-bezier(0.22,1,0.36,1);
+    }
+    .solve-chip:hover { transform: translateY(-4px); border-color: rgba(59,110,245,0.45); }
+    .solve-chip .x { color: var(--broken); font-family: 'Space Mono', monospace; }
+    .solve-chip .v { color: #1f9d5b; font-family: 'Space Mono', monospace; }
 
-    /* Slide navigation hint at bottom of first slide */
-    .scroll-hint {
-      position: absolute;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      opacity: 0.35;
-      animation: hintbounce 2s ease infinite;
-      pointer-events: none;
-      font-size: 11px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.5);
-    }
-    @keyframes hintbounce {
-      0%, 100% { transform: translateX(-50%) translateY(0); }
-      50% { transform: translateX(-50%) translateY(6px); }
+    /* ── ACT 7: INTELLIGENCE ── */
+    html.js-anim .intel-line { opacity: 0.22; transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1); transform: translateX(-12px); }
+    html.js-anim .intel-line.lit { opacity: 1; transform: none; }
+    .intel-line .hl { color: var(--accent-bright); }
+
+    /* ── ACT 8: NETWORK ── */
+    #net-canvas { width: 100%; height: 100%; display: block; }
+    .stat-num { font-family: 'Space Grotesk', sans-serif !important; font-weight: 700 !important; font-size: clamp(2rem, 4.2vw, 3.4rem) !important; letter-spacing: -0.02em; }
+
+    /* ── ACT 9: AGENCY PIPELINE ── */
+    .pipe-step { border: 1px solid rgba(255,255,255,0.1); background: var(--bg-raised); border-radius: 999px; font-family: 'Space Mono', monospace !important; font-size: 0.75rem; transition: all 0.5s cubic-bezier(0.22,1,0.36,1); }
+    .in .pipe-step { border-color: rgba(59,110,245,0.55); }
+
+    /* ── ACT 11: INVITATION ── */
+    .invite-card { border: 1px solid rgba(255,255,255,0.1); background: var(--bg-raised); border-radius: 1.5rem; transition: all 0.35s cubic-bezier(0.22,1,0.36,1); }
+    .invite-card:hover { transform: translateY(-6px); border-color: rgba(59,110,245,0.6); box-shadow: 0 24px 64px -24px rgba(59,110,245,0.35); }
+    .invite-card--live:hover { border-color: rgba(52,210,123,0.7); box-shadow: 0 24px 64px -24px rgba(52,210,123,0.4); }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); animation: pin-pulse 2s ease-in-out infinite; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .frag-node, .pin, .live-dot, .frag-line { animation: none !important; }
     }
   </style>
+  <script>
+    // Animation bootstrap: hidden start-states apply only after two confirmed
+    // animation frames (page is really compositing) and only when the user
+    // hasn't asked for reduced motion. No-JS/frozen environments get a
+    // complete, fully-visible static page.
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        document.documentElement.classList.add('js-anim');
+      }); });
+    }
+  </script>
 </head>
 <body>
-<!-- ═══════════════ YOUTUBE VIDEO BACKGROUND ═══════════════ -->
+
+<!-- ═══════════════ YOUTUBE VIDEO BACKGROUND (fixed; visible through hero + window sections) ═══════════════ -->
 <div id="video-bg-wrap">
   <iframe
     id="yt-iframe"
     src="https://www.youtube.com/embed/F8MN0o6RS9o?autoplay=1&mute=1&loop=1&playlist=F8MN0o6RS9o&controls=0&showinfo=0&rel=0&modestbranding=1&iv_load_policy=3&enablejsapi=1&playsinline=1"
     allow="autoplay; encrypted-media"
-    allowfullscreen>
-  </iframe>
+    allowfullscreen
+    title="PixelSpot network film"></iframe>
 </div>
 <div id="video-overlay"></div>
 
-<!-- ═══════════════ PRELOADER ═══════════════ -->
+<!-- ═══════════════ PRELOADER (kept) ═══════════════ -->
 <div id="preloader">
   <div class="preloader-logo flex flex-col items-center">
     <p class="text-xs text-gray-600 tracking-[6px] uppercase mb-8">India's DOOH Network</p>
@@ -500,1212 +419,646 @@
 </div>
 
 <!-- ═══════════════ NAV ═══════════════ -->
-<header id="main-nav">
-  <div class="text-xl font-medium tracking-wide">PixelSpot</div>
-  <button class="nav-back-btn" id="back-btn" onclick="showMain()">
-    <iconify-icon icon="lucide:arrow-left" class="text-base"></iconify-icon>
-    Back
-  </button>
-  <nav class="flex gap-4 md:gap-8 text-sm items-center">
-    <a href="/login" target="_parent" class="text-gray-300 hover:text-white transition-colors text-sm font-medium">Sign In</a>
-  </nav>
-</header>
-
-<!-- ══════════════════════════════════════════════════════
-     PANEL: MAIN INDEX
-══════════════════════════════════════════════════════ -->
-<div id="panel-main">
-
-  <!-- ═══════════════ SLIDE 1 ═══════════════ -->
-  <section class="story-section flex-col justify-center items-center text-center" id="slide-1">
-    <div class="pill-badge-interactive mb-8 fade-in-up">
-      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#34d399]"></span>
-      <span>6,500+ screens across India. One platform.</span>
+<nav id="main-nav" class="px-6 lg:px-12 py-4">
+  <div class="max-w-[1520px] mx-auto flex items-center justify-between">
+    <a href="/" class="font-display text-xl font-bold tracking-tight">PIXEL<span class="text-[#5c86ff]">SPOT</span></a>
+    <div class="hidden md:flex items-center gap-8 text-sm text-white/70">
+      <a href="#marketplace" class="hover:text-white transition-colors">Marketplace</a>
+      <a href="#pixelplayer" class="hover:text-white transition-colors">PixelPlayer</a>
+      <a href="#agencies" class="hover:text-white transition-colors">For Agencies</a>
+      <a href="#network" class="hover:text-white transition-colors">Network</a>
     </div>
-    
-    <div class="story-text active font-black tracking-tight text-white glow-headline text-5xl sm:text-7xl md:text-8xl leading-tight">
-      Every screen is <span class="text-gradient-animated font-black">displaying something.</span>
-    </div>
-
-    <div class="scroll-hint mt-12">
-      <span>scroll</span>
-      <svg width="14" height="20" viewBox="0 0 14 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="1" width="12" height="18" rx="6" stroke="rgba(255,255,255,0.4)" stroke-width="1.5"/>
-        <rect x="5.5" y="4" width="3" height="5" rx="1.5" fill="rgba(255,255,255,0.4)">
-          <animate attributeName="y" values="4;9;4" dur="1.8s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" values="1;0;1" dur="1.8s" repeatCount="indefinite"/>
-        </rect>
-      </svg>
-    </div>
-  </section>
-
-  <!-- ═══════════════ SLIDE 2 ═══════════════ -->
-  <section class="story-section" id="slide-2">
-    <div class="story-text font-black tracking-tight text-white text-5xl sm:text-7xl md:text-8xl leading-tight">
-      But very few are <span class="text-gradient-amber font-black">earning what they should.</span>
-    </div>
-  </section>
-
-  <!-- ═══════════════ SLIDE 3 ═══════════════ -->
-  <section class="story-section flex-col" id="slide-3">
-    <div class="story-text mb-4 font-bold text-gray-400 text-xl sm:text-3xl tracking-widest uppercase">Every day,</div>
-    <div class="story-text text-4xl sm:text-6xl md:text-7xl font-black text-white leading-tight max-w-4xl">
-      <span class="text-gradient-cyan font-black">millions of people</span> walk past digital screens.
-    </div>
-  </section>
-
-  <!-- ═══════════════ SLIDE 4 ═══════════════ -->
-  <section class="story-section flex-col" id="slide-4">
-    <div class="story-text mb-4 font-bold text-gray-400 text-xl sm:text-3xl tracking-widest uppercase">Every day,</div>
-    <div class="story-text text-4xl sm:text-6xl md:text-7xl font-black text-white leading-tight max-w-4xl">
-      <span class="text-gradient-purple font-black">brands spend millions</span> trying to reach them.
-    </div>
-  </section>
-
-  <!-- ═══════════════ SLIDE 5 ═══════════════ -->
-  <section class="story-section" id="slide-5">
-    <div class="story-text font-black text-white text-5xl sm:text-7xl md:text-8xl leading-tight max-w-4xl">
-      Yet the industry still runs...<br>
-      <span class="text-gradient-danger font-black text-4xl sm:text-6xl md:text-7xl mt-4 block">like it's twenty years behind.</span>
-    </div>
-  </section>
-
-  <!-- ═══════════════ INDUSTRY REALITY CASCADE ═══════════════ -->
-  <section class="story-section py-12 md:py-20" id="reality-section">
-    <div class="container mx-auto px-4 flex flex-col items-center justify-center">
-      <div class="flex flex-col items-center gap-2 md:gap-3 w-full max-w-lg text-center" id="cascade-list">
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Agency</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Broker</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Phone Call</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">WhatsApp</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Excel Sheets</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Manual Reports</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Commission</div>
-        <div class="cascade-word py-1.5 px-6 rounded-full border border-white/10 bg-white/5 font-bold hover:bg-white/15 hover:border-white/30 transition-all cursor-pointer backdrop-blur-md">Negotiation</div>
-        <div class="cascade-word py-2 px-8 rounded-full border border-red-500/40 bg-red-500/15 text-red-400 font-black text-xl shadow-[0_0_24px_rgba(239,68,68,0.3)]">No Transparency</div>
-      </div>
-      <div class="mt-8 md:mt-12 fade-in-up">
-        <h2 class="text-3xl sm:text-4xl md:text-6xl font-black text-center text-gradient-danger leading-tight">
-          Somewhere,<br>everyone is losing.
-        </h2>
-      </div>
-    </div>
-  </section>
-
-  <!-- STATS STRIP -->
-  <section class="slide-section py-20 border-t border-white/5 border-b border-white/5 bg-black/40 backdrop-blur-sm">
-    <div class="container mx-auto px-4 max-w-4xl">
-      <div class="grid grid-cols-3 gap-12 text-center">
-        <div class="fade-in-up">
-          <div class="text-5xl md:text-6xl font-light mb-2">4,000<span style="color:var(--accent)">+</span></div>
-          <div class="text-sm text-gray-500 tracking-widest uppercase">Screens Onboarded</div>
-        </div>
-        <div class="fade-in-up" style="transition-delay:120ms">
-          <div class="text-5xl md:text-6xl font-light mb-2">78<span style="color:var(--accent)">+</span></div>
-          <div class="text-sm text-gray-500 tracking-widest uppercase">Cities Live</div>
-        </div>
-        <div class="fade-in-up" style="transition-delay:240ms">
-          <div class="text-5xl md:text-6xl font-light mb-2">260<span style="color:var(--accent)">+</span></div>
-          <div class="text-sm text-gray-500 tracking-widest uppercase">Campaigns Delivered</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- PIXELSPOT INTRO -->
-  <section class="story-section" id="intro-section">
-    <div class="container mx-auto px-4 text-center">
-      <div class="fade-in-up">
-        <div class="inline-flex items-center gap-2 text-xs text-gray-500 tracking-[4px] uppercase mb-12">
-          <span class="live-dot"></span>3,500+ screens live right now
-        </div>
-        <h1 class="text-5xl md:text-8xl font-bold tracking-tight mb-8 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500">
-          PixelSpot
-        </h1>
-        <h2 class="text-2xl md:text-4xl font-light text-gray-300 mb-8 leading-relaxed max-w-3xl mx-auto">
-          The Operating System<br>for Digital Out-of-Home Advertising.
-        </h2>
-        <p class="text-lg text-gray-500 font-light mb-16">One platform. For screen owners. For advertisers.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- COMPARISON -->
-  <section class="slide-section py-32 bg-black/60 backdrop-blur-md border-t border-white/5">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="text-center mb-16 fade-in-up">
-        <h2 class="text-3xl md:text-5xl font-light mb-4">The old way vs. the PixelSpot way</h2>
-      </div>
-      <div class="grid md:grid-cols-2 gap-6">
-        <div class="compare-card bg-red-950/10 border border-red-500/10 fade-in-up">
-          <h3 class="text-xl text-gray-400 font-medium mb-8">The industry standard</h3>
-          <ul class="space-y-5 text-gray-500">
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:x" class="text-lg mt-1 text-red-500/50"></iconify-icon>Opaque pricing & hidden commissions</li>
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:x" class="text-lg mt-1 text-red-500/50"></iconify-icon>Endless calls to book a screen</li>
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:x" class="text-lg mt-1 text-red-500/50"></iconify-icon>No proof if ads actually played</li>
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:x" class="text-lg mt-1 text-red-500/50"></iconify-icon>Zero visibility into real-time delivery</li>
-          </ul>
-        </div>
-        <div class="compare-card bg-[rgba(94,106,210,0.05)] border border-[rgba(94,106,210,0.2)] fade-in-up" style="transition-delay:100ms">
-          <h3 class="text-xl text-white font-medium mb-8">The PixelSpot standard</h3>
-          <ul class="space-y-5 text-gray-300">
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:check" class="text-lg mt-1" style="color:var(--accent)"></iconify-icon>100% transparent marketplace pricing</li>
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:check" class="text-lg mt-1" style="color:var(--accent)"></iconify-icon>Self-serve booking in minutes</li>
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:check" class="text-lg mt-1" style="color:var(--accent)"></iconify-icon>Live WebRTC stream verification</li>
-            <li class="flex gap-4 items-start"><iconify-icon icon="lucide:check" class="text-lg mt-1" style="color:var(--accent)"></iconify-icon>Timestamped proof of play on every impression</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- DECISION SECTION -->
-  <section class="slide-section min-h-screen py-24 flex items-center justify-center bg-black/80 backdrop-blur-md">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="text-center mb-20 fade-in-up">
-        <h2 class="text-3xl md:text-5xl font-light mb-4">Ready to change the way you work?</h2>
-        <p class="text-gray-400 text-lg">Choose your path.</p>
-      </div>
-
-      <div class="grid md:grid-cols-2 gap-6">
-        <!-- Screen Owner -->
-        <a class="decision-card" onclick="showPanel('owner'); return false;" href="#">
-          <div class="shimmer"></div>
-          <div class="mb-8 p-4 bg-white/5 rounded-2xl w-16 h-16 flex items-center justify-center" style="transition: transform 0.5s ease;">
-            <iconify-icon icon="lucide:monitor-smartphone" class="text-2xl text-gray-300"></iconify-icon>
-          </div>
-          <h3 class="text-2xl md:text-3xl font-medium mb-3 text-white">I own digital screens</h3>
-          <p class="text-gray-400 text-lg mb-10">Monetize. Manage. Grow.</p>
-          <div class="flex items-center text-sm font-medium tracking-wide uppercase text-gray-500 hover:text-white transition-colors gap-2">
-            <span>See Platform</span>
-            <iconify-icon icon="lucide:arrow-right"></iconify-icon>
-          </div>
-        </a>
-
-        <!-- Advertiser -->
-        <a class="decision-card" onclick="showPanel('advertiser'); return false;" href="#">
-          <div class="shimmer"></div>
-          <div class="mb-8 p-4 bg-white/5 rounded-2xl w-16 h-16 flex items-center justify-center">
-            <iconify-icon icon="lucide:megaphone" class="text-2xl text-gray-300"></iconify-icon>
-          </div>
-          <h3 class="text-2xl md:text-3xl font-medium mb-3 text-white">I buy advertising</h3>
-          <p class="text-gray-400 text-lg mb-10">Reach. Measure. Verify.</p>
-          <div class="flex items-center text-sm font-medium tracking-wide uppercase text-gray-500 hover:text-white transition-colors gap-2">
-            <span>Explore Network</span>
-            <iconify-icon icon="lucide:arrow-right"></iconify-icon>
-          </div>
-        </a>
-      </div>
-    </div>
-  </section>
-  <!-- FOOTER SLIDE-SECTION -->
-  <section class="slide-section py-16 border-t border-white/5 bg-black/90 backdrop-blur-md relative z-10 text-gray-400">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="grid md:grid-cols-2 gap-12 mb-12 text-left">
-        <!-- Inquiry Links & Legal routes -->
-        <div class="space-y-6 text-left">
-          <div class="space-y-4 text-left">
-            <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Opportunities</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-              <button onclick="openInquiryModal('Buy LED Video Wall')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Buy LED Video Wall</button>
-              <button onclick="openInquiryModal('Plan Campaign')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Plan Campaign</button>
-              <button onclick="openInquiryModal('Register Your Billboard/Screen')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Register Billboard / Screen</button>
-              <button onclick="openInquiryModal('Franchise Partnership')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Franchise Partnership</button>
-            </div>
-          </div>
-          
-          <div class="space-y-4 pt-4 border-t border-white/5 text-left">
-            <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Legal & Info</h4>
-            <div class="grid grid-cols-2 gap-3 text-sm text-left">
-              <a href="/about" class="hover:text-white transition-colors hover:underline text-left">About Us</a>
-              <a href="/contact" class="hover:text-white transition-colors hover:underline text-left">Contact Page</a>
-              <a href="/privacy" class="hover:text-white transition-colors hover:underline text-left">Privacy Policy</a>
-              <a href="/terms" class="hover:text-white transition-colors hover:underline text-left">Terms of Service</a>
-              <a href="/refund" class="hover:text-white transition-colors hover:underline text-left">Refund Policy</a>
-              <a href="/cookies" class="hover:text-white transition-colors hover:underline text-left">Cookies Policy</a>
-              <a href="/content-policy" class="hover:text-white transition-colors hover:underline text-left">Content Policy</a>
-              <a href="/community-guidelines" class="hover:text-white transition-colors hover:underline text-left">Community Guidelines</a>
-              <a href="/disclaimer" class="hover:text-white transition-colors hover:underline text-left">Disclaimer</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Contact details -->
-        <div class="space-y-4 text-left">
-          <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Direct Contact</h4>
-          <div class="space-y-3 text-sm text-left">
-            <p class="flex items-center gap-2 text-left">
-              <iconify-icon icon="lucide:phone" class="text-gray-500"></iconify-icon>
-              <a href="tel:+919082604430" class="hover:text-white transition-colors text-base font-medium text-white">+91 90826 04430</a>
-            </p>
-            <p class="flex items-center gap-2 text-left">
-              <iconify-icon icon="lucide:mail" class="text-gray-500"></iconify-icon>
-              <a href="mailto:contact@pixelspot.in" class="hover:text-white transition-colors text-base font-medium text-white">contact@pixelspot.in</a>
-            </p>
-            <p class="text-xs text-gray-500 leading-relaxed pt-2 text-left">
-              Have questions about digital billboards, signage integrations, or target metrics? Reach out directly via call or email.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400 text-left">
-        <div>&copy; 2026 PixelSpot. All rights reserved.</div>
-        <div class="flex items-center gap-3 sm:gap-4 flex-wrap text-gray-400">
-          <span>Made in India</span>
-          <span class="hidden sm:inline opacity-30">•</span>
-          <span>The Global Infrastructure for Digital Screens</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-</div><!-- /panel-main -->
-
-<!-- ══════════════════════════════════════════════════════
-     PANEL: SCREEN OWNER NARRATIVE
-══════════════════════════════════════════════════════ -->
-<div id="panel-owner">
-
-  <section class="story-section">
-    <div class="story-text active font-black text-gradient-animated">You invested.</div>
-  </section>
-
-  <section class="story-section flex-col gap-6">
-    <div class="story-text font-bold text-gray-200 text-3xl md:text-5xl">
-      Into screens.<br>
-      <span class="text-gradient-cyan">Electricity. Internet. Maintenance.</span>
-    </div>
-  </section>
-
-  <section class="story-section">
-    <div class="story-text font-bold">
-      But getting campaigns...<br>
-      <span class="text-gradient-amber text-3xl md:text-5xl block mt-4">still depends on someone else.</span>
-    </div>
-  </section>
-
-  <section class="story-section">
-    <div class="story-text font-bold text-gray-200">You wait for agencies.</div>
-  </section>
-
-  <section class="story-section">
-    <div class="story-text font-bold text-gray-300">They negotiate. They take the commission.</div>
-  </section>
-
-  <section class="story-section flex-col gap-4">
-    <div class="story-text font-bold">Sometimes...</div>
-    <div class="story-text font-semibold text-gray-400 text-3xl md:text-4xl">they simply don't have campaigns.</div>
-  </section>
-
-  <section class="story-section">
-    <div class="story-text font-black text-gradient-danger text-4xl md:text-7xl">Your screen stays empty.</div>
-  </section>
-
-  <section class="story-section">
-    <div class="story-text font-bold text-gray-300 text-3xl md:text-5xl">
-      Even though thousands of people walk past it.
-    </div>
-  </section>
-
-  <section class="story-section bg-black/90" style="z-index: 10;">
-    <div class="story-text flex flex-col gap-4 text-center">
-      <div class="text-4xl md:text-6xl font-black text-white">Empty screens don't lose impressions.</div>
-      <div class="text-4xl md:text-6xl font-black text-gradient-danger">They lose revenue.</div>
-    </div>
-  </section>
-
-  <!-- Dashboard mockup -->
-  <section class="slide-section min-h-screen py-32 flex flex-col items-center">
-    <div class="container mx-auto px-4 w-full max-w-5xl mb-24">
-      <div class="dashboard-viz w-full p-6 md:p-8" style="aspect-ratio: 16/9; display:flex; flex-direction:column; gap:1.5rem;">
-        <div class="flex justify-between items-center border-b border-white/10 pb-4">
-          <div class="flex items-center gap-3">
-            <iconify-icon icon="lucide:layout-dashboard" class="text-2xl" style="color: var(--accent)"></iconify-icon>
-            <span class="font-medium text-lg">PixelSpot Dashboard</span>
-          </div>
-          <div class="flex gap-3 items-center">
-            <span class="live-dot"></span>
-            <span class="text-green-400 text-sm">Live</span>
-          </div>
-        </div>
-        <div class="grid grid-cols-3 gap-4 flex-1">
-          <div class="col-span-2 bg-white/5 rounded-xl border border-white/5 relative overflow-hidden p-6">
-            <div class="absolute inset-0 opacity-30" style="background: radial-gradient(circle at top right, var(--accent), transparent 60%)"></div>
-            <div class="text-sm text-gray-400 mb-2">Monthly Revenue</div>
-            <div class="text-4xl font-light">&#8377;12,450</div>
-            <div class="text-xs text-green-400 mt-2">&#8593; 34% from last month</div>
-            <div class="mt-6 flex items-end gap-1 h-16">
-              <div class="flex-1 bg-white/5 rounded-t" style="height:40%"></div>
-              <div class="flex-1 bg-white/10 rounded-t" style="height:55%"></div>
-              <div class="flex-1 bg-white/5 rounded-t" style="height:48%"></div>
-              <div class="flex-1 bg-white/10 rounded-t" style="height:70%"></div>
-              <div class="flex-1 rounded-t" style="height:90%;background:var(--accent);opacity:.4"></div>
-              <div class="flex-1 rounded-t" style="height:100%;background:var(--accent)"></div>
-            </div>
-          </div>
-          <div class="flex flex-col gap-4">
-            <div class="bg-white/5 rounded-xl border border-white/5 p-5 flex flex-col justify-center items-center gap-2 flex-1">
-              <div class="text-sm text-gray-400">Active Campaigns</div>
-              <div class="text-4xl font-light" style="color:var(--accent)">14</div>
-            </div>
-            <div class="bg-white/5 rounded-xl border border-white/5 p-5 flex flex-col justify-center items-center gap-2 flex-1">
-              <div class="text-sm text-gray-400">Screens Online</div>
-              <div class="text-4xl font-light text-green-400">4</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flex flex-col items-center gap-20 px-4 max-w-3xl mx-auto text-center">
-      <div class="story-text">What if brands could book you directly?</div>
-      <div class="story-text text-gray-400 text-3xl">Without brokers. Without endless calls.</div>
-    </div>
-  </section>
-
-  <!-- Feature cards -->
-  <section class="slide-section py-24 px-4 bg-black/50 backdrop-blur-sm">
-    <div class="container mx-auto max-w-5xl">
-      <div class="text-center mb-16 fade-in-up">
-        <h2 class="text-3xl md:text-5xl font-light">Everything your screen needs to earn.</h2>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="feature-cascade-owner">
-        <div class="feature-card">
-          <iconify-icon icon="lucide:globe" class="text-3xl mb-5" style="color:var(--accent)"></iconify-icon>
-          <h3 class="text-xl font-medium mb-2">Public Marketplace</h3>
-          <p class="text-gray-400 leading-relaxed">Your screen becomes discoverable to advertisers across India — instantly, 24/7, without you lifting a finger.</p>
-        </div>
-        <div class="feature-card">
-          <iconify-icon icon="lucide:trending-up" class="text-3xl text-green-400 mb-5"></iconify-icon>
-          <h3 class="text-xl font-medium mb-2">Dynamic Festive Pricing</h3>
-          <p class="text-gray-400 leading-relaxed">Charge more during Diwali, IPL season, or local festivals. Multiplier rules auto-apply — no manual changes.</p>
-        </div>
-        <div class="feature-card">
-          <iconify-icon icon="lucide:wifi-off" class="text-3xl text-gray-300 mb-5"></iconify-icon>
-          <h3 class="text-xl font-medium mb-2">Offline Playback</h3>
-          <p class="text-gray-400 leading-relaxed">Internet goes down, your screen doesn't. Write-ahead logging means not one impression is ever lost.</p>
-        </div>
-        <div class="feature-card">
-          <iconify-icon icon="lucide:activity" class="text-3xl text-blue-400 mb-5"></iconify-icon>
-          <h3 class="text-xl font-medium mb-2">Uptime Telemetry</h3>
-          <p class="text-gray-400 leading-relaxed">Every heartbeat, every play recorded. Get alerted the moment your screen shows any sign of trouble.</p>
-        </div>
-        <div class="feature-card">
-          <iconify-icon icon="lucide:calendar-check" class="text-3xl text-purple-400 mb-5"></iconify-icon>
-          <h3 class="text-xl font-medium mb-2">Smart Slot Heatmaps</h3>
-          <p class="text-gray-400 leading-relaxed">AI shows you which slots are high-demand before you price them — so you never leave money on the table.</p>
-        </div>
-        <div class="feature-card">
-          <iconify-icon icon="lucide:credit-card" class="text-3xl text-yellow-400 mb-5"></iconify-icon>
-          <h3 class="text-xl font-medium mb-2">Automated Settlement</h3>
-          <p class="text-gray-400 leading-relaxed">Advance before campaigns start. Final payout on completion. Razorpay transfers — automatic, every time.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Closing -->
-  <section class="story-section slide-section flex-col gap-12 bg-black/90">
-    <div class="fade-in-up text-center">
-      <h2 class="text-5xl md:text-7xl font-light mb-6">You built the screen.</h2>
-      <p class="text-3xl md:text-5xl text-gray-400 font-light">Now let it build your business.</p>
-    </div>
-    <div class="fade-in-up mt-8 flex gap-4 justify-center flex-wrap">
-      <a href="/login" class="inline-flex items-center px-8 py-4 bg-white text-black font-medium rounded-full hover:bg-gray-200 transition-colors text-lg gap-2">
-        Start Monetizing
-        <iconify-icon icon="lucide:arrow-right"></iconify-icon>
-      </a>
-      <button onclick="showMain()" class="inline-flex items-center px-8 py-4 bg-white/5 text-white border border-white/10 rounded-full hover:bg-white/10 transition-colors text-lg gap-2 cursor-pointer font-medium" style="font-family:inherit">
-        <iconify-icon icon="lucide:arrow-left"></iconify-icon>
-        Back to Home
-      </button>
-    </div>
-  </section>
-
-  <!-- FOOTER SLIDE-SECTION -->
-  <section class="slide-section py-16 border-t border-white/5 bg-black/90 backdrop-blur-md relative z-10 text-gray-400">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="grid md:grid-cols-2 gap-12 mb-12 text-left">
-        <!-- Inquiry Links & Legal routes -->
-        <div class="space-y-6 text-left">
-          <div class="space-y-4 text-left">
-            <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Opportunities</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-              <button onclick="openInquiryModal('Buy LED Video Wall')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Buy LED Video Wall</button>
-              <button onclick="openInquiryModal('Plan Campaign')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Plan Campaign</button>
-              <button onclick="openInquiryModal('Register Your Billboard/Screen')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Register Billboard / Screen</button>
-              <button onclick="openInquiryModal('Franchise Partnership')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Franchise Partnership</button>
-            </div>
-          </div>
-          
-          <div class="space-y-4 pt-4 border-t border-white/5 text-left">
-            <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Legal & Info</h4>
-            <div class="grid grid-cols-2 gap-3 text-sm text-left">
-              <a href="/about" class="hover:text-white transition-colors hover:underline text-left">About Us</a>
-              <a href="/contact" class="hover:text-white transition-colors hover:underline text-left">Contact Page</a>
-              <a href="/privacy" class="hover:text-white transition-colors hover:underline text-left">Privacy Policy</a>
-              <a href="/terms" class="hover:text-white transition-colors hover:underline text-left">Terms of Service</a>
-              <a href="/refund" class="hover:text-white transition-colors hover:underline text-left">Refund Policy</a>
-              <a href="/cookies" class="hover:text-white transition-colors hover:underline text-left">Cookies Policy</a>
-              <a href="/content-policy" class="hover:text-white transition-colors hover:underline text-left">Content Policy</a>
-              <a href="/community-guidelines" class="hover:text-white transition-colors hover:underline text-left">Community Guidelines</a>
-              <a href="/disclaimer" class="hover:text-white transition-colors hover:underline text-left">Disclaimer</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Contact details -->
-        <div class="space-y-4 text-left">
-          <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Direct Contact</h4>
-          <div class="space-y-3 text-sm text-left">
-            <p class="flex items-center gap-2 text-left">
-              <iconify-icon icon="lucide:phone" class="text-gray-500"></iconify-icon>
-              <a href="tel:+919082604430" class="hover:text-white transition-colors text-base font-medium text-white">+91 90826 04430</a>
-            </p>
-            <p class="flex items-center gap-2 text-left">
-              <iconify-icon icon="lucide:mail" class="text-gray-500"></iconify-icon>
-              <a href="mailto:contact@pixelspot.in" class="hover:text-white transition-colors text-base font-medium text-white">contact@pixelspot.in</a>
-            </p>
-            <p class="text-xs text-gray-500 leading-relaxed pt-2 text-left">
-              Have questions about digital billboards, signage integrations, or target metrics? Reach out directly via call or email.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400 text-left">
-        <div>&copy; 2026 PixelSpot. All rights reserved.</div>
-        <div class="flex items-center gap-3 sm:gap-4 flex-wrap text-gray-400">
-          <span>Made in India</span>
-          <span class="hidden sm:inline opacity-30">•</span>
-          <span>The Global Infrastructure for Digital Screens</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-</div><!-- /panel-owner -->
-
-<!-- ══════════════════════════════════════════════════════
-     PANEL: ADVERTISER NARRATIVE
-══════════════════════════════════════════════════════ -->
-<div id="panel-advertiser">
-
-  <section class="story-section">
-    <div class="story-text active font-black text-gradient-animated">
-      You don't buy billboards.<br>
-      <span class="text-gradient-cyan mt-3 block">You buy attention.</span>
-    </div>
-  </section>
-
-  <section class="story-section">
-    <div class="story-text font-bold text-gray-200">Every agency says campaign completed.</div>
-  </section>
-
-  <section class="story-section flex-col" id="adv-seq-section">
-    <div class="story-text font-bold mb-12">But...</div>
-    <div class="flex flex-col items-center gap-5 mt-4">
-      <div class="sequence-item text-2xl md:text-4xl text-gray-300 font-semibold">Did your ad actually play?</div>
-      <div class="sequence-item text-2xl md:text-4xl text-gray-400 font-semibold">Where? When?</div>
-      <div class="sequence-item text-2xl md:text-4xl text-gray-400 font-semibold">For how long?</div>
-      <div class="sequence-item text-2xl md:text-4xl text-gradient-danger font-bold">Did anyone actually see it?</div>
-    </div>
-  </section>
-
-  <section class="story-section flex-col">
-    <div class="story-text font-bold text-gray-300">Advertising without proof<br>isn't advertising.</div>
-    <div class="story-text mt-8 text-gradient-animated font-black text-4xl md:text-6xl">It's trust.</div>
-  </section>
-
-  <section class="story-section">
-    <div class="container mx-auto px-4 text-center max-w-4xl">
-      <h2 class="text-3xl md:text-6xl font-black text-gradient-purple leading-tight fade-in-up">
-        Imagine buying outdoor media<br>
-        <span class="text-gray-300 font-light">the way you book a flight.</span>
-      </h2>
-    </div>
-  </section>
-
-  <!-- Feature sections -->
-  <!-- Search & Book -->
-  <section class="slide-section py-24 relative z-10">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="grid md:grid-cols-2 gap-16 items-center fade-in-up">
-        <div>
-          <div class="text-xs font-medium tracking-widest uppercase mb-4" style="color:var(--accent)">Search & Book</div>
-          <h3 class="text-3xl md:text-5xl font-light mb-8">Find your audience. Instantly.</h3>
-          <div class="space-y-3 text-xl text-gray-400 font-light">
-            <p>City. Area. Budget.</p>
-            <p>Audience. Availability.</p>
-            <p class="text-white mt-6">Book in minutes — not weeks.</p>
-          </div>
-        </div>
-        <div class="ui-element relative overflow-hidden">
-          <div class="absolute top-0 right-0 p-4"><iconify-icon icon="lucide:search" class="text-2xl text-gray-500"></iconify-icon></div>
-          <div class="space-y-3 p-4">
-            <div class="h-8 w-3/4 bg-white/5 rounded-md"></div>
-            <div class="h-8 w-1/2 bg-white/5 rounded-md"></div>
-            <div class="h-8 w-full bg-white/5 rounded-md"></div>
-            <div class="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
-              <div class="h-10 w-24 bg-white/10 rounded-full"></div>
-              <div class="h-10 w-32 rounded-full flex items-center justify-center text-sm" style="background:rgba(94,106,210,0.2);color:var(--accent)">Book Now</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Live Stream -->
-  <section class="slide-section py-24 relative z-10">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="grid md:grid-cols-2 gap-16 items-center fade-in-up">
-        <div class="order-2 md:order-1 ui-element relative overflow-hidden">
-          <div class="absolute top-0 right-0 p-4 flex gap-2 items-center">
-            <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-            <span class="text-xs text-red-500 uppercase tracking-widest">Live</span>
-          </div>
-          <div class="aspect-video bg-black/50 rounded-lg mt-8 flex items-center justify-center border border-white/5 relative">
-            <iconify-icon icon="lucide:play-circle" class="text-4xl text-gray-600"></iconify-icon>
-            <div class="absolute bottom-2 left-2 text-xs text-gray-500">Koramangala, Bengaluru</div>
-          </div>
-          <div class="mt-4 space-y-2">
-            <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-              <div class="h-full w-1/3 bg-green-500/50 rounded-full"></div>
-            </div>
-            <div class="flex justify-between text-xs text-gray-500">
-              <span>Heartbeat active</span><span>Telemetry syncing</span>
-            </div>
-          </div>
-        </div>
-        <div class="order-1 md:order-2">
-          <div class="text-xs font-medium tracking-widest uppercase mb-4" style="color:var(--accent)">WebRTC Live Stream</div>
-          <h3 class="text-3xl md:text-5xl font-light mb-8">See exactly where your campaign runs.</h3>
-          <div class="space-y-3 text-xl text-gray-400 font-light">
-            <p>Watch the actual screen.</p>
-            <p>Live. Right now.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Proof -->
-  <section class="slide-section py-24 relative z-10">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="grid md:grid-cols-2 gap-16 items-center fade-in-up">
-        <div>
-          <div class="text-xs font-medium tracking-widest uppercase mb-4" style="color:var(--accent)">Proof & ROI</div>
-          <h3 class="text-3xl md:text-5xl font-light mb-8">Every impression. Verified.</h3>
-          <div class="space-y-3 text-xl text-gray-400 font-light">
-            <p>Timestamped play logs.</p>
-            <p>Cryptographic telemetry.</p>
-            <p>PDF delivery reports.</p>
-          </div>
-        </div>
-        <div class="ui-element">
-          <div class="flex items-end gap-2 h-28 mb-5">
-            <div class="flex-1 bg-white/5 rounded-t" style="height:40%"></div>
-            <div class="flex-1 bg-white/5 rounded-t" style="height:60%"></div>
-            <div class="flex-1 bg-white/5 rounded-t" style="height:50%"></div>
-            <div class="flex-1 bg-white/10 rounded-t" style="height:80%"></div>
-            <div class="flex-1 rounded-t" style="height:100%;background:rgba(94,106,210,0.4)"></div>
-            <div class="flex-1 bg-white/5 rounded-t" style="height:70%"></div>
-          </div>
-          <div class="flex justify-between border-t border-white/10 pt-4">
-            <div class="text-center">
-              <div class="text-2xl text-white">1.2M</div>
-              <div class="text-xs text-gray-500 uppercase">Verified Plays</div>
-            </div>
-            <div class="text-center">
-              <div class="text-2xl text-white">48k</div>
-              <div class="text-xs text-gray-500 uppercase">Conversions</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="story-section">
-    <div class="container mx-auto px-4 text-center max-w-4xl fade-in-up">
-      <p class="text-2xl md:text-4xl text-gray-400 font-light mb-8">
-        Tell us what you want to achieve.<br>
-        <span class="text-white">We'll recommend the best screens.</span>
-      </p>
-      <p class="text-xl text-gray-500 font-light mt-12">
-        Not because someone earns commission.<br>Because the data supports it.
-      </p>
-    </div>
-  </section>
-
-  <!-- Final CTA -->
-  <section class="slide-section min-h-screen py-32 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md">
-    <div class="container mx-auto px-4 max-w-4xl text-center fade-in-up">
-      <h2 class="text-6xl md:text-9xl font-bold tracking-tight mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-600">
-        Buy media.
-      </h2>
-      <h3 class="text-3xl md:text-5xl text-gray-400 font-light mb-20">Not promises.</h3>
-      <div class="flex flex-col sm:flex-row gap-5 justify-center">
-        <a href="/login" class="px-8 py-4 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-colors text-lg flex items-center justify-center gap-2">
-          Launch Campaign
-          <iconify-icon icon="lucide:arrow-right"></iconify-icon>
-        </a>
-        <button onclick="showMain()" class="px-8 py-4 bg-white/5 text-white border border-white/10 rounded-full font-medium hover:bg-white/10 transition-colors text-lg flex items-center justify-center gap-2 cursor-pointer" style="font-family:inherit">
-          <iconify-icon icon="lucide:arrow-left"></iconify-icon>
-          Back to Home
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER SLIDE-SECTION -->
-  <section class="slide-section py-16 border-t border-white/5 bg-black/90 backdrop-blur-md relative z-10 text-gray-400">
-    <div class="container mx-auto px-4 max-w-5xl">
-      <div class="grid md:grid-cols-2 gap-12 mb-12 text-left">
-        <!-- Inquiry Links & Legal routes -->
-        <div class="space-y-6 text-left">
-          <div class="space-y-4 text-left">
-            <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Opportunities</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-              <button onclick="openInquiryModal('Buy LED Video Wall')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Buy LED Video Wall</button>
-              <button onclick="openInquiryModal('Plan Campaign')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Plan Campaign</button>
-              <button onclick="openInquiryModal('Register Your Billboard/Screen')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Register Billboard / Screen</button>
-              <button onclick="openInquiryModal('Franchise Partnership')" class="text-left text-gray-400 hover:text-white transition-colors hover:underline text-sm focus:outline-none cursor-pointer">Franchise Partnership</button>
-            </div>
-          </div>
-          
-          <div class="space-y-4 pt-4 border-t border-white/5 text-left">
-            <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Legal & Info</h4>
-            <div class="grid grid-cols-2 gap-3 text-sm text-left">
-              <a href="/about" class="hover:text-white transition-colors hover:underline text-left">About Us</a>
-              <a href="/contact" class="hover:text-white transition-colors hover:underline text-left">Contact Page</a>
-              <a href="/privacy" class="hover:text-white transition-colors hover:underline text-left">Privacy Policy</a>
-              <a href="/terms" class="hover:text-white transition-colors hover:underline text-left">Terms of Service</a>
-              <a href="/refund" class="hover:text-white transition-colors hover:underline text-left">Refund Policy</a>
-              <a href="/cookies" class="hover:text-white transition-colors hover:underline text-left">Cookies Policy</a>
-              <a href="/content-policy" class="hover:text-white transition-colors hover:underline text-left">Content Policy</a>
-              <a href="/community-guidelines" class="hover:text-white transition-colors hover:underline text-left">Community Guidelines</a>
-              <a href="/disclaimer" class="hover:text-white transition-colors hover:underline text-left">Disclaimer</a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Contact details -->
-        <div class="space-y-4 text-left">
-          <h4 class="text-sm font-semibold tracking-wider text-white uppercase">Direct Contact</h4>
-          <div class="space-y-3 text-sm text-left">
-            <p class="flex items-center gap-2 text-left">
-              <iconify-icon icon="lucide:phone" class="text-gray-500"></iconify-icon>
-              <a href="tel:+919082604430" class="hover:text-white transition-colors text-base font-medium text-white">+91 90826 04430</a>
-            </p>
-            <p class="flex items-center gap-2 text-left">
-              <iconify-icon icon="lucide:mail" class="text-gray-500"></iconify-icon>
-              <a href="mailto:contact@pixelspot.in" class="hover:text-white transition-colors text-base font-medium text-white">contact@pixelspot.in</a>
-            </p>
-            <p class="text-xs text-gray-500 leading-relaxed pt-2 text-left">
-              Have questions about digital billboards, signage integrations, or target metrics? Reach out directly via call or email.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div class="pt-8 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400 text-left">
-        <div>&copy; 2026 PixelSpot. All rights reserved.</div>
-        <div class="flex items-center gap-3 sm:gap-4 flex-wrap text-gray-400">
-          <span>Made in India</span>
-          <span class="hidden sm:inline opacity-30">•</span>
-          <span>The Global Infrastructure for Digital Screens</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-</div><!-- /panel-advertiser -->
-
-
-
-
-<script>
-/* ═══════════════════════════════════════════════
-   PANEL SWITCHING
-═══════════════════════════════════════════════ */
-function showPanel(which) {
-  document.getElementById('panel-main').style.display = 'none';
-  document.getElementById('panel-owner').style.display = which === 'owner' ? 'block' : 'none';
-  document.getElementById('panel-advertiser').style.display = which === 'advertiser' ? 'block' : 'none';
-  document.getElementById('back-btn').classList.add('show');
-  window.scrollTo({ top: 0, behavior: 'instant' });
-
-  setTimeout(function() {
-    reinitObservers();
-    if (which === 'advertiser') initAdvSequence();
-    if (which === 'owner') initOwnerFeatureCascade();
-    if (window.resetSlideEngine) window.resetSlideEngine();
-  }, 80);
-}
-
-function showMain() {
-  document.getElementById('panel-main').style.display = 'block';
-  document.getElementById('panel-owner').style.display = 'none';
-  document.getElementById('panel-advertiser').style.display = 'none';
-  document.getElementById('back-btn').classList.remove('show');
-  window.scrollTo({ top: 0, behavior: 'instant' });
-  if (window.resetSlideEngine) window.resetSlideEngine();
-}
-
-function reinitObservers() {
-  var textObs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) e.target.classList.add('active');
-    });
-  }, { threshold: 0.05, rootMargin: '100px 0px 100px 0px' });
-
-  document.querySelectorAll('.story-text').forEach(function(el) {
-    textObs.observe(el);
-  });
-
-  var fadeObs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) e.target.classList.add('visible');
-    });
-  }, { threshold: 0.05, rootMargin: '50px 0px 50px 0px' });
-
-  document.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .ui-element, .sequence-item, .cascade-card').forEach(function(el) {
-    fadeObs.observe(el);
-  });
-
-  if (typeof checkVisibilityFallback === 'function') {
-    checkVisibilityFallback();
-  }
-}
-
-function initAdvSequence() {
-  var section = document.getElementById('adv-seq-section');
-  if (!section) return;
-  var items = section.querySelectorAll('.sequence-item');
-  items.forEach(function(i) { i.classList.remove('visible'); });
-  var obs = new IntersectionObserver(function(entries) {
-    if (entries[0].isIntersecting) {
-      items.forEach(function(item, i) {
-        setTimeout(function() { item.classList.add('visible'); }, i * 250);
-      });
-      obs.disconnect();
-    }
-  }, { threshold: 0.05 });
-  obs.observe(section);
-}
-
-function initOwnerFeatureCascade() {
-  var container = document.getElementById('feature-cascade-owner');
-  if (!container) return;
-  var cards = container.querySelectorAll('.feature-card');
-  cards.forEach(function(c) { c.classList.remove('visible'); });
-  var obs = new IntersectionObserver(function(entries) {
-    if (entries[0].isIntersecting) {
-      cards.forEach(function(c, i) {
-        setTimeout(function() { c.classList.add('visible'); }, i * 100);
-      });
-      obs.disconnect();
-    }
-  }, { threshold: 0.05 });
-  obs.observe(container);
-}
-
-/* ═══════════════════════════════════════════════
-   INIT ON LOAD
-═══════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', function() {
-  // Preloader — hide after animation
-  setTimeout(function() {
-    document.getElementById('preloader').classList.add('hidden');
-  }, 4800);
-
-  // Initial observers for main panel — low threshold (0.05) for immediate visibility
-  var textObs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) e.target.classList.add('active');
-    });
-  }, { threshold: 0.05, rootMargin: '100px 0px 100px 0px' });
-  document.querySelectorAll('.story-text').forEach(function(el) { textObs.observe(el); });
-
-  var fadeObs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) e.target.classList.add('visible');
-    });
-  }, { threshold: 0.05, rootMargin: '50px 0px 50px 0px' });
-  document.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .ui-element').forEach(function(el) { fadeObs.observe(el); });
-
-  // Cascade words — staggered reveal with low threshold
-  var cascadeSection = document.getElementById('reality-section');
-  var cascadeWords = document.querySelectorAll('.cascade-word');
-  var cascadeStarted = false;
-  if (cascadeSection) {
-    var cascadeObs = new IntersectionObserver(function(entries) {
-      if (entries[0].isIntersecting && !cascadeStarted) {
-        cascadeStarted = true;
-        cascadeWords.forEach(function(word, i) {
-          setTimeout(function() { word.classList.add('visible'); }, i * 150);
-        });
-      }
-    }, { threshold: 0.05 });
-    cascadeObs.observe(cascadeSection);
-  }
-
-  // Fallback viewport check for scroll visibility
-  function checkVisibilityFallback() {
-    var vh = window.innerHeight || document.documentElement.clientHeight;
-    document.querySelectorAll('.story-text').forEach(function(el) {
-      var rect = el.getBoundingClientRect();
-      if (rect.top < vh * 0.92 && rect.bottom > 0) {
-        el.classList.add('active');
-      }
-    });
-    document.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .cascade-word, .cascade-card').forEach(function(el, i) {
-      var rect = el.getBoundingClientRect();
-      if (rect.top < vh * 0.95 && rect.bottom > 0) {
-        el.classList.add('visible');
-      }
-    });
-  }
-
-  window.addEventListener('scroll', checkVisibilityFallback, { passive: true });
-  window.addEventListener('resize', checkVisibilityFallback, { passive: true });
-  setTimeout(checkVisibilityFallback, 100);
-  setTimeout(checkVisibilityFallback, 1000);
-  setTimeout(checkVisibilityFallback, 3000);
-
-  // Nav scroll behaviour
-  window.addEventListener('scroll', function() {
-    var nav = document.getElementById('main-nav');
-    if (!nav) return;
-    if (window.scrollY > 80) {
-      nav.classList.add('scrolled');
-    } else {
-      nav.classList.remove('scrolled');
-    }
-  });
-});
-</script>
-
-<!-- ═══════════════════════════════════════════════
-     SLIDE ENGINE (NATIVE SCROLL & OBSERVER)
-═══════════════════════════════════════════════ -->
-<script>
-(function () {
-
-  let currentSlide = 0;
-  let isAnimating = false;
-
-  function getSlides() {
-    const panels = ['panel-main', 'panel-screen-owner', 'panel-advertiser'];
-    let activePanel = null;
-    for (let i = 0; i < panels.length; i++) {
-      const el = document.getElementById(panels[i]);
-      if (el) {
-        const style = window.getComputedStyle(el);
-        if (style.display !== 'none' && style.visibility !== 'hidden') {
-          activePanel = el;
-          break;
-        }
-      }
-    }
-
-    if (!activePanel) activePanel = document.getElementById('panel-main');
-    if (!activePanel) return [];
-    return Array.from(activePanel.querySelectorAll('.story-section, .slide-section'));
-  }
-
-  function goToSlide(index, instant) {
-    const slides = getSlides();
-    if (!slides.length) return;
-
-    index = Math.max(0, Math.min(index, slides.length - 1));
-    currentSlide = index;
-
-    const target = slides[index];
-    const targetY = target.getBoundingClientRect().top + window.scrollY;
-
-    if (instant) {
-      window.scrollTo({ top: targetY });
-    } else {
-      isAnimating = true;
-      window.scrollTo({ top: targetY, behavior: 'smooth' });
-      setTimeout(() => { isAnimating = false; }, 800);
-    }
-
-    triggerSlideAnimations(target);
-    updateDots();
-  }
-
-  function triggerSlideAnimations(target) {
-    if (!target) return;
-    target.querySelectorAll('.story-text').forEach(el => {
-      el.classList.add('active');
-    });
-    target.querySelectorAll('.fade-in-up, .dashboard-viz, .feature-card, .cascade-word, .cascade-card').forEach((el, i) => {
-      setTimeout(() => el.classList.add('visible'), i * 60);
-    });
-  }
-
-  function nextSlide() {
-    if (isAnimating) return;
-    const slides = getSlides();
-    if (currentSlide < slides.length - 1) {
-      goToSlide(currentSlide + 1, false);
-    }
-  }
-
-  function prevSlide() {
-    if (isAnimating) return;
-    if (currentSlide > 0) {
-      goToSlide(currentSlide - 1, false);
-    }
-  }
-
-  // ── KEYBOARD NAVIGATION ──
-  window.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || e.key === 'PageDown') {
-      e.preventDefault();
-      nextSlide();
-    }
-    if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-      e.preventDefault();
-      prevSlide();
-    }
-  });
-
-  // ── INTERSECTION OBSERVER FOR NATIVE SCROLL ──
-  let slideObserver = null;
-  function setupSlideObserver() {
-    if (slideObserver) slideObserver.disconnect();
-
-    const slides = getSlides();
-    if (!slides.length) return;
-
-    slideObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          triggerSlideAnimations(entry.target);
-          const idx = slides.indexOf(entry.target);
-          if (idx !== -1 && !isAnimating) {
-            currentSlide = idx;
-            updateDots();
-          }
-        }
-      });
-    }, { threshold: 0.05 });
-
-    slides.forEach(slide => slideObserver.observe(slide));
-  }
-
-  // ── PROGRESS DOTS ──
-  function buildDots() {
-    const existing = document.getElementById('slide-dots');
-    if (existing) existing.remove();
-
-    const slides = getSlides();
-    if (!slides.length) return;
-
-    const wrap = document.createElement('div');
-    wrap.id = 'slide-dots';
-    wrap.style.cssText = `
-      position: fixed;
-      right: 24px;
-      top: 50%;
-      transform: translateY(-50%);
-      z-index: 200;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      align-items: center;
-    `;
-
-    slides.forEach((_, i) => {
-      const dot = document.createElement('div');
-      dot.dataset.index = i;
-      dot.style.cssText = `
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.25);
-        cursor: pointer;
-        transition: all 0.3s ease;
-      `;
-      dot.addEventListener('click', () => {
-        goToSlide(i, false);
-      });
-      wrap.appendChild(dot);
-    });
-
-    document.body.appendChild(wrap);
-    updateDots();
-  }
-
-  function updateDots() {
-    const wrap = document.getElementById('slide-dots');
-    if (!wrap) return;
-    wrap.querySelectorAll('div').forEach((dot, i) => {
-      if (i === currentSlide) {
-        dot.style.background = 'rgba(255,255,255,0.95)';
-        dot.style.height = '20px';
-        dot.style.borderRadius = '3px';
-      } else {
-        dot.style.background = 'rgba(255,255,255,0.25)';
-        dot.style.height = '6px';
-        dot.style.borderRadius = '50%';
-      }
-    });
-  }
-
-  window.resetSlideEngine = function () {
-    currentSlide = 0;
-    isAnimating = false;
-    setTimeout(() => {
-      buildDots();
-      setupSlideObserver();
-    }, 120);
-  };
-
-  document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-      buildDots();
-      setupSlideObserver();
-    }, 1000);
-  });
-
-})();
-</script>
-
-<!-- ═══════════════ INQUIRY FORM MODAL ═══════════════ -->
-<div id="inquiry-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
-  <div class="bg-[rgba(15,15,15,0.85)] border border-white/10 rounded-3xl p-8 max-w-md w-full mx-4 shadow-2xl relative transform scale-95 transition-transform duration-300" id="inquiry-modal-container">
-    <button onclick="closeInquiryModal()" class="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors cursor-pointer focus:outline-none">
-      <iconify-icon icon="lucide:x" class="text-xl"></iconify-icon>
-    </button>
-    
-    <h3 class="text-2xl font-semibold mb-2 text-white" id="inquiry-modal-title">Submit Inquiry</h3>
-    <p class="text-gray-400 text-sm mb-6" id="inquiry-modal-subtitle">Fill in the details below to contact the admin.</p>
-    
-    <form id="inquiry-form" onsubmit="handleInquirySubmit(event)" class="space-y-4">
-      <input type="hidden" id="inquiry-type" name="inquiryType">
-      
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2" for="inquiry-name">Your Name</label>
-        <input type="text" id="inquiry-name" required placeholder="John Doe" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-[var(--accent)] transition-colors text-sm">
-      </div>
-      
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2" for="inquiry-email">Email Address</label>
-        <input type="email" id="inquiry-email" required placeholder="john@example.com" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-[var(--accent)] transition-colors text-sm">
-      </div>
-      
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2" for="inquiry-phone">Phone Number</label>
-        <input type="tel" id="inquiry-phone" required placeholder="9082604430" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-[var(--accent)] transition-colors text-sm">
-      </div>
-      
-      <div>
-        <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2" for="inquiry-message">Requirements / Message</label>
-        <textarea id="inquiry-message" rows="3" placeholder="Tell us about your requirements..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-[var(--accent)] transition-colors text-sm resize-none"></textarea>
-      </div>
-      
-      <button type="submit" class="w-full py-4 bg-white text-black font-semibold rounded-xl hover:bg-gray-200 transition-colors text-sm flex items-center justify-center gap-2 cursor-pointer mt-4 focus:outline-none">
-        <span>Submit to CCMS Admin</span>
-        <iconify-icon icon="lucide:arrow-right"></iconify-icon>
-      </button>
-    </form>
-    
-    <!-- Success Alert -->
-    <div id="inquiry-success" class="absolute inset-0 bg-[rgba(15,15,15,0.95)] rounded-3xl p-8 flex flex-col items-center justify-center text-center hidden">
-      <div class="w-16 h-16 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mb-6">
-        <iconify-icon icon="lucide:check" class="text-3xl"></iconify-icon>
-      </div>
-      <h4 class="text-2xl font-semibold mb-2 text-white">Inquiry Received</h4>
-      <p class="text-gray-400 text-sm max-w-xs mb-8">Your details have been registered and sent to the platform administrators. We will get back to you shortly.</p>
-      <button type="button" onclick="closeInquiryModal()" class="px-6 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors text-sm cursor-pointer">
-        Close Window
-      </button>
+    <div class="flex items-center gap-3">
+      <a href="/login" target="_parent" class="text-sm text-white/70 hover:text-white transition-colors hidden sm:block px-3 py-2">Sign In</a>
+      <a href="/login" target="_parent" class="btn-primary text-sm px-5 py-2.5">Get Started</a>
     </div>
   </div>
+</nav>
+
+<!-- ═══════════════ ACT 1 · HERO (video visible) ═══════════════ -->
+<header class="relative min-h-screen flex flex-col justify-center">
+  <div class="max-w-[1280px] mx-auto px-6 w-full pt-28 pb-24">
+    <p class="act-label mb-8 rv">India's DOOH Network</p>
+    <h1 class="display-hero rv rv-d1" style="text-shadow: 0 2px 32px rgba(0,0,0,0.55)">
+      MEDIA IS EVERYWHERE.<br>
+      <span class="text-[#5c86ff]">THE PROCESS ISN'T.</span>
+    </h1>
+    <p class="mt-8 max-w-xl text-lg md:text-xl text-white/75 rv rv-d2" style="line-height:1.6; text-shadow: 0 1px 12px rgba(0,0,0,0.5)">
+      One connected layer for the people who buy outdoor media — and the people who own it.
+    </p>
+    <div class="mt-10 flex flex-wrap gap-4 rv rv-d3">
+      <a href="/login" target="_parent" class="btn-primary px-8 py-4 text-base inline-flex items-center gap-2">
+        Buy Media <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+      </a>
+      <a href="/login" target="_parent" class="btn-ghost px-8 py-4 text-base inline-flex items-center gap-2">
+        Sell Media <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+      </a>
+    </div>
+  </div>
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40 rv rv-d4">
+    <iconify-icon icon="lucide:chevron-down" class="text-2xl animate-bounce"></iconify-icon>
+  </div>
+</header>
+
+<!-- ═══ VIDEO WINDOW · the original story lines, kept as the bridge into the problem ═══ -->
+<section class="video-window">
+  <div>
+    <p class="window-line rv">Every screen is displaying something.</p>
+    <p class="window-line text-white/60 mt-6 rv rv-d2">But very few are earning what they should.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 2 · THE PROBLEM ═══════════════ -->
+<div class="act-solid">
+  <div class="fade-top"></div>
+  <section class="py-28 lg:py-40 px-6 relative overflow-hidden">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label mb-6 rv">Act 02 · The Problem</p>
+      <h2 class="display-act rv rv-d1">SEVEN HANDOFFS.<br>ZERO VISIBILITY.</h2>
+      <p class="mt-6 max-w-2xl text-white/60 text-lg rv rv-d2">
+        Today a single outdoor campaign crawls through planners, vendors, spreadsheets,
+        calls and WhatsApp threads — and still ends with the same question:
+        <em class="text-white/90 not-italic font-medium">"did it even run?"</em>
+      </p>
+
+      <div class="relative mt-16 rv rv-d3" style="min-height: 340px;">
+        <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 1000 340" aria-hidden="true">
+          <line class="frag-line" x1="120" y1="60"  x2="330" y2="120" stroke-width="1.5"/>
+          <line class="frag-line" x1="330" y1="120" x2="200" y2="240" stroke-width="1.5"/>
+          <line class="frag-line" x1="330" y1="120" x2="560" y2="80"  stroke-width="1.5"/>
+          <line class="frag-line" x1="560" y1="80"  x2="700" y2="200" stroke-width="1.5"/>
+          <line class="frag-line" x1="700" y1="200" x2="500" y2="270" stroke-width="1.5"/>
+          <line class="frag-line" x1="700" y1="200" x2="880" y2="120" stroke-width="1.5"/>
+        </svg>
+        <div class="frag-node absolute px-4 py-2" style="left:4%;  top:8%">Advertiser</div>
+        <div class="frag-node absolute px-4 py-2" style="left:28%; top:28%">Agency</div>
+        <div class="frag-node absolute px-4 py-2" style="left:14%; top:64%">Media planner</div>
+        <div class="frag-node absolute px-4 py-2" style="left:52%; top:14%">Vendor ✕ Vendor ✕ Vendor</div>
+        <div class="frag-node absolute px-4 py-2" style="left:64%; top:52%">Screen owners</div>
+        <div class="frag-node absolute px-4 py-2" style="left:42%; top:74%">Manual coordination</div>
+        <div class="frag-node absolute px-4 py-2" style="left:82%; top:30%">Reporting…?</div>
+        <div class="frag-node absolute px-4 py-2 hidden md:block" style="left:8%;  top:40%">calls</div>
+        <div class="frag-node absolute px-4 py-2 hidden md:block" style="left:88%; top:66%">spreadsheets</div>
+        <div class="frag-node absolute px-4 py-2 hidden md:block" style="left:34%; top:50%">WhatsApp…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ACT 3 · THE REVEAL (same solid block — problem and answer share a room) ═══════════════ -->
+  <section class="py-28 lg:py-40 px-6 border-t border-white/5">
+    <div class="max-w-[1280px] mx-auto text-center">
+      <p class="act-label mb-6 rv">Act 03 · The Shift</p>
+      <h2 class="display-act rv rv-d1">WHAT IF THEY ALL SPOKE<br>THE SAME LANGUAGE?</h2>
+
+      <div id="connect-stage" class="mt-20 rv rv-d2">
+        <div class="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
+          <div class="c-node px-6 py-4 text-sm font-medium">Advertisers</div>
+          <div class="c-node px-6 py-4 text-sm font-medium">Agencies</div>
+          <div class="c-core px-8 py-5 font-display font-bold text-lg">PIXELSPOT</div>
+          <div class="c-node px-6 py-4 text-sm font-medium">Screen Owners</div>
+          <div class="c-node px-6 py-4 text-sm font-medium">Screens</div>
+        </div>
+        <div id="connect-line" class="mx-auto mt-8 max-w-3xl"></div>
+        <p class="mt-8 font-mono-x text-sm text-white/50 tracking-widest">
+          INVENTORY · CAMPAIGNS · PROOF-OF-PLAY · INTELLIGENCE
+        </p>
+      </div>
+    </div>
+  </section>
+  <div class="fade-bottom"></div>
+</div>
+
+<!-- ═══ VIDEO WINDOW · bridge into the people ═══ -->
+<section class="video-window">
+  <div>
+    <p class="window-line rv">Three sides of the same market.</p>
+    <p class="window-line text-white/60 mt-6 rv rv-d2">Each waiting on the other two.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 4 · THE PEOPLE ═══════════════ -->
+<div class="act-solid">
+  <div class="fade-top"></div>
+  <section class="py-28 lg:py-36 px-6">
+    <div class="max-w-[1520px] mx-auto space-y-8">
+      <div class="max-w-[1280px] mx-auto">
+        <p class="act-label mb-4 rv">Act 04 · The People</p>
+        <h2 class="display-act rv rv-d1">EVERYONE GETS<br>A BETTER DEAL.</h2>
+      </div>
+
+      <!-- ADVERTISERS -->
+      <div class="panel-dark p-8 lg:p-14 grid lg:grid-cols-2 gap-10 items-center rv">
+        <div>
+          <p class="font-mono-x text-xs tracking-[0.2em] text-white/40 mb-4">FOR ADVERTISERS</p>
+          <h3 class="display-panel">Buy reach<br>with confidence.</h3>
+          <p class="mt-5 text-white/60 max-w-md">Find the screens that matter, plan campaigns, execute them — and know exactly what happened.</p>
+          <a href="/login" target="_parent" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#5c86ff]">
+            Explore Advertising <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+          </a>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="mini-stat p-5 col-span-2">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs text-white/40">Impressions · this week</p>
+              <p class="font-display font-bold text-xl">2.4M</p>
+            </div>
+            <svg viewBox="0 0 320 90" class="w-full" aria-hidden="true">
+              <defs>
+                <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(92,134,255,0.35)"/>
+                  <stop offset="100%" stop-color="rgba(92,134,255,0)"/>
+                </linearGradient>
+              </defs>
+              <path class="chart-fill" d="M0,72 C40,64 60,56 90,52 C120,48 140,58 170,44 C200,30 220,38 250,24 C280,12 300,16 320,10 L320,90 L0,90 Z"/>
+              <path class="chart-line" d="M0,72 C40,64 60,56 90,52 C120,48 140,58 170,44 C200,30 220,38 250,24 C280,12 300,16 320,10"/>
+            </svg>
+            <div class="flex justify-between font-mono-x text-[10px] text-white/30 mt-1"><span>MON</span><span>WED</span><span>FRI</span><span>SUN</span></div>
+          </div>
+          <div class="mini-stat p-5 col-span-2">
+            <p class="text-xs text-white/40 mb-3">Proof-of-play · live</p>
+            <div class="space-y-2 font-mono-x text-xs text-white/60">
+              <p><span class="tick">✓</span> 09:00 · MG Road, Bengaluru · played</p>
+              <p><span class="tick">✓</span> 09:10 · Bandra West, Mumbai · played</p>
+              <p><span class="tick">✓</span> 09:20 · Connaught Pl, Delhi · played</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AGENCIES -->
+      <div class="panel-light p-8 lg:p-14 grid lg:grid-cols-2 gap-10 items-center rv">
+        <div class="order-2 lg:order-1">
+          <div class="space-y-3">
+            <div class="flow-step p-4 flex items-center justify-between">
+              <span class="text-sm font-medium">Brief received — FMCG launch, 12 cities</span>
+              <span class="font-mono-x text-xs muted">DAY 0</span>
+            </div>
+            <div class="flow-step p-4 flex items-center justify-between" style="margin-left: 8%">
+              <span class="text-sm font-medium">184 screens shortlisted automatically</span>
+              <span class="font-mono-x text-xs muted">+2 hrs</span>
+            </div>
+            <div class="flow-step p-4 flex items-center justify-between" style="margin-left: 16%">
+              <span class="text-sm font-medium">Plan approved · booked · live</span>
+              <span class="font-mono-x text-xs text-[#1f9d5b]">+1 day</span>
+            </div>
+          </div>
+        </div>
+        <div class="order-1 lg:order-2">
+          <p class="font-mono-x text-xs tracking-[0.2em] muted mb-4">FOR AGENCIES</p>
+          <h3 class="display-panel">Plan smarter.<br>Execute faster.</h3>
+          <p class="mt-5 muted max-w-md">Media discovery, planning, buying and campaign management — one workflow instead of forty phone calls.</p>
+          <a href="#agencies" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#3b6ef5]">
+            Explore for Agencies <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+          </a>
+        </div>
+      </div>
+
+      <!-- SCREEN OWNERS -->
+      <div class="panel-dark p-8 lg:p-14 grid lg:grid-cols-2 gap-10 items-center rv">
+        <div>
+          <p class="font-mono-x text-xs tracking-[0.2em] text-white/40 mb-4">FOR SCREEN OWNERS</p>
+          <h3 class="display-panel">Turn screens into<br>smarter inventory.</h3>
+          <p class="mt-5 text-white/60 max-w-md">Connect your screens to real demand. Higher occupancy, automated scheduling, predictable revenue.</p>
+          <a href="/login" target="_parent" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#5c86ff]">
+            List Your Screens <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+          </a>
+        </div>
+        <div class="mini-stat p-6">
+          <div class="flex items-end justify-between mb-2">
+            <p class="text-xs text-white/40">Occupancy this month</p>
+            <p class="font-display font-bold text-3xl">86%</p>
+          </div>
+          <div class="h-2.5 bg-white/5 rounded-full overflow-hidden"><div class="bar-anim h-full rounded-full" style="width:86%; background: linear-gradient(90deg, #3b6ef5, #34d27b)"></div></div>
+          <div class="grid grid-cols-3 gap-3 mt-6 text-center">
+            <div><p class="font-display font-bold text-xl">₹1.2L</p><p class="text-[11px] text-white/40 mt-1">This month</p></div>
+            <div><p class="font-display font-bold text-xl">31</p><p class="text-[11px] text-white/40 mt-1">Active bookings</p></div>
+            <div><p class="font-display font-bold text-xl">6</p><p class="text-[11px] text-white/40 mt-1">Screens live</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ACT 5 · MARKETPLACE (flows straight from the people to where they meet) ═══════════════ -->
+  <section id="marketplace" class="py-28 lg:py-40 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label mb-6 rv">Act 05 · The Marketplace</p>
+      <h2 class="display-act rv rv-d1">WHERE MEDIA<br>FINDS DEMAND.</h2>
+      <p class="mt-6 max-w-2xl text-white/60 text-lg rv rv-d2">
+        Physical screens become searchable, bookable, measurable media inventory —
+        by location, audience, availability and budget.
+      </p>
+
+      <div id="map-stage" class="relative mt-14 rv rv-d3 overflow-hidden" style="height: 480px;">
+        <div class="pin" style="left:22%; top:24%"></div>
+        <div class="pin" style="left:30%; top:38%"></div>
+        <div class="pin pin--hot" style="left:36%; top:55%"></div>
+        <div class="pin" style="left:44%; top:30%"></div>
+        <div class="pin" style="left:52%; top:46%"></div>
+        <div class="pin" style="left:47%; top:66%"></div>
+        <div class="pin pin--hot" style="left:60%; top:34%"></div>
+        <div class="pin" style="left:66%; top:58%"></div>
+        <div class="pin" style="left:73%; top:26%"></div>
+        <div class="pin" style="left:57%; top:78%"></div>
+        <div class="pin" style="left:26%; top:70%"></div>
+        <div class="pin pin--hot" style="left:79%; top:48%"></div>
+
+        <div id="inv-card" class="absolute p-5 w-72" style="left: 8%; bottom: 8%;">
+          <div class="flex items-center justify-between mb-3">
+            <p class="font-semibold text-sm">LED Billboard · Koramangala</p>
+            <span class="font-mono-x text-[10px] px-2 py-0.5 rounded-full" style="background: rgba(52,210,123,0.15); color: #34d27b">AVAILABLE</span>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-white/60">
+            <p>Audience <span class="block text-white font-medium">Tech · Retail</span></p>
+            <p>Footfall <span class="block text-white font-medium">48K/day</span></p>
+            <p>Slot <span class="block text-white font-medium">10 min / 6-hr loop</span></p>
+            <p>From <span class="block text-white font-medium">₹850/slot·day</span></p>
+          </div>
+          <a href="/login" target="_parent" class="btn-primary block text-center text-sm py-2.5 mt-4">Book This Screen</a>
+        </div>
+
+        <p class="absolute right-6 bottom-5 font-mono-x text-xs text-white/30 tracking-widest">8,507+ SCREENS · 229+ CITIES</p>
+      </div>
+    </div>
+  </section>
+  <div class="fade-bottom"></div>
+</div>
+
+<!-- ═══ VIDEO WINDOW · bridge from buying to playing ═══ -->
+<section class="video-window">
+  <div>
+    <p class="window-line rv">A booking is a promise.</p>
+    <p class="window-line text-white/60 mt-6 rv rv-d2">The screen is where it's kept.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 6 · PIXELPLAYER (LIGHT WORLD) ═══════════════ -->
+<div class="act-light">
+  <section id="pixelplayer" class="py-28 lg:py-40 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label act-label--light mb-6 rv">Act 06 · The Execution Layer</p>
+      <h2 class="display-act rv rv-d1" style="color:#17181d">BUY THE MEDIA.<br>THEN CONTROL THE EXPERIENCE.</h2>
+      <p class="mt-6 max-w-2xl muted text-lg rv rv-d2">
+        PixelPlayer turns any screen into managed, verifiable inventory. What gets booked
+        in the marketplace plays on glass — automatically, provably.
+      </p>
+
+      <div class="mt-16 grid lg:grid-cols-[1fr_auto] gap-12 items-center rv rv-d3">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
+          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Marketplace</div>
+          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
+          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Campaign</div>
+          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
+          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center" style="border: 2px solid #3b6ef5;">PixelPlayer</div>
+          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
+          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Screen</div>
+          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
+          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Audience</div>
+        </div>
+        <div class="device px-10 py-8 text-white justify-self-center">
+          <p class="font-mono-x text-[10px] tracking-[0.3em] text-white/40 mb-2">PIXELPLAYER</p>
+          <p class="font-display font-bold text-lg">HDMI out. Wi-Fi &amp; 4G.</p>
+          <p class="text-white/50 text-sm mt-1">Plug in. Go live. Get paid.</p>
+          <div class="flex items-center gap-2 mt-4">
+            <span class="live-dot"></span>
+            <span class="font-mono-x text-xs text-white/60">ONLINE · PLAYING</span>
+          </div>
+        </div>
+      </div>
+
+      <a href="/login" target="_parent" class="mt-12 inline-flex items-center gap-2 text-sm font-semibold rv rv-d4 text-[#3b6ef5]">
+        Meet PixelPlayer <iconify-icon icon="lucide:arrow-right"></iconify-icon>
+      </a>
+    </div>
+  </section>
+
+  <!-- ═══ ACT 6B · PIXELOS — the brains, in 3D ═══ -->
+  <section class="pb-28 lg:pb-40 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label act-label--light mb-6 rv">PixelOS</p>
+      <h2 class="display-act rv rv-d1" style="color:#17181d">BRAINS.<br>FOR SCREENS.</h2>
+      <p class="mt-6 max-w-2xl muted text-lg rv rv-d2">
+        Inside every PixelPlayer runs PixelOS — built for the worst day, every single day.
+        Move the device. It's watching you too.
+      </p>
+
+      <div class="mt-10 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
+        <!-- 3D device -->
+        <div class="pixelos-scene rv rv-d2" id="pixelos-scene">
+          <div class="pixelos-device" id="pixelos-device">
+            <div class="pixelos-shadow"></div>
+            <div class="pixelos-slab">
+              <div class="pixelos-etch">
+                <p class="font-mono-x text-[10px] tracking-[0.35em] text-white/35">PIXELOS</p>
+                <p class="font-display font-bold text-white text-xl tracking-tight">PixelPlayer</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="live-dot"></span>
+                  <span class="font-mono-x text-[10px] text-white/50">RUNS COOL · RUNS QUIET · RUNS ALWAYS</span>
+                </div>
+              </div>
+              <div class="pixelos-ports">
+                <span style="width:34px"></span><!-- HDMI -->
+                <span style="width:18px"></span><!-- USB -->
+                <span style="width:18px"></span><!-- USB -->
+                <span style="width:12px"></span><!-- SIM -->
+              </div>
+            </div>
+            <div class="pixelos-screenlet">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono-x text-[9px] tracking-[0.2em] text-white/40">NOW PLAYING</span>
+                <span class="font-mono-x text-[9px] text-[#34d27b]">● LIVE</span>
+              </div>
+              <p class="text-white text-xs font-medium">Campaign #1247 · Slot 3 of 6</p>
+              <div class="h-1 mt-2 bg-white/10 rounded-full overflow-hidden">
+                <div class="h-full w-2/3 rounded-full" style="background:#5c86ff"></div>
+              </div>
+              <p class="font-mono-x text-[9px] text-white/35 mt-2">proof-of-play → signed → synced</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- problem → solution chips -->
+        <div class="space-y-4">
+          <div class="solve-chip p-5 rv">
+            <p class="x text-xs mb-1">✕ "The screen went blank at 2 AM."</p>
+            <p class="v text-xs mb-2">✓ Watchdog auto-recovery + offline cache.</p>
+            <p class="muted text-sm">Content keeps playing through network drops and power cuts. The player heals itself before anyone notices.</p>
+          </div>
+          <div class="solve-chip p-5 rv rv-d1">
+            <p class="x text-xs mb-1">✕ "Did my ad actually run?"</p>
+            <p class="v text-xs mb-2">✓ Signed proof-of-play, every slot.</p>
+            <p class="muted text-sm">Each playback is logged, timestamped and synced — evidence, not promises.</p>
+          </div>
+          <div class="solve-chip p-5 rv rv-d2">
+            <p class="x text-xs mb-1">✕ "I drive across town to change content."</p>
+            <p class="v text-xs mb-2">✓ Playing there. Controlled here.</p>
+            <p class="muted text-sm">One remote for every screen — schedules, playlists and health from a single dashboard.</p>
+          </div>
+          <div class="solve-chip p-5 rv rv-d3">
+            <p class="x text-xs mb-1">✕ "Half my loop is unsold air."</p>
+            <p class="v text-xs mb-2">✓ Auto-fills from marketplace demand.</p>
+            <p class="muted text-sm">Empty slots connect to real advertisers automatically. Looks small. Earns large.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════ ACT 7 · INTELLIGENCE ═══════════════ -->
+<div class="act-solid">
+  <section class="py-28 lg:py-40 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label mb-10 rv">Act 07 · The Intelligence</p>
+      <div id="intel-stack" class="space-y-2">
+        <h2 class="display-act intel-line">THE RIGHT <span class="hl">SCREEN.</span></h2>
+        <h2 class="display-act intel-line">THE RIGHT <span class="hl">PLACE.</span></h2>
+        <h2 class="display-act intel-line">THE RIGHT <span class="hl">MOMENT.</span></h2>
+        <h2 class="display-act intel-line">THE RIGHT <span class="hl">AUDIENCE.</span></h2>
+      </div>
+      <p class="mt-10 max-w-2xl text-white/60 text-lg rv">
+        Location signals, availability, audience patterns and campaign performance —
+        working quietly under every plan. Not a slogan about intelligence. The behavior of it.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ACT 8 · THE NETWORK ═══════════════ -->
+  <section id="network" class="py-28 lg:py-40 px-6 relative overflow-hidden border-t border-white/5">
+    <div class="absolute inset-0 opacity-60"><canvas id="net-canvas"></canvas></div>
+    <div class="max-w-[1280px] mx-auto relative">
+      <p class="act-label mb-6 rv">Act 08 · The Network</p>
+      <h2 class="display-act rv rv-d1">A NETWORK GETS MORE POWERFUL<br>AS MORE OF THE MARKET CONNECTS.</h2>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-16 rv rv-d2">
+        <div><p class="stat-num" data-count="8507">0</p><p class="text-white/50 text-sm mt-1">Screens connected</p></div>
+        <div><p class="stat-num" data-count="229">0</p><p class="text-white/50 text-sm mt-1">Cities live</p></div>
+        <div><p class="stat-num" data-count="1248">0</p><p class="text-white/50 text-sm mt-1">Campaigns delivered</p></div>
+        <div><p class="stat-num" data-count="2400000">0</p><p class="text-white/50 text-sm mt-1">Daily impressions</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ ACT 9 · AGENCIES ═══════════════ -->
+  <section id="agencies" class="py-28 lg:py-40 px-6 border-t border-white/5">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label mb-6 rv">Act 09 · For Agencies</p>
+      <h2 class="display-act rv rv-d1">YOUR CLIENTS EXPECT MORE FROM MEDIA.<br>YOUR WORKFLOW SHOULDN'T GET HARDER.</h2>
+      <div class="mt-14 flex flex-wrap items-center gap-3 rv rv-d2">
+        <span class="pipe-step px-5 py-2.5">BRIEF</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
+        <span class="pipe-step px-5 py-2.5">PLAN</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
+        <span class="pipe-step px-5 py-2.5">DISCOVER</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
+        <span class="pipe-step px-5 py-2.5">BUY</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
+        <span class="pipe-step px-5 py-2.5">EXECUTE</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
+        <span class="pipe-step px-5 py-2.5" style="border-color: rgba(52,210,123,0.6); color: #34d27b">MEASURE</span>
+      </div>
+      <p class="mt-10 max-w-2xl text-white/60 text-lg rv rv-d3">
+        One connected workflow from brief to proof — with multi-campaign, multi-client
+        control your team doesn't have to fight for.
+      </p>
+    </div>
+  </section>
+  <div class="fade-bottom"></div>
+</div>
+
+<!-- ═══ VIDEO WINDOW · bridge into the vision ═══ -->
+<section class="video-window">
+  <div>
+    <p class="window-line rv">The city is the last<br>unskippable medium.</p>
+    <p class="window-line text-white/60 mt-6 rv rv-d2">It deserves better infrastructure.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ ACT 10 · THE VISION (LIGHT) ═══════════════ -->
+<div class="act-light">
+  <section class="py-32 lg:py-48 px-6 text-center">
+    <div class="max-w-[1080px] mx-auto">
+      <p class="act-label act-label--light mb-8 rv">Act 10 · The Vision</p>
+      <h2 class="display-act rv rv-d1" style="color:#17181d">
+        WE'RE NOT BUILDING ANOTHER<br>WAY TO BUY A SCREEN.
+      </h2>
+      <h2 class="display-act mt-4 rv rv-d2 text-[#3b6ef5]">
+        WE'RE BUILDING THE CONNECTIVE<br>LAYER FOR OUTDOOR MEDIA.
+      </h2>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════ ACT 11 · THE INVITATION ═══════════════ -->
+<div class="act-solid">
+  <section id="invitation" class="py-28 lg:py-40 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="act-label mb-6 rv text-center">Act 11 · The Invitation</p>
+      <h2 class="display-act text-center rv rv-d1">WHERE DO YOU STAND?</h2>
+      <div class="grid md:grid-cols-3 gap-6 mt-16">
+        <a href="/login" target="_parent" class="invite-card p-8 block rv rv-d1">
+          <iconify-icon icon="lucide:megaphone" class="text-3xl mb-6 text-[#5c86ff]"></iconify-icon>
+          <h3 class="font-display font-bold text-2xl">BUY MEDIA</h3>
+          <p class="text-white/50 mt-3 text-sm leading-relaxed">For advertisers and agencies. Discover screens, plan campaigns, prove they ran.</p>
+          <p class="mt-6 text-sm font-semibold inline-flex items-center gap-2 text-[#5c86ff]">Start buying <iconify-icon icon="lucide:arrow-right"></iconify-icon></p>
+        </a>
+        <a href="/login" target="_parent" class="invite-card p-8 block rv rv-d2">
+          <iconify-icon icon="lucide:tv" class="text-3xl mb-6 text-[#5c86ff]"></iconify-icon>
+          <h3 class="font-display font-bold text-2xl">SELL MEDIA</h3>
+          <p class="text-white/50 mt-3 text-sm leading-relaxed">For screen and media owners. Connect inventory to demand and monetize every hour.</p>
+          <p class="mt-6 text-sm font-semibold inline-flex items-center gap-2 text-[#5c86ff]">List your screens <iconify-icon icon="lucide:arrow-right"></iconify-icon></p>
+        </a>
+        <a href="/login" target="_parent" class="invite-card invite-card--live p-8 block rv rv-d3">
+          <span class="live-dot inline-block mb-6"></span>
+          <h3 class="font-display font-bold text-2xl text-[#34d27b]">POWER YOUR SCREENS</h3>
+          <p class="text-white/50 mt-3 text-sm leading-relaxed">PixelPlayer + PixelOS. Plug in. Go live. Get paid.</p>
+          <p class="mt-6 text-sm font-semibold inline-flex items-center gap-2 text-[#34d27b]">Get PixelPlayer <iconify-icon icon="lucide:arrow-right"></iconify-icon></p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FOOTER (links kept from original) ═══════════════ -->
+  <footer class="border-t border-white/10 py-14 px-6">
+    <div class="max-w-[1280px] mx-auto grid md:grid-cols-[1fr_auto] gap-10">
+      <div>
+        <p class="font-display text-lg font-bold">PIXEL<span class="text-[#5c86ff]">SPOT</span></p>
+        <p class="text-white/40 text-sm mt-2">The connected layer for outdoor media.</p>
+        <div class="flex flex-col gap-1 mt-5 text-sm text-white/50">
+          <a href="tel:+919082604430" class="hover:text-white transition-colors inline-flex items-center gap-2">
+            <iconify-icon icon="lucide:phone" class="text-xs"></iconify-icon> +91 90826 04430
+          </a>
+          <a href="mailto:contact@pixelspot.in" class="hover:text-white transition-colors inline-flex items-center gap-2">
+            <iconify-icon icon="lucide:mail" class="text-xs"></iconify-icon> contact@pixelspot.in
+          </a>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-x-12 gap-y-2 text-sm text-white/50">
+        <a href="/about" class="hover:text-white transition-colors">About</a>
+        <a href="/contact" class="hover:text-white transition-colors">Contact</a>
+        <a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a>
+        <a href="/terms" class="hover:text-white transition-colors">Terms of Service</a>
+        <a href="/refund" class="hover:text-white transition-colors">Refund Policy</a>
+        <a href="/cookies" class="hover:text-white transition-colors">Cookie Policy</a>
+        <a href="/content-policy" class="hover:text-white transition-colors">Content Policy</a>
+        <a href="/community-guidelines" class="hover:text-white transition-colors">Community Guidelines</a>
+        <a href="/disclaimer" class="hover:text-white transition-colors">Disclaimer</a>
+      </div>
+    </div>
+    <p class="max-w-[1280px] mx-auto text-white/30 text-xs mt-10">© 2026 PixelSpot. All rights reserved.</p>
+  </footer>
 </div>
 
 <script>
-  // ── INQUIRY MODAL ENGINE ──
-  window.openInquiryModal = function (type) {
-    const modal = document.getElementById('inquiry-modal');
-    const container = document.getElementById('inquiry-modal-container');
-    const typeInput = document.getElementById('inquiry-type');
-    const title = document.getElementById('inquiry-modal-title');
-    const form = document.getElementById('inquiry-form');
-    const success = document.getElementById('inquiry-success');
-    
-    if (!modal || !typeInput) return;
-    
-    form.reset();
-    form.classList.remove('hidden');
-    success.classList.add('hidden');
-    
-    typeInput.value = type;
-    if (title) title.innerText = type;
-    
-    modal.classList.remove('hidden');
-    setTimeout(() => {
-      modal.classList.remove('opacity-0');
-      container.classList.remove('scale-95');
-    }, 10);
-  };
-  
-  window.closeInquiryModal = function () {
-    const modal = document.getElementById('inquiry-modal');
-    const container = document.getElementById('inquiry-modal-container');
-    if (!modal) return;
-    
-    modal.classList.add('opacity-0');
-    container.classList.add('scale-95');
-    setTimeout(() => {
-      modal.classList.add('hidden');
-    }, 300);
-  };
-  
-  window.handleInquirySubmit = function (e) {
-    e.preventDefault();
-    
-    const name = document.getElementById('inquiry-name').value;
-    const email = document.getElementById('inquiry-email').value;
-    const phone = document.getElementById('inquiry-phone').value;
-    const inquiryType = document.getElementById('inquiry-type').value;
-    const message = document.getElementById('inquiry-message').value;
-    
-    const body = {
-      name: name,
-      email: email,
-      phone: phone,
-      inquiryType: inquiryType,
-      message: message
-    };
-    
-    fetch('/api/v1/inquiries', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    })
-    .then(response => {
-      if (response.ok) {
-        document.getElementById('inquiry-form').classList.add('hidden');
-        document.getElementById('inquiry-success').classList.remove('hidden');
-      } else {
-        alert('Failed to submit inquiry. Please try again.');
-      }
-    })
-    .catch(err => {
-      console.error('Error submitting inquiry:', err);
-      alert('An error occurred. Please try again.');
+  // ── Preloader — hide after its animation completes ──
+  setTimeout(function () {
+    document.getElementById('preloader').classList.add('hidden');
+  }, 4800);
+
+  // ── Nav background on scroll ──
+  var mainNav = document.getElementById('main-nav');
+  addEventListener('scroll', function () {
+    mainNav.classList.toggle('scrolled', scrollY > 40);
+  }, { passive: true });
+
+  // ── Reveal-on-scroll ──
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.18 });
+    document.querySelectorAll('.rv, .panel-dark, .panel-light').forEach(function (el) { io.observe(el); });
+
+    // ACT 3 snap-connect
+    var stage = document.getElementById('connect-stage');
+    new IntersectionObserver(function (entries, obs) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { setTimeout(function () { stage.classList.add('connected'); }, 350); obs.disconnect(); }
+      });
+    }, { threshold: 0.5 }).observe(stage);
+
+    // ACT 7 line-by-line light-up
+    var intel = document.querySelectorAll('#intel-stack .intel-line');
+    new IntersectionObserver(function (entries, obs) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          intel.forEach(function (line, i) { setTimeout(function () { line.classList.add('lit'); }, i * 320); });
+          obs.disconnect();
+        }
+      });
+    }, { threshold: 0.4 }).observe(document.getElementById('intel-stack'));
+
+    // ACT 8 count-up
+    var fmt = function (n) { return n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-IN'); };
+    document.querySelectorAll('.stat-num').forEach(function (el) {
+      new IntersectionObserver(function (entries, obs) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          var target = +el.dataset.count;
+          var t0 = performance.now(), dur = 1600;
+          (function step(t) {
+            var p = Math.min((t - t0) / dur, 1), eased = 1 - Math.pow(1 - p, 3);
+            el.textContent = fmt(Math.round(target * eased)) + (p === 1 ? '+' : '');
+            if (p < 1) requestAnimationFrame(step);
+          })(t0);
+          obs.disconnect();
+        });
+      }, { threshold: 0.6 }).observe(el);
     });
-  };
+  } else {
+    document.querySelectorAll('.stat-num').forEach(function (el) {
+      var n = +el.dataset.count;
+      el.textContent = (n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-IN')) + '+';
+    });
+  }
+
+  // ── ACT 6B: PixelOS 3D pointer tilt ──
+  var scene = document.getElementById('pixelos-scene');
+  var device = document.getElementById('pixelos-device');
+  if (scene && device && matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    scene.addEventListener('pointermove', function (e) {
+      var r = scene.getBoundingClientRect();
+      var px = (e.clientX - r.left) / r.width - 0.5;   // -0.5 .. 0.5
+      var py = (e.clientY - r.top) / r.height - 0.5;
+      device.style.animation = 'none';
+      device.style.transform = 'rotateX(' + (14 - py * 22) + 'deg) rotateY(' + (-18 + px * 30) + 'deg)';
+    });
+    scene.addEventListener('pointerleave', function () {
+      device.style.transform = '';
+      device.style.animation = '';
+    });
+  }
+
+  // ── ACT 8 constellation canvas ──
+  var canvas = document.getElementById('net-canvas');
+  if (canvas && canvas.getContext) {
+    var ctx = canvas.getContext('2d');
+    var nodes = [];
+    var resizeNet = function () {
+      canvas.width = canvas.offsetWidth * devicePixelRatio;
+      canvas.height = canvas.offsetHeight * devicePixelRatio;
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      nodes = [];
+      for (var i = 0; i < 46; i++) {
+        nodes.push({
+          x: Math.random() * canvas.offsetWidth, y: Math.random() * canvas.offsetHeight,
+          vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25
+        });
+      }
+    };
+    resizeNet(); addEventListener('resize', resizeNet);
+    (function draw() {
+      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+      nodes.forEach(function (n) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > canvas.offsetWidth) n.vx *= -1;
+        if (n.y < 0 || n.y > canvas.offsetHeight) n.vy *= -1;
+      });
+      ctx.strokeStyle = 'rgba(80, 120, 255, 0.10)';
+      for (var i = 0; i < nodes.length; i++) for (var j = i + 1; j < nodes.length; j++) {
+        var a = nodes[i], b = nodes[j], d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < 150) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+      }
+      ctx.fillStyle = 'rgba(110, 145, 255, 0.55)';
+      nodes.forEach(function (n) { ctx.beginPath(); ctx.arc(n.x, n.y, 1.6, 0, 7); ctx.fill(); });
+      requestAnimationFrame(draw);
+    })();
+  }
 </script>
 </body>
 </html>
