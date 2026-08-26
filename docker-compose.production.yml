@@ -66,22 +66,24 @@ services:
       - WebRTC__TurnServers__0__Username=${TURN_USERNAME:-}
       - WebRTC__TurnServers__0__Credential=${TURN_PASSWORD:-}
       # Email (AWS SES / SMTP)
-      - AWS__SES__AccessKeyId=${AWS_SES_ACCESS_KEY_ID:-}
-      - AWS__SES__SecretAccessKey=${AWS_SES_SECRET_ACCESS_KEY:-}
+      - AWS__SES__AccessKeyId=${AWS_SES_ACCESS_KEY_ID:-${AWS_ACCESS_KEY_ID:-}}
+      - AWS__SES__SecretAccessKey=${AWS_SES_SECRET_ACCESS_KEY:-${AWS_SECRET_ACCESS_KEY:-}}
       - AWS__SES__Region=${AWS_SES_REGION:-ap-south-1}
-      - AWS__SES__FromEmail=${AWS_SES_FROM_EMAIL:-}
+      - AWS__SES__FromEmail=${AWS_SES_FROM_EMAIL:-noreply@pixelspot.in}
       - Smtp__Host=${SMTP_HOST:-}
       - Smtp__Port=${SMTP_PORT:-587}
-      - Smtp__Username=${SMTP_USERNAME:-}
-      - Smtp__Password=${SMTP_PASSWORD:-}
-      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-}
+      - Smtp__Username=${SMTP_USERNAME:-${AWS_SES_SMTP_USER:-}}
+      - Smtp__Password=${SMTP_PASSWORD:-${AWS_SES_SMTP_PASSWORD:-}}
+      - Smtp__FromEmail=${SMTP_FROM_EMAIL:-${AWS_SES_FROM_EMAIL:-noreply@pixelspot.in}}
       - Smtp__EnableSsl=${SMTP_ENABLE_SSL:-true}
       # SMS (ComBirds)
       - ComBirds__ApiKey=${COMBIRDS_API_KEY:-}
-      - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-}
-      - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-}
+      - ComBirds__SenderId=${COMBIRDS_SENDER_ID:-EDUMRC}
+      - ComBirds__TemplateId=${COMBIRDS_TEMPLATE_ID:-1707178064151587006}
       - ComBirds__UserId=${COMBIRDS_USER_ID:-}
       - ComBirds__Password=${COMBIRDS_PASSWORD:-}
+      - ComBirds__DevelopmentMode=false
+      - Email__DevelopmentMode=false
       # App Settings
       - App__BaseUrl=${FRONTEND_URL}
       - TimeZone__Id=Asia/Kolkata

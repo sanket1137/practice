@@ -3,7 +3,7 @@ import CloseRounded from '@mui/icons-material/CloseRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 
 const FONT = "'Inter', system-ui, sans-serif";
-const ACCENT = '#5e6ad2';
+const ACCENT = '#3b6ef5';
 
 const OLD_WAY = [
   'Opaque pricing & hidden commissions',

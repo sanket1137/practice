@@ -45,6 +45,7 @@ const PayoutsPage = lazy(() => import('./pages/payouts/PayoutsPage'));
 const NotificationsPage = lazy(() => import('./pages/notifications/NotificationsPage'));
 const DemoPage = lazy(() => import('./pages/demo/DemoPage'));
 const ExploreScreensPage = lazy(() => import('./pages/public/ExploreScreensPage'));
+const LandingPage = lazy(() => import('./pages/public/LandingPage'));
 const AboutUs = lazy(() => import('./pages/legal/AboutUs'));
 const ContactUs = lazy(() => import('./pages/legal/ContactUs'));
 const PrivacyPolicy = lazy(() => import('./pages/legal/PrivacyPolicy'));
@@ -174,7 +175,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 // Shows landing page for guests; redirects authenticated users into the app
 const SmartRoot: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <LandingPage />;
 };
 
 // Component that initializes global handlers (must be inside SnackbarProvider)

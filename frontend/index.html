@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PixelSpot — The Connected Layer for Outdoor Media</title>
+  <title>PixelSpot — DOOH Intelligence Platform</title>
   <!--
     NOTE: This standalone landing page intentionally uses the Tailwind Play CDN
     (runtime JIT). The page relies on hundreds of utility class usages incl.
@@ -48,14 +48,14 @@
     .font-display { font-family: 'Space Grotesk', 'Inter', sans-serif !important; }
     .font-mono-x { font-family: 'Space Mono', monospace !important; }
 
-    .act-label {
+    .kicker {
       font-family: 'Space Mono', monospace !important;
       font-size: 0.72rem !important;
       letter-spacing: 0.24em !important;
       text-transform: uppercase;
       color: var(--accent-bright);
     }
-    .act-label--light { color: var(--accent); }
+    .kicker--light { color: var(--accent); }
 
     .display-hero {
       font-family: 'Space Grotesk', sans-serif !important;
@@ -79,6 +79,13 @@
       letter-spacing: -0.02em !important;
       font-weight: 600 !important;
     }
+    .display-step {
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(1.5rem, 2.6vw, 2.3rem) !important;
+      line-height: 1.08 !important;
+      letter-spacing: -0.02em !important;
+      font-weight: 600 !important;
+    }
     .window-line {
       font-family: 'Space Grotesk', sans-serif !important;
       font-size: clamp(1.6rem, 4.2vw, 3.6rem) !important;
@@ -86,6 +93,14 @@
       letter-spacing: -0.02em !important;
       font-weight: 500 !important;
       text-shadow: 0 2px 24px rgba(0,0,0,0.6);
+    }
+    .step-num {
+      font-family: 'Space Grotesk', sans-serif !important;
+      font-size: clamp(3.5rem, 7vw, 6rem) !important;
+      font-weight: 700 !important;
+      line-height: 1 !important;
+      color: transparent;
+      -webkit-text-stroke: 1.5px rgba(59,110,245,0.45);
     }
 
     /* ── VIDEO BACKGROUND (fixed, shows through transparent "window" sections) ── */
@@ -120,21 +135,18 @@
       pointer-events: none;
     }
 
-    /* Solid acts cover the video; windows let it through */
     .act-solid { position: relative; background: var(--bg); }
     .act-light { position: relative; background: #fafafb; color: #17181d !important; }
     .act-light .muted { color: #6b7080 !important; }
     .video-window {
       position: relative;
-      min-height: 88vh;
+      min-height: 82vh;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
       padding: 6rem 1.5rem;
-      /* transparent — the fixed video + overlay show through */
     }
-    /* soft edges so solid acts melt into the windows instead of hard-cutting */
     .fade-top    { background: linear-gradient(180deg, transparent, var(--bg) 90%); height: 140px; margin-top: -140px; position: relative; pointer-events: none; }
     .fade-bottom { background: linear-gradient(0deg, transparent, var(--bg) 90%); height: 140px; margin-bottom: -140px; position: relative; pointer-events: none; }
 
@@ -210,7 +222,7 @@
     html.js-anim .rv-d1 { transition-delay: 0.12s; } html.js-anim .rv-d2 { transition-delay: 0.24s; }
     html.js-anim .rv-d3 { transition-delay: 0.36s; } html.js-anim .rv-d4 { transition-delay: 0.48s; }
 
-    /* ── ACT 2: FRAGMENTATION ── */
+    /* ── FRAGMENTATION (problem) ── */
     .frag-node {
       border: 1px dashed rgba(217,106,74,0.55);
       color: #d9a08e;
@@ -228,7 +240,7 @@
     .frag-line { stroke: rgba(217,106,74,0.4); stroke-dasharray: 6 7; animation: frag-dash 1.4s linear infinite; }
     @keyframes frag-dash { to { stroke-dashoffset: -13; } }
 
-    /* ── ACT 3: THE SNAP ── */
+    /* ── THE SNAP (shift) ── */
     #connect-stage .c-node {
       background: var(--bg-raised); border: 1px solid rgba(59,110,245,0.5);
       border-radius: 14px;
@@ -245,49 +257,73 @@
     html.js-anim #connect-line { transform: scaleX(0); transition: transform 1.2s cubic-bezier(0.85,0,0.15,1) 0.3s; }
     html.js-anim #connect-stage.connected #connect-line { transform: scaleX(1); }
 
-    /* ── ACT 4: PANELS ── */
-    .panel-dark { background: var(--bg-raised); border: 1px solid rgba(255,255,255,0.08); border-radius: 2rem; }
-    .panel-light { background: #fafafb; color: #17181d !important; border-radius: 2rem; }
-    .panel-light .muted { color: #6b7080 !important; }
-    .mini-stat { background: rgba(10,11,15,0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
-    .bar-anim { transform-origin: left; }
-    html.js-anim .bar-anim { transform: scaleX(0); transition: transform 1.4s cubic-bezier(0.22,1,0.36,1) 0.3s; }
-    html.js-anim .in .bar-anim { transform: scaleX(1); }
-    .tick { color: var(--live); }
-
-    /* animated line chart (advertiser panel) */
-    .chart-line { fill: none; stroke: var(--accent-bright); stroke-width: 2.5; stroke-linecap: round; }
-    html.js-anim .chart-line { stroke-dasharray: 480; stroke-dashoffset: 480; transition: stroke-dashoffset 2.2s cubic-bezier(0.22,1,0.36,1) 0.4s; }
-    html.js-anim .in .chart-line { stroke-dashoffset: 0; }
-    .chart-fill { fill: url(#chartGrad); opacity: 0; transition: opacity 1s ease 1.6s; }
-    html.js-anim .in .chart-fill { opacity: 1; }
-
-    /* ── ACT 5: MAP ── */
-    #map-stage {
-      background:
-        radial-gradient(ellipse 70% 60% at 50% 42%, rgba(38,58,120,0.55), transparent 70%),
-        #0d0e13;
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 2rem;
+    /* ── HOW IT WORKS (light world) ── */
+    .work-card {
+      background: #fff; border: 1px solid #e4e5ea; border-radius: 1.25rem;
+      box-shadow: 0 12px 32px -18px rgba(0,0,0,0.14);
+      transition: all 0.3s cubic-bezier(0.22,1,0.36,1);
     }
-    .pin { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #6a9bd8; box-shadow: 0 0 12px 2px rgba(106,155,216,0.5); animation: pin-pulse 3s ease-in-out infinite; }
-    @keyframes pin-pulse { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
-    .pin--hot { width: 10px; height: 10px; background: var(--accent); box-shadow: 0 0 18px 4px rgba(59,110,245,0.6); }
-    #inv-card { background: rgba(20,22,28,0.92); backdrop-filter: blur(12px); border: 1px solid rgba(59,110,245,0.4); border-radius: 1.25rem; }
+    .work-card:hover { transform: translateY(-3px); border-color: rgba(59,110,245,0.4); }
+    .work-card--dark {
+      background: linear-gradient(148deg, #191b22 0%, #0c0d12 100%);
+      color: #f5f6f8 !important; border: 1px solid rgba(255,255,255,0.08);
+    }
+    .check-row { display: flex; align-items: center; gap: 8px; font-family: 'Space Mono', monospace !important; font-size: 0.72rem; }
+    .check-row .ok { color: var(--live); }
 
-    /* ── ACT 6: PIXELPLAYER (LIGHT) ── */
-    .flow-step { border: 1px solid #e4e5ea; background: #fff; border-radius: 1rem; transition: all 0.3s; }
-    .flow-step:hover { border-color: rgba(59,110,245,0.5); transform: translateY(-3px); box-shadow: 0 12px 32px -12px rgba(0,0,0,0.15); }
-    .flow-arrow { color: var(--accent); }
-    .device {
-      background: linear-gradient(145deg, #1a1c22, #0b0c10);
-      border-radius: 1.4rem; box-shadow: 0 24px 64px -20px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08);
+    /* tag chips (screen learns its neighbourhood) */
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid #dfe1e8; background: #f4f5f8; color: #3c4150;
+      border-radius: 999px; padding: 5px 12px;
+      font-family: 'Space Mono', monospace !important; font-size: 0.72rem;
+    }
+    .chip--new {
+      border-color: rgba(52,210,123,0.6); background: rgba(52,210,123,0.1); color: #157a48;
+      opacity: 0; transform: translateY(8px) scale(0.95);
+      transition: all 0.7s cubic-bezier(0.22,1,0.36,1);
+    }
+    .chip--new.show { opacity: 1; transform: none; }
+    #tag-suggest {
+      opacity: 0; transform: translateY(6px);
+      transition: all 0.7s cubic-bezier(0.22,1,0.36,1);
+    }
+    #tag-suggest.show { opacity: 1; transform: none; }
+
+    /* creative auto-fit morph */
+    .fit-shape {
+      background: linear-gradient(135deg, var(--accent), #7a5cff);
+      border-radius: 8px;
+      animation: fit-morph 7s cubic-bezier(0.65,0,0.35,1) infinite;
+      width: 150px; height: 84px;
+    }
+    @keyframes fit-morph {
+      0%, 24%   { width: 150px; height: 84px; }   /* 16:9 */
+      33%, 57%  { width: 68px;  height: 120px; }  /* 9:16 */
+      66%, 90%  { width: 190px; height: 40px; }   /* LED strip */
+      100%      { width: 150px; height: 84px; }
     }
 
-    /* ── ACT 6B: PIXELOS 3D ── */
+    /* blockchain-sealed log chain */
+    .chain-block {
+      border: 1px solid rgba(52,210,123,0.4); background: rgba(52,210,123,0.06);
+      border-radius: 10px; padding: 8px 10px;
+      font-family: 'Space Mono', monospace !important; font-size: 0.66rem;
+      color: #bfe9d2;
+    }
+    .chain-link { width: 18px; height: 2px; background: rgba(52,210,123,0.5); flex-shrink: 0; }
+    .chain-block--latest { animation: chain-pulse 2.4s ease-in-out infinite; }
+    @keyframes chain-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(52,210,123,0.0); } 50% { box-shadow: 0 0 18px -2px rgba(52,210,123,0.45); } }
+    .chain-reject {
+      border: 1px dashed rgba(217,106,74,0.6); color: #e0917a;
+      border-radius: 8px; font-family: 'Space Mono', monospace !important; font-size: 0.66rem;
+    }
+
+    /* PixelOS 3D device */
     .pixelos-scene {
       perspective: 1100px;
       display: flex; align-items: center; justify-content: center;
-      min-height: 460px;
+      min-height: 430px;
     }
     .pixelos-device {
       position: relative;
@@ -310,7 +346,7 @@
         0 1px 2px rgba(0,0,0,0.4);
       position: relative;
     }
-    .pixelos-slab::after { /* side thickness illusion */
+    .pixelos-slab::after {
       content: ""; position: absolute; left: 6px; right: 6px; bottom: -10px; height: 14px;
       border-radius: 0 0 22px 22px;
       background: linear-gradient(180deg, #0a0b0f, #000);
@@ -347,38 +383,101 @@
     }
     @media (max-width: 640px) {
       .pixelos-device { scale: 0.68; }
-      .pixelos-scene { min-height: 360px; }
+      .pixelos-scene { min-height: 340px; }
     }
-    .solve-chip {
-      background: #fff; border: 1px solid #e4e5ea; border-radius: 1rem;
-      box-shadow: 0 12px 32px -16px rgba(0,0,0,0.18);
-      transition: all 0.3s cubic-bezier(0.22,1,0.36,1);
+
+    /* ── PERSONA PANELS ── */
+    .panel-dark { background: var(--bg-raised); border: 1px solid rgba(255,255,255,0.08); border-radius: 2rem; }
+    .panel-light { background: #fafafb; color: #17181d !important; border-radius: 2rem; }
+    .panel-light .muted { color: #6b7080 !important; }
+    .mini-stat { background: rgba(10,11,15,0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; }
+    .bar-anim { transform-origin: left; }
+    html.js-anim .bar-anim { transform: scaleX(0); transition: transform 1.4s cubic-bezier(0.22,1,0.36,1) 0.3s; }
+    html.js-anim .in .bar-anim { transform: scaleX(1); }
+    .tick { color: var(--live); }
+
+    .chart-line { fill: none; stroke: var(--accent-bright); stroke-width: 2.5; stroke-linecap: round; }
+    html.js-anim .chart-line { stroke-dasharray: 480; stroke-dashoffset: 480; transition: stroke-dashoffset 2.2s cubic-bezier(0.22,1,0.36,1) 0.4s; }
+    html.js-anim .in .chart-line { stroke-dashoffset: 0; }
+    .chart-fill { fill: url(#chartGrad); opacity: 0; transition: opacity 1s ease 1.6s; }
+    html.js-anim .in .chart-fill { opacity: 1; }
+
+    .pipe-step { border: 1px solid #dfe1e8; background: #fff; border-radius: 999px; font-family: 'Space Mono', monospace !important; font-size: 0.68rem; color: #3c4150; }
+
+    /* ── MAP (inside MATCH) ── */
+    .map-mini {
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 42%, rgba(38,58,120,0.55), transparent 70%),
+        #0d0e13;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem;
     }
-    .solve-chip:hover { transform: translateY(-4px); border-color: rgba(59,110,245,0.45); }
-    .solve-chip .x { color: var(--broken); font-family: 'Space Mono', monospace; }
-    .solve-chip .v { color: #1f9d5b; font-family: 'Space Mono', monospace; }
+    .pin { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #6a9bd8; box-shadow: 0 0 12px 2px rgba(106,155,216,0.5); animation: pin-pulse 3s ease-in-out infinite; }
+    @keyframes pin-pulse { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+    .pin--hot { width: 10px; height: 10px; background: var(--accent); box-shadow: 0 0 18px 4px rgba(59,110,245,0.6); }
 
-    /* ── ACT 7: INTELLIGENCE ── */
-    html.js-anim .intel-line { opacity: 0.22; transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1); transform: translateX(-12px); }
-    html.js-anim .intel-line.lit { opacity: 1; transform: none; }
-    .intel-line .hl { color: var(--accent-bright); }
-
-    /* ── ACT 8: NETWORK ── */
+    /* ── NETWORK ── */
     #net-canvas { width: 100%; height: 100%; display: block; }
     .stat-num { font-family: 'Space Grotesk', sans-serif !important; font-weight: 700 !important; font-size: clamp(2rem, 4.2vw, 3.4rem) !important; letter-spacing: -0.02em; }
 
-    /* ── ACT 9: AGENCY PIPELINE ── */
-    .pipe-step { border: 1px solid rgba(255,255,255,0.1); background: var(--bg-raised); border-radius: 999px; font-family: 'Space Mono', monospace !important; font-size: 0.75rem; transition: all 0.5s cubic-bezier(0.22,1,0.36,1); }
-    .in .pipe-step { border-color: rgba(59,110,245,0.55); }
-
-    /* ── ACT 11: INVITATION ── */
+    /* ── INVITATION ── */
     .invite-card { border: 1px solid rgba(255,255,255,0.1); background: var(--bg-raised); border-radius: 1.5rem; transition: all 0.35s cubic-bezier(0.22,1,0.36,1); }
     .invite-card:hover { transform: translateY(-6px); border-color: rgba(59,110,245,0.6); box-shadow: 0 24px 64px -24px rgba(59,110,245,0.35); }
     .invite-card--live:hover { border-color: rgba(52,210,123,0.7); box-shadow: 0 24px 64px -24px rgba(52,210,123,0.4); }
     .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); animation: pin-pulse 2s ease-in-out infinite; }
 
+    /* ── ROI & ACCOUNTABILITY ── */
+    .roi-band {
+      position: relative;
+      background:
+        radial-gradient(ellipse 55% 40% at 82% 10%, rgba(52,210,123,0.10), transparent 65%),
+        radial-gradient(ellipse 45% 35% at 12% 85%, rgba(52,210,123,0.07), transparent 60%),
+        var(--bg);
+    }
+    .level-card {
+      background: var(--bg-raised); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1.25rem; transition: all 0.3s cubic-bezier(0.22,1,0.36,1);
+    }
+    .level-card:hover { transform: translateY(-4px); border-color: rgba(52,210,123,0.4); }
+    .verb-badge {
+      display: inline-block; border-radius: 999px; padding: 4px 12px;
+      font-family: 'Space Mono', monospace !important; font-size: 0.66rem; letter-spacing: 0.14em;
+    }
+    .verb-badge--proves    { background: rgba(52,210,123,0.15); color: #34d27b; border: 1px solid rgba(52,210,123,0.4); }
+    .verb-badge--estimates { background: rgba(92,134,255,0.15); color: #5c86ff; border: 1px solid rgba(92,134,255,0.4); }
+    .verb-badge--measures  { background: rgba(185,166,255,0.15); color: #b9a6ff; border: 1px solid rgba(185,166,255,0.4); }
+    .roi-bar { height: 24px; border-radius: 6px; background: linear-gradient(90deg, rgba(52,210,123,0.75), rgba(59,110,245,0.6)); }
+    .roi-row { display: flex; align-items: center; gap: 12px; }
+    .roi-row p { font-family: 'Space Mono', monospace !important; font-size: 0.7rem; }
+
+    /* ── THE NEXT LAYER (beta) ── */
+    .beta-band {
+      position: relative;
+      background:
+        radial-gradient(ellipse 55% 40% at 18% 12%, rgba(122,92,255,0.14), transparent 65%),
+        radial-gradient(ellipse 45% 35% at 85% 80%, rgba(59,110,245,0.12), transparent 60%),
+        #0a0b0f;
+    }
+    .beta-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid rgba(122,92,255,0.5); background: rgba(122,92,255,0.12);
+      color: #b9a6ff; border-radius: 999px; padding: 6px 14px;
+      font-family: 'Space Mono', monospace !important; font-size: 0.7rem; letter-spacing: 0.18em;
+    }
+    .beta-pillar {
+      background: rgba(20,22,28,0.75); border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 1.5rem; backdrop-filter: blur(8px);
+    }
+    .beta-chip {
+      display: inline-block;
+      border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04);
+      color: rgba(245,246,248,0.75); border-radius: 999px; padding: 5px 12px;
+      font-family: 'Space Mono', monospace !important; font-size: 0.66rem;
+    }
+    .funnel-bar { height: 26px; border-radius: 6px; background: linear-gradient(90deg, rgba(122,92,255,0.7), rgba(59,110,245,0.7)); }
+    .comp-bar { height: 8px; border-radius: 4px; background: linear-gradient(90deg, #5c86ff, #7a5cff); }
+
     @media (prefers-reduced-motion: reduce) {
-      .frag-node, .pin, .live-dot, .frag-line { animation: none !important; }
+      .frag-node, .pin, .live-dot, .frag-line, .fit-shape, .chain-block--latest, .pixelos-device { animation: none !important; }
     }
   </style>
   <script>
@@ -423,9 +522,9 @@
   <div class="max-w-[1520px] mx-auto flex items-center justify-between">
     <a href="/" class="font-display text-xl font-bold tracking-tight">PIXEL<span class="text-[#5c86ff]">SPOT</span></a>
     <div class="hidden md:flex items-center gap-8 text-sm text-white/70">
-      <a href="#marketplace" class="hover:text-white transition-colors">Marketplace</a>
-      <a href="#pixelplayer" class="hover:text-white transition-colors">PixelPlayer</a>
-      <a href="#agencies" class="hover:text-white transition-colors">For Agencies</a>
+      <a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a>
+      <a href="#roi" class="hover:text-white transition-colors">Proof &amp; ROI</a>
+      <a href="#who-its-for" class="hover:text-white transition-colors">Who It's For</a>
       <a href="#network" class="hover:text-white transition-colors">Network</a>
     </div>
     <div class="flex items-center gap-3">
@@ -435,16 +534,18 @@
   </div>
 </nav>
 
-<!-- ═══════════════ ACT 1 · HERO (video visible) ═══════════════ -->
+<!-- ═══════════════ HERO (video visible) ═══════════════ -->
 <header class="relative min-h-screen flex flex-col justify-center">
   <div class="max-w-[1280px] mx-auto px-6 w-full pt-28 pb-24">
-    <p class="act-label mb-8 rv">India's DOOH Network</p>
+    <p class="kicker mb-8 rv">PixelSpot · DOOH Intelligence Platform</p>
     <h1 class="display-hero rv rv-d1" style="text-shadow: 0 2px 32px rgba(0,0,0,0.55)">
-      MEDIA IS EVERYWHERE.<br>
-      <span class="text-[#5c86ff]">THE PROCESS ISN'T.</span>
+      THE WORLD IS FULL OF SCREENS.<br>
+      <span class="text-[#5c86ff]">WE'RE MAKING THEM INTELLIGENT.</span>
     </h1>
     <p class="mt-8 max-w-xl text-lg md:text-xl text-white/75 rv rv-d2" style="line-height:1.6; text-shadow: 0 1px 12px rgba(0,0,0,0.5)">
-      One connected layer for the people who buy outdoor media — and the people who own it.
+      Every screen has an audience. PixelSpot helps you understand it, book it,
+      and prove it — one connected layer for the people who buy outdoor media
+      and the people who own it.
     </p>
     <div class="mt-10 flex flex-wrap gap-4 rv rv-d3">
       <a href="/login" target="_parent" class="btn-primary px-8 py-4 text-base inline-flex items-center gap-2">
@@ -460,7 +561,7 @@
   </div>
 </header>
 
-<!-- ═══ VIDEO WINDOW · the original story lines, kept as the bridge into the problem ═══ -->
+<!-- ═══ VIDEO WINDOW ═══ -->
 <section class="video-window">
   <div>
     <p class="window-line rv">Every screen is displaying something.</p>
@@ -468,17 +569,17 @@
   </div>
 </section>
 
-<!-- ═══════════════ ACT 2 · THE PROBLEM ═══════════════ -->
+<!-- ═══════════════ THE PROBLEM ═══════════════ -->
 <div class="act-solid">
   <div class="fade-top"></div>
-  <section class="py-28 lg:py-40 px-6 relative overflow-hidden">
+  <section class="py-28 lg:py-36 px-6 relative overflow-hidden">
     <div class="max-w-[1280px] mx-auto">
-      <p class="act-label mb-6 rv">Act 02 · The Problem</p>
-      <h2 class="display-act rv rv-d1">SEVEN HANDOFFS.<br>ZERO VISIBILITY.</h2>
+      <p class="kicker mb-6 rv">The Problem</p>
+      <h2 class="display-act rv rv-d1">MEDIA IS EVERYWHERE.<br><span class="text-white/50">THE PROCESS ISN'T.</span></h2>
       <p class="mt-6 max-w-2xl text-white/60 text-lg rv rv-d2">
-        Today a single outdoor campaign crawls through planners, vendors, spreadsheets,
-        calls and WhatsApp threads — and still ends with the same question:
-        <em class="text-white/90 not-italic font-medium">"did it even run?"</em>
+        You paid for 3,000 plays. How many really happened? Outdoor advertising still runs
+        on phone calls, spreadsheets and trust you can't verify. Seven handoffs sit between
+        your budget and the screen — and there's no receipt at the end.
       </p>
 
       <div class="relative mt-16 rv rv-d3" style="min-height: 340px;">
@@ -496,7 +597,7 @@
         <div class="frag-node absolute px-4 py-2" style="left:52%; top:14%">Vendor ✕ Vendor ✕ Vendor</div>
         <div class="frag-node absolute px-4 py-2" style="left:64%; top:52%">Screen owners</div>
         <div class="frag-node absolute px-4 py-2" style="left:42%; top:74%">Manual coordination</div>
-        <div class="frag-node absolute px-4 py-2" style="left:82%; top:30%">Reporting…?</div>
+        <div class="frag-node absolute px-4 py-2" style="left:82%; top:30%">"Trust me, it ran."</div>
         <div class="frag-node absolute px-4 py-2 hidden md:block" style="left:8%;  top:40%">calls</div>
         <div class="frag-node absolute px-4 py-2 hidden md:block" style="left:88%; top:66%">spreadsheets</div>
         <div class="frag-node absolute px-4 py-2 hidden md:block" style="left:34%; top:50%">WhatsApp…</div>
@@ -504,10 +605,10 @@
     </div>
   </section>
 
-  <!-- ═══════════════ ACT 3 · THE REVEAL (same solid block — problem and answer share a room) ═══════════════ -->
-  <section class="py-28 lg:py-40 px-6 border-t border-white/5">
+  <!-- ═══════════════ THE SHIFT ═══════════════ -->
+  <section class="py-28 lg:py-36 px-6 border-t border-white/5">
     <div class="max-w-[1280px] mx-auto text-center">
-      <p class="act-label mb-6 rv">Act 03 · The Shift</p>
+      <p class="kicker mb-6 rv">The Shift</p>
       <h2 class="display-act rv rv-d1">WHAT IF THEY ALL SPOKE<br>THE SAME LANGUAGE?</h2>
 
       <div id="connect-stage" class="mt-20 rv rv-d2">
@@ -528,21 +629,496 @@
   <div class="fade-bottom"></div>
 </div>
 
-<!-- ═══ VIDEO WINDOW · bridge into the people ═══ -->
+<!-- ═══ VIDEO WINDOW ═══ -->
 <section class="video-window">
   <div>
-    <p class="window-line rv">Three sides of the same market.</p>
-    <p class="window-line text-white/60 mt-6 rv rv-d2">Each waiting on the other two.</p>
+    <p class="window-line rv">What if the screen itself</p>
+    <p class="window-line text-white/60 mt-6 rv rv-d2">could prove everything?</p>
   </div>
 </section>
 
-<!-- ═══════════════ ACT 4 · THE PEOPLE ═══════════════ -->
-<div class="act-solid">
+<!-- ═══════════════ HOW IT WORKS (LIGHT WORLD) ═══════════════ -->
+<div class="act-light" id="how-it-works">
+  <section class="py-28 lg:py-36 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="kicker kicker--light mb-6 rv">How It Works</p>
+      <h2 class="display-act rv rv-d1" style="color:#17181d">THREE STEPS.<br>ZERO BLIND SPOTS.</h2>
+      <p class="mt-6 max-w-2xl muted text-lg rv rv-d2">
+        From plugging in a screen to proving every single play — here's the whole system,
+        exactly as it runs.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── STEP 01 · CONNECT ── -->
+  <section class="pb-24 lg:pb-32 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <div class="flex items-baseline gap-5 mb-10 rv">
+        <span class="step-num">01</span>
+        <div>
+          <h3 class="display-step" style="color:#17181d">CONNECT</h3>
+          <p class="muted mt-1">Plug in PixelOS. The screen wakes up smart.</p>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-10 items-center">
+        <!-- 3D device -->
+        <div class="pixelos-scene rv" id="pixelos-scene">
+          <div class="pixelos-device" id="pixelos-device">
+            <div class="pixelos-shadow"></div>
+            <div class="pixelos-slab">
+              <div class="pixelos-etch">
+                <p class="font-mono-x text-[10px] tracking-[0.35em] text-white/35">PIXELOS</p>
+                <p class="font-display font-bold text-white text-xl tracking-tight">PixelPlayer</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="live-dot"></span>
+                  <span class="font-mono-x text-[10px] text-white/50">RUNS COOL · RUNS QUIET · RUNS ALWAYS</span>
+                </div>
+              </div>
+              <div class="pixelos-ports">
+                <span style="width:34px"></span>
+                <span style="width:18px"></span>
+                <span style="width:18px"></span>
+                <span style="width:12px"></span>
+              </div>
+            </div>
+            <div class="pixelos-screenlet">
+              <div class="flex items-center justify-between mb-2">
+                <span class="font-mono-x text-[9px] tracking-[0.2em] text-white/40">DEVICE CHECK</span>
+                <span class="font-mono-x text-[9px] text-[#34d27b]">● VERIFIED</span>
+              </div>
+              <div class="space-y-1.5">
+                <p class="check-row text-white/70"><span class="ok">✓</span> GPS lock — at its venue</p>
+                <p class="check-row text-white/70"><span class="ok">✓</span> Display fingerprint match</p>
+                <p class="check-row text-white/70"><span class="ok">✓</span> Video verification passed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONNECT feature blocks -->
+        <div class="space-y-5">
+          <div class="work-card p-6 rv">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Proves where it is. Every single boot.</p>
+            <p class="muted text-sm mt-2">Move the screen a metre, swap the display, unplug it to a warehouse — playback stops until it
+              re-verifies with video at its registered venue. Advertisers never pay for a screen playing to an empty room.</p>
+          </div>
+          <div class="work-card p-6 rv rv-d1">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Learns its neighbourhood. Updates daily.</p>
+            <p class="muted text-sm mt-2">PixelOS builds the screen's audience profile automatically — zone, hub and surroundings —
+              and refreshes it every day. When the neighbourhood changes, the screen's tags change with it:</p>
+            <div class="flex flex-wrap gap-2 mt-4" id="tag-stage">
+              <span class="chip"><iconify-icon icon="lucide:coffee" class="text-xs"></iconify-icon> Café · 40m</span>
+              <span class="chip"><iconify-icon icon="lucide:building-2" class="text-xs"></iconify-icon> Tech park · 200m</span>
+              <span class="chip"><iconify-icon icon="lucide:train-front" class="text-xs"></iconify-icon> Metro exit · 60m</span>
+              <span class="chip chip--new" id="tag-new"><iconify-icon icon="lucide:graduation-cap" class="text-xs"></iconify-icon> School · opened yesterday</span>
+            </div>
+            <p class="font-mono-x text-xs mt-3 text-[#157a48]" id="tag-suggest">→ now suggested to stationery &amp; edtech advertisers</p>
+          </div>
+          <div class="work-card p-6 rv rv-d2">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Never goes dark.</p>
+            <p class="muted text-sm mt-2">No campaign booked? The owner's own content or the default video plays.
+              Self-booking lets owners reserve slots for their business — the glass never sits blank.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── STEP 02 · MATCH ── -->
+  <section class="pb-24 lg:pb-32 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <div class="flex items-baseline gap-5 mb-10 rv">
+        <span class="step-num">02</span>
+        <div>
+          <h3 class="display-step" style="color:#17181d">MATCH</h3>
+          <p class="muted mt-1">Advertisers don't search. They get found.</p>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-2 gap-10 items-center">
+        <!-- MATCH feature blocks -->
+        <div class="space-y-5 order-2 lg:order-1">
+          <div class="work-card p-6 rv">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Plan on a map, not a spreadsheet.</p>
+            <p class="muted text-sm mt-2">Pick screens by location, audience tags, availability and budget.
+              The screens whose neighbourhoods match your customer get suggested to you — including
+              the ones that only became relevant yesterday.</p>
+          </div>
+          <div class="work-card p-6 rv rv-d1">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Instant booking. Instant play.</p>
+            <p class="muted text-sm mt-2">Book a slot and it can be on glass in minutes — no calls, no vendor chains,
+              no "we'll confirm by Friday."</p>
+          </div>
+          <div class="work-card p-6 rv rv-d2">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Every screen gets its right creative.</p>
+            <p class="muted text-sm mt-2">Each screen you select needs its own creative — and the system keeps score.
+              Anything still missing gets flagged before launch, and Smart Adaptive Creative Fitting reshapes and
+              corrects each one for its panel so nothing ever plays wrong.</p>
+            <div class="flex items-center gap-6 mt-4" style="min-height:130px">
+              <div class="fit-shape"></div>
+              <div>
+                <p class="font-mono-x text-[10px] muted">CREATIVE STATUS</p>
+                <p class="font-mono-x text-xs mt-1" style="color:#1f9d5b">✓ 12 of 14 screens ready</p>
+                <p class="font-mono-x text-xs mt-0.5" style="color:#c4622e">⚠ 2 missing — you've been notified</p>
+                <p class="font-mono-x text-[10px] muted mt-2">16:9 → 9:16 → LED STRIP · auto-fitted</p>
+              </div>
+            </div>
+          </div>
+          <div class="work-card p-6 rv rv-d3">
+            <p class="font-display font-semibold text-lg" style="color:#17181d">Screens sell screens.</p>
+            <p class="muted text-sm mt-2">Book a screen for your stationery campaign, and a nearby screen with the same
+              audience refers itself — its quotation lands in your inbox and its suggestion in your plan, automatically.
+              An internal referral network where inventory promotes inventory for better campaign reach.</p>
+            <div class="mt-4 flex items-center gap-2 font-mono-x text-[10px] muted flex-wrap">
+              <span class="pipe-step px-3 py-1.5">SCREEN A · BOOKED</span>
+              <iconify-icon icon="lucide:arrow-right" class="text-xs"></iconify-icon>
+              <span class="pipe-step px-3 py-1.5">REFERS SCREEN B · SAME AUDIENCE</span>
+              <iconify-icon icon="lucide:arrow-right" class="text-xs"></iconify-icon>
+              <span class="pipe-step px-3 py-1.5" style="border-color: rgba(52,210,123,0.6); color:#1f9d5b">✉ QUOTATION MAILED</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- mini map -->
+        <div class="map-mini relative order-1 lg:order-2 rv" style="height: 420px;">
+          <div class="pin" style="left:22%; top:24%"></div>
+          <div class="pin" style="left:30%; top:38%"></div>
+          <div class="pin pin--hot" style="left:36%; top:55%"></div>
+          <div class="pin" style="left:44%; top:30%"></div>
+          <div class="pin" style="left:52%; top:46%"></div>
+          <div class="pin pin--hot" style="left:60%; top:34%"></div>
+          <div class="pin" style="left:66%; top:58%"></div>
+          <div class="pin" style="left:73%; top:26%"></div>
+          <div class="pin" style="left:57%; top:78%"></div>
+          <div class="pin" style="left:26%; top:70%"></div>
+          <div class="absolute p-4 w-64" style="left: 8%; bottom: 8%; background: rgba(20,22,28,0.92); backdrop-filter: blur(12px); border: 1px solid rgba(59,110,245,0.4); border-radius: 1rem;">
+            <div class="flex items-center justify-between mb-2">
+              <p class="font-semibold text-xs text-white">LED Billboard · Koramangala</p>
+              <span class="font-mono-x text-[9px] px-2 py-0.5 rounded-full" style="background: rgba(52,210,123,0.15); color: #34d27b">AVAILABLE</span>
+            </div>
+            <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-white/60">
+              <p>Footfall <span class="block text-white font-medium">48K/day</span></p>
+              <p>From <span class="block text-white font-medium">₹850/slot·day</span></p>
+            </div>
+            <a href="/login" target="_parent" class="btn-primary block text-center text-xs py-2 mt-3">Book This Screen</a>
+          </div>
+          <p class="absolute right-4 bottom-4 font-mono-x text-[10px] text-white/30 tracking-widest">8,507+ SCREENS · 229+ CITIES</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── STEP 03 · PROVE ── -->
+  <section class="pb-28 lg:pb-40 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <div class="flex items-baseline gap-5 mb-10 rv">
+        <span class="step-num">03</span>
+        <div>
+          <h3 class="display-step" style="color:#17181d">PROVE</h3>
+          <p class="muted mt-1">Every play counted. Every log sealed. Every screen watchable.</p>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-5">
+        <!-- live counters -->
+        <div class="work-card work-card--dark p-6 rv">
+          <div class="flex items-center justify-between mb-4">
+            <p class="font-mono-x text-[10px] tracking-[0.2em] text-white/40">LIVE · THIS CAMPAIGN</p>
+            <span class="live-dot"></span>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="font-display font-bold text-3xl" id="live-imps">2,40,318</p>
+              <p class="text-white/40 text-xs mt-1">Impressions — counted per play</p>
+            </div>
+            <div>
+              <p class="font-display font-bold text-3xl" id="live-rev">₹46,820</p>
+              <p class="text-white/40 text-xs mt-1">Slot-wise income — realtime</p>
+            </div>
+          </div>
+          <p class="font-mono-x text-[10px] text-white/30 mt-4">every play → counted · every slot → settled</p>
+        </div>
+
+        <!-- blockchain logs -->
+        <div class="work-card work-card--dark p-6 rv rv-d1">
+          <div class="flex items-center justify-between mb-4">
+            <p class="font-mono-x text-[10px] tracking-[0.2em] text-white/40">PROOF-OF-PLAY LEDGER</p>
+            <span class="font-mono-x text-[9px] text-[#34d27b]">BLOCKCHAIN-SEALED</span>
+          </div>
+          <div class="flex items-center overflow-x-auto pb-1">
+            <div class="chain-block">#8241<br>09:00 ✓</div>
+            <div class="chain-link"></div>
+            <div class="chain-block">#8242<br>09:10 ✓</div>
+            <div class="chain-link"></div>
+            <div class="chain-block chain-block--latest">#8243<br>09:20 ✓</div>
+          </div>
+          <div class="chain-reject inline-block px-3 py-1.5 mt-4">✕ override attempt — rejected</div>
+          <p class="text-white/50 text-sm mt-3">Logs are written to a chain, not a database row. Nobody edits history — not owners, not us.</p>
+        </div>
+
+        <!-- live stream -->
+        <div class="work-card work-card--dark p-6 rv rv-d2">
+          <div class="flex items-center justify-between mb-4">
+            <p class="font-mono-x text-[10px] tracking-[0.2em] text-white/40">LIVE STREAM</p>
+            <span class="font-mono-x text-[9px] px-2 py-0.5 rounded-full" style="background: rgba(217,74,74,0.2); color:#ff7b7b">● LIVE</span>
+          </div>
+          <div class="rounded-lg overflow-hidden relative" style="aspect-ratio: 16/7; background: linear-gradient(135deg, #1c2437, #0e1119)">
+            <div class="absolute inset-0 flex items-center justify-center">
+              <iconify-icon icon="lucide:play-circle" class="text-3xl text-white/30"></iconify-icon>
+            </div>
+            <p class="absolute bottom-2 left-3 font-mono-x text-[9px] text-white/50">Koramangala, Bengaluru · ONLINE</p>
+          </div>
+          <p class="text-white/50 text-sm mt-3">Watch your actual screen, from anywhere, any time. Blackouts and playback errors
+            surface the moment they happen — not in next month's report.</p>
+        </div>
+
+        <!-- offline proof -->
+        <div class="work-card work-card--dark p-6 rv rv-d3">
+          <div class="flex items-center justify-between mb-4">
+            <p class="font-mono-x text-[10px] tracking-[0.2em] text-white/40">OFFLINE RESILIENCE</p>
+            <iconify-icon icon="lucide:wifi-off" class="text-white/40"></iconify-icon>
+          </div>
+          <div class="space-y-2 font-mono-x text-xs text-white/60">
+            <p><span class="text-[#d9a08e]">⚠</span> 14:02 · network lost</p>
+            <p><span class="tick">✓</span> 14:02–15:47 · playback continued from cache</p>
+            <p><span class="tick">✓</span> 214 impressions logged offline</p>
+            <p><span class="tick">✓</span> 15:48 · back online — proofs synced to chain</p>
+          </div>
+          <p class="text-white/50 text-sm mt-3">No internet doesn't mean no plays — and it never means missing proof.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══════════════ ROI & ACCOUNTABILITY ═══════════════ -->
+<div class="roi-band" id="roi">
+  <section class="py-28 lg:py-36 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="kicker mb-6 rv" style="color:#34d27b">ROI &amp; Accountability</p>
+      <h2 class="display-act rv rv-d1">FROM PLAY TO PROOF<br>TO PERFORMANCE.</h2>
+      <p class="mt-6 max-w-2xl text-white/60 text-lg rv rv-d2">
+        DOOH has never had a straight answer for the CFO. PixelSpot builds an evidence
+        trail from media delivery to audience opportunity to measurable business
+        outcomes — and it's honest about which is which.
+      </p>
+
+      <!-- three levels of proof -->
+      <div class="grid md:grid-cols-3 gap-5 mt-14">
+        <div class="level-card p-7 rv">
+          <span class="verb-badge verb-badge--proves">PIXELSPOT PROVES</span>
+          <h3 class="font-display font-bold text-xl mt-4">Level 1 · Delivery</h3>
+          <p class="text-white/50 text-sm mt-2">Did the ad play?</p>
+          <div class="mt-4 space-y-1.5 font-mono-x text-xs text-white/60">
+            <p><span class="tick">✓</span> 18,432 plays · 126 screens</p>
+            <p><span class="tick">✓</span> Delivery rate 98.7%</p>
+            <p><span class="tick">✓</span> Screen uptime 99.2%</p>
+            <p><span class="tick">✓</span> Tamper-resistant, hash-anchored logs</p>
+          </div>
+        </div>
+        <div class="level-card p-7 rv rv-d1">
+          <span class="verb-badge verb-badge--estimates">PIXELSPOT ESTIMATES</span>
+          <h3 class="font-display font-bold text-xl mt-4">Level 2 · Audience</h3>
+          <p class="text-white/50 text-sm mt-2">Who had the opportunity to see it?</p>
+          <div class="mt-4 space-y-1.5 font-mono-x text-xs text-white/60">
+            <p>42,800 passed the screens</p>
+            <p>31,400 entered viewing zones</p>
+            <p>18,700 attention opportunities</p>
+            <p>6.8 sec average dwell time</p>
+          </div>
+        </div>
+        <div class="level-card p-7 rv rv-d2">
+          <span class="verb-badge verb-badge--measures">PIXELSPOT MEASURES</span>
+          <h3 class="font-display font-bold text-xl mt-4">Level 3 · Outcome</h3>
+          <p class="text-white/50 text-sm mt-2">Did it drive business results?</p>
+          <div class="mt-4 space-y-1.5 font-mono-x text-xs text-white/60">
+            <p>842 QR scans · 731 site visits</p>
+            <p>126 leads · 34 conversions</p>
+            <p>Store-visit uplift vs control</p>
+            <p>Promo redemptions · revenue</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- funnel + ROAS -->
+      <div class="grid lg:grid-cols-[1.2fr_1fr] gap-8 mt-12 items-start">
+        <div class="level-card p-7 rv">
+          <p class="font-mono-x text-[10px] tracking-[0.2em] text-white/40 mb-5">THE ROI FUNNEL · SAMPLE CAMPAIGN</p>
+          <div class="space-y-2.5">
+            <div class="roi-row"><div class="roi-bar" style="width: min(100%, 300px)"></div><p class="text-white/70 whitespace-nowrap">₹5,00,000 media spend</p></div>
+            <div class="roi-row"><div class="roi-bar" style="width: min(88%, 264px)"></div><p class="text-white/70 whitespace-nowrap">18,432 verified plays</p></div>
+            <div class="roi-row"><div class="roi-bar" style="width: min(70%, 210px)"></div><p class="text-white/70 whitespace-nowrap">31,400 audience opportunities</p></div>
+            <div class="roi-row"><div class="roi-bar" style="width: min(48%, 144px)"></div><p class="text-white/70 whitespace-nowrap">18,700 attention opportunities</p></div>
+            <div class="roi-row"><div class="roi-bar" style="width: min(20%, 60px)"></div><p class="text-white/70 whitespace-nowrap">842 QR scans</p></div>
+            <div class="roi-row"><div class="roi-bar" style="width: min(12%, 36px)"></div><p class="text-white/70 whitespace-nowrap">126 leads</p></div>
+            <div class="roi-row"><div class="roi-bar" style="width: min(7%, 21px)"></div><p class="text-white/70 whitespace-nowrap">34 conversions</p></div>
+          </div>
+          <div class="flex items-center justify-between mt-6 pt-5 border-t border-white/10">
+            <p class="font-mono-x text-xs text-white/50">REVENUE TRACKED</p>
+            <p class="font-display font-bold text-2xl" style="color:#34d27b">₹12,00,000 · ROAS 2.4x</p>
+          </div>
+        </div>
+        <div class="space-y-5">
+          <div class="level-card p-6 rv rv-d1">
+            <p class="font-display font-semibold text-lg">Attribution, wired in.</p>
+            <div class="flex flex-wrap gap-2 mt-3">
+              <span class="beta-chip">campaign QR codes</span>
+              <span class="beta-chip">unique campaign URLs</span>
+              <span class="beta-chip">promo codes</span>
+              <span class="beta-chip">store-visit uplift vs control</span>
+              <span class="beta-chip">POS · CRM · call tracking</span>
+              <span class="beta-chip">app installs</span>
+              <span class="beta-chip">campaign health score</span>
+              <span class="beta-chip">AI campaign analysis</span>
+            </div>
+          </div>
+          <div class="level-card p-6 rv rv-d2">
+            <p class="font-mono-x text-[10px] tracking-[0.2em] text-white/40 mb-2">HONEST BY DESIGN</p>
+            <p class="text-white/55 text-sm leading-relaxed">
+              Delivery is proven. Audience is estimated — opportunity-to-see, never identities.
+              Outcomes are measured only where attribution exists, uplift is read against control
+              locations, and ROAS is computed only from advertiser-provided revenue data.
+              Your CFO gets numbers that survive scrutiny.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══ VIDEO WINDOW ═══ -->
+<section class="video-window">
+  <div>
+    <p class="window-line rv">The future of outdoor advertising<br>isn't just digital.</p>
+    <p class="window-line text-[#b9a6ff] mt-6 rv rv-d2">It's intelligent.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ THE NEXT LAYER (BETA) ═══════════════ -->
+<div class="beta-band">
+  <section class="py-28 lg:py-36 px-6">
+    <div class="max-w-[1280px] mx-auto">
+      <p class="beta-tag mb-8 rv"><span class="live-dot" style="background:#b9a6ff"></span> IN CLOSED BETA · LAUNCHING SOON</p>
+      <h2 class="display-act rv rv-d1">THE NEXT LAYER:<br>AN OS THAT <span class="text-[#b9a6ff]">SEES</span> AND <span class="text-[#5c86ff]">THINKS</span>.</h2>
+      <p class="mt-6 max-w-2xl text-white/60 text-lg rv rv-d2">
+        Two AI engines are running in closed beta with partner screens — together they move
+        PixelSpot from marketplace to an intelligent DOOH operating system.
+      </p>
+
+      <div class="grid lg:grid-cols-2 gap-6 mt-14">
+        <!-- PILLAR 1: CAMERA VISION AI -->
+        <div class="beta-pillar p-8 rv">
+          <p class="font-mono-x text-xs tracking-[0.2em] text-[#b9a6ff] mb-3">CAMERA VISION AI</p>
+          <h3 class="display-panel">Sees the audience.<br>Identifies no one.</h3>
+          <p class="mt-4 text-white/55 text-sm">Understands what's physically happening around each screen — in numbers, never in names.</p>
+
+          <!-- attention funnel -->
+          <div class="mt-6 space-y-2">
+            <div class="flex items-center gap-3">
+              <div class="funnel-bar" style="width: 100%; max-width: 260px;"></div>
+              <p class="font-mono-x text-[10px] text-white/60 whitespace-nowrap">1,250 passed by</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="funnel-bar" style="width: 66%; max-width: 172px;"></div>
+              <p class="font-mono-x text-[10px] text-white/60 whitespace-nowrap">830 in viewing zone</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="funnel-bar" style="width: 34%; max-width: 88px;"></div>
+              <p class="font-mono-x text-[10px] text-white/60 whitespace-nowrap">420 attention opportunities</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-6">
+            <span class="beta-chip">people counting</span>
+            <span class="beta-chip">anonymous tracking IDs</span>
+            <span class="beta-chip">footfall &amp; dwell time</span>
+            <span class="beta-chip">head-orientation attention</span>
+            <span class="beta-chip">crowd density &amp; heatmaps</span>
+            <span class="beta-chip">estimated age &amp; gender mix</span>
+            <span class="beta-chip">audience composition</span>
+            <span class="beta-chip">viewing zones</span>
+            <span class="beta-chip">vehicle detection &amp; counting</span>
+            <span class="beta-chip">traffic flow analysis</span>
+            <span class="beta-chip">real-time creative switch by audience mix</span>
+          </div>
+
+          <p class="font-mono-x text-[10px] text-white/40 mt-6 leading-relaxed">
+            ANONYMOUS BY DESIGN — temporary tracking IDs, broad estimates with "unknown" as a
+            first-class category, and attention reported as opportunity-to-see. Never identities,
+            never proof someone watched.
+          </p>
+        </div>
+
+        <!-- PILLAR 2: DOOH INTELLIGENCE AI -->
+        <div class="beta-pillar p-8 rv rv-d1">
+          <p class="font-mono-x text-xs tracking-[0.2em] text-[#5c86ff] mb-3">DOOH INTELLIGENCE AI</p>
+          <h3 class="display-panel">Thinks in campaigns.<br>Answers in plans.</h3>
+          <p class="mt-4 text-white/55 text-sm">Turns screen, audience, location, traffic and campaign history into decisions — and explanations.</p>
+
+          <!-- screen profile sample -->
+          <div class="mt-6 p-4 rounded-xl" style="background: rgba(10,11,15,0.7); border: 1px solid rgba(92,134,255,0.25)">
+            <div class="flex items-center justify-between">
+              <p class="font-mono-x text-[10px] text-white/40">SCREEN #PX10482 · AI PROFILE</p>
+              <p class="font-display font-bold text-lg text-[#5c86ff]">87<span class="text-white/40 text-xs">/100</span></p>
+            </div>
+            <div class="mt-3 space-y-1.5">
+              <div class="flex items-center gap-2"><p class="font-mono-x text-[10px] text-white/50 w-28">Young profs.</p><div class="comp-bar" style="width: 46%"></div></div>
+              <div class="flex items-center gap-2"><p class="font-mono-x text-[10px] text-white/50 w-28">Peak 6–9 PM</p><div class="comp-bar" style="width: 72%"></div></div>
+              <div class="flex items-center gap-2"><p class="font-mono-x text-[10px] text-white/50 w-28">Attention opp.</p><div class="comp-bar" style="width: 64%"></div></div>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 mt-6">
+            <span class="beta-chip">auto screen tagging &amp; profiles</span>
+            <span class="beta-chip">AI screen recommendation</span>
+            <span class="beta-chip">AI media planner — budget → full plan</span>
+            <span class="beta-chip">budget optimization</span>
+            <span class="beta-chip">performance prediction</span>
+            <span class="beta-chip">in-flight campaign optimization</span>
+            <span class="beta-chip">creative quality check</span>
+            <span class="beta-chip">context-aware playback — rain · traffic · events</span>
+            <span class="beta-chip">dynamic creative by time &amp; audience</span>
+            <span class="beta-chip">anomaly detection</span>
+            <span class="beta-chip">predictive maintenance</span>
+            <span class="beta-chip">pricing intelligence</span>
+            <span class="beta-chip">revenue forecasting</span>
+            <span class="beta-chip">campaign Q&amp;A — ask your data anything</span>
+            <span class="beta-chip">network-level intelligence</span>
+          </div>
+
+          <p class="font-mono-x text-[10px] text-white/40 mt-6 leading-relaxed">
+            "WHERE SHOULD I SPEND ANOTHER ₹2 LAKH?" — a DOOH analyst, not just a dashboard.
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-10 flex flex-wrap items-center gap-5 rv rv-d2">
+        <a href="mailto:contact@pixelspot.in?subject=PixelSpot%20AI%20Beta%20Enquiry" class="btn-primary px-7 py-3.5 text-sm inline-flex items-center gap-2" style="background:#7a5cff">
+          Enquire About the Beta <iconify-icon icon="lucide:mail"></iconify-icon>
+        </a>
+        <p class="text-white/40 text-sm">Live with partner screens now — early access is limited.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ═══ VIDEO WINDOW ═══ -->
+<section class="video-window">
+  <div>
+    <p class="window-line rv">Three sides of the same market.</p>
+    <p class="window-line text-white/60 mt-6 rv rv-d2">Finally speaking the same language.</p>
+  </div>
+</section>
+
+<!-- ═══════════════ WHO IT'S FOR ═══════════════ -->
+<div class="act-solid" id="who-its-for">
   <div class="fade-top"></div>
   <section class="py-28 lg:py-36 px-6">
     <div class="max-w-[1520px] mx-auto space-y-8">
       <div class="max-w-[1280px] mx-auto">
-        <p class="act-label mb-4 rv">Act 04 · The People</p>
+        <p class="kicker mb-4 rv">Who It's For</p>
         <h2 class="display-act rv rv-d1">EVERYONE GETS<br>A BETTER DEAL.</h2>
       </div>
 
@@ -551,7 +1127,8 @@
         <div>
           <p class="font-mono-x text-xs tracking-[0.2em] text-white/40 mb-4">FOR ADVERTISERS</p>
           <h3 class="display-panel">Buy reach<br>with confidence.</h3>
-          <p class="mt-5 text-white/60 max-w-md">Find the screens that matter, plan campaigns, execute them — and know exactly what happened.</p>
+          <p class="mt-5 text-white/60 max-w-md">Map-planned campaigns, screens matched to your audience, instant play —
+            and a sealed record of every single impression you paid for.</p>
           <a href="/login" target="_parent" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#5c86ff]">
             Explore Advertising <iconify-icon icon="lucide:arrow-right"></iconify-icon>
           </a>
@@ -588,16 +1165,23 @@
       <!-- AGENCIES -->
       <div class="panel-light p-8 lg:p-14 grid lg:grid-cols-2 gap-10 items-center rv">
         <div class="order-2 lg:order-1">
+          <div class="flex flex-wrap items-center gap-2 mb-6">
+            <span class="pipe-step px-4 py-2">BRIEF</span><iconify-icon icon="lucide:chevron-right" class="muted text-xs"></iconify-icon>
+            <span class="pipe-step px-4 py-2">PLAN</span><iconify-icon icon="lucide:chevron-right" class="muted text-xs"></iconify-icon>
+            <span class="pipe-step px-4 py-2">BUY</span><iconify-icon icon="lucide:chevron-right" class="muted text-xs"></iconify-icon>
+            <span class="pipe-step px-4 py-2">EXECUTE</span><iconify-icon icon="lucide:chevron-right" class="muted text-xs"></iconify-icon>
+            <span class="pipe-step px-4 py-2" style="border-color: rgba(52,210,123,0.6); color: #1f9d5b">MEASURE</span>
+          </div>
           <div class="space-y-3">
-            <div class="flow-step p-4 flex items-center justify-between">
+            <div class="work-card p-4 flex items-center justify-between">
               <span class="text-sm font-medium">Brief received — FMCG launch, 12 cities</span>
               <span class="font-mono-x text-xs muted">DAY 0</span>
             </div>
-            <div class="flow-step p-4 flex items-center justify-between" style="margin-left: 8%">
-              <span class="text-sm font-medium">184 screens shortlisted automatically</span>
+            <div class="work-card p-4 flex items-center justify-between" style="margin-left: 8%">
+              <span class="text-sm font-medium">184 screens suggested by audience tags</span>
               <span class="font-mono-x text-xs muted">+2 hrs</span>
             </div>
-            <div class="flow-step p-4 flex items-center justify-between" style="margin-left: 16%">
+            <div class="work-card p-4 flex items-center justify-between" style="margin-left: 16%">
               <span class="text-sm font-medium">Plan approved · booked · live</span>
               <span class="font-mono-x text-xs text-[#1f9d5b]">+1 day</span>
             </div>
@@ -606,8 +1190,9 @@
         <div class="order-1 lg:order-2">
           <p class="font-mono-x text-xs tracking-[0.2em] muted mb-4">FOR AGENCIES</p>
           <h3 class="display-panel">Plan smarter.<br>Execute faster.</h3>
-          <p class="mt-5 muted max-w-md">Media discovery, planning, buying and campaign management — one workflow instead of forty phone calls.</p>
-          <a href="#agencies" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#3b6ef5]">
+          <p class="mt-5 muted max-w-md">Brief to proof in one connected workflow — multi-campaign, multi-client,
+            with sealed play logs your clients can't argue with.</p>
+          <a href="/login" target="_parent" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#3b6ef5]">
             Explore for Agencies <iconify-icon icon="lucide:arrow-right"></iconify-icon>
           </a>
         </div>
@@ -618,7 +1203,8 @@
         <div>
           <p class="font-mono-x text-xs tracking-[0.2em] text-white/40 mb-4">FOR SCREEN OWNERS</p>
           <h3 class="display-panel">Turn screens into<br>smarter inventory.</h3>
-          <p class="mt-5 text-white/60 max-w-md">Connect your screens to real demand. Higher occupancy, automated scheduling, predictable revenue.</p>
+          <p class="mt-5 text-white/60 max-w-md">Your screen learns its own audience, sells its own slots, proves its own plays —
+            and pays you for every one of them. Watch it earn, live.</p>
           <a href="/login" target="_parent" class="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-[#5c86ff]">
             List Your Screens <iconify-icon icon="lucide:arrow-right"></iconify-icon>
           </a>
@@ -639,195 +1225,11 @@
     </div>
   </section>
 
-  <!-- ═══════════════ ACT 5 · MARKETPLACE (flows straight from the people to where they meet) ═══════════════ -->
-  <section id="marketplace" class="py-28 lg:py-40 px-6">
-    <div class="max-w-[1280px] mx-auto">
-      <p class="act-label mb-6 rv">Act 05 · The Marketplace</p>
-      <h2 class="display-act rv rv-d1">WHERE MEDIA<br>FINDS DEMAND.</h2>
-      <p class="mt-6 max-w-2xl text-white/60 text-lg rv rv-d2">
-        Physical screens become searchable, bookable, measurable media inventory —
-        by location, audience, availability and budget.
-      </p>
-
-      <div id="map-stage" class="relative mt-14 rv rv-d3 overflow-hidden" style="height: 480px;">
-        <div class="pin" style="left:22%; top:24%"></div>
-        <div class="pin" style="left:30%; top:38%"></div>
-        <div class="pin pin--hot" style="left:36%; top:55%"></div>
-        <div class="pin" style="left:44%; top:30%"></div>
-        <div class="pin" style="left:52%; top:46%"></div>
-        <div class="pin" style="left:47%; top:66%"></div>
-        <div class="pin pin--hot" style="left:60%; top:34%"></div>
-        <div class="pin" style="left:66%; top:58%"></div>
-        <div class="pin" style="left:73%; top:26%"></div>
-        <div class="pin" style="left:57%; top:78%"></div>
-        <div class="pin" style="left:26%; top:70%"></div>
-        <div class="pin pin--hot" style="left:79%; top:48%"></div>
-
-        <div id="inv-card" class="absolute p-5 w-72" style="left: 8%; bottom: 8%;">
-          <div class="flex items-center justify-between mb-3">
-            <p class="font-semibold text-sm">LED Billboard · Koramangala</p>
-            <span class="font-mono-x text-[10px] px-2 py-0.5 rounded-full" style="background: rgba(52,210,123,0.15); color: #34d27b">AVAILABLE</span>
-          </div>
-          <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-white/60">
-            <p>Audience <span class="block text-white font-medium">Tech · Retail</span></p>
-            <p>Footfall <span class="block text-white font-medium">48K/day</span></p>
-            <p>Slot <span class="block text-white font-medium">10 min / 6-hr loop</span></p>
-            <p>From <span class="block text-white font-medium">₹850/slot·day</span></p>
-          </div>
-          <a href="/login" target="_parent" class="btn-primary block text-center text-sm py-2.5 mt-4">Book This Screen</a>
-        </div>
-
-        <p class="absolute right-6 bottom-5 font-mono-x text-xs text-white/30 tracking-widest">8,507+ SCREENS · 229+ CITIES</p>
-      </div>
-    </div>
-  </section>
-  <div class="fade-bottom"></div>
-</div>
-
-<!-- ═══ VIDEO WINDOW · bridge from buying to playing ═══ -->
-<section class="video-window">
-  <div>
-    <p class="window-line rv">A booking is a promise.</p>
-    <p class="window-line text-white/60 mt-6 rv rv-d2">The screen is where it's kept.</p>
-  </div>
-</section>
-
-<!-- ═══════════════ ACT 6 · PIXELPLAYER (LIGHT WORLD) ═══════════════ -->
-<div class="act-light">
-  <section id="pixelplayer" class="py-28 lg:py-40 px-6">
-    <div class="max-w-[1280px] mx-auto">
-      <p class="act-label act-label--light mb-6 rv">Act 06 · The Execution Layer</p>
-      <h2 class="display-act rv rv-d1" style="color:#17181d">BUY THE MEDIA.<br>THEN CONTROL THE EXPERIENCE.</h2>
-      <p class="mt-6 max-w-2xl muted text-lg rv rv-d2">
-        PixelPlayer turns any screen into managed, verifiable inventory. What gets booked
-        in the marketplace plays on glass — automatically, provably.
-      </p>
-
-      <div class="mt-16 grid lg:grid-cols-[1fr_auto] gap-12 items-center rv rv-d3">
-        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
-          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Marketplace</div>
-          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
-          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Campaign</div>
-          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
-          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center" style="border: 2px solid #3b6ef5;">PixelPlayer</div>
-          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
-          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Screen</div>
-          <iconify-icon icon="lucide:arrow-right" class="flow-arrow text-xl hidden sm:block"></iconify-icon>
-          <div class="flow-step px-5 py-4 text-sm font-semibold flex-1 text-center">Audience</div>
-        </div>
-        <div class="device px-10 py-8 text-white justify-self-center">
-          <p class="font-mono-x text-[10px] tracking-[0.3em] text-white/40 mb-2">PIXELPLAYER</p>
-          <p class="font-display font-bold text-lg">HDMI out. Wi-Fi &amp; 4G.</p>
-          <p class="text-white/50 text-sm mt-1">Plug in. Go live. Get paid.</p>
-          <div class="flex items-center gap-2 mt-4">
-            <span class="live-dot"></span>
-            <span class="font-mono-x text-xs text-white/60">ONLINE · PLAYING</span>
-          </div>
-        </div>
-      </div>
-
-      <a href="/login" target="_parent" class="mt-12 inline-flex items-center gap-2 text-sm font-semibold rv rv-d4 text-[#3b6ef5]">
-        Meet PixelPlayer <iconify-icon icon="lucide:arrow-right"></iconify-icon>
-      </a>
-    </div>
-  </section>
-
-  <!-- ═══ ACT 6B · PIXELOS — the brains, in 3D ═══ -->
-  <section class="pb-28 lg:pb-40 px-6">
-    <div class="max-w-[1280px] mx-auto">
-      <p class="act-label act-label--light mb-6 rv">PixelOS</p>
-      <h2 class="display-act rv rv-d1" style="color:#17181d">BRAINS.<br>FOR SCREENS.</h2>
-      <p class="mt-6 max-w-2xl muted text-lg rv rv-d2">
-        Inside every PixelPlayer runs PixelOS — built for the worst day, every single day.
-        Move the device. It's watching you too.
-      </p>
-
-      <div class="mt-10 grid lg:grid-cols-[1.1fr_1fr] gap-12 items-center">
-        <!-- 3D device -->
-        <div class="pixelos-scene rv rv-d2" id="pixelos-scene">
-          <div class="pixelos-device" id="pixelos-device">
-            <div class="pixelos-shadow"></div>
-            <div class="pixelos-slab">
-              <div class="pixelos-etch">
-                <p class="font-mono-x text-[10px] tracking-[0.35em] text-white/35">PIXELOS</p>
-                <p class="font-display font-bold text-white text-xl tracking-tight">PixelPlayer</p>
-                <div class="flex items-center gap-2 mt-1">
-                  <span class="live-dot"></span>
-                  <span class="font-mono-x text-[10px] text-white/50">RUNS COOL · RUNS QUIET · RUNS ALWAYS</span>
-                </div>
-              </div>
-              <div class="pixelos-ports">
-                <span style="width:34px"></span><!-- HDMI -->
-                <span style="width:18px"></span><!-- USB -->
-                <span style="width:18px"></span><!-- USB -->
-                <span style="width:12px"></span><!-- SIM -->
-              </div>
-            </div>
-            <div class="pixelos-screenlet">
-              <div class="flex items-center justify-between mb-2">
-                <span class="font-mono-x text-[9px] tracking-[0.2em] text-white/40">NOW PLAYING</span>
-                <span class="font-mono-x text-[9px] text-[#34d27b]">● LIVE</span>
-              </div>
-              <p class="text-white text-xs font-medium">Campaign #1247 · Slot 3 of 6</p>
-              <div class="h-1 mt-2 bg-white/10 rounded-full overflow-hidden">
-                <div class="h-full w-2/3 rounded-full" style="background:#5c86ff"></div>
-              </div>
-              <p class="font-mono-x text-[9px] text-white/35 mt-2">proof-of-play → signed → synced</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- problem → solution chips -->
-        <div class="space-y-4">
-          <div class="solve-chip p-5 rv">
-            <p class="x text-xs mb-1">✕ "The screen went blank at 2 AM."</p>
-            <p class="v text-xs mb-2">✓ Watchdog auto-recovery + offline cache.</p>
-            <p class="muted text-sm">Content keeps playing through network drops and power cuts. The player heals itself before anyone notices.</p>
-          </div>
-          <div class="solve-chip p-5 rv rv-d1">
-            <p class="x text-xs mb-1">✕ "Did my ad actually run?"</p>
-            <p class="v text-xs mb-2">✓ Signed proof-of-play, every slot.</p>
-            <p class="muted text-sm">Each playback is logged, timestamped and synced — evidence, not promises.</p>
-          </div>
-          <div class="solve-chip p-5 rv rv-d2">
-            <p class="x text-xs mb-1">✕ "I drive across town to change content."</p>
-            <p class="v text-xs mb-2">✓ Playing there. Controlled here.</p>
-            <p class="muted text-sm">One remote for every screen — schedules, playlists and health from a single dashboard.</p>
-          </div>
-          <div class="solve-chip p-5 rv rv-d3">
-            <p class="x text-xs mb-1">✕ "Half my loop is unsold air."</p>
-            <p class="v text-xs mb-2">✓ Auto-fills from marketplace demand.</p>
-            <p class="muted text-sm">Empty slots connect to real advertisers automatically. Looks small. Earns large.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-</div>
-
-<!-- ═══════════════ ACT 7 · INTELLIGENCE ═══════════════ -->
-<div class="act-solid">
-  <section class="py-28 lg:py-40 px-6">
-    <div class="max-w-[1280px] mx-auto">
-      <p class="act-label mb-10 rv">Act 07 · The Intelligence</p>
-      <div id="intel-stack" class="space-y-2">
-        <h2 class="display-act intel-line">THE RIGHT <span class="hl">SCREEN.</span></h2>
-        <h2 class="display-act intel-line">THE RIGHT <span class="hl">PLACE.</span></h2>
-        <h2 class="display-act intel-line">THE RIGHT <span class="hl">MOMENT.</span></h2>
-        <h2 class="display-act intel-line">THE RIGHT <span class="hl">AUDIENCE.</span></h2>
-      </div>
-      <p class="mt-10 max-w-2xl text-white/60 text-lg rv">
-        Location signals, availability, audience patterns and campaign performance —
-        working quietly under every plan. Not a slogan about intelligence. The behavior of it.
-      </p>
-    </div>
-  </section>
-
-  <!-- ═══════════════ ACT 8 · THE NETWORK ═══════════════ -->
-  <section id="network" class="py-28 lg:py-40 px-6 relative overflow-hidden border-t border-white/5">
+  <!-- ═══════════════ THE NETWORK ═══════════════ -->
+  <section id="network" class="py-28 lg:py-36 px-6 relative overflow-hidden border-t border-white/5">
     <div class="absolute inset-0 opacity-60"><canvas id="net-canvas"></canvas></div>
     <div class="max-w-[1280px] mx-auto relative">
-      <p class="act-label mb-6 rv">Act 08 · The Network</p>
+      <p class="kicker mb-6 rv">The Network</p>
       <h2 class="display-act rv rv-d1">A NETWORK GETS MORE POWERFUL<br>AS MORE OF THE MARKET CONNECTS.</h2>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-16 rv rv-d2">
         <div><p class="stat-num" data-count="8507">0</p><p class="text-white/50 text-sm mt-1">Screens connected</p></div>
@@ -837,30 +1239,10 @@
       </div>
     </div>
   </section>
-
-  <!-- ═══════════════ ACT 9 · AGENCIES ═══════════════ -->
-  <section id="agencies" class="py-28 lg:py-40 px-6 border-t border-white/5">
-    <div class="max-w-[1280px] mx-auto">
-      <p class="act-label mb-6 rv">Act 09 · For Agencies</p>
-      <h2 class="display-act rv rv-d1">YOUR CLIENTS EXPECT MORE FROM MEDIA.<br>YOUR WORKFLOW SHOULDN'T GET HARDER.</h2>
-      <div class="mt-14 flex flex-wrap items-center gap-3 rv rv-d2">
-        <span class="pipe-step px-5 py-2.5">BRIEF</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
-        <span class="pipe-step px-5 py-2.5">PLAN</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
-        <span class="pipe-step px-5 py-2.5">DISCOVER</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
-        <span class="pipe-step px-5 py-2.5">BUY</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
-        <span class="pipe-step px-5 py-2.5">EXECUTE</span><iconify-icon icon="lucide:chevron-right" class="text-white/30"></iconify-icon>
-        <span class="pipe-step px-5 py-2.5" style="border-color: rgba(52,210,123,0.6); color: #34d27b">MEASURE</span>
-      </div>
-      <p class="mt-10 max-w-2xl text-white/60 text-lg rv rv-d3">
-        One connected workflow from brief to proof — with multi-campaign, multi-client
-        control your team doesn't have to fight for.
-      </p>
-    </div>
-  </section>
   <div class="fade-bottom"></div>
 </div>
 
-<!-- ═══ VIDEO WINDOW · bridge into the vision ═══ -->
+<!-- ═══ VIDEO WINDOW ═══ -->
 <section class="video-window">
   <div>
     <p class="window-line rv">The city is the last<br>unskippable medium.</p>
@@ -868,11 +1250,11 @@
   </div>
 </section>
 
-<!-- ═══════════════ ACT 10 · THE VISION (LIGHT) ═══════════════ -->
+<!-- ═══════════════ THE VISION (LIGHT) ═══════════════ -->
 <div class="act-light">
-  <section class="py-32 lg:py-48 px-6 text-center">
+  <section class="py-32 lg:py-44 px-6 text-center">
     <div class="max-w-[1080px] mx-auto">
-      <p class="act-label act-label--light mb-8 rv">Act 10 · The Vision</p>
+      <p class="kicker kicker--light mb-8 rv">The Vision</p>
       <h2 class="display-act rv rv-d1" style="color:#17181d">
         WE'RE NOT BUILDING ANOTHER<br>WAY TO BUY A SCREEN.
       </h2>
@@ -883,11 +1265,11 @@
   </section>
 </div>
 
-<!-- ═══════════════ ACT 11 · THE INVITATION ═══════════════ -->
+<!-- ═══════════════ THE INVITATION ═══════════════ -->
 <div class="act-solid">
-  <section id="invitation" class="py-28 lg:py-40 px-6">
+  <section id="invitation" class="py-28 lg:py-36 px-6">
     <div class="max-w-[1280px] mx-auto">
-      <p class="act-label mb-6 rv text-center">Act 11 · The Invitation</p>
+      <p class="kicker mb-6 rv text-center">Your Move</p>
       <h2 class="display-act text-center rv rv-d1">WHERE DO YOU STAND?</h2>
       <div class="grid md:grid-cols-3 gap-6 mt-16">
         <a href="/login" target="_parent" class="invite-card p-8 block rv rv-d1">
@@ -912,7 +1294,7 @@
     </div>
   </section>
 
-  <!-- ═══════════════ FOOTER (links kept from original) ═══════════════ -->
+  <!-- ═══════════════ FOOTER ═══════════════ -->
   <footer class="border-t border-white/10 py-14 px-6">
     <div class="max-w-[1280px] mx-auto grid md:grid-cols-[1fr_auto] gap-10">
       <div>
@@ -964,7 +1346,7 @@
     }, { threshold: 0.18 });
     document.querySelectorAll('.rv, .panel-dark, .panel-light').forEach(function (el) { io.observe(el); });
 
-    // ACT 3 snap-connect
+    // Snap-connect (The Shift)
     var stage = document.getElementById('connect-stage');
     new IntersectionObserver(function (entries, obs) {
       entries.forEach(function (e) {
@@ -972,18 +1354,38 @@
       });
     }, { threshold: 0.5 }).observe(stage);
 
-    // ACT 7 line-by-line light-up
-    var intel = document.querySelectorAll('#intel-stack .intel-line');
+    // CONNECT: neighbourhood-learning tag animation (school opens → tag + suggestion)
+    var tagStage = document.getElementById('tag-stage');
     new IntersectionObserver(function (entries, obs) {
       entries.forEach(function (e) {
-        if (e.isIntersecting) {
-          intel.forEach(function (line, i) { setTimeout(function () { line.classList.add('lit'); }, i * 320); });
-          obs.disconnect();
-        }
+        if (!e.isIntersecting) return;
+        setTimeout(function () { document.getElementById('tag-new').classList.add('show'); }, 1100);
+        setTimeout(function () { document.getElementById('tag-suggest').classList.add('show'); }, 2100);
+        obs.disconnect();
       });
-    }, { threshold: 0.4 }).observe(document.getElementById('intel-stack'));
+    }, { threshold: 0.5 }).observe(tagStage);
 
-    // ACT 8 count-up
+    // PROVE: live impression + slot-income counters ticking
+    var imps = 240318, rev = 46820;
+    var impsEl = document.getElementById('live-imps');
+    var revEl = document.getElementById('live-rev');
+    var fmtIN = function (n) { return n.toLocaleString('en-IN'); };
+    new IntersectionObserver(function (entries, obs) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        setInterval(function () {
+          imps += 1 + Math.floor(Math.random() * 3);
+          impsEl.textContent = fmtIN(imps);
+          if (Math.random() > 0.55) {
+            rev += 12 + Math.floor(Math.random() * 30);
+            revEl.textContent = '₹' + fmtIN(rev);
+          }
+        }, 1100);
+        obs.disconnect();
+      });
+    }, { threshold: 0.4 }).observe(impsEl);
+
+    // Network count-up
     var fmt = function (n) { return n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n.toLocaleString('en-IN'); };
     document.querySelectorAll('.stat-num').forEach(function (el) {
       new IntersectionObserver(function (entries, obs) {
@@ -1007,13 +1409,13 @@
     });
   }
 
-  // ── ACT 6B: PixelOS 3D pointer tilt ──
+  // ── PixelOS 3D pointer tilt ──
   var scene = document.getElementById('pixelos-scene');
   var device = document.getElementById('pixelos-device');
   if (scene && device && matchMedia('(pointer: fine)').matches && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
     scene.addEventListener('pointermove', function (e) {
       var r = scene.getBoundingClientRect();
-      var px = (e.clientX - r.left) / r.width - 0.5;   // -0.5 .. 0.5
+      var px = (e.clientX - r.left) / r.width - 0.5;
       var py = (e.clientY - r.top) / r.height - 0.5;
       device.style.animation = 'none';
       device.style.transform = 'rotateX(' + (14 - py * 22) + 'deg) rotateY(' + (-18 + px * 30) + 'deg)';
@@ -1024,7 +1426,7 @@
     });
   }
 
-  // ── ACT 8 constellation canvas ──
+  // ── Network constellation canvas ──
   var canvas = document.getElementById('net-canvas');
   if (canvas && canvas.getContext) {
     var ctx = canvas.getContext('2d');
