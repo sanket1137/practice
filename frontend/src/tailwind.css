@@ -1,0 +1,12 @@
+/*
+ * Tailwind v4 utilities for the React app — WITHOUT preflight.
+ *
+ * Several pages (legal pages via LegalLayout, LivePreviewWidget) are written
+ * with Tailwind utility classes. Preflight (Tailwind's global reset) is
+ * deliberately excluded: MUI provides its own baseline (CssBaseline), and a
+ * second global reset would subtly change MUI component rendering app-wide.
+ * Only the theme tokens and the utilities actually used in src/ are compiled.
+ */
+@layer theme, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);

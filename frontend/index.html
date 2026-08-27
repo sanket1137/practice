@@ -1432,19 +1432,30 @@
     var ctx = canvas.getContext('2d');
     var nodes = [];
     var resizeNet = function () {
-      canvas.width = canvas.offsetWidth * devicePixelRatio;
-      canvas.height = canvas.offsetHeight * devicePixelRatio;
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      var w = canvas.offsetWidth, h = canvas.offsetHeight;
+      if (!w || !h) return; // layout not settled yet — a later observer tick will catch it
+      var dpr = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       nodes = [];
       for (var i = 0; i < 46; i++) {
         nodes.push({
-          x: Math.random() * canvas.offsetWidth, y: Math.random() * canvas.offsetHeight,
+          x: Math.random() * w, y: Math.random() * h,
           vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25
         });
       }
     };
-    resizeNet(); addEventListener('resize', resizeNet);
+    resizeNet();
+    // ResizeObserver catches layout settling after fonts/images load — a plain
+    // window resize listener misses that, leaving a stretched/smeared buffer.
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(resizeNet).observe(canvas);
+    } else {
+      addEventListener('resize', resizeNet);
+    }
     (function draw() {
+      if (!nodes.length) { requestAnimationFrame(draw); return; }
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
       nodes.forEach(function (n) {
         n.x += n.vx; n.y += n.vy;
