@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Card,
     CardContent,
@@ -51,6 +51,10 @@ interface Stats {
     savedPlays: number;
     pendingPlays: number;
     lastUpdated: string;
+    /** "all" (owner/admin: whole screen) or "mine" (advertiser: their campaigns only). */
+    scope?: 'all' | 'mine';
+    /** When scope is "mine": the viewer's campaign ids, used to filter live events. */
+    myCampaignIds?: string[];
 }
 
 interface ImpressionUpdateEvent {
@@ -62,6 +66,13 @@ interface ImpressionUpdateEvent {
 export default function LivePreviewWidget({ screenId, campaignId, mode, isScreenOnline }: LivePreviewWidgetProps) {
     const [nowPlaying, setNowPlaying] = useState<PlayEvent | null>(null);
     const [realtimeCount, setRealtimeCount] = useState(0);
+    // Live-event filter matching the server's stats scope. In "mine" scope
+    // (advertiser viewing a screen page) only their own campaigns' events may
+    // count, or the live increments would drift away from the scoped total.
+    const scopeRef = useRef<{ scope: 'all' | 'mine'; myCampaignIds: Set<string> }>({
+        scope: 'all',
+        myCampaignIds: new Set(),
+    });
     const [stats, setStats] = useState<Stats>({
         totalPlaysToday: 0,
         savedPlays: 0,
@@ -98,8 +109,16 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
                         totalPlaysToday: response.data.data.totalPlaysToday,
                         savedPlays: response.data.data.savedPlays,
                         pendingPlays: response.data.data.pendingPlays,
-                        lastUpdated: response.data.data.lastUpdated
+                        lastUpdated: response.data.data.lastUpdated,
+                        scope: response.data.data.scope ?? 'all',
+                        myCampaignIds: (response.data.data.myCampaignIds ?? []).map((id: string) => id.toLowerCase()),
                     });
+                    scopeRef.current = {
+                        scope: response.data.data.scope ?? 'all',
+                        myCampaignIds: new Set(
+                            (response.data.data.myCampaignIds ?? []).map((id: string) => id.toLowerCase())
+                        ),
+                    };
 
                     // Reset realtime counter
                     setRealtimeCount(0);
@@ -120,13 +139,21 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
         let isSubscribed = true;
         let handlersRegistered = false;
 
+        // In "mine" scope, only events belonging to the viewer's own campaigns
+        // count — otherwise the widget's live increments would include other
+        // advertisers' plays and drift away from the server's scoped total.
+        const isInScope = (eventCampaignId?: string) => {
+            if (scopeRef.current.scope !== 'mine') return true;
+            return !!eventCampaignId && scopeRef.current.myCampaignIds.has(eventCampaignId.toLowerCase());
+        };
+
         // Define handlers outside to properly remove them later
         const handleAdStarted = (eventData: PlayEvent) => {
             if (!isSubscribed) return;
 
             if (mode === 'screen' && eventData.screenId === screenId) {
-                setNowPlaying(eventData);
                 setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+                if (isInScope(eventData.campaignId)) setNowPlaying(eventData);
             } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
                 setNowPlaying(eventData);
                 setRecentPlays(prev => [eventData, ...prev.slice(0, 4)]);
@@ -138,8 +165,8 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
             if (!isSubscribed) return;
 
             if (mode === 'screen' && eventData.screenId === screenId) {
-                setRealtimeCount(prev => prev + 1);
                 setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+                if (isInScope(eventData.campaignId)) setRealtimeCount(prev => prev + 1);
             } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
                 setRealtimeCount(prev => prev + 1);
                 setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
@@ -150,8 +177,8 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
             if (!isSubscribed) return;
 
             if (mode === 'screen' && eventData.screenId === screenId) {
-                setRealtimeCount(prev => prev + eventData.playCount);
                 setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+                if (isInScope(eventData.campaignId)) setRealtimeCount(prev => prev + eventData.playCount);
             } else if (mode === 'campaign' && eventData.campaignId === campaignId) {
                 setRealtimeCount(prev => prev + eventData.playCount);
                 setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
@@ -165,8 +192,12 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
             console.log('📊 ImpressionRecorded event:', eventData);
 
             if (mode === 'screen' && eventData.screenId === screenId) {
-                setRealtimeCount(prev => prev + 1);  // Increment by 1 for each impression
                 setConnectionStatus({ isConnected: true, lastUpdate: new Date() });
+                // Owner-content impressions never belong to an advertiser campaign,
+                // so they only count in the owner's ("all") scope.
+                if (scopeRef.current.scope !== 'mine') {
+                    setRealtimeCount(prev => prev + 1);  // Increment by 1 for each impression
+                }
             }
         };
 
@@ -376,7 +407,7 @@ export default function LivePreviewWidget({ screenId, campaignId, mode, isScreen
                         <Box display="flex" alignItems="center" gap={1}>
                             <ViewIcon fontSize="small" color="action" />
                             <Typography variant="body2" color="textSecondary">
-                                Total Plays Today
+                                {stats.scope === 'mine' ? 'Your Plays Today' : 'Total Plays Today'}
                             </Typography>
                         </Box>
                         {loading ? (

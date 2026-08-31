@@ -13,16 +13,17 @@ interface CurrentCreative {
     timestamp: Date;
 }
 
+// SignalR serializes camelCase on the wire.
 interface AdStartedEvent {
-    ScreenId: string;
-    CreativeId: string;
-    CreativeName?: string;
-    ThumbnailUrl?: string;
+    screenId: string;
+    creativeId?: string | null;
+    creativeName?: string;
+    thumbnailUrl?: string;
 }
 
 interface ScreenStatusChangedEvent {
     screenId: string;
-    status: string;
+    isOnline: boolean;
 }
 
 export function LivePreviewWidget({ screenId, screenName }: LivePreviewWidgetProps) {
@@ -32,11 +33,11 @@ export function LivePreviewWidget({ screenId, screenName }: LivePreviewWidgetPro
     useEffect(() => {
         // Subscribe to AdStarted events for this specific screen
         const handleAdStarted = (data: AdStartedEvent) => {
-            if (data.ScreenId === screenId) {
+            if (data.screenId === screenId) {
                 setCurrentCreative({
-                    creativeId: data.CreativeId,
-                    creativeName: data.CreativeName || 'Unknown',
-                    thumbnailUrl: data.ThumbnailUrl || '/default-thumbnail.png',
+                    creativeId: data.creativeId || '',
+                    creativeName: data.creativeName || 'Unknown',
+                    thumbnailUrl: data.thumbnailUrl || '/default-thumbnail.png',
                     timestamp: new Date()
                 });
                 setIsOnline(true);
@@ -46,7 +47,7 @@ export function LivePreviewWidget({ screenId, screenName }: LivePreviewWidgetPro
         // Subscribe to screen status events
         const handleScreenStatus = (data: ScreenStatusChangedEvent) => {
             if (data.screenId === screenId) {
-                setIsOnline(data.status === 'online');
+                setIsOnline(data.isOnline);
             }
         };
 

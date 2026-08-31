@@ -126,7 +126,11 @@ deploy() {
     # Sync files to server. Secrets and local-only directories must never
     # leave this machine over rsync — they belong in the server's own .env.
     log_info "Syncing files to server..."
-    rsync -avz --progress \
+    # --delete keeps the server tree an exact mirror: files deleted locally are
+    # removed remotely too (stale sources otherwise break the Docker build).
+    # rsync protects --exclude'd paths (.env, uploads/, backups/...) from
+    # deletion unless --delete-excluded is passed — which it must never be.
+    rsync -avz --progress --delete \
         --exclude 'node_modules' \
         --exclude '.git' \
         --exclude 'bin' \
@@ -139,6 +143,8 @@ deploy() {
         --exclude 'creds.local.md' \
         --exclude 'backups/' \
         --exclude 'player/' \
+        --exclude 'uploads/' \
+        --exclude 'publish/' \
         --exclude '*.csx' \
         --exclude 'Scripts/' \
         --exclude 'TempDbFix/' \

@@ -206,10 +206,10 @@ const MainLayout = () => {
                                                     height: 36,
                                                     px: '12px',
                                                     borderRadius: '8px',
-                                                    backgroundColor: isActive ? 'rgba(94,106,210,0.12) !important' : 'transparent',
-                                                    borderLeft: isActive ? '2px solid #5e6ad2' : 'none',
+                                                    backgroundColor: isActive ? 'rgba(59,110,245,0.12) !important' : 'transparent',
+                                                    borderLeft: isActive ? '2px solid #3b6ef5' : 'none',
                                                     '&:hover': {
-                                                        backgroundColor: isActive ? 'rgba(94,106,210,0.12)' : 'rgba(255,255,255,0.04)',
+                                                        backgroundColor: isActive ? 'rgba(59,110,245,0.12)' : 'rgba(255,255,255,0.04)',
                                                         '& .MuiListItemText-primary': {
                                                             color: isActive ? '#f0f0f0' : '#888888',
                                                         }
@@ -423,8 +423,8 @@ const MainLayout = () => {
                                 key={notif.id}
                                 disablePadding
                                 sx={{
-                                    borderLeft: notif.isRead ? 'none' : '2px solid #5e6ad2',
-                                    bgcolor: notif.isRead ? 'transparent' : 'rgba(94,106,210,0.05)',
+                                    borderLeft: notif.isRead ? 'none' : '2px solid #3b6ef5',
+                                    bgcolor: notif.isRead ? 'transparent' : 'rgba(59,110,245,0.05)',
                                 }}
                             >
                                 <ListItemButton
@@ -476,7 +476,7 @@ const MainLayout = () => {
                         }}
                         sx={{ justifyContent: 'center', borderRadius: 1 }}
                     >
-                        <Typography sx={{ fontSize: '13px', color: '#5e6ad2', fontWeight: 500 }}>
+                        <Typography sx={{ fontSize: '13px', color: '#3b6ef5', fontWeight: 500 }}>
                             View All Notifications
                         </Typography>
                     </ListItemButton>

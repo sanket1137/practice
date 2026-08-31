@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 
 import './i18n'
 import './index.css'
+import './tailwind.css'
 import App from './App.tsx'
 
 Sentry.init({

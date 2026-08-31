@@ -6,6 +6,7 @@ Also includes HTTP polling fallback for answers/ICE candidates.
 
 import asyncio
 import logging
+import time
 import requests
 from signalrcore.hub_connection_builder import HubConnectionBuilder
 
@@ -32,6 +33,9 @@ class SimpleWebRTCClient:
     async def start(self):
         """Start the WebRTC client and streaming."""
         logger.info("[WebRTC] ========== START CALLED ==========")
+        # Captured so SignalR's websocket-thread callbacks can hand coroutines
+        # back to this loop (see _schedule).
+        self._loop = asyncio.get_running_loop()
         logger.info(f"[WebRTC] Config enabled: {self.config.get('enabled', False)}")
         logger.info(f"[WebRTC] API URL: {self.api_url}")
         logger.info(f"[WebRTC] Screen ID: {self.screen_id}")
@@ -86,37 +90,8 @@ class SimpleWebRTCClient:
             
             # CRITICAL: Register with StreamingHub so it knows our connection ID
             logger.info("[WebRTC] Step 6: Registering with StreamingHub...")
-            try:
-                # Call RegisterStream hub method
-                await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    self.connection.send,
-                    "RegisterStream",
-                    [self.screen_id, self.api_key or "test-key"]
-                )
-                logger.info("[WebRTC] OK - Registered with StreamingHub!")
-            except Exception as e:
-                logger.error(f"[WebRTC] WARNING: SignalR RegisterStream failed: {e}")
-                logger.info("[WebRTC] Falling back to HTTP registration...")
-            
-            # Also use HTTP registration as backup
-            logger.info("[WebRTC] Step 7: Registering stream via HTTP (backup)...")
-            try:
-                import requests
-                response = requests.post(
-                    f"{self.api_url}/api/streaming/register",
-                    json={
-                        "screenId": self.screen_id,
-                        "apiKey": self.api_key
-                    },
-                    timeout=5
-                )
-                if response.status_code == 200:
-                    logger.info(f"[WebRTC] OK - Stream registered via HTTP: {response.json().get('message')}")
-                else:
-                    logger.warning(f"[WebRTC] HTTP registration status: {response.status_code}")
-            except Exception as e:
-                logger.error(f"[WebRTC] HTTP registration error: {e}")
+            self._register_stream(log_success=True)
+            logger.info("[WebRTC] Step 7: Registration done (hub + HTTP backup)")
             
             # Start streaming
             quality = self.config.get('quality', '720p')
@@ -148,42 +123,81 @@ class SimpleWebRTCClient:
             traceback.print_exc()
             raise
     
-    def handle_viewer_connected(self, viewer_id):
+    # ── SignalR hub callbacks ─────────────────────────────────────────────
+    # Two hard-won constraints, both discovered when the server's push path
+    # came alive (stream re-registration keeps the hub's broadcaster mapping
+    # fresh, so pushes now actually reach us):
+    #  1. signalrcore invokes these on its websocket thread, which has NO
+    #     asyncio event loop — asyncio.create_task() there raises "no running
+    #     event loop" and the coroutine is silently never awaited. Work must
+    #     be handed to the main loop via run_coroutine_threadsafe.
+    #  2. signalrcore passes the hub message's argument ARRAY as a single
+    #     list parameter (e.g. ['<viewerId>', '<sdp>']), not unpacked args.
+
+    def _schedule(self, coro, what):
+        """Hand a coroutine to the main asyncio loop from any thread."""
+        loop = getattr(self, "_loop", None)
+        if loop is None or loop.is_closed():
+            logger.warning(f"[WebRTC] Dropping {what}: main event loop unavailable")
+            coro.close()
+            return
+        asyncio.run_coroutine_threadsafe(coro, loop)
+
+    @staticmethod
+    def _hub_args(args):
+        """Normalize signalrcore's single-list callback argument."""
+        return args if isinstance(args, list) else [args]
+
+    def handle_viewer_connected(self, args):
         """Handle new viewer connection."""
+        viewer_id = self._hub_args(args)[0]
         logger.info(f"[WebRTC] >>> VIEWER CONNECTED EVENT: {viewer_id}")
         if self.streamer:
-            # SignalR callbacks MUST be sync, so schedule the async work
-            asyncio.create_task(self._async_handle_viewer(viewer_id))
-    
-    def handle_answer(self, viewer_id, answer_sdp):
+            self._schedule(self._async_handle_viewer(viewer_id), "viewer-connected")
+
+    def handle_answer(self, args):
         """Handle SDP answer from viewer."""
+        parts = self._hub_args(args)
+        viewer_id, answer_sdp = parts[0], parts[1]
         logger.info(f"[WebRTC] >>> ANSWER RECEIVED from {viewer_id}")
         if self.streamer:
-            asyncio.create_task(self._async_handle_answer(viewer_id, answer_sdp))
-    
-    def handle_ice_candidate(self, viewer_id, candidate_json):
+            self._schedule(self._async_handle_answer(viewer_id, answer_sdp), "answer")
+
+    def handle_ice_candidate(self, args):
         """Handle ICE candidate from viewer."""
+        parts = self._hub_args(args)
+        viewer_id, candidate_json = parts[0], parts[1]
         logger.info(f"[WebRTC] >>> ICE CANDIDATE from {viewer_id}")
         if self.streamer:
-            asyncio.create_task(self._async_handle_ice(viewer_id, candidate_json))
-    
-    def handle_last_viewer(self, screen_id):
+            self._schedule(self._async_handle_ice(viewer_id, candidate_json), "ice-candidate")
+
+    def handle_last_viewer(self, args):
         """Handle when last viewer disconnects."""
-        logger.info(f"[WebRTC] >>> LAST VIEWER DISCONNECTED from {screen_id}")
-    
-    def handle_viewer_disconnected(self, viewer_id):
+        logger.info(f"[WebRTC] >>> LAST VIEWER DISCONNECTED from {self._hub_args(args)[0] if args else '?'}")
+
+    def handle_viewer_disconnected(self, args):
         """Handle when a specific viewer disconnects (stops watching)."""
+        viewer_id = self._hub_args(args)[0]
         logger.info(f"[WebRTC] >>> VIEWER DISCONNECTED EVENT: {viewer_id}")
         if self.streamer:
-            asyncio.create_task(self._async_handle_viewer_disconnect(viewer_id))
+            self._schedule(self._async_handle_viewer_disconnect(viewer_id), "viewer-disconnect")
     
     async def _async_handle_viewer(self, viewer_id):
         """Async wrapper for viewer connection."""
         try:
-            # Add to known_viewers to prevent HTTP poll from also handling this viewer
+            # Add to known_viewers to prevent HTTP poll from also handling this viewer.
+            # _setup_in_progress shields the id from the poll loop's stale-entry
+            # prune while the peer connection is still being built (it only
+            # appears in streamer.peer_connections a few seconds in).
+            if not hasattr(self, '_setup_in_progress'):
+                self._setup_in_progress = set()
+            self._setup_in_progress.add(viewer_id)
             if hasattr(self, '_known_viewers'):
                 self._known_viewers.add(viewer_id)
-            await self.streamer.handle_viewer_connected(viewer_id)
+            try:
+                await self.streamer.handle_viewer_connected(viewer_id)
+            finally:
+                self._setup_in_progress.discard(viewer_id)
             logger.info(f"[WebRTC] Viewer {viewer_id} setup complete")
         except Exception as e:
             logger.error(f"[WebRTC] Error handling viewer: {e}")
@@ -223,21 +237,80 @@ class SimpleWebRTCClient:
             import traceback
             traceback.print_exc()
     
+    def _register_stream(self, log_success=False):
+        """Register (or re-register) this player as the broadcaster for its screen.
+
+        Idempotent on the server: RegisterStream simply refreshes the
+        screen -> connection-id mapping and re-announces OnStreamAvailable to
+        any waiting viewers. Called at startup AND periodically from the poll
+        loop, because the server keeps stream registrations in process memory —
+        every backend restart/deploy silently wipes them, after which viewers
+        get "Waiting for player to start streaming..." even though this player
+        is alive. Periodic re-registration heals that within a minute.
+        """
+        try:
+            self.connection.send("RegisterStream", [self.screen_id, self.api_key or "test-key"])
+            if log_success:
+                logger.info("[WebRTC] OK - Registered with StreamingHub!")
+            else:
+                logger.info("[WebRTC] Stream registration refreshed (hub)")
+        except Exception as e:
+            logger.warning(f"[WebRTC] SignalR RegisterStream failed (HTTP backup still runs): {e}")
+
+        try:
+            response = requests.post(
+                f"{self.api_url}/api/v1/streaming/register",
+                json={"screenId": self.screen_id, "apiKey": self.api_key},
+                timeout=5
+            )
+            if response.status_code == 200:
+                if log_success:
+                    logger.info(f"[WebRTC] OK - Stream registered via HTTP: {response.json().get('message')}")
+            else:
+                logger.warning(f"[WebRTC] HTTP registration status: {response.status_code}")
+        except Exception as e:
+            logger.warning(f"[WebRTC] HTTP registration error: {e}")
+
     async def _poll_for_answers_and_ice(self):
         """Poll HTTP endpoints for viewers, answers, and ICE candidates (fallback for SignalR)."""
         logger.info("[WebRTC-Poll] Starting HTTP polling loop for viewers/answers/ICE...")
         poll_interval = 0.5  # 500ms
+        # Re-register the stream every 60 real seconds — time-based, not
+        # poll-count-based: each loop iteration takes ~4-5s wall clock (three
+        # sequential HTTP round-trips plus the sleep), so counting iterations
+        # would stretch the interval by an order of magnitude.
+        reregister_interval_seconds = 60
+        last_register_monotonic = time.monotonic()
         # Use instance variable so disconnect handler can access it
         self._known_viewers = set()
         known_viewers = self._known_viewers  # Local reference for convenience
-        
+
         poll_count = 0
         while self.is_running:
             try:
                 poll_count += 1
+                if time.monotonic() - last_register_monotonic >= reregister_interval_seconds:
+                    last_register_monotonic = time.monotonic()
+                    await asyncio.get_event_loop().run_in_executor(None, self._register_stream)
+
+                # Self-heal the dedup set: a viewer whose peer connection has
+                # died (consent expiry, tab backgrounded, network blip) stays in
+                # the server's pending list when they re-request — but their id
+                # sitting in known_viewers made this loop skip them forever, so
+                # a dropped viewer could never get a fresh offer. If the
+                # streamer no longer holds a live peer for a known id, forget
+                # it so the next poll re-offers.
+                if self.streamer and self._known_viewers:
+                    in_progress = getattr(self, '_setup_in_progress', set())
+                    stale = [v for v in self._known_viewers
+                             if v not in self.streamer.peer_connections and v not in in_progress]
+                    for v in stale:
+                        self._known_viewers.discard(v)
+                        logger.info(f"[WebRTC-Poll] Viewer {v} has no live peer connection - eligible to reconnect")
+
                 # CRITICAL: Poll for pending viewers first!
                 try:
-                    poll_url = f"{self.api_url}/api/streaming/pending-viewers/{self.screen_id}"
+                    poll_url = f"{self.api_url}/api/v1/streaming/pending-viewers/{self.screen_id}"
                     response = requests.get(poll_url, timeout=3)
                     if response.status_code == 200:
                         data = response.json()
@@ -268,7 +341,7 @@ class SimpleWebRTCClient:
                 # Poll for pending answers
                 try:
                     response = requests.get(
-                        f"{self.api_url}/api/streaming/pending-answers/{self.screen_id}",
+                        f"{self.api_url}/api/v1/streaming/pending-answers/{self.screen_id}",
                         timeout=3
                     )
                     if response.status_code == 200:
@@ -286,7 +359,7 @@ class SimpleWebRTCClient:
                 # Poll for pending ICE candidates
                 try:
                     response = requests.get(
-                        f"{self.api_url}/api/streaming/pending-viewer-ice/{self.screen_id}",
+                        f"{self.api_url}/api/v1/streaming/pending-viewer-ice/{self.screen_id}",
                         timeout=3
                     )
                     if response.status_code == 200:

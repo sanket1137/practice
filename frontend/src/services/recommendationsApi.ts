@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+﻿import api from './api';
 
 export interface ScreenRecommendationRequest {
   objective?: string;
@@ -39,7 +39,7 @@ export interface RecommendedScreen {
 
 export const recommendationsApi = {
   getRecommendations: async (request: ScreenRecommendationRequest): Promise<RecommendedScreen[]> => {
-    const { data } = await axios.post('/api/v1/recommendations/screens', request);
+    const { data } = await api.post('/recommendations/screens', request);
     return data.data?.screens ?? [];
   },
 };

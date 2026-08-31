@@ -28,7 +28,11 @@ public class PlayerController : ControllerBase
     private readonly PlaylistGeneratorService _playlistService;
     private readonly IRepository<Impression> _impressionRepository;
     private readonly IRepository<OwnerContent> _ownerContentRepository;
-    private readonly IHubContext<PlayerHub> _hubContext;
+    // PlaybackHub is the ONLY real-time channel: the dashboard and every player
+    // platform connect to /hubs/playback. Broadcasts used to go to PlayerHub — a
+    // legacy hub nothing connected to — so screen-online and impression events
+    // never reached any dashboard.
+    private readonly IHubContext<PlaybackHub> _hubContext;
     private readonly ILogger<PlayerController> _logger;
     private readonly ITimeZoneService _timeZoneService;
     private readonly PlayerDeviceManager _deviceManager;
@@ -38,17 +42,36 @@ public class PlayerController : ControllerBase
     // Cache valid owner content IDs to avoid repeated DB lookups
     private HashSet<Guid>? _validOwnerContentIds;
 
+    /// <summary>
+    /// Verifies a player's API key on requests after handshake (sync/heartbeat).
+    /// Mirrors Handshake's own (now strict) check — a screen with no key
+    /// configured is rejected, and a stolen screenId alone is never sufficient
+    /// to fake heartbeats or inject impressions for someone else's screen.
+    /// </summary>
+    private bool VerifyApiKey(Screen screen, string? providedApiKey)
+    {
+        if (string.IsNullOrEmpty(screen.ApiKeyHash))
+        {
+            return false;
+        }
+
+        return !string.IsNullOrEmpty(providedApiKey) && BCrypt.Net.BCrypt.Verify(providedApiKey, screen.ApiKeyHash);
+    }
+
+    private readonly CCMS.Api.Security.PlayerSessionStore _sessionStore;
+
     public PlayerController(
         IRepository<Screen> screenRepository,
         PlaylistGeneratorService playlistService,
         IRepository<Impression> impressionRepository,
         IRepository<OwnerContent> ownerContentRepository,
-        IHubContext<PlayerHub> hubContext,
+        IHubContext<PlaybackHub> hubContext,
         ILogger<PlayerController> logger,
         ITimeZoneService timeZoneService,
         PlayerDeviceManager deviceManager,
         ICmsPlaylistService cmsPlaylistService,
-        ApplicationDbContext dbContext)
+        ApplicationDbContext dbContext,
+        CCMS.Api.Security.PlayerSessionStore sessionStore)
     {
         _screenRepository = screenRepository;
         _playlistService = playlistService;
@@ -60,6 +83,7 @@ public class PlayerController : ControllerBase
         _deviceManager = deviceManager;
         _cmsPlaylistService = cmsPlaylistService;
         _dbContext = dbContext;
+        _sessionStore = sessionStore;
     }
 
     /// <summary>
@@ -84,22 +108,25 @@ public class PlayerController : ControllerBase
                 return NotFound(ApiResponse<HandshakeResponse>.ErrorResponse("Screen not found"));
             }
 
-            // Verify API key using BCrypt
-            if (!string.IsNullOrEmpty(screen.ApiKeyHash))
+            // Verify API key using BCrypt. A screen with no key configured is
+            // rejected rather than allowed through — knowing a screen's GUID
+            // must never be sufficient on its own to pull its playlist/handshake.
+            // If this ever legitimately fires for a real screen, generate an
+            // API key for it from the dashboard rather than relaxing this check.
+            if (string.IsNullOrEmpty(screen.ApiKeyHash))
             {
-                // Verify the raw API key against stored BCrypt hash
-                if (string.IsNullOrEmpty(request.ApiKey) || 
-                    !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
-                {
-                    _logger.LogWarning($"Handshake failed: Invalid API key for screen {request.ScreenId}");
-                    return Unauthorized(ApiResponse<HandshakeResponse>.ErrorResponse("Invalid API key"));
-                }
-                _logger.LogDebug($"API key verified for screen {request.ScreenId}");
+                _logger.LogWarning($"Handshake failed: screen {request.ScreenId} has no API key configured");
+                return Unauthorized(ApiResponse<HandshakeResponse>.ErrorResponse(
+                    "Screen has no API key configured. Generate one from the dashboard before pairing this player."));
             }
-            else
+
+            if (string.IsNullOrEmpty(request.ApiKey) ||
+                !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
             {
-                _logger.LogWarning($"Screen {request.ScreenId} has no API key configured - allowing access");
+                _logger.LogWarning($"Handshake failed: Invalid API key for screen {request.ScreenId}");
+                return Unauthorized(ApiResponse<HandshakeResponse>.ErrorResponse("Invalid API key"));
             }
+            _logger.LogDebug($"API key verified for screen {request.ScreenId}");
 
             // Validate device fingerprint if provided
             string deviceBindingStatus = "not_provided";
@@ -126,10 +153,11 @@ public class PlayerController : ControllerBase
             screen.IsOnline = true;
             await _screenRepository.UpdateAsync(screen);
 
-            // Broadcast status change to dashboard
-            // Note: Use underscore to match PlaybackHub group naming convention
-            await _hubContext.Clients.Group($"screen_{request.ScreenId}")
-                .SendAsync("OnScreenStatusChanged", new
+            // Broadcast status change. "ScreenStatusChanged" is the single canonical
+            // event name for online/offline transitions; sent to All because
+            // screens-list pages are not subscribed to per-screen groups.
+            await _hubContext.Clients.All
+                .SendAsync("ScreenStatusChanged", new
                 {
                     screenId = request.ScreenId,
                     isOnline = true,
@@ -171,6 +199,17 @@ public class PlayerController : ControllerBase
             var sessionToken = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
             var serverSalt = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
             var sessionExpiresAt = DateTime.UtcNow.AddHours(24);
+
+            // Registers this session so PlayerAuthFilter can verify signed
+            // requests keyed by this token (see PlayerAuthenticationService.ValidateSignature).
+            _sessionStore.StoreSession(request.ScreenId, new CCMS.Api.Security.PlayerSession
+            {
+                ScreenId = request.ScreenId,
+                Token = sessionToken,
+                Salt = serverSalt,
+                ExpiresAt = sessionExpiresAt,
+                DeviceFingerprint = request.DeviceFingerprint ?? string.Empty
+            });
 
             _logger.LogInformation($"Handshake successful for screen {request.ScreenId} (device: {deviceBindingStatus})");
 
@@ -310,6 +349,12 @@ public class PlayerController : ControllerBase
                 return StatusCode(403, ApiResponse<SyncResponse>.ErrorResponse(
                     "Screen requires verification before it can sync impressions. " +
                     "Please complete the QR verification process."));
+            }
+
+            if (!VerifyApiKey(screen, request.ApiKey))
+            {
+                _logger.LogWarning("Sync rejected: invalid API key for screen {ScreenId}", request.ScreenId);
+                return Unauthorized(ApiResponse<SyncResponse>.ErrorResponse("Invalid API key"));
             }
 
             // Update screen status
@@ -622,6 +667,12 @@ public class PlayerController : ControllerBase
                 return NotFound(ApiResponse<HeartbeatResponse>.ErrorResponse("Screen not found"));
             }
 
+            if (!VerifyApiKey(screen, request.ApiKey))
+            {
+                _logger.LogWarning("Heartbeat rejected: invalid API key for screen {ScreenId}", request.ScreenId);
+                return Unauthorized(ApiResponse<HeartbeatResponse>.ErrorResponse("Invalid API key"));
+            }
+
             // Update last seen timestamp
             var wasOffline = !screen.IsOnline;
             screen.LastSeenAt = DateTime.UtcNow;
@@ -632,9 +683,8 @@ public class PlayerController : ControllerBase
             if (wasOffline)
             {
                 _logger.LogInformation($"Screen {request.ScreenId} came online");
-                // Note: Use underscore to match PlaybackHub group naming convention
-                await _hubContext.Clients.Group($"screen_{request.ScreenId}")
-                    .SendAsync("OnScreenStatusChanged", new
+                await _hubContext.Clients.All
+                    .SendAsync("ScreenStatusChanged", new
                     {
                         screenId = request.ScreenId,
                         isOnline = true,
@@ -674,12 +724,14 @@ public class HandshakeRequest
 public class SyncRequest
 {
     public string ScreenId { get; set; } = string.Empty;
+    public string? ApiKey { get; set; }
     public DailySyncData SyncData { get; set; } = null!;
 }
 
 public class HeartbeatRequest
 {
     public string ScreenId { get; set; } = string.Empty;
+    public string? ApiKey { get; set; }
 }
 
 public class HeartbeatResponse

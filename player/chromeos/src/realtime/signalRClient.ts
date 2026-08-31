@@ -29,10 +29,15 @@ export class SignalRClient {
     this.stopped = false;
     const baseUrl = this.config.serverUrl.replace(/\/+$/, '');
 
+    // screenId/apiKey are sent as query params (not accessTokenFactory — the
+    // server's JWT bearer handler treats `access_token` as a JWT, which a raw
+    // API key is not). The server BCrypt-verifies these against Screen.ApiKeyHash
+    // in OnConnectedAsync and binds this connection to that screen id before
+    // any hub method is allowed to run.
+    const hubUrl = `${baseUrl}/hubs/playback?screenId=${encodeURIComponent(this.config.screenId)}&apiKey=${encodeURIComponent(this.config.apiKey)}`;
+
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${baseUrl}/hubs/playback`, {
-        accessTokenFactory: () => this.config.apiKey,
-      })
+      .withUrl(hubUrl)
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: (ctx) => {
           // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s max

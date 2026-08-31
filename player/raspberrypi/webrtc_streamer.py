@@ -445,7 +445,7 @@ class WebRTCStreamer:
         logger.info(f"[HTTP] Preparing to send offer to viewer {viewer_id}")
         logger.info(f"[HTTP] Offer SDP length: {len(offer_sdp)} bytes")
         try:
-            url = f"{self.api_url}/api/streaming/send-offer"
+            url = f"{self.api_url}/api/v1/streaming/send-offer"
             logger.info(f"[HTTP] Sending POST to {url}")
             response = await asyncio.get_event_loop().run_in_executor(
                 None,
@@ -474,7 +474,7 @@ class WebRTCStreamer:
             response = await asyncio.get_event_loop().run_in_executor(
                 None,
                 lambda: requests.post(
-                    f"{self.api_url}/api/streaming/send-ice-candidate",
+                    f"{self.api_url}/api/v1/streaming/send-ice-candidate",
                     json={"viewerId": viewer_id, "candidate": candidate},
                     timeout=5
                 )

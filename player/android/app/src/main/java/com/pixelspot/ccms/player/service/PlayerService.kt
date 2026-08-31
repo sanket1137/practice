@@ -239,7 +239,8 @@ class PlayerService : Service() {
             signalRClient.connect(
                 serverUrl = playerConfig.serverUrl!!,
                 screenId = screenId,
-                deviceId = fingerprint.take(16)
+                deviceId = fingerprint.take(16),
+                apiKey = apiKey
             )
 
             // 4a. Connect CMS control hub for remote commands (CMS-mode screens)

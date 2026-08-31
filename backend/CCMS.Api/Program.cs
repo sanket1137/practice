@@ -232,8 +232,8 @@ builder.Services.AddAuthentication(options =>
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             
-            if (!string.IsNullOrEmpty(accessToken) && 
-                (path.StartsWithSegments("/hubs") || path.StartsWithSegments("/playerhub")))
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs"))
             {
                 context.Token = accessToken;
             }
@@ -273,6 +273,11 @@ builder.Services.AddScoped<IRemoteCommandService, RemoteCommandService>();
 
 // Player API-key auth helper (used by CmsControlHub to gate SubscribePlayer).
 builder.Services.AddSingleton<CCMS.Api.Security.PlayerAuthenticationService>();
+// Session store backing PlayerAuthFilter's request-signature enforcement
+// (see PlayerController.Handshake, which populates it). Singleton: in-memory,
+// single-API-instance only — see PlayerSessionStore's own doc comment.
+builder.Services.AddSingleton<CCMS.Api.Security.PlayerSessionStore>();
+builder.Services.AddScoped<CCMS.Api.Security.PlayerAuthFilter>();
 
 // Email & SMS Services for verification
 builder.Services.AddScoped<IEmailService, EmailService>();
@@ -290,21 +295,43 @@ Log.Information("[CONFIG] FileStorage:Provider = {FileStorageProvider}", fileSto
 // Use Singleton for storage services to reuse connections and avoid repeated initialization
 var localFileService = new LocalFileStorageService(builder.Configuration);
 
+// Local-disk fallback for cloud storage is OPT-IN (FileStorage:EnableLocalFallback).
+// In production a silent fallback is worse than a loud failure: files land on the
+// container host with URLs the CDN/media proxy can't serve, and nobody notices
+// until creatives 404. Uploads must go to the configured cloud store or fail.
+var enableLocalFallback = builder.Configuration.GetValue<bool>("FileStorage:EnableLocalFallback");
+
 if (fileStorageProvider.Equals("AzureBlob", StringComparison.OrdinalIgnoreCase))
 {
     var azureService = new AzureBlobStorageService(builder.Configuration);
-    builder.Services.AddSingleton<IFileStorageService>(sp =>
-        new FallbackFileStorageService(azureService, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
-    Log.Information("Using Azure Blob Storage for file uploads (with Local fallback)");
+    if (enableLocalFallback)
+    {
+        builder.Services.AddSingleton<IFileStorageService>(sp =>
+            new FallbackFileStorageService(azureService, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
+        Log.Information("Using Azure Blob Storage for file uploads (with Local fallback)");
+    }
+    else
+    {
+        builder.Services.AddSingleton<IFileStorageService>(azureService);
+        Log.Information("Using Azure Blob Storage for file uploads (no local fallback — uploads fail loudly if Azure is unreachable)");
+    }
 }
 else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 {
     var r2Service = new R2StorageService(builder.Configuration);
     builder.Services.AddSingleton(r2Service);
     builder.Services.AddSingleton<IPresignedUploadService>(r2Service);
-    builder.Services.AddSingleton<IFileStorageService>(sp =>
-        new FallbackFileStorageService(r2Service, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
-    Log.Information("Using Cloudflare R2 Storage for file uploads (with Local fallback)");
+    if (enableLocalFallback)
+    {
+        builder.Services.AddSingleton<IFileStorageService>(sp =>
+            new FallbackFileStorageService(r2Service, localFileService, sp.GetRequiredService<ILogger<FallbackFileStorageService>>()));
+        Log.Information("Using Cloudflare R2 Storage for file uploads (with Local fallback)");
+    }
+    else
+    {
+        builder.Services.AddSingleton<IFileStorageService>(r2Service);
+        Log.Information("Using Cloudflare R2 Storage for file uploads (no local fallback — uploads fail loudly if R2 is unreachable)");
+    }
 }
 else
 {
@@ -407,6 +434,7 @@ builder.Services.AddScoped<PlayerDeviceManager>();
 
 // Real-time notification services
 builder.Services.AddScoped<CCMS.Application.Interfaces.IPlaylistNotificationService, CCMS.Api.Services.PlaylistNotificationService>();
+builder.Services.AddScoped<CCMS.Application.Interfaces.IScreenNotificationService, CCMS.Api.Services.ScreenNotificationService>();
 builder.Services.AddScoped<CCMS.Application.Interfaces.IBookingNotificationService, CCMS.Api.Services.BookingNotificationService>();
 
 // TimeZone Service (Singleton for performance)
@@ -416,7 +444,9 @@ builder.Services.AddSingleton<ITimeZoneService, TimeZoneService>();
 builder.Services.AddHostedService<CCMS.Api.Services.ScreenStatusMonitor>();
 
 // Add impression flush service (background timer-based flush)
-builder.Services.AddHostedService<CCMS.Api.Services.ImpressionFlushService>();
+// ImpressionFlushService was removed along with PlaybackHub's in-memory
+// impression buffer: hub playback events are real-time signals only, and
+// impression persistence happens exclusively via POST /player/sync (deduped).
 
 // Add stream expiry service (auto-cleanup stale streams)
 builder.Services.AddHostedService<CCMS.Api.Services.StreamExpiryService>();
@@ -519,7 +549,10 @@ app.UseStaticFiles(new StaticFileOptions
 // SignalR Hub - Map BEFORE authentication to allow negotiate endpoint
 // Authentication is skipped for negotiate, then enforced in hub methods if needed
 app.MapHub<PlaybackHub>("/hubs/playback").AllowAnonymous();
-app.MapHub<PlayerHub>("/playerhub").AllowAnonymous();
+// PlayerHub (/playerhub) was removed: it was a legacy duplicate of PlaybackHub
+// that no client ever connected to, yet several services broadcast into it —
+// silently losing screen-online and impression events. PlaybackHub is the single
+// real-time channel for players and dashboards alike.
 app.MapHub<StreamingHub>("/hubs/streaming"); // WebRTC signaling hub (requires auth)
 app.MapHub<NotificationHub>("/hubs/notifications"); // Notification push (requires auth)
 // CmsControlHub accepts both dashboards (JWT) and players (API key).
@@ -632,6 +665,15 @@ using (var scope = app.Services.CreateScope())
         catch (Exception seedEx)
         {
             seedLogger.LogWarning(seedEx, "FestivalSeeder failed.");
+        }
+
+        try
+        {
+            await R2UrlFixup.FixBrokenPublicUrlsAsync(context, seedLogger);
+        }
+        catch (Exception fixupEx)
+        {
+            seedLogger.LogWarning(fixupEx, "R2UrlFixup failed.");
         }
     }
     catch (Exception ex)

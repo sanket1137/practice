@@ -29,7 +29,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import axios from 'axios';
+import api from '../../services/api';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ interface UpsertLedZoneRequest {
 function useLedZones(screenId: string) {
   return useQuery<LedZoneDto[]>({
     queryKey: ['led-zones', screenId],
-    queryFn: () => axios.get(`/api/v1/led/screens/${screenId}/zones`).then((r) => r.data),
+    queryFn: () => api.get(`/led/screens/${screenId}/zones`).then((r) => r.data),
     staleTime: 0,
   });
 }
@@ -76,8 +76,8 @@ function useUpsertLedZone(screenId: string) {
   return useMutation({
     mutationFn: ({ zoneId, data }: { zoneId?: string; data: UpsertLedZoneRequest }) =>
       zoneId
-        ? axios.put(`/api/v1/led/screens/${screenId}/zones/${zoneId}`, data)
-        : axios.post(`/api/v1/led/screens/${screenId}/zones`, data),
+        ? api.put(`/led/screens/${screenId}/zones/${zoneId}`, data)
+        : api.post(`/led/screens/${screenId}/zones`, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['led-zones', screenId] }),
   });
 }
@@ -86,7 +86,7 @@ function useDeleteLedZone(screenId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (zoneId: string) =>
-      axios.delete(`/api/v1/led/screens/${screenId}/zones/${zoneId}`),
+      api.delete(`/led/screens/${screenId}/zones/${zoneId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['led-zones', screenId] }),
   });
 }

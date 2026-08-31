@@ -12,14 +12,17 @@ public class ScreenStatusMonitor : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ScreenStatusMonitor> _logger;
-    private readonly IHubContext<PlayerHub> _hubContext;
+    private readonly IHubContext<PlaybackHub> _hubContext;
     private const int CHECK_INTERVAL_SECONDS = 30;
-    private const int OFFLINE_TIMEOUT_SECONDS = 60;
+    // Pi players heartbeat every 30s; 90s tolerates one missed beat plus network
+    // jitter before declaring a screen offline, instead of flapping on a single
+    // slow request.
+    private const int OFFLINE_TIMEOUT_SECONDS = 90;
 
     public ScreenStatusMonitor(
         IServiceProvider serviceProvider,
         ILogger<ScreenStatusMonitor> logger,
-        IHubContext<PlayerHub> hubContext)
+        IHubContext<PlaybackHub> hubContext)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -65,10 +68,10 @@ public class ScreenStatusMonitor : BackgroundService
                 screen.IsOnline = false;
                 await screenRepository.UpdateAsync(screen);
 
-                // Broadcast status change to dashboard
-                // Note: Use underscore to match PlaybackHub group naming convention
-                await _hubContext.Clients.Group($"screen_{screen.Id}")
-                    .SendAsync("OnScreenStatusChanged", new
+                // Broadcast the canonical ScreenStatusChanged event to everyone —
+                // screens-list pages are not in per-screen groups.
+                await _hubContext.Clients.All
+                    .SendAsync("ScreenStatusChanged", new
                     {
                         screenId = screen.Id.ToString(),
                         isOnline = false,

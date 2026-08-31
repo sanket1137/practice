@@ -68,12 +68,17 @@ class SignalRClient @Inject constructor() {
     /**
      * Initialize and connect to the SignalR hub.
      */
-    fun connect(serverUrl: String, screenId: String, deviceId: String) {
+    fun connect(serverUrl: String, screenId: String, deviceId: String, apiKey: String) {
         this.serverUrl = serverUrl
         this.screenId = screenId
         this.deviceId = deviceId
 
-        val url = "${serverUrl.trimEnd('/')}$HUB_PATH?clientType=player"
+        // screenId/apiKey let the server BCrypt-verify this connection against
+        // Screen.ApiKeyHash in OnConnectedAsync and bind it to this screen id
+        // before RegisterDevice/AdStarted/AdCompleted are allowed to run.
+        val encodedScreenId = java.net.URLEncoder.encode(screenId, "UTF-8")
+        val encodedApiKey = java.net.URLEncoder.encode(apiKey, "UTF-8")
+        val url = "${serverUrl.trimEnd('/')}$HUB_PATH?screenId=$encodedScreenId&apiKey=$encodedApiKey"
 
         hubConnection = HubConnectionBuilder.create(url).build().apply {
             // ── Register event handlers ──

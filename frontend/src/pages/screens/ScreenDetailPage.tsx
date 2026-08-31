@@ -41,7 +41,7 @@ import {
     DevicesOther as DevicesIcon,
     Verified as VerifiedIcon,
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
@@ -61,7 +61,7 @@ import RevenueEstimateCard, { type RevenueEstimate } from '../../components/scre
 import SelfReserveDialog from '../../components/bookings/SelfReserveDialog';
 import VerificationTab from '../../components/screens/VerificationTab';
 import { ScreenAvailabilityCalendar } from '../../components/screens/ScreenAvailabilityCalendar';
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { getScreenTags } from '../../services/screenTagsService';
 import type { ScreenTagDetail, ScreenImage } from '../../types/screen';
 
@@ -213,6 +213,20 @@ export default function ScreenDetailPage() {
 
     // Get current tab id
     const currentTabId = tabs[activeTab]?.id || 'overview';
+
+    // Deep-linking: honour ?tab=<id> (e.g. the campaign page's "Watch live"
+    // button links to ?tab=live-stream). Runs whenever the tab list settles —
+    // access-gated tabs (live-stream) appear only after the access check loads.
+    const [searchParams] = useSearchParams();
+    const requestedTab = searchParams.get('tab');
+    useEffect(() => {
+        if (!requestedTab) return;
+        const index = tabs.findIndex(t => t.id === requestedTab);
+        if (index >= 0 && index !== activeTab) {
+            setActiveTab(index);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [requestedTab, tabs]);
 
     if (isLoading) {
         return (

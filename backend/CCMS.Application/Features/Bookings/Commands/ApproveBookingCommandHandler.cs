@@ -6,6 +6,7 @@ using CCMS.Domain.Enums;
 using CCMS.Domain.Interfaces;
 using CCMS.Shared.DTOs.Bookings;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Linq;
 
@@ -24,6 +25,14 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
     private readonly IBookingNotificationService _notificationService;
     private readonly ILogger<ApproveBookingCommandHandler> _logger;
 
+    /// <summary>
+    /// Mirrors the wizard's Payments:RequirePrepayment switch. While false no payment is
+    /// collected anywhere, so approval must not try to open a Razorpay order — with no
+    /// Razorpay keys configured that call throws "Authentication failed" and turns every
+    /// approval into a 500.
+    /// </summary>
+    private readonly bool _requirePrepayment;
+
     public ApproveBookingCommandHandler(
         IRepository<Booking> bookingRepository,
         IRepository<Screen> screenRepository,
@@ -34,8 +43,11 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
         IUnitOfWork unitOfWork,
         IMapper mapper,
         IBookingNotificationService notificationService,
-        ILogger<ApproveBookingCommandHandler> logger)
+        ILogger<ApproveBookingCommandHandler> logger,
+        IConfiguration configuration)
     {
+        _requirePrepayment = bool.TryParse(configuration["Payments:RequirePrepayment"], out var requirePrepayment)
+            && requirePrepayment;
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
         _creativeRepository = creativeRepository;
@@ -127,8 +139,10 @@ public class ApproveBookingCommandHandler : IRequestHandler<ApproveBookingComman
             await _creativeRepository.UpdateAsync(creative, cancellationToken);
         }
 
-        // Skip payment for self-reserved bookings with internal payment
-        if (booking.Source != Domain.Enums.BookingSource.SelfReserved || !booking.IsInternalPayment)
+        // Skip payment collection entirely while prepayment is disabled, and for
+        // self-reserved bookings that settle internally.
+        if (_requirePrepayment
+            && (booking.Source != Domain.Enums.BookingSource.SelfReserved || !booking.IsInternalPayment))
         {
             // Create Razorpay order for payment collection
             var receipt = $"booking_{booking.Id:N}";

@@ -99,6 +99,11 @@ To update configuration:
 sudo apt-get update
 sudo apt-get install -y python3-pip python3-venv vlc ffmpeg libopencv-dev libopenblas-dev
 
+# Required for native gapless playback (python-mpv needs the libmpv shared
+# library, not just the vlc/ffmpeg CLIs above). Package name differs by
+# release — try libmpv2 first, fall back to libmpv1 on older Bullseye images.
+sudo apt-get install -y libmpv2 || sudo apt-get install -y libmpv1
+
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
@@ -106,6 +111,12 @@ source venv/bin/activate
 # Install Python dependencies
 pip install -r requirements.txt
 ```
+
+Without `libmpv`, `import mpv` fails at startup and the player silently drops to a per-clip subprocess fallback (VLC/mpv CLI) — playback still works, but transitions between ads are no longer gapless and slot timing can drift. Check `data/PLAYBACK_ENGINE_DEGRADED.flag` and the startup logs to confirm which engine is active.
+
+## Testing on Windows
+
+You don't need Pi hardware to exercise most of the player's logic. See [Testing All Players on Windows](../README.md#testing-all-players-on-windows-development) in the top-level player README for step-by-step instructions, including the libmpv limitation on Windows and how to work around it.
 
 ## Features
 

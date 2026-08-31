@@ -132,10 +132,18 @@ fi
     Write-Info "Archiving local files for transfer (excludes .env, creds.local.md, player/, node_modules, .venv)..."
     if (Test-Path "ccms-deploy.tar") { Remove-Item "ccms-deploy.tar" }
 
+    # uploads/logs/publish are local-only runtime artifacts (dev-time API
+    # output, not source) — production's real uploads volume is ./uploads at
+    # the repo root (see docker-compose.production.yml), not the nested
+    # backend/CCMS.Api/uploads dev path, so excluding it here never touches
+    # live media. Without these excludes the archive picks up whatever local
+    # test uploads/logs/publish output happens to be on disk, which can
+    # balloon it from a few MB of source to hundreds of MB.
     tar --exclude="node_modules" --exclude=".git" --exclude="bin" --exclude="obj" `
         --exclude="dist" --exclude=".venv" --exclude=".vs" --exclude="*.tar" `
         --exclude=".env" --exclude=".env.local" --exclude="creds.local.md" `
         --exclude="player" --exclude="backups" `
+        --exclude="uploads" --exclude="logs" --exclude="publish" `
         -cf ccms-deploy.tar ./backend ./frontend ./nginx ./docker-compose.production.yml
 
     Write-Info "Uploading deployment archive to server..."
@@ -150,13 +158,22 @@ fi
         $deployScript = @"
 set -e
 cd ${RemoteDir}
+
+# Remove the shipped source trees before extracting: tar only adds/overwrites,
+# so files deleted locally would otherwise live forever on the server and can
+# break the Docker build (stale .cs files referencing removed symbols).
+# Only the directories the archive fully re-creates are wiped — .env, uploads/,
+# backups/ and .deployed_tags live at the repo root and are untouched.
+rm -rf backend frontend nginx
 tar -xf ccms-deploy.tar
 rm -f ccms-deploy.tar
 
-# The server's /etc/nginx/nginx.conf is self-contained (has all server{} blocks).
-# We do NOT overwrite it from ssl-nginx.conf to avoid duplicate-directive errors.
-# Just verify nginx config is still valid and reload if needed.
-nginx -t && systemctl reload nginx
+# Host nginx config (TLS termination happens outside Docker — see nginx/README.md).
+# Validate before reloading so a bad config never takes down the currently-serving process.
+cp nginx/ssl-nginx.conf /etc/nginx/sites-available/ccms.conf
+ln -sf /etc/nginx/sites-available/ccms.conf /etc/nginx/sites-enabled/ccms.conf
+nginx -t
+systemctl reload nginx
 
 export IMAGE_TAG=$ImageTag
 docker compose -f docker-compose.production.yml build

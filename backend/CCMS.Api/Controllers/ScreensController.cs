@@ -1332,25 +1332,22 @@ public class ScreensController : ControllerBase
                 query = query.Where(s => s.ResolutionHeight >= request.MinResolutionHeight.Value);
             }
 
-            // Daily impressions range
-            if (request.MinDailyImpressions.HasValue)
-            {
-                query = query.Where(s => s.DailyTotalImpressions >= request.MinDailyImpressions.Value);
-            }
-            if (request.MaxDailyImpressions.HasValue)
-            {
-                query = query.Where(s => s.DailyTotalImpressions <= request.MaxDailyImpressions.Value);
-            }
-
-            // CPM range (computed: PricePerSlot * 1000 / ImpressionsPerSlot). Filter only where ImpressionsPerSlot > 0.
-            if (request.MinCpm.HasValue)
-            {
-                query = query.Where(s => s.ImpressionsPerSlot > 0 && (s.PricePerSlot * 1000m / s.ImpressionsPerSlot) >= request.MinCpm.Value);
-            }
-            if (request.MaxCpm.HasValue)
-            {
-                query = query.Where(s => s.ImpressionsPerSlot > 0 && (s.PricePerSlot * 1000m / s.ImpressionsPerSlot) <= request.MaxCpm.Value);
-            }
+            // Daily-impressions and CPM filters/sorts are deliberately NOT applied here.
+            // Both derive from Screen.ImpressionsPerSlot, which is an unmapped computed
+            // property backed by a C# method (CalculateImpressionsPerSlot -> Schedule
+            // .GetAverageOperatingHoursPerDay()). EF Core cannot translate it to SQL, so
+            // referencing it in Where/OrderBy threw InvalidOperationException at query
+            // compile time and made this whole endpoint 500 — which is what left the
+            // marketplace/map empty. They are evaluated in memory further down instead,
+            // so the computed property stays the single source of truth for the maths.
+            // Requests that don't use them keep the fully SQL-side path (filter, sort and
+            // paginate in the database) unchanged.
+            var sortBy = request.SortBy?.ToLower();
+            var sortDescending = request.SortDirection?.ToLower() == "desc";
+            var needsInMemoryEvaluation =
+                request.MinDailyImpressions.HasValue || request.MaxDailyImpressions.HasValue ||
+                request.MinCpm.HasValue || request.MaxCpm.HasValue ||
+                sortBy == "impressions" || sortBy == "cpm";
 
             // Online-only filter
             if (request.OnlineOnly == true)
@@ -1426,27 +1423,22 @@ public class ScreensController : ControllerBase
                 query = query.Where(s => s.Status == status);
             }
             
-            // Sorting
-            query = request.SortBy?.ToLower() switch
+            // Sorting. "impressions" and "cpm" fall through to the default ordering here
+            // and are re-sorted in memory below — see needsInMemoryEvaluation above.
+            query = sortBy switch
             {
-                "name" => request.SortDirection?.ToLower() == "desc" 
-                    ? query.OrderByDescending(s => s.Name) 
+                "name" => sortDescending
+                    ? query.OrderByDescending(s => s.Name)
                     : query.OrderBy(s => s.Name),
-                "price" => request.SortDirection?.ToLower() == "desc"
+                "price" => sortDescending
                     ? query.OrderByDescending(s => s.PricePerSlot)
                     : query.OrderBy(s => s.PricePerSlot),
-                "impressions" => request.SortDirection?.ToLower() == "desc"
-                    ? query.OrderByDescending(s => s.DailyTotalImpressions)
-                    : query.OrderBy(s => s.DailyTotalImpressions),
-                "cpm" => request.SortDirection?.ToLower() == "desc"
-                    ? query.OrderByDescending(s => s.ImpressionsPerSlot > 0 ? s.PricePerSlot * 1000m / s.ImpressionsPerSlot : decimal.MaxValue)
-                    : query.OrderBy(s => s.ImpressionsPerSlot > 0 ? s.PricePerSlot * 1000m / s.ImpressionsPerSlot : decimal.MaxValue),
                 "distance" => (request.Latitude.HasValue && request.Longitude.HasValue)
-                    ? (request.SortDirection?.ToLower() == "desc"
+                    ? (sortDescending
                         ? query.OrderByDescending(s => (s.Latitude - request.Latitude.Value) * (s.Latitude - request.Latitude.Value) + (s.Longitude - request.Longitude.Value) * (s.Longitude - request.Longitude.Value))
                         : query.OrderBy(s => (s.Latitude - request.Latitude.Value) * (s.Latitude - request.Latitude.Value) + (s.Longitude - request.Longitude.Value) * (s.Longitude - request.Longitude.Value)))
                     : query.OrderByDescending(s => s.CreatedAt),
-                "created" => request.SortDirection?.ToLower() == "desc"
+                "created" => sortDescending
                     ? query.OrderByDescending(s => s.CreatedAt)
                     : query.OrderBy(s => s.CreatedAt),
                 _ => query.OrderByDescending(s => s.CreatedAt)
@@ -1458,13 +1450,55 @@ public class ScreensController : ControllerBase
             
             // Use split query to avoid Cartesian explosion with tags
             // First get screen IDs and total count in a single efficient query
-            var screenIds = await query
-                .Skip(skip)
-                .Take(pageSize)
-                .Select(s => s.Id)
-                .ToListAsync();
-            
-            var totalCount = await query.CountAsync();
+            List<Guid> screenIds;
+            int totalCount;
+
+            if (needsInMemoryEvaluation)
+            {
+                // Materialise the SQL-filtered set so the computed (unmapped) properties
+                // become available, then filter/sort/paginate over it in memory. Only
+                // requests that actually ask for an impressions/CPM filter or sort pay
+                // this cost; everything else stays fully SQL-side in the branch below.
+                var candidates = await query.ToListAsync();
+
+                if (request.MinDailyImpressions.HasValue)
+                    candidates = candidates.Where(s => s.DailyTotalImpressions >= request.MinDailyImpressions.Value).ToList();
+                if (request.MaxDailyImpressions.HasValue)
+                    candidates = candidates.Where(s => s.DailyTotalImpressions <= request.MaxDailyImpressions.Value).ToList();
+                if (request.MinCpm.HasValue)
+                    candidates = candidates.Where(s => s.ImpressionsPerSlot > 0 && (s.PricePerSlot * 1000m / s.ImpressionsPerSlot) >= request.MinCpm.Value).ToList();
+                if (request.MaxCpm.HasValue)
+                    candidates = candidates.Where(s => s.ImpressionsPerSlot > 0 && (s.PricePerSlot * 1000m / s.ImpressionsPerSlot) <= request.MaxCpm.Value).ToList();
+
+                // Leaves the SQL ordering intact when the sort itself is translatable.
+                var ordered = candidates.AsEnumerable();
+                if (sortBy == "impressions")
+                {
+                    ordered = sortDescending
+                        ? candidates.OrderByDescending(s => s.DailyTotalImpressions)
+                        : candidates.OrderBy(s => s.DailyTotalImpressions);
+                }
+                else if (sortBy == "cpm")
+                {
+                    ordered = sortDescending
+                        ? candidates.OrderByDescending(s => s.ImpressionsPerSlot > 0 ? s.PricePerSlot * 1000m / s.ImpressionsPerSlot : decimal.MaxValue)
+                        : candidates.OrderBy(s => s.ImpressionsPerSlot > 0 ? s.PricePerSlot * 1000m / s.ImpressionsPerSlot : decimal.MaxValue);
+                }
+
+                var matched = ordered.ToList();
+                totalCount = matched.Count;
+                screenIds = matched.Skip(skip).Take(pageSize).Select(s => s.Id).ToList();
+            }
+            else
+            {
+                screenIds = await query
+                    .Skip(skip)
+                    .Take(pageSize)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                totalCount = await query.CountAsync();
+            }
             
             // If no screens, return empty result fast
             if (!screenIds.Any())

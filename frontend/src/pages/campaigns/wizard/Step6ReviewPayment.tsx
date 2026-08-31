@@ -42,6 +42,13 @@ interface Step6Props {
 
 const SLOTS_PER_DAY = 144; // 6 slots/hour × 24h
 
+// Campaigns are currently booked without collecting payment; Razorpay checkout is
+// planned but not implemented yet. While this is false the wallet balance is shown
+// for reference only and never blocks launching. Must be kept in step with the
+// backend's Payments:RequirePrepayment setting, which is what actually decides
+// whether the wallet is debited (see CreateCampaignWizardCommandHandler).
+const REQUIRE_PREPAYMENT = false;
+
 interface SectionHeaderProps {
   icon: React.ReactNode;
   title: string;
@@ -149,7 +156,7 @@ export function Step6ReviewPayment({ onComplete }: Step6Props) {
   const currency = step3?.currency ?? 'INR';
   const walletBalance = wallet?.balance ?? 0;
   const totalCost = projection.estimatedCost > 0 ? projection.estimatedCost : (step3?.budget ?? 0);
-  const canAfford = walletBalance >= totalCost;
+  const canAfford = !REQUIRE_PREPAYMENT || walletBalance >= totalCost;
   const budget = step3?.budget ?? 0;
   const overBudget = budget > 0 && projection.estimatedCost > budget;
 
@@ -477,28 +484,40 @@ export function Step6ReviewPayment({ onComplete }: Step6Props) {
                     {fmtMoney(walletBalance)}
                   </Typography>
                 </Stack>
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Charge to wallet
-                  </Typography>
-                  <Typography variant="body2" fontWeight={600} color="error.main">
-                    −{fmtMoney(totalCost)}
-                  </Typography>
-                </Stack>
-                <Divider />
-                <Stack direction="row" justifyContent="space-between">
-                  <Typography variant="body2" fontWeight={600}>
-                    Balance after
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    fontWeight={700}
-                    color={canAfford ? 'success.main' : 'error.main'}
-                  >
-                    {fmtMoney(walletBalance - totalCost)}
-                  </Typography>
-                </Stack>
+                {REQUIRE_PREPAYMENT && (
+                  <>
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        Charge to wallet
+                      </Typography>
+                      <Typography variant="body2" fontWeight={600} color="error.main">
+                        −{fmtMoney(totalCost)}
+                      </Typography>
+                    </Stack>
+                    <Divider />
+                    <Stack direction="row" justifyContent="space-between">
+                      <Typography variant="body2" fontWeight={600}>
+                        Balance after
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        fontWeight={700}
+                        color={canAfford ? 'success.main' : 'error.main'}
+                      >
+                        {fmtMoney(walletBalance - totalCost)}
+                      </Typography>
+                    </Stack>
+                  </>
+                )}
               </Stack>
+
+              {!REQUIRE_PREPAYMENT && (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  No payment is collected at this step. The campaign is booked now and{' '}
+                  <strong>{fmtMoney(totalCost)}</strong> is recorded as due — online payment is
+                  coming soon.
+                </Alert>
+              )}
 
               {!canAfford && (
                 <Alert
@@ -554,7 +573,11 @@ export function Step6ReviewPayment({ onComplete }: Step6Props) {
                       )
                     }
                   >
-                    {submitting ? 'Creating campaign…' : `Pay ${fmtMoney(totalCost)} & launch`}
+                    {submitting
+                      ? 'Creating campaign…'
+                      : REQUIRE_PREPAYMENT
+                        ? `Pay ${fmtMoney(totalCost)} & launch`
+                        : 'Launch campaign'}
                   </Button>
                 </span>
               </Tooltip>

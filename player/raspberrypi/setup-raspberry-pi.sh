@@ -208,6 +208,12 @@ install_system_dependencies() {
     
     log_info "Installing system dependencies..."
     # Note: libopenblas-dev replaces libatlas-base-dev on Debian Trixie
+    # libmpv2 (or libmpv1 on older Bullseye-based images) is REQUIRED for the
+    # python-mpv binding in requirements.txt to load. Without it, `import mpv`
+    # fails silently and the player falls back to spawning a new VLC process
+    # per clip — which adds multi-second startup overhead to every slot and
+    # breaks gapless playback. Try both package names since they differ by
+    # Debian release.
     apt-get install -y -qq \
         python3 \
         python3-pip \
@@ -235,7 +241,22 @@ install_system_dependencies() {
         xserver-xorg-video-fbdev \
         xinit \
         x11-xserver-utils
-    
+
+    # Install libmpv, trying both package names (differs by Debian release —
+    # libmpv2 on Bookworm/Trixie, libmpv1 on older Bullseye-based images).
+    # This is a hard requirement, not best-effort: without it the player
+    # silently degrades to a per-clip subprocess fallback (see comment above).
+    if apt-get install -y -qq libmpv2; then
+        log_info "Installed libmpv2"
+    elif apt-get install -y -qq libmpv1; then
+        log_info "Installed libmpv1"
+    else
+        log_error "Failed to install libmpv2 or libmpv1 — native gapless playback will NOT work."
+        log_error "The player will fall back to a per-clip subprocess engine with multi-second gaps between ads."
+        log_error "Find the correct package with: apt-cache search libmpv"
+        exit 1
+    fi
+
     # For Pi 5 - install libcamera and Wayland support
     if grep -q "Raspberry Pi 5" /proc/cpuinfo 2>/dev/null; then
         log_info "Installing Raspberry Pi 5 specific packages..."

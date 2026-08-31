@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+﻿import api from './api';
 
 export interface Proposal {
   id: string;
@@ -17,14 +17,14 @@ export interface Proposal {
 
 export const proposalsApi = {
   getProposals: async (): Promise<Proposal[]> => {
-    const { data } = await axios.get('/api/v1/proposals?status=active');
+    const { data } = await api.get('/proposals?status=active');
     return data.data ?? [];
   },
   dismiss: async (id: string): Promise<void> => {
-    await axios.put(`/api/v1/proposals/${id}/dismiss`);
+    await api.put(`/proposals/${id}/dismiss`);
   },
   accept: async (id: string): Promise<{ screenId: string }> => {
-    const { data } = await axios.put(`/api/v1/proposals/${id}/accept`);
+    const { data } = await api.put(`/proposals/${id}/accept`);
     return data;
   },
 };

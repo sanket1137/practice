@@ -11,7 +11,7 @@ import SearchRounded from '@mui/icons-material/SearchRounded';
 import PlayCircleOutlineRounded from '@mui/icons-material/PlayCircleOutlineRounded';
 
 const FONT = "'Inter', system-ui, sans-serif";
-const ACCENT = '#5e6ad2';
+const ACCENT = '#3b6ef5';
 
 const CASCADE_WORDS = [
   'Agency', 'Broker', 'Phone Call', 'WhatsApp',

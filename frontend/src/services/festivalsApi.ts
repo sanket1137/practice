@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+﻿import api from './api';
 
 export interface FestivalEntry {
   id: string;
@@ -12,7 +12,7 @@ export interface FestivalEntry {
 
 export const festivalsApi = {
   getFestivals: async (year = 2026): Promise<FestivalEntry[]> => {
-    const { data } = await axios.get(`/api/v1/festivals?year=${year}`);
+    const { data } = await api.get(`/festivals?year=${year}`);
     return data ?? [];
   },
 };

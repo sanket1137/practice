@@ -371,6 +371,15 @@ public class AuthController : ControllerBase
             var status = await _authService.GetVerificationStatusAsync(email);
             return Ok(ApiResponse<VerificationStatusResponse>.SuccessResponse(status));
         }
+        catch (InvalidOperationException)
+        {
+            // No such user. This is an ordinary "not found", not a server fault —
+            // it was previously falling through to the catch-all below and
+            // returning 500 for any address that isn't registered, on an endpoint
+            // anyone can call without authenticating.
+            return NotFound(ApiResponse<VerificationStatusResponse>.ErrorResponse(
+                "No account found for that email address."));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get verification status for {Email}", email);

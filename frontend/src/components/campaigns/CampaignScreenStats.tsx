@@ -4,6 +4,7 @@ import {
     CardContent,
     Typography,
     Box,
+    Button,
     Chip,
     Grid,
     LinearProgress,
@@ -12,8 +13,10 @@ import {
 import {
     Monitor as ScreenIcon,
     TrendingUp as TrendingIcon,
-    SignalCellularAlt as SignalIcon
+    SignalCellularAlt as SignalIcon,
+    Videocam as VideocamIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { websocketService } from '../../services/websocket';
 import { formatDistanceToNow } from 'date-fns';
 import { api } from '../../services/api';
@@ -34,14 +37,31 @@ interface CampaignScreenStatsProps {
     campaignId: string;
 }
 
+// SignalR serializes camelCase on the wire — handlers must read camelCase.
+// (These used to read PascalCase, so even delivered events were ignored.)
 interface CampaignScreenUpdateEvent {
-    CampaignId: string;
-    ScreenId: string;
-    PlayCount: number;
-    Timestamp: string;
+    campaignId: string;
+    screenId: string;
+    playCount: number;
+    timestamp: string;
+}
+
+interface AdPlaybackEventPayload {
+    screenId: string;
+    campaignId?: string | null;
+    creativeId?: string | null;
+    slotNumber?: number;
+    timestamp: string;
+}
+
+interface ScreenStatusChangedEvent {
+    screenId: string;
+    isOnline: boolean;
+    lastSeen?: string;
 }
 
 export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsProps) {
+    const navigate = useNavigate();
     const [screens, setScreens] = useState<ScreenStats[]>([]);
     const [totalPlays, setTotalPlays] = useState(0);
     const [activeScreens, setActiveScreens] = useState(0);
@@ -69,24 +89,81 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
         loadStats();
     }, [campaignId]);
 
-    // Subscribe to real-time updates
+    // Real-time updates. Joining the campaign_{id} SignalR group is what makes
+    // events arrive at all — registering listeners without SubscribeToCampaign
+    // (the old behaviour) left this tab permanently static.
     useEffect(() => {
+        let cancelled = false;
+
         const handleScreenUpdate = (data: CampaignScreenUpdateEvent) => {
-            if (data.CampaignId !== campaignId) return;
+            if (data.campaignId?.toLowerCase() !== campaignId.toLowerCase()) return;
 
             setScreens(prev => prev.map(screen =>
-                screen.screenId === data.ScreenId
-                    ? { ...screen, playsToday: data.PlayCount, lastPlayTimestamp: data.Timestamp }
+                screen.screenId === data.screenId
+                    ? {
+                        ...screen,
+                        // playCount is the synced (database) floor and can trail
+                        // the live event by one sync interval — never let it move
+                        // the displayed number backwards.
+                        playsToday: Math.max(screen.playsToday + 1, data.playCount),
+                        lastPlayTimestamp: data.timestamp,
+                      }
                     : screen
             ));
 
             setTotalPlays(prev => prev + 1);
         };
 
+        const handleAdStarted = (data: AdPlaybackEventPayload) => {
+            if (data.campaignId?.toLowerCase() !== campaignId.toLowerCase()) return;
+
+            setScreens(prev => prev.map(screen =>
+                screen.screenId === data.screenId
+                    ? {
+                        ...screen,
+                        status: 'online',
+                        currentCreative: data.creativeId
+                            ? { id: data.creativeId, name: 'Your creative' }
+                            : screen.currentCreative,
+                      }
+                    : screen
+            ));
+        };
+
+        const handleScreenStatus = (data: ScreenStatusChangedEvent) => {
+            setScreens(prev => {
+                if (!prev.some(s => s.screenId === data.screenId)) return prev;
+                const next = prev.map(screen =>
+                    screen.screenId === data.screenId
+                        ? { ...screen, status: data.isOnline ? 'online' : 'offline' }
+                        : screen
+                );
+                setActiveScreens(next.filter(s => s.status === 'online').length);
+                return next;
+            });
+        };
+
         websocketService.on('CampaignScreenUpdate', handleScreenUpdate);
+        websocketService.on('AdStarted', handleAdStarted);
+        websocketService.on('ScreenStatusChanged', handleScreenStatus);
+
+        (async () => {
+            try {
+                await websocketService.connect();
+                if (!cancelled) {
+                    await websocketService.subscribeToCampaign(campaignId);
+                }
+            } catch (error) {
+                console.warn('[CampaignScreenStats] Real-time subscription failed:', error);
+            }
+        })();
 
         return () => {
+            cancelled = true;
             websocketService.off('CampaignScreenUpdate', handleScreenUpdate);
+            websocketService.off('AdStarted', handleAdStarted);
+            websocketService.off('ScreenStatusChanged', handleScreenStatus);
+            websocketService.unsubscribeFromCampaign(campaignId);
         };
     }, [campaignId]);
 
@@ -214,6 +291,20 @@ export default function CampaignScreenStats({ campaignId }: CampaignScreenStatsP
                                         Last played {formatDistanceToNow(new Date(screen.lastPlayTimestamp), { addSuffix: true })}
                                     </Typography>
                                 )}
+
+                                {/* Advertisers with an active booking get live-stream
+                                    access on the screen page (server-verified). */}
+                                <Box mt={1.5}>
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        startIcon={<VideocamIcon />}
+                                        disabled={screen.status !== 'online'}
+                                        onClick={() => navigate(`/screens/${screen.screenId}?tab=live-stream`)}
+                                    >
+                                        {screen.status === 'online' ? 'Watch live' : 'Screen offline'}
+                                    </Button>
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>

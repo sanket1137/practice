@@ -25,6 +25,7 @@ public class StreamingController : ControllerBase
     private readonly IHubContext<StreamingHub> _hubContext;
     private readonly ILogger<StreamingController> _logger;
     private readonly IConfiguration _configuration;
+    private readonly CCMS.Domain.Interfaces.IRepository<CCMS.Domain.Entities.Screen> _screenRepository;
 
     // Static methods below are also invoked from StreamingHub (SignalR), which has
     // no per-request ILogger of its own; capture the first constructed instance's
@@ -82,11 +83,13 @@ public class StreamingController : ControllerBase
     public StreamingController(
         IHubContext<StreamingHub> hubContext,
         ILogger<StreamingController> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        CCMS.Domain.Interfaces.IRepository<CCMS.Domain.Entities.Screen> screenRepository)
     {
         _hubContext = hubContext;
         _logger = logger;
         _configuration = configuration;
+        _screenRepository = screenRepository;
         _staticLogger ??= logger;
     }
 
@@ -196,10 +199,29 @@ public class StreamingController : ControllerBase
 
     [AllowAnonymous] // Player-facing: screens register their stream without a user JWT
     [HttpPost("register")]
-    public IActionResult RegisterStream([FromBody] RegisterStreamRequest request)
+    public async Task<IActionResult> RegisterStream([FromBody] RegisterStreamRequest request)
     {
         try
         {
+            if (!Guid.TryParse(request.ScreenId, out var screenGuid))
+            {
+                return BadRequest(new { success = false, message = "Invalid screen ID" });
+            }
+
+            var screen = await _screenRepository.GetByIdAsync(screenGuid);
+            if (screen == null)
+            {
+                return NotFound(new { success = false, message = "Screen not found" });
+            }
+
+            if (string.IsNullOrEmpty(screen.ApiKeyHash) ||
+                string.IsNullOrEmpty(request.ApiKey) ||
+                !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
+            {
+                _logger.LogWarning("HTTP RegisterStream rejected: invalid API key for screen {ScreenId}", request.ScreenId);
+                return Unauthorized(new { success = false, message = "Invalid API key" });
+            }
+
             _logger.LogInformation(
                 "HTTP: Registering stream for screen {ScreenId}",
                 request.ScreenId);

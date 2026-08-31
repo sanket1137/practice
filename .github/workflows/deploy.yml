@@ -180,6 +180,12 @@ jobs:
             set -e
             cd /opt/ccms
 
+            # Remove shipped source trees first: tar only adds/overwrites, so
+            # locally-deleted files would otherwise persist on the server and
+            # can break the Docker build. Root-level state (.env, uploads/,
+            # backups/, .deployed_tags) is untouched.
+            rm -rf backend frontend nginx
+
             # Extract archives
             tar -xf backend-src.tar
             tar -xf frontend-src.tar

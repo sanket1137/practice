@@ -79,15 +79,23 @@ public class PlayerAuthenticationService
     }
 
     /// <summary>
-    /// Validate HMAC signature on incoming request
+    /// Validate HMAC signature on an incoming request, keyed by the player's
+    /// current session token.
+    ///
+    /// This is deliberately NOT keyed by the raw API key: the server only ever
+    /// stores a one-way BCrypt hash of it (correctly — it must not be
+    /// reversible), so there is no way for the server to reconstruct the raw
+    /// key to recompute an API-key-keyed HMAC. The session token is a
+    /// high-entropy random value the server generates and both sides hold in
+    /// plaintext after a successful (BCrypt-verified) handshake, which makes
+    /// it a valid HMAC key for proving "same session that just handshook",
+    /// without needing the original secret to be reversible.
     /// </summary>
     public bool ValidateSignature(
         string payload,
         string timestamp,
         string sessionToken,
-        string providedSignature,
-        string apiKey,
-        string serverSalt)
+        string providedSignature)
     {
         // Validate timestamp first (prevent replay attacks)
         if (!long.TryParse(timestamp, out var timestampValue))
@@ -106,10 +114,9 @@ public class PlayerAuthenticationService
         }
 
         // Recreate the expected signature
-        var message = $"{payload}|{timestamp}|{sessionToken}";
-        var signingKey = $"{apiKey}{serverSalt}";
+        var message = $"{payload}|{timestamp}";
 
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(signingKey));
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(sessionToken));
         var expectedSignatureBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
         var expectedSignature = Convert.ToHexString(expectedSignatureBytes).ToLowerInvariant();
 
@@ -169,12 +176,16 @@ public class ImpressionData
 }
 
 /// <summary>
-/// Session storage for active player sessions
-/// In production, use Redis or distributed cache
+/// In-memory session storage for active player sessions, keyed by screenId.
+/// Registered as a singleton (see Program.cs) so it survives across requests
+/// within one API process. This does NOT survive a restart or scale across
+/// multiple API instances — acceptable for now (matches this project's
+/// current single-instance deployment) but should move to Redis or another
+/// distributed cache before running more than one API replica.
 /// </summary>
 public class PlayerSessionStore
 {
-    private readonly Dictionary<string, PlayerSession> _sessions = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, PlayerSession> _sessions = new();
     private readonly ILogger<PlayerSessionStore> _logger;
 
     public PlayerSessionStore(ILogger<PlayerSessionStore> logger)
@@ -198,12 +209,14 @@ public class PlayerSessionStore
         var session = GetSession(screenId);
         if (session == null) return false;
         if (session.ExpiresAt <= DateTime.UtcNow) return false;
-        return session.Token == sessionToken;
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(session.Token),
+            Encoding.UTF8.GetBytes(sessionToken));
     }
 
     public void InvalidateSession(string screenId)
     {
-        _sessions.Remove(screenId);
+        _sessions.TryRemove(screenId, out _);
     }
 }
 
@@ -285,15 +298,22 @@ public class PlayerAuthFilter : IAsyncActionFilter
         var body = await reader.ReadToEndAsync();
         request.Body.Position = 0;
 
-        // Validate signature (requires API key from database)
-        // Note: In real implementation, fetch API key from screen record
-        // var screen = await _screenRepository.GetByIdAsync(screenId);
-        // var apiKey = DecryptApiKey(screen.EncryptedApiKey);
-
-        // For now, signature validation is logged but not enforced
-        // Enable enforcement when API key storage is implemented
-        _logger.LogDebug("Request from screen {ScreenId} with signature {Signature}", 
-            screenId, signature[..16] + "...");
+        // Signature is keyed by the session token issued at handshake (see
+        // PlayerAuthenticationService.ValidateSignature for why it isn't
+        // keyed by the raw API key), and proves the request came from the
+        // same session that just handshook — a stolen bearer credential alone
+        // is not enough to replay a request without also knowing this session's token.
+        if (!_authService.ValidateSignature(body, timestamp, session.Token, signature))
+        {
+            _logger.LogWarning("Invalid signature for screen {ScreenId} from {IP}",
+                screenId, httpContext.Connection.RemoteIpAddress);
+            context.Result = new UnauthorizedObjectResult(new
+            {
+                error = "Invalid signature",
+                code = "SIGNATURE_INVALID"
+            });
+            return;
+        }
 
         await next();
     }

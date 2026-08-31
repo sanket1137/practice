@@ -20,7 +20,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material/Select';
 import SaveIcon from '@mui/icons-material/Save';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import axios from 'axios';
+import api from '../../services/api';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ function useMosaicConfig(groupId: string) {
   return useQuery<MosaicConfig>({
     queryKey: ['mosaic-config', groupId],
     queryFn: () =>
-      axios.get(`/api/v1/cms/screen-groups/${groupId}/mosaic`).then((r) => r.data),
+      api.get(`/cms/screen-groups/${groupId}/mosaic`).then((r) => r.data),
     staleTime: 0,
   });
 }
@@ -69,7 +69,7 @@ function useSaveMosaicConfig(groupId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: SaveMosaicConfigRequest) =>
-      axios.put(`/api/v1/cms/screen-groups/${groupId}/mosaic`, data),
+      api.put(`/cms/screen-groups/${groupId}/mosaic`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['mosaic-config', groupId] });
     },

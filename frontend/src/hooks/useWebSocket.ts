@@ -6,7 +6,12 @@ export function useWebSocket() {
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
-        // Auto-connect on mount
+        // Auto-connect on mount. Deliberately NO disconnect on unmount: the
+        // connection is an app-lifetime singleton shared by every page.
+        // Stopping it here used to kill real-time updates for all other
+        // components and race concurrent connects into "Failed to start the
+        // HttpConnection before stop() was called". It is only stopped by
+        // websocketService.shutdown() during logout.
         const connect = async () => {
             try {
                 setConnectionState('connecting');
@@ -20,11 +25,6 @@ export function useWebSocket() {
         };
 
         connect();
-
-        // Cleanup on unmount
-        return () => {
-            websocketService.disconnect();
-        };
     }, []);
 
     // Poll connection state every second

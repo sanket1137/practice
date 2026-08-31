@@ -15,7 +15,7 @@ class HttpStreamRegistration:
     def register(self):
         """Register stream via HTTP POST"""
         try:
-            url = f"{self.api_url}/api/streaming/register"
+            url = f"{self.api_url}/api/v1/streaming/register"
             data = {
                 "screenId": self.screen_id,
                 "apiKey": self.api_key,
@@ -43,7 +43,7 @@ class HttpStreamRegistration:
             return
             
         try:
-            url = f"{self.api_url}/api/streaming/unregister"
+            url = f"{self.api_url}/api/v1/streaming/unregister"
             data = {"screenId": self.screen_id}
             
             requests.post(url, json=data, timeout=5)

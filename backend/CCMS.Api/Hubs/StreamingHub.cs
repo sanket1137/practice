@@ -306,18 +306,19 @@ public class StreamingHub : Hub
                 if (Guid.TryParse(screenId, out var screenGuid))
                 {
                     var screen = await _screenRepository.GetByIdAsync(screenGuid);
-                    if (screen != null)
-                    {
-                        // For now, accept any provided streamKey for screens (the player knows the API key)
-                        // In production, you'd hash the streamKey and compare with ApiKeyHash
-                        // or use a proper API key validation service
-                        _logger.LogInformation("Player authenticated via API key for screen {ScreenId}", screenId);
-                    }
-                    else
+                    if (screen == null)
                     {
                         _logger.LogWarning("Screen not found: {ScreenId}", screenId);
                         throw new HubException("Access denied: Screen not found");
                     }
+
+                    if (string.IsNullOrEmpty(screen.ApiKeyHash) || !BCrypt.Net.BCrypt.Verify(streamKey, screen.ApiKeyHash))
+                    {
+                        _logger.LogWarning("RegisterStream rejected: invalid stream key for screen {ScreenId}", screenId);
+                        throw new HubException("Access denied: Invalid stream key");
+                    }
+
+                    _logger.LogInformation("Player authenticated via API key for screen {ScreenId}", screenId);
                 }
                 else
                 {

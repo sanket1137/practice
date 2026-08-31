@@ -16,7 +16,7 @@
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '../../services/api';
 import { useSnackbar } from 'notistack';
 
 interface PlanInfo {
@@ -61,13 +61,13 @@ export function CmsBillingPage() {
 
   const { data: planInfo, isLoading } = useQuery<{ data: PlanInfo }>({
     queryKey: ['cms-billing-plan'],
-    queryFn: () => axios.get('/api/v1/cms/billing/plan').then((r) => r.data),
+    queryFn: () => api.get('/cms/billing/plan').then((r) => r.data),
     staleTime: 5 * 60 * 1000,
   });
 
   const upgradeMutation = useMutation({
     mutationFn: (targetPlan: string) =>
-      axios.post('/api/v1/cms/billing/upgrade', { targetPlan }).then((r) => r.data),
+      api.post('/cms/billing/upgrade', { targetPlan }).then((r) => r.data),
     onSuccess: (data) => {
       enqueueSnackbar(data.message ?? 'Upgrade initiated', { variant: 'info' });
     },

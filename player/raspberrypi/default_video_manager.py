@@ -40,14 +40,18 @@ class DefaultVideoManager:
         folder = Path(self.default_video_folder)
         folder.mkdir(exist_ok=True)
         return folder / f"screen_{self.screen_id}_default.mp4"
-    
+
+    def _get_url_marker_path(self, local_path: Path) -> Path:
+        """Sidecar file recording which URL local_path was downloaded from."""
+        return local_path.with_name(local_path.name + ".url")
+
     async def sync_default_video(self, playlist_data: dict) -> Optional[str]:
         """
         Download or update default video based on playlist info
-        
+
         Args:
             playlist_data: Playlist response from server
-            
+
         Returns:
             Path to local default video file, or None if unavailable
         """
@@ -55,23 +59,23 @@ class DefaultVideoManager:
             # Check if playlist includes default video URL
             # This could be in playlist items marked as IsFillerContent
             default_video_url = self._extract_default_video_url(playlist_data)
-            
+
             if not default_video_url and not self.universal_url:
                 logger.warning("No default video configured (neither custom nor universal)")
                 return None
-            
+
             # Use custom video URL if available, otherwise universal
             url = default_video_url or self.universal_url
             local_path = self.get_default_video_path()
-            
+
             # Check if we need to download
             if self._should_download(local_path, url):
                 await self._download_video(url, local_path)
             else:
                 logger.info(f"Using cached default video: {local_path}")
-                
+
             return str(local_path)
-            
+
         except Exception as e:
             logger.error(f"Error syncing default video: {e}")
             return None
@@ -107,25 +111,39 @@ class DefaultVideoManager:
     def _should_download(self, local_path: Path, url: str) -> bool:
         """
         Check if video needs to be downloaded
-        
+
         Args:
             local_path: Path to local video file
             url: URL of the video
-            
+
         Returns:
             True if download is needed
         """
         if not local_path.exists():
             logger.info("Default video not found locally, will download")
             return True
-        
+
+        # Identity check first: age alone can't tell a freshly-uploaded
+        # default video apart from a stale one still inside max_age_days.
+        # The "redownload_on_change" config option existed but was never
+        # actually wired up to anything — this is what it was meant to do.
+        if self.redownload_on_change:
+            marker = self._get_url_marker_path(local_path)
+            if not marker.exists():
+                logger.info("No record of which URL the cached default video came from, will redownload")
+                return True
+            cached_url = marker.read_text(encoding="utf-8").strip()
+            if cached_url != url:
+                logger.info("Default video URL changed since last download, will redownload")
+                return True
+
         # Check file age
         age_days = (time.time() - local_path.stat().st_mtime) / 86400
-        
+
         if age_days > self.max_age_days:
             logger.info(f"Default video is {age_days:.1f} days old (max {self.max_age_days}), will redownload")
             return True
-        
+
         logger.debug(f"Default video age: {age_days:.1f} days, no download needed")
         return False
     
@@ -163,7 +181,9 @@ class DefaultVideoManager:
             
             file_size_mb = destination.stat().st_size / (1024 * 1024)
             logger.info(f"✓ Default video downloaded successfully: {destination} ({file_size_mb:.2f} MB)")
-            
+
+            self._get_url_marker_path(destination).write_text(url, encoding="utf-8")
+
         except requests.RequestException as e:
             logger.error(f"Failed to download default video from {url}: {e}")
             raise

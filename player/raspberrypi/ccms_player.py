@@ -683,12 +683,28 @@ class CCMSPlayer:
 
         return None  # No matching window right now
 
+    def _signed_headers(self, payload: dict) -> dict:
+        """
+        Best-effort request-signing headers (X-Screen-Id/X-Timestamp/X-Signature/
+        X-Session-Token). Not yet enforced server-side on every player platform,
+        but sending them now means this endpoint is ready the moment enforcement
+        is turned on — see PlayerAuthFilter. Returns {} if no session yet.
+        """
+        try:
+            if self.security_manager.is_session_valid():
+                return self.security_manager.create_secure_request_headers(payload)
+        except Exception as e:
+            logger.debug(f"Could not build signed request headers: {e}")
+        return {}
+
     def send_heartbeat(self):
         """Send heartbeat to maintain online status"""
         try:
+            payload = {"screenId": self.screen_id, "apiKey": self.api_key}
             response = requests.post(
                 f"{self.api_url}/api/v1/player/heartbeat",
-                json={"screenId": self.screen_id},
+                json=payload,
+                headers=self._signed_headers(payload) or None,
                 timeout=5
             )
             
@@ -754,12 +770,15 @@ class CCMSPlayer:
             
             logger.info(f"Syncing {len(impressions_to_sync)} impressions...")
             
+            sync_payload = {
+                "screenId": self.screen_id,
+                "apiKey": self.api_key,
+                "syncData": sync_data
+            }
             response = requests.post(
                 f"{self.api_url}/api/v1/player/sync",
-                json={
-                    "screenId": self.screen_id,
-                    "syncData": sync_data
-                },
+                json=sync_payload,
+                headers=self._signed_headers(sync_payload) or None,
                 timeout=30
             )
             
@@ -885,8 +904,17 @@ class CCMSPlayer:
     def connect_signalr(self):
         """Connect to SignalR PlaybackHub for real-time events with enhanced resilience"""
         try:
-            hub_url = f"{self.api_url}/hubs/playback"
-            logger.info(f"Connecting to SignalR PlaybackHub: {hub_url}")
+            # screenId/apiKey are sent as query params so the server can
+            # BCrypt-verify this connection and bind it to this screen before
+            # any hub method (RegisterDevice/AdStarted/AdCompleted/etc.) is
+            # allowed to run — an unauthenticated connection can no longer
+            # emit fabricated playback events for an arbitrary screen.
+            from urllib.parse import quote
+            hub_url = (
+                f"{self.api_url}/hubs/playback"
+                f"?screenId={quote(self.screen_id)}&apiKey={quote(self.api_key)}"
+            )
+            logger.info(f"Connecting to SignalR PlaybackHub: {self.api_url}/hubs/playback")
             
             self.signalr_connection = HubConnectionBuilder() \
                 .with_url(hub_url) \
@@ -1005,19 +1033,12 @@ class CCMSPlayer:
             slot_number = event_data.get('slotNumber', 0)
             
             logger.info(f"🔄 Refreshing playlist due to {action} on slot {slot_number}")
-            
-            # Clear cached video for this slot to force re-download
+
+            # Default/filler videos are cached by content hash (see
+            # _download_videos_for_playlist), so a changed default video URL
+            # is already a cache miss on its own — no explicit clear needed.
             cache_dir = os.path.join(os.path.dirname(__file__), "video_cache")
-            
-            # Clear default slot video (since slot is now different content type)
-            default_cache = os.path.join(cache_dir, f"default_slot_{slot_number}.mp4")
-            if os.path.exists(default_cache):
-                try:
-                    os.remove(default_cache)
-                    logger.info(f"🗑️  Cleared cached default video for slot {slot_number}")
-                except Exception as e:
-                    logger.warning(f"Failed to clear cache: {e}")
-            
+
             # If content was removed, find old playlist item for this slot and clear its cache too
             if action == 'ContentRemoved':
                 for item in self.playlist:
@@ -1052,48 +1073,86 @@ class CCMSPlayer:
         try:
             logger.info("Fetching updated playlist from server...")
             
-            # Use handshake endpoint since there's no dedicated playlist endpoint
+            # Use handshake endpoint since there's no dedicated playlist endpoint.
+            # HandshakeRequest has no "deviceId" field (that key was silently
+            # dropped) and, critically, no "apiKey" was ever sent — the
+            # Handshake action rejects any request missing it with 401
+            # "Invalid API key" before it even looks at anything else, so
+            # every refresh failed even though the initial startup handshake
+            # (which does send apiKey) succeeded fine.
             response = self.session.post(
                 f"{self.api_url}/api/v1/player/handshake",
-                json={"screenId": self.screen_id, "deviceId": f"player-{self.screen_id}"},
-                headers={"X-Device-Id": f"player-{self.screen_id}"},
+                json={
+                    "screenId": self.screen_id,
+                    "apiKey": self.api_key,
+                    "deviceFingerprint": self.device_fingerprint,
+                },
                 timeout=10
             )
             
             if response.status_code == 200:
                 data = response.json().get("data", {})
-                playlist_data = data.get("playlist")
-                if playlist_data and isinstance(playlist_data, dict):
-                    new_playlist = playlist_data.get("playlist", [])
-                    new_slots_count = len(new_playlist)
-                    
-                    logger.info(f"✓ Playlist fetched: {new_slots_count} items")
-                    
-                    # Check if playlist actually changed
-                    if self._is_playlist_same(new_playlist):
-                        logger.info("📋 Playlist unchanged, no update needed")
-                        return
-                    
-                    # If no playback yet or playlist empty, apply immediately
-                    if not self.playlist or self.current_playing_slot_number is None:
-                        logger.info("📋 Applying playlist immediately (no active playback)")
-                        self.playlist = new_playlist
-                        self.slots_per_frame = new_slots_count
-                        # Trigger download - use thread-safe method if event loop available
-                        self._schedule_background_download(new_playlist, is_pending=False)
-                        return
-                    
-                    # Buffer the new playlist for cycle-boundary swap
-                    self._pending_playlist = new_playlist
-                    self._pending_slots_per_frame = new_slots_count
-                    
-                    logger.info(f"📦 Playlist buffered (currently at slot {self.current_playing_slot_number}/{self.slots_per_frame})")
-                    logger.info(f"   Will apply after slot {self.slots_per_frame} completes")
-                    
-                    # Start background download for pending playlist (thread-safe)
-                    self._schedule_background_download(new_playlist, is_pending=True)
+
+                # CMS-mode screens must keep reading cmsPlaylist here too — the
+                # legacy "playlist" field below is always populated by the
+                # server as well (it comes from a separate DOOH generator that
+                # knows nothing about CMS media/schedule windows), so skipping
+                # this check would silently replace the correct CMS playlist
+                # with the wrong one on every refresh. Mirrors handshake()'s
+                # translation (ccms_player.py) so both paths produce the same
+                # item shape.
+                cms_playlist = data.get("cmsPlaylist")
+                if cms_playlist and isinstance(cms_playlist, dict):
+                    new_playlist = []
+                    for idx, item in enumerate(cms_playlist.get("items", []) or []):
+                        asset = item.get("mediaAsset") or {}
+                        url = asset.get("fileUrl")
+                        if not url:
+                            continue
+                        new_playlist.append({
+                            "slotNumber": idx + 1,
+                            "fileUrl": url,
+                            "ownerContentId": asset.get("id"),
+                            "mimeType": asset.get("mimeType"),
+                            "durationSeconds": item.get("durationSeconds") or asset.get("durationSeconds"),
+                            "isFillerContent": False,
+                            "source": "cms",
+                        })
+                    logger.info(f"✓ CMS playlist fetched: {len(new_playlist)} items, version={cms_playlist.get('version')}")
+                    self.schedule_windows = data.get("scheduleWindows") or []
                 else:
-                    logger.warning("No playlist in refresh response")
+                    playlist_data = data.get("playlist")
+                    if not (playlist_data and isinstance(playlist_data, dict)):
+                        logger.warning("No playlist in refresh response")
+                        return
+                    new_playlist = playlist_data.get("playlist", [])
+                    logger.info(f"✓ Playlist fetched: {len(new_playlist)} items")
+
+                new_slots_count = len(new_playlist)
+
+                # Check if playlist actually changed
+                if self._is_playlist_same(new_playlist):
+                    logger.info("📋 Playlist unchanged, no update needed")
+                    return
+
+                # If no playback yet or playlist empty, apply immediately
+                if not self.playlist or self.current_playing_slot_number is None:
+                    logger.info("📋 Applying playlist immediately (no active playback)")
+                    self.playlist = new_playlist
+                    self.slots_per_frame = new_slots_count
+                    # Trigger download - use thread-safe method if event loop available
+                    self._schedule_background_download(new_playlist, is_pending=False)
+                    return
+
+                # Buffer the new playlist for cycle-boundary swap
+                self._pending_playlist = new_playlist
+                self._pending_slots_per_frame = new_slots_count
+
+                logger.info(f"📦 Playlist buffered (currently at slot {self.current_playing_slot_number}/{self.slots_per_frame})")
+                logger.info(f"   Will apply after slot {self.slots_per_frame} completes")
+
+                # Start background download for pending playlist (thread-safe)
+                self._schedule_background_download(new_playlist, is_pending=True)
             else:
                 logger.error(f"Failed to fetch playlist: HTTP {response.status_code}")
                 
@@ -1207,10 +1266,14 @@ class CCMSPlayer:
                     ext = os.path.splitext(url.split('?')[0])[1] or ".mp4"
                     cache_filename = f"{creative_id}{ext}"
                 else:
-                    # Fallback: use hash-based naming for default videos
+                    # Default/filler content has no stable creative/owner ID, so
+                    # cache by content hash, not just slot number — otherwise a
+                    # changed default video URL keeps resolving to the same
+                    # on-disk filename and the stale file is "already cached"
+                    # forever (the hash used to be computed here and discarded).
                     url_hash = hashlib.md5(url.encode()).hexdigest()[:12]
                     ext = os.path.splitext(url.split('?')[0])[1] or ".mp4"
-                    cache_filename = f"default_slot_{slot_number}{ext}"
+                    cache_filename = f"default_slot_{slot_number}_{url_hash}{ext}"
                 
                 cache_path = os.path.join(cache_dir, cache_filename)
                 
@@ -1264,21 +1327,9 @@ class CCMSPlayer:
         
         if not self.signalr_connected or not self.signalr_connection:
             return
-        
+
         try:
-            event_data = {
-                "CreativeId": str(item.get("creativeId", "")),
-                "BookingId": str(item.get("bookingId", "")),
-                "ScreenId": str(self.screen_id),
-                "CampaignId": str(item.get("campaignId", "")),
-                "SlotNumber": item.get("slotNumber", 0),
-                "IsFillerContent": item.get("isFillerContent", False),
-                "OwnerContentId": str(item.get("ownerContentId", "")),
-                "Timestamp": datetime.now().isoformat(),
-                "DeviceId": f"player-{self.screen_id[:8]}"
-            }
-            
-            self.signalr_connection.send("AdStarted", [event_data])
+            self.signalr_connection.send("AdStarted", [self._build_playback_event(item)])
             logger.debug(f"Emitted AdStarted event for slot {item.get('slotNumber')} campaign {item.get('campaignId')}")
         except Exception as e:
             logger.error(f"Failed to emit AdStarted: {e}")
@@ -1292,21 +1343,39 @@ class CCMSPlayer:
         
         if not self.signalr_connected or not self.signalr_connection:
             return
-        
+
         try:
-            event_data = {
-                "CreativeId": str(item.get("creativeId", "")),
-                "BookingId": str(item.get("bookingId", "")),
-                "ScreenId": str(self.screen_id),
-                "CampaignId": str(item.get("campaignId", "")),
-                "Timestamp": datetime.now().isoformat(),
-                "DeviceId": f"player-{self.screen_id[:8]}"
-            }
-            
-            self.signalr_connection.send("AdCompleted", [event_data])
+            self.signalr_connection.send("AdCompleted", [self._build_playback_event(item)])
             logger.debug(f"Emitted AdCompleted event for campaign {item.get('campaignId')}")
         except Exception as e:
             logger.error(f"Failed to emit AdCompleted: {e}")
+
+    def _build_playback_event(self, item):
+        """Build the AdPlaybackEvent payload for AdStarted/AdCompleted.
+
+        Ids must be real nulls when a slot has no booking/campaign (filler and
+        owner-content slots) — the old code did str(item.get(...)) which turned
+        Python None into the literal string "None", failing the server's Guid
+        binding and killing every filler-slot event before it reached anyone.
+        Timestamp is UTC: the server treats it as UTC, so sending local time
+        shifted every event by the machine's UTC offset.
+        """
+        def _id_or_none(key):
+            value = item.get(key)
+            return str(value) if value else None
+
+        from datetime import timezone
+        return {
+            "CreativeId": _id_or_none("creativeId"),
+            "BookingId": _id_or_none("bookingId"),
+            "ScreenId": str(self.screen_id),
+            "CampaignId": _id_or_none("campaignId"),
+            "OwnerContentId": _id_or_none("ownerContentId"),
+            "SlotNumber": item.get("slotNumber", 0),
+            "IsFillerContent": bool(item.get("isFillerContent", False)),
+            "Timestamp": datetime.now(timezone.utc).isoformat(),
+            "DeviceId": f"player-{self.screen_id[:8]}"
+        }
     
     async def heartbeat_loop(self):
         """Send heartbeat every 30 seconds"""

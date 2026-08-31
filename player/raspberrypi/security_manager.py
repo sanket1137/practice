@@ -42,30 +42,35 @@ class PlayerSecurityManager:
     
     def create_signature(self, payload: Dict[str, Any], timestamp: int) -> str:
         """
-        Create HMAC-SHA256 signature for request payload
-        
+        Create HMAC-SHA256 signature for request payload.
+
+        Signed with the session token (not the API key): the server only ever
+        stores a one-way BCrypt hash of the API key, so it has no way to
+        recompute an API-key-keyed HMAC. The session token is a high-entropy
+        value both sides hold in plaintext after a successful (BCrypt-verified)
+        handshake, so it works as the shared HMAC key instead — this must
+        match PlayerAuthenticationService.ValidateSignature on the server.
+
         Args:
             payload: The request data to sign
             timestamp: Unix timestamp of the request
-            
+
         Returns:
             Hex-encoded HMAC signature
         """
         if not self.session_token:
             raise SecurityError("No session token - perform handshake first")
-        
-        # Create canonical message: sorted JSON + timestamp + session token
+
+        # Create canonical message: sorted JSON + timestamp (must match server exactly)
         canonical_payload = json.dumps(payload, sort_keys=True, separators=(',', ':'))
-        message = f"{canonical_payload}|{timestamp}|{self.session_token}"
-        
-        # Sign with API key + server salt
-        signing_key = f"{self.api_key}{self.server_salt or ''}"
+        message = f"{canonical_payload}|{timestamp}"
+
         signature = hmac.new(
-            signing_key.encode(),
+            self.session_token.encode(),
             message.encode(),
             hashlib.sha256
         ).hexdigest()
-        
+
         return signature
     
     def verify_server_response(self, response_data: Dict[str, Any], 

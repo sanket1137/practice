@@ -20,6 +20,7 @@ public class ScreenDefaultVideoController : ControllerBase
     private readonly IFileStorageService _fileStorageService;
     private readonly ILogger<ScreenDefaultVideoController> _logger;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPlaylistNotificationService _notificationService;
     private readonly string _r2PublicUrlBase;
     private const long MaxVideoSizeBytes = 52428800; // 50MB
 
@@ -28,12 +29,14 @@ public class ScreenDefaultVideoController : ControllerBase
         IFileStorageService fileStorageService,
         ILogger<ScreenDefaultVideoController> logger,
         IUnitOfWork unitOfWork,
+        IPlaylistNotificationService notificationService,
         IConfiguration configuration)
     {
         _screenRepository = screenRepository;
         _fileStorageService = fileStorageService;
         _logger = logger;
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
         _r2PublicUrlBase = configuration["R2:PublicUrlBase"] ?? "";
     }
 
@@ -123,6 +126,18 @@ public class ScreenDefaultVideoController : ControllerBase
                 "Default video uploaded for screen {ScreenId}: {VideoUrl}",
                 screenId, videoUrl);
 
+            // Notify player via SignalR — slotNumber 0 since a default video
+            // isn't slot-specific, it can back-fill any empty/filler slot.
+            try
+            {
+                await _notificationService.NotifyPlaylistUpdatedAsync(
+                    screenId, 0, "DefaultVideoChanged");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Failed to send notification: {ex.Message}");
+            }
+
             return Ok(ApiResponse<object>.SuccessResponse(new
             {
                 videoUrl = MediaUrlHelper.ToProxyUrl(videoUrl, _r2PublicUrlBase) ?? videoUrl,
@@ -178,6 +193,16 @@ public class ScreenDefaultVideoController : ControllerBase
             _logger.LogInformation(
                 "Default video deleted for screen {ScreenId}, reverted to universal",
                 screenId);
+
+            try
+            {
+                await _notificationService.NotifyPlaylistUpdatedAsync(
+                    screenId, 0, "DefaultVideoChanged");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning($"Failed to send notification: {ex.Message}");
+            }
 
             return Ok(ApiResponse<object>.SuccessResponse(new
             {

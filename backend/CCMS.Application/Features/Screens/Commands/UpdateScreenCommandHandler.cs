@@ -13,17 +13,20 @@ public class UpdateScreenCommandHandler : IRequestHandler<UpdateScreenCommand, S
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
     private readonly IRevenueCalculationService _revenueCalculationService;
+    private readonly IScreenNotificationService _screenNotificationService;
 
     public UpdateScreenCommandHandler(
         IRepository<Screen> screenRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper,
-        IRevenueCalculationService revenueCalculationService)
+        IRevenueCalculationService revenueCalculationService,
+        IScreenNotificationService screenNotificationService)
     {
         _screenRepository = screenRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
         _revenueCalculationService = revenueCalculationService;
+        _screenNotificationService = screenNotificationService;
     }
 
     public async Task<ScreenDto> Handle(UpdateScreenCommand request, CancellationToken cancellationToken)
@@ -84,14 +87,29 @@ public class UpdateScreenCommandHandler : IRequestHandler<UpdateScreenCommand, S
 
         if (request.Request.PricePerSlot.HasValue)
             screen.PricePerSlot = request.Request.PricePerSlot.Value;
+
+        var statusChanged = false;
         if (request.Request.Status != null)
-            screen.Status = Enum.Parse<Domain.Enums.ScreenStatus>(request.Request.Status);
+        {
+            var newStatus = Enum.Parse<Domain.Enums.ScreenStatus>(request.Request.Status);
+            statusChanged = screen.Status != newStatus;
+            screen.Status = newStatus;
+        }
         if (!string.IsNullOrEmpty(request.Request.Timezone))
             screen.Timezone = request.Request.Timezone;
 
         screen.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Broadcast after persistence so dashboards never learn about a state
+        // that failed to save. Best-effort inside the service — a broadcast
+        // failure never fails the update.
+        if (statusChanged)
+        {
+            await _screenNotificationService.NotifyScreenStatusChangedAsync(
+                screen.Id, screen.Status.ToString(), cancellationToken);
+        }
 
         var screenDto = _mapper.Map<ScreenDto>(screen);
         screenDto.RevenueEstimate = _revenueCalculationService.CalculateRevenueEstimate(screen);

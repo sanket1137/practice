@@ -136,10 +136,11 @@ export default function BookingsPage() {
                     await websocketService.connect();
                 }
 
-                // Subscribe to booking events for current user
+                // Subscribe to booking events for current user. subscribeToBookings
+                // registers in the service's subscription registry, so the group is
+                // automatically re-joined after a SignalR reconnect.
                 if (user?.id) {
-                    await websocketService.invoke('SubscribeToBookings', user.id);
-                    console.log('[BookingsPage] Subscribed to booking events for user:', user.id);
+                    await websocketService.subscribeToBookings(user.id);
                 }
             } catch (error) {
                 console.error('[BookingsPage] Failed to connect to SignalR:', error);
@@ -148,46 +149,47 @@ export default function BookingsPage() {
 
         connectAndSubscribe();
 
-        // Handle booking created event
-        const handleBookingCreated = (data: { Booking: Booking; Message?: string }) => {
+        // SignalR payloads are camelCase on the wire — handlers used to read
+        // PascalCase (data.Message), so delivered events showed no toasts.
+        const handleBookingCreated = (data: { booking: Booking; message?: string }) => {
             console.log('[BookingsPage] Received BookingCreated event:', data);
             // Invalidate and refetch bookings query
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
-            if (data.Message) {
-                enqueueSnackbar(data.Message, { variant: 'info' });
+            if (data.message) {
+                enqueueSnackbar(data.message, { variant: 'info' });
             }
         };
 
         // Handle booking approved event
-        const handleBookingApproved = (data: { Booking: Booking; Message?: string }) => {
+        const handleBookingApproved = (data: { booking: Booking; message?: string }) => {
             console.log('[BookingsPage] Received BookingApproved event:', data);
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
-            if (data.Message) {
-                enqueueSnackbar(data.Message, { variant: 'success' });
+            if (data.message) {
+                enqueueSnackbar(data.message, { variant: 'success' });
             }
         };
 
         // Handle booking rejected event
-        const handleBookingRejected = (data: { Booking: Booking; Reason?: string; Message?: string }) => {
+        const handleBookingRejected = (data: { booking: Booking; reason?: string; message?: string }) => {
             console.log('[BookingsPage] Received BookingRejected event:', data);
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
-            if (data.Message) {
-                enqueueSnackbar(data.Message, { variant: 'warning' });
+            if (data.message) {
+                enqueueSnackbar(data.message, { variant: 'warning' });
             }
         };
 
         // Handle booking updated event
-        const handleBookingUpdated = (data: { Booking: Booking }) => {
+        const handleBookingUpdated = (data: { booking: Booking }) => {
             console.log('[BookingsPage] Received BookingUpdated event:', data);
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
         };
 
         // Handle booking cancelled event
-        const handleBookingCancelled = (data: { Booking: Booking; Reason?: string; Message?: string }) => {
+        const handleBookingCancelled = (data: { booking: Booking; reason?: string; message?: string }) => {
             console.log('[BookingsPage] Received BookingCancelled event:', data);
             queryClient.invalidateQueries({ queryKey: ['bookings'] });
-            if (data.Message) {
-                enqueueSnackbar(data.Message, { variant: 'warning' });
+            if (data.message) {
+                enqueueSnackbar(data.message, { variant: 'warning' });
             }
         };
 

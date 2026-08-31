@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Box,
     Container,
@@ -34,7 +34,8 @@ import {
     Circle as CircleIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { websocketService } from '../../services/websocket';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useAccountVisibility } from '../../hooks/useAccountVisibility';
@@ -87,6 +88,7 @@ export default function ScreensPage() {
     const [selectedScreenId, setSelectedScreenId] = useState<string | null>(null);
 
     // Fetch screens
+    const queryClient = useQueryClient();
     const { data: screens, isLoading } = useQuery<Screen[]>({
         queryKey: ['screens'],
         queryFn: async () => {
@@ -97,6 +99,32 @@ export default function ScreensPage() {
             return Array.isArray(data) ? data : [];
         },
     });
+
+    // Live online/offline + lifecycle updates. ScreenStatusChanged fires on
+    // heartbeat transitions (player came online / went offline) and
+    // ScreenLifecycleChanged when the owner changes Active/Inactive/Maintenance —
+    // both patch the cached list in place, no refresh required.
+    useEffect(() => {
+        const handleStatusChanged = (data: { screenId: string; isOnline: boolean }) => {
+            queryClient.setQueryData<Screen[]>(['screens'], prev =>
+                prev?.map(s => (s.id === data.screenId ? { ...s, isOnline: data.isOnline } : s))
+            );
+        };
+        const handleLifecycleChanged = (data: { screenId: string; status: string }) => {
+            queryClient.setQueryData<Screen[]>(['screens'], prev =>
+                prev?.map(s => (s.id === data.screenId ? { ...s, status: data.status } : s))
+            );
+        };
+
+        websocketService.on('ScreenStatusChanged', handleStatusChanged);
+        websocketService.on('ScreenLifecycleChanged', handleLifecycleChanged);
+        websocketService.connect().catch(() => { /* page still works via REST */ });
+
+        return () => {
+            websocketService.off('ScreenStatusChanged', handleStatusChanged);
+            websocketService.off('ScreenLifecycleChanged', handleLifecycleChanged);
+        };
+    }, [queryClient]);
 
     const filteredScreens = screens?.filter((screen) => {
         const matchesSearch =

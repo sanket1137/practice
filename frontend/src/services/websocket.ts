@@ -1,4 +1,5 @@
 import * as signalR from '@microsoft/signalr';
+import { useAuthStore } from '../store/authStore';
 
 // Use same fallback pattern as API service
 // When VITE_API_URL is not set, use '/api/v1' which Vite will proxy to backend
@@ -8,81 +9,113 @@ const BASE_URL = API_URL.replace(/\/api(\/v\d+)?/, '');  // Remove /api or /api/
 /** Generic hub event callback. Payloads are typed by the caller via generics. */
 export type WebSocketEventCallback = (...args: unknown[]) => void;
 
+type SubscriptionKind = 'screen' | 'campaign' | 'bookings';
+
+/**
+ * App-lifetime SignalR connection to the PlaybackHub.
+ *
+ * Design rules (learned from real production failures — keep them):
+ *
+ * 1. ONE connection for the whole app. Components NEVER stop it — a component
+ *    unmounting used to call disconnect() on this shared singleton, killing
+ *    real-time updates for every other page and racing concurrent connect()
+ *    calls into "Failed to start the HttpConnection before stop() was called".
+ *    Only shutdown() (logout) stops the connection.
+ *
+ * 2. Listener registrations survive reconnects AND new connection objects.
+ *    signalR keeps .on() registrations across automatic reconnects of the same
+ *    connection object, but a fresh connect() builds a NEW object — every event
+ *    name in the registry is re-bound to it.
+ *
+ * 3. Group memberships are re-established after every reconnect. SignalR
+ *    groups are per-connection-id server-side, so an automatic reconnect
+ *    silently drops them — without re-subscribing, pages looked "connected"
+ *    but never received another event.
+ */
 class WebSocketService {
     private connection: signalR.HubConnection | null = null;
     private connectionState: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
     private listeners: Map<string, Set<WebSocketEventCallback>> = new Map();
+    /** Event names already bound to the CURRENT connection object. */
+    private boundEvents: Set<string> = new Set();
+    /** Server-side group subscriptions to restore after reconnects. */
+    private subscriptions: Map<string, { kind: SubscriptionKind; id: string }> = new Map();
     private connectionPromise: Promise<void> | null = null;
+    private shuttingDown = false;
 
     async connect(): Promise<void> {
-        // If already connected, return immediately
+        this.shuttingDown = false;
+
         if (this.connectionState === 'connected' && this.connection?.state === signalR.HubConnectionState.Connected) {
-            console.log('[WebSocket] Already connected');
             return;
         }
 
-        // If connection is in progress, wait for it
         if (this.connectionPromise) {
-            console.log('[WebSocket] Connection already in progress, waiting...');
             return this.connectionPromise;
         }
 
-        console.log('[WebSocket] Starting WebSocket connection...');
         this.connectionState = 'connecting';
 
-        // Connect to PlaybackHub for real-time ad events
         const url = `${BASE_URL}/hubs/playback`;
-        console.log('[WebSocket] Connecting to:', url);
 
-        this.connection = new signalR.HubConnectionBuilder()
+        const connection = new signalR.HubConnectionBuilder()
             .withUrl(url, {
                 transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
-                skipNegotiation: false
+                skipNegotiation: false,
+                // Server-side SubscribeToScreen/SubscribeToCampaign check
+                // screen/campaign ownership against the caller's JWT identity,
+                // so the dashboard connection needs to present it.
+                accessTokenFactory: () => useAuthStore.getState().accessToken || '',
             })
             .withAutomaticReconnect({
                 nextRetryDelayInMilliseconds: (retryContext) => {
-                    // Exponential backoff: 0, 2, 10, 30 seconds
-                    if (retryContext.elapsedMilliseconds < 60000) {
-                        return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
-                    }
-                    return null; // Stop reconnecting after 1 minute
+                    // Exponential backoff capped at 30s, retrying indefinitely —
+                    // a dashboard left open overnight must recover on its own.
+                    return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
                 }
             })
             .configureLogging(signalR.LogLevel.Warning)
             .build();
 
-        // Setup connection event handlers
-        this.connection.onreconnecting(() => {
+        connection.onreconnecting(() => {
             this.connectionState = 'reconnecting';
             console.log('[WebSocket] Reconnecting...');
         });
 
-        this.connection.onreconnected(() => {
+        connection.onreconnected(async () => {
             this.connectionState = 'connected';
-            console.log('[WebSocket] Reconnected successfully');
+            console.log('[WebSocket] Reconnected — restoring group subscriptions');
+            await this.restoreSubscriptions();
         });
 
-        this.connection.onclose((error) => {
+        connection.onclose((error) => {
             this.connectionState = 'disconnected';
             this.connectionPromise = null;
-            console.log('[WebSocket] Connection closed');
             if (error) {
-                console.error('[WebSocket] Close error:', error);
+                console.error('[WebSocket] Connection closed with error:', error);
             }
         });
 
-        // Create connection promise
+        this.connection = connection;
+        this.boundEvents.clear();
+        // Bind every already-registered event name to the new connection object.
+        for (const eventName of this.listeners.keys()) {
+            this.bindEvent(eventName);
+        }
+
         this.connectionPromise = (async () => {
             try {
-                console.log('[WebSocket] Attempting to start connection...');
-                await this.connection!.start();
+                await connection.start();
                 this.connectionState = 'connected';
-                console.log('✓ [WebSocket] Connected successfully to PlaybackHub');
+                console.log('✓ [WebSocket] Connected to PlaybackHub');
+                await this.restoreSubscriptions();
             } catch (error) {
                 this.connectionState = 'disconnected';
                 this.connectionPromise = null;
                 this.connection = null;
-                console.error('✗ [WebSocket] Connection failed:', error);
+                if (!this.shuttingDown) {
+                    console.error('✗ [WebSocket] Connection failed:', error);
+                }
                 throw error;
             }
         })();
@@ -90,13 +123,31 @@ class WebSocketService {
         return this.connectionPromise;
     }
 
-    async disconnect() {
-        if (this.connection) {
-            await this.connection.stop();
-            this.connection = null;
-            this.connectionState = 'disconnected';
-            console.log('WebSocket disconnected');
+    /**
+     * Fully stop the connection and forget all subscriptions. ONLY for logout —
+     * components must never call this (see class doc).
+     */
+    async shutdown() {
+        this.shuttingDown = true;
+        this.subscriptions.clear();
+        const connection = this.connection;
+        this.connection = null;
+        this.connectionPromise = null;
+        this.boundEvents.clear();
+        this.connectionState = 'disconnected';
+        if (connection) {
+            try {
+                await connection.stop();
+            } catch {
+                // Best-effort — the token may already be gone.
+            }
+            console.log('[WebSocket] Shut down');
         }
+    }
+
+    /** @deprecated Components must not stop the shared connection; use shutdown() from logout only. */
+    async disconnect() {
+        await this.shutdown();
     }
 
     getConnectionState() {
@@ -107,107 +158,97 @@ class WebSocketService {
         return this.connection?.state === signalR.HubConnectionState.Connected;
     }
 
-    // Subscribe to screen events (for screen owners)
-    async subscribeToScreen<TData = unknown>(screenId: string, callback: (data: TData) => void) {
-        if (!this.isConnected()) {
-            throw new Error('WebSocket not connected');
-        }
+    // ── Group subscriptions (tracked + auto-restored) ─────────────────────────
 
-        try {
-            // Register callback for content playing events
+    async subscribeToScreen<TData = unknown>(screenId: string, callback?: (data: TData) => void) {
+        if (callback) {
             this.on('OnContentPlaying', callback);
-
-            // Send subscription request to server
-            await this.connection!.invoke('SubscribeToScreen', screenId);
-            console.log(`Subscribed to screen: ${screenId}`);
-        } catch (error) {
-            console.error('Error subscribing to screen:', error);
-            throw error;
         }
+        this.subscriptions.set(`screen:${screenId}`, { kind: 'screen', id: screenId });
+        await this.invoke('SubscribeToScreen', screenId);
+        console.log(`[WebSocket] Subscribed to screen ${screenId}`);
     }
 
     async unsubscribeFromScreen(screenId: string) {
-        if (!this.isConnected()) return;
-
-        try {
-            await this.connection!.invoke('UnsubscribeFromScreen', screenId);
-            console.log(`Unsubscribed from screen: ${screenId}`);
-        } catch (error) {
-            console.error('Error unsubscribing from screen:', error);
-        }
+        this.subscriptions.delete(`screen:${screenId}`);
+        await this.invokeIfConnected('UnsubscribeFromScreen', screenId);
     }
 
-    // Subscribe to campaign events (for advertisers)
-    async subscribeToCampaign<TData = unknown>(campaignId: string, callback: (data: TData) => void) {
-        if (!this.isConnected()) {
-            throw new Error('WebSocket not connected');
-        }
-
-        try {
-            // Register callback for content playing events
+    async subscribeToCampaign<TData = unknown>(campaignId: string, callback?: (data: TData) => void) {
+        if (callback) {
             this.on('OnContentPlaying', callback);
-
-            // Send subscription request to server
-            await this.connection!.invoke('SubscribeToCampaign', campaignId);
-            console.log(`Subscribed to campaign: ${campaignId}`);
-        } catch (error) {
-            console.error('Error subscribing to campaign:', error);
-            throw error;
         }
+        this.subscriptions.set(`campaign:${campaignId}`, { kind: 'campaign', id: campaignId });
+        await this.invoke('SubscribeToCampaign', campaignId);
+        console.log(`[WebSocket] Subscribed to campaign ${campaignId}`);
     }
 
     async unsubscribeFromCampaign(campaignId: string) {
-        if (!this.isConnected()) return;
+        this.subscriptions.delete(`campaign:${campaignId}`);
+        await this.invokeIfConnected('UnsubscribeFromCampaign', campaignId);
+    }
 
-        try {
-            await this.connection!.invoke('UnsubscribeFromCampaign', campaignId);
-            console.log(`Unsubscribed from campaign: ${campaignId}`);
-        } catch (error) {
-            console.error('Error unsubscribing from campaign:', error);
+    /** Join the per-user booking events group (BookingCreated/Approved/...). */
+    async subscribeToBookings(userId: string) {
+        this.subscriptions.set(`bookings:${userId}`, { kind: 'bookings', id: userId });
+        await this.invoke('SubscribeToBookings', userId);
+        console.log(`[WebSocket] Subscribed to booking events for user ${userId}`);
+    }
+
+    async unsubscribeFromBookings(userId: string) {
+        this.subscriptions.delete(`bookings:${userId}`);
+        await this.invokeIfConnected('UnsubscribeFromBookings', userId);
+    }
+
+    private async restoreSubscriptions() {
+        for (const sub of this.subscriptions.values()) {
+            try {
+                if (sub.kind === 'screen') {
+                    await this.connection!.invoke('SubscribeToScreen', sub.id);
+                } else if (sub.kind === 'campaign') {
+                    await this.connection!.invoke('SubscribeToCampaign', sub.id);
+                } else {
+                    await this.connection!.invoke('SubscribeToBookings', sub.id);
+                }
+            } catch (error) {
+                console.warn(`[WebSocket] Failed to restore ${sub.kind} subscription ${sub.id}:`, error);
+            }
         }
     }
 
+    // ── Sync-mode requests ────────────────────────────────────────────────────
+
     // Request fast sync mode (1 minute interval) - call when user views Live Activity
     async requestFastSync(screenId: string) {
-        if (!this.isConnected()) return;
-
-        try {
-            await this.connection!.invoke('RequestFastSync', screenId);
-            console.log(`⚡ Requested fast sync for screen: ${screenId}`);
-        } catch (error) {
-            console.error('Error requesting fast sync:', error);
-        }
+        await this.invokeIfConnected('RequestFastSync', screenId);
     }
 
     // Request normal sync mode (10 minute interval) - call when user leaves page
     async requestNormalSync(screenId: string) {
-        if (!this.isConnected()) return;
-
-        try {
-            await this.connection!.invoke('RequestNormalSync', screenId);
-            console.log(`🐢 Requested normal sync for screen: ${screenId}`);
-        } catch (error) {
-            console.error('Error requesting normal sync:', error);
-        }
+        await this.invokeIfConnected('RequestNormalSync', screenId);
     }
 
-    // Generic event listener
-    on<TArgs extends unknown[] = unknown[]>(eventName: string, callback: (...args: TArgs) => void) {
-        if (!this.connection) return;
+    // ── Event listeners ───────────────────────────────────────────────────────
 
+    private bindEvent(eventName: string) {
+        if (!this.connection || this.boundEvents.has(eventName)) return;
+        this.boundEvents.add(eventName);
+        this.connection.on(eventName, (...args: unknown[]) => {
+            const callbacks = this.listeners.get(eventName);
+            if (callbacks) {
+                callbacks.forEach(cb => cb(...args));
+            }
+        });
+    }
+
+    on<TArgs extends unknown[] = unknown[]>(eventName: string, callback: (...args: TArgs) => void) {
         if (!this.listeners.has(eventName)) {
             this.listeners.set(eventName, new Set());
-
-            // Register with SignalR hub
-            this.connection.on(eventName, (...args: unknown[]) => {
-                const callbacks = this.listeners.get(eventName);
-                if (callbacks) {
-                    callbacks.forEach(cb => cb(...args));
-                }
-            });
         }
-
         this.listeners.get(eventName)!.add(callback as WebSocketEventCallback);
+        // Bind lazily: safe to call before connect() — connect() re-binds every
+        // registered event onto each new connection object.
+        this.bindEvent(eventName);
     }
 
     off<TArgs extends unknown[] = unknown[]>(eventName: string, callback: (...args: TArgs) => void) {
@@ -217,9 +258,9 @@ class WebSocketService {
         }
     }
 
-    // Generic invoke method for signaling calls
+    // ── Raw invocations ───────────────────────────────────────────────────────
+
     async invoke<TResult = unknown>(methodName: string, ...args: unknown[]): Promise<TResult> {
-        // If not connected, try to connect first
         if (!this.isConnected()) {
             try {
                 await this.connect();
@@ -229,7 +270,6 @@ class WebSocketService {
             }
         }
 
-        // Double check we're connected after await
         if (!this.isConnected()) {
             throw new Error(`Cannot invoke ${methodName}: WebSocket not connected`);
         }
@@ -245,7 +285,6 @@ class WebSocketService {
     // Safe invoke that doesn't throw if not connected - useful for cleanup
     async invokeIfConnected<TResult = unknown>(methodName: string, ...args: unknown[]): Promise<TResult | undefined> {
         if (!this.isConnected()) {
-            console.log(`[WebSocket] Skipping ${methodName} - not connected`);
             return;
         }
 

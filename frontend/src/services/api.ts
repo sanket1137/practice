@@ -115,8 +115,15 @@ api.interceptors.response.use(
             return Promise.reject(rateLimitError);
         }
 
-        // If error is 401 and we haven't tried to refresh yet
-        if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+        // If error is 401 and we haven't tried to refresh yet. Every /auth/*
+        // endpoint (login, register, refresh, revoke, password reset, ...) is
+        // anonymous — a 401 from one of those is already a final answer (e.g.
+        // "Invalid email or password"), not an expired access token. Retrying
+        // them through doRefresh() only replaces that real message with
+        // whatever doRefresh's own failure says (typically "No refresh token
+        // provided" on a fresh session), which masks the actual error.
+        const isAuthEndpoint = originalRequest?.url?.startsWith('/auth/');
+        if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
             originalRequest._retry = true;
 
             try {
@@ -153,6 +160,11 @@ export const logoutAndRevoke = async (): Promise<void> => {
         // Ignore — local logout must proceed regardless.
     } finally {
         useAuthStore.getState().logout();
+        // Tear down the app-lifetime SignalR connection — the only place it is
+        // ever stopped. Lazy import avoids a static api<->websocket cycle.
+        import('./websocket')
+            .then(({ websocketService }) => websocketService.shutdown())
+            .catch(() => { /* best-effort */ });
     }
 };
 

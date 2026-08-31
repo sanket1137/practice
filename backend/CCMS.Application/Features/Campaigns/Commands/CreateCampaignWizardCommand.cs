@@ -1,5 +1,7 @@
 using AutoMapper;
 using MediatR;
+using Microsoft.Extensions.Configuration;
+using CCMS.Application.Interfaces;
 using CCMS.Application.Services;
 using CCMS.Domain.Entities;
 using CCMS.Domain.Enums;
@@ -27,6 +29,17 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
     private readonly BookingCalculationService _calculationService;
     private readonly CreativeValidationService _validationService;
     private readonly SlotAvailabilityService _slotAvailabilityService;
+    private readonly IBookingNotificationService _bookingNotificationService;
+
+    /// <summary>
+    /// When false (the default), the wizard books without taking payment: no wallet
+    /// balance is required or debited, and bookings are created with
+    /// PaymentStatus.None so nothing downstream treats them as paid — notably
+    /// PayoutsController, which only pays screen owners for Captured bookings.
+    /// Flip Payments:RequirePrepayment to true once the Razorpay flow is wired up
+    /// to restore the wallet-debit behaviour.
+    /// </summary>
+    private readonly bool _requirePrepayment;
 
     public CreateCampaignWizardCommandHandler(
         IRepository<Campaign> campaignRepository,
@@ -39,8 +52,15 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
         IUnitOfWork unitOfWork,
         BookingCalculationService calculationService,
         CreativeValidationService validationService,
-        SlotAvailabilityService slotAvailabilityService)
+        SlotAvailabilityService slotAvailabilityService,
+        IBookingNotificationService bookingNotificationService,
+        IConfiguration configuration)
     {
+        _bookingNotificationService = bookingNotificationService;
+        // Indexer + TryParse rather than GetValue<bool>: this project doesn't
+        // reference Configuration.Binder. Absent/unparseable => false (no prepayment).
+        _requirePrepayment = bool.TryParse(configuration["Payments:RequirePrepayment"], out var requirePrepayment)
+            && requirePrepayment;
         _campaignRepository = campaignRepository;
         _bookingRepository = bookingRepository;
         _screenRepository = screenRepository;
@@ -68,9 +88,14 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
             throw new InvalidOperationException("At least one screen booking is required.");
 
         // ── Wallet pre-check (read-only, outside transaction) ──────────────────
-        var wallets = await _walletRepository.FindAsync(w => w.UserId == command.UserId, cancellationToken);
-        var wallet = wallets.FirstOrDefault();
-        // We'll do the exact balance check inside the transaction after calculating totals.
+        // Only looked up when prepayment is actually required; the exact balance
+        // check still happens inside the transaction, after totals are calculated.
+        Wallet? wallet = null;
+        if (_requirePrepayment)
+        {
+            var existingWallets = await _walletRepository.FindAsync(w => w.UserId == command.UserId, cancellationToken);
+            wallet = existingWallets.FirstOrDefault();
+        }
 
         // ── Pre-validate all screens and creatives (outside transaction) ────────
         var bookingPlans = new List<(CampaignWizardBookingRequest Req, Screen Screen, Creative Creative, int SlotNumber, decimal TotalPrice, List<DateTime> BookedDates, int TotalImpressions)>();
@@ -136,9 +161,13 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
             throw new InvalidOperationException($"Total booking cost ({totalAmount:F2} {req.Currency}) exceeds campaign budget ({req.Budget:F2} {req.Currency}).");
 
         // ── Atomic transaction ──────────────────────────────────────────────────
-        await _unitOfWork.BeginTransactionAsync(cancellationToken);
-
-        try
+        // Runs as a single retriable unit. Connection resiliency is enabled
+        // (EnableRetryOnFailure in Program.cs), and a retrying execution strategy
+        // refuses to replay a hand-rolled BeginTransaction — which is exactly what
+        // made every campaign-wizard request fail with "does not support
+        // user-initiated transactions". Everything the unit touches is created
+        // inside this delegate, so a retry replays cleanly.
+        var wizardResult = await _unitOfWork.ExecuteInTransactionAsync(async ct =>
         {
             // 1. Create campaign
             var campaign = new Campaign
@@ -168,7 +197,9 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
                     EndDate = endDate,
                     SlotNumbers = new List<int> { plan.SlotNumber },
                     Status = BookingStatus.Pending,
-                    PaymentStatus = PaymentStatus.Captured,
+                    // Never claim money was captured when no payment was taken —
+                    // PayoutsController pays screen owners off this exact flag.
+                    PaymentStatus = _requirePrepayment ? PaymentStatus.Captured : PaymentStatus.None,
                     ExpectedImpressions = plan.TotalImpressions,
                     DeliveredImpressions = 0,
                     TotalPrice = plan.TotalPrice,
@@ -181,46 +212,53 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
                 createdBookings.Add(booking);
             }
 
-            // 3. Wallet deduction
-            if (wallet == null)
+            // 3. Wallet deduction — skipped entirely while prepayment is disabled,
+            //    so a campaign can be booked without any wallet top-up. The booking
+            //    still records its TotalPrice, so whatever payment flow lands later
+            //    (Razorpay) has the amount owed to collect against.
+            if (_requirePrepayment)
             {
-                wallet = new Wallet
+                if (wallet == null)
                 {
-                    UserId = command.UserId,
-                    Balance = 0,
-                    Currency = req.Currency,
+                    wallet = new Wallet
+                    {
+                        UserId = command.UserId,
+                        Balance = 0,
+                        Currency = req.Currency,
+                    };
+                    await _walletRepository.AddAsync(wallet, cancellationToken);
+                    // Save so wallet gets an Id for WalletTransaction FK
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    var refreshedWallets = await _walletRepository.FindAsync(w => w.UserId == command.UserId, cancellationToken);
+                    wallet = refreshedWallets.First();
+                }
+
+                if (wallet.Balance < totalAmount)
+                    throw new InvalidOperationException(
+                        $"Insufficient wallet balance. Required: {totalAmount:F2} {req.Currency}, Available: {wallet.Balance:F2} {wallet.Currency}. Please top up your wallet.");
+
+                var balanceBefore = wallet.Balance;
+                wallet.Balance -= totalAmount;
+                await _walletRepository.UpdateAsync(wallet, cancellationToken);
+
+                var walletTx = new WalletTransaction
+                {
+                    WalletId = wallet.Id,
+                    Type = WalletTransactionType.Debit,
+                    Amount = totalAmount,
+                    Description = $"Payment for campaign: {req.Name}",
+                    ReferenceType = "Campaign",
+                    BalanceBefore = balanceBefore,
+                    BalanceAfter = wallet.Balance,
                 };
-                await _walletRepository.AddAsync(wallet, cancellationToken);
-                // Save so wallet gets an Id for WalletTransaction FK
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                wallets = await _walletRepository.FindAsync(w => w.UserId == command.UserId, cancellationToken);
-                wallet = wallets.First();
+                await _transactionRepository.AddAsync(walletTx, cancellationToken);
             }
 
-            if (wallet.Balance < totalAmount)
-                throw new InvalidOperationException(
-                    $"Insufficient wallet balance. Required: {totalAmount:F2} {req.Currency}, Available: {wallet.Balance:F2} {wallet.Currency}. Please top up your wallet.");
+            // 4. Flush so database-generated Ids are populated before the result is
+            //    built. ExecuteInTransactionAsync owns the commit and the rollback.
+            await _unitOfWork.SaveChangesAsync(ct);
 
-            var balanceBefore = wallet.Balance;
-            wallet.Balance -= totalAmount;
-            await _walletRepository.UpdateAsync(wallet, cancellationToken);
-
-            var walletTx = new WalletTransaction
-            {
-                WalletId = wallet.Id,
-                Type = WalletTransactionType.Debit,
-                Amount = totalAmount,
-                Description = $"Payment for campaign: {req.Name}",
-                ReferenceType = "Campaign",
-                BalanceBefore = balanceBefore,
-                BalanceAfter = wallet.Balance,
-            };
-            await _transactionRepository.AddAsync(walletTx, cancellationToken);
-
-            // 4. Commit — saves everything and commits the DB transaction
-            await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            // 5. Build result (Ids are set after SaveChanges inside CommitTransaction)
+            // 5. Build result
             return new CampaignWizardResult
             {
                 CampaignId = campaign.Id,
@@ -235,11 +273,47 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
                     Currency = b.Currency,
                 }).ToList(),
             };
-        }
-        catch
+        }, cancellationToken);
+
+        // ── Post-commit notifications ───────────────────────────────────────────
+        // The direct booking flow (CreateBookingCommandHandler) notifies the screen
+        // owner; wizard bookings used to skip this entirely, so owners never heard
+        // about new requests until they happened to look. Runs strictly AFTER the
+        // transaction commits — notifications must never fire (or be retried) for
+        // a booking that ends up rolled back — and is best-effort per booking.
+        // result.Bookings preserves bookingPlans order, so index-zip is safe.
+        for (var i = 0; i < wizardResult.Bookings.Count && i < bookingPlans.Count; i++)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            throw;
+            var plan = bookingPlans[i];
+            var created = wizardResult.Bookings[i];
+            try
+            {
+                await _bookingNotificationService.NotifyBookingCreatedAsync(new CCMS.Shared.DTOs.Bookings.BookingDto
+                {
+                    Id = created.BookingId,
+                    ScreenId = plan.Screen.Id,
+                    ScreenName = plan.Screen.Name,
+                    CampaignId = wizardResult.CampaignId,
+                    CampaignName = wizardResult.CampaignName,
+                    AdvertiserId = command.UserId,
+                    CreativeId = plan.Creative.Id,
+                    CreativeName = plan.Creative.Name,
+                    StartDate = startDate.ToString("yyyy-MM-dd"),
+                    EndDate = endDate.ToString("yyyy-MM-dd"),
+                    SlotNumbers = new List<int> { plan.SlotNumber },
+                    Status = Domain.Enums.BookingStatus.Pending.ToString(),
+                    TotalPrice = created.TotalPrice,
+                    Currency = created.Currency,
+                    CreatedAt = DateTime.UtcNow,
+                }, plan.Screen.OwnerId);
+            }
+            catch (Exception)
+            {
+                // Never fail a successfully created campaign because a
+                // notification could not be delivered.
+            }
         }
+
+        return wizardResult;
     }
 }

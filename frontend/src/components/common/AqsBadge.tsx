@@ -13,7 +13,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import StarIcon from '@mui/icons-material/Star';
 import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import api from '../../services/api';
 
 export interface AqsBadgeProps {
   score: number;
@@ -42,7 +42,7 @@ function getAqsColor(score: number): 'success' | 'warning' | 'error' {
 function AqsBreakdownModal({ open, onClose, screenId }: { open: boolean; onClose: () => void; screenId?: string }) {
   const { data, isLoading } = useQuery<{ data: AqsDetails }>({
     queryKey: ['aqs-details', screenId],
-    queryFn: () => axios.get(`/api/v1/screens/${screenId}/aqs-details`).then(r => r.data),
+    queryFn: () => api.get(`/screens/${screenId}/aqs-details`).then(r => r.data),
     enabled: open && !!screenId,
     staleTime: 5 * 60 * 1000,
   });

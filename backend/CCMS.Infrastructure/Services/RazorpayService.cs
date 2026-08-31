@@ -21,6 +21,23 @@ public class RazorpayService : IRazorpayService
             ?? throw new InvalidOperationException("Razorpay:KeySecret not configured");
         _webhookSecret = configuration["Razorpay:WebhookSecret"] ?? string.Empty;
 
+        // The null-coalescing checks above miss the case that actually happens in
+        // practice: the keys present but EMPTY (appsettings ships "" and the env vars
+        // are unset). That builds a client which authenticates against Razorpay with
+        // blank credentials and only fails deep inside the first real call, as an
+        // opaque "Authentication failed" — which is how every booking approval came to
+        // return a 500. Warn loudly instead of throwing, because the service is
+        // constructed by DI for handlers that legitimately skip payment entirely while
+        // Payments:RequirePrepayment is false; throwing here would break those too.
+        if (string.IsNullOrWhiteSpace(keyId) || string.IsNullOrWhiteSpace(keySecret))
+        {
+            _logger.LogWarning(
+                "Razorpay credentials are not configured (Razorpay:KeyId / Razorpay:KeySecret are empty). "
+                + "Any operation that actually contacts Razorpay — creating an order, verifying a payment, "
+                + "issuing a refund — will fail with 'Authentication failed' until they are set. This is "
+                + "expected while Payments:RequirePrepayment is false and no payment is being collected.");
+        }
+
         _client = new RazorpayClient(keyId, keySecret);
     }
 

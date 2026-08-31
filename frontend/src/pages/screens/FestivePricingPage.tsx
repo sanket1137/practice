@@ -17,7 +17,7 @@ import CelebrationIcon from "@mui/icons-material/Celebration";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import axios from "axios";
+import api from "../../services/api";
 import { festivalsApi } from "../../services/festivalsApi";
 import type { PricingRuleDto } from "../../types/pricingRule";
 import { useSnackbar } from "notistack";
@@ -56,7 +56,7 @@ export function FestivePricingPage() {
   const { data: existingRules } = useQuery<PricingRuleDto[]>({
     queryKey: ["pricing-rules", screenId],
     queryFn: async () => {
-      const res = await axios.get(`/api/v1/screens/${screenId}/pricing-rules`);
+      const res = await api.get(`/screens/${screenId}/pricing-rules`);
       return res.data?.data ?? res.data ?? [];
     },
     enabled: !!screenId,
@@ -84,7 +84,7 @@ export function FestivePricingPage() {
         endDate: s.endDate,
         multiplier: s.multiplier,
       }));
-      await axios.post(`/api/v1/screens/${screenId}/pricing-rules/bulk`, { rules });
+      await api.post(`/screens/${screenId}/pricing-rules/bulk`, { rules });
     },
     onSuccess: () => {
       enqueueSnackbar(`${Object.keys(selections).length} festive pricing rules created!`, { variant: "success" });

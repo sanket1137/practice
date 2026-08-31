@@ -122,6 +122,33 @@ public class R2StorageService : IFileStorageService, IPresignedUploadService
             try { await EnsureCorsConfiguredAsync(); }
             catch (Exception ex) { Console.WriteLine($"[R2Storage] Background CORS setup failed: {ex.Message}"); }
         });
+
+        // Verify PublicUrlBase actually serves this bucket's objects — a wrong or
+        // access-disabled value silently bakes broken URLs into every upload made
+        // until someone notices, which is exactly what happened once already
+        // (see R2UrlFixup). A 401/403 here means Public Development URL access is
+        // off for whatever bucket this points at, or it points at the wrong one
+        // entirely; either way every upload from this point on will be unreadable.
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var httpClient = new HttpClient();
+                using var response = await httpClient.GetAsync(_publicUrlBase, HttpCompletionOption.ResponseHeadersRead);
+                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                {
+                    Console.WriteLine(
+                        $"[R2Storage] CRITICAL: PublicUrlBase '{_publicUrlBase}' returned {(int)response.StatusCode} " +
+                        $"{response.StatusCode} — Public Development URL access appears disabled for this bucket, or " +
+                        "R2:PublicUrlBase points at the wrong one. Every upload made while this is true gets a " +
+                        "permanently unreadable URL. Fix R2:PublicUrlBase / bucket public access now.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[R2Storage] Could not verify PublicUrlBase reachability: {ex.Message}");
+            }
+        });
     }
     
     /// <summary>

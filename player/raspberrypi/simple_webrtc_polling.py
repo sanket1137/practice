@@ -105,7 +105,7 @@ class SimpleWebRTCPollingClient:
                 # Fallback to HTTP registration (won't support direct viewer notifications)
                 logger.info("[WebRTC-Poll] Falling back to HTTP registration...")
                 response = requests.post(
-                    f"{self.api_url}/api/streaming/register",
+                    f"{self.api_url}/api/v1/streaming/register",
                     json={
                         "screenId": self.screen_id,
                         "apiKey": self.api_key
@@ -147,7 +147,7 @@ class SimpleWebRTCPollingClient:
             try:
                 # Poll for waiting viewers
                 response = requests.get(
-                    f"{self.api_url}/api/streaming/pending-viewers/{self.screen_id}",
+                    f"{self.api_url}/api/v1/streaming/pending-viewers/{self.screen_id}",
                     timeout=2
                 )
                 
@@ -166,7 +166,7 @@ class SimpleWebRTCPollingClient:
                 
                 # Poll for pending answers from viewers (HTTP fallback)
                 ans_response = requests.get(
-                    f"{self.api_url}/api/streaming/pending-answers/{self.screen_id}",
+                    f"{self.api_url}/api/v1/streaming/pending-answers/{self.screen_id}",
                     timeout=2
                 )
                 
@@ -183,7 +183,7 @@ class SimpleWebRTCPollingClient:
                 
                 # Poll for pending ICE candidates from viewers (HTTP fallback)
                 ice_response = requests.get(
-                    f"{self.api_url}/api/streaming/pending-viewer-ice/{self.screen_id}",
+                    f"{self.api_url}/api/v1/streaming/pending-viewer-ice/{self.screen_id}",
                     timeout=2
                 )
                 
@@ -219,7 +219,7 @@ class SimpleWebRTCPollingClient:
         # Unregister stream
         try:
             requests.post(
-                f"{self.api_url}/api/streaming/unregister",
+                f"{self.api_url}/api/v1/streaming/unregister",
                 json={"screenId": self.screen_id},
                 timeout=5
             )

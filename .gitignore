@@ -567,3 +567,5 @@ player/android/output/
 # Player - ChromeOS
 player/chromeos/node_modules/
 player/chromeos/dist/
+
+player/raspberrypi.zip

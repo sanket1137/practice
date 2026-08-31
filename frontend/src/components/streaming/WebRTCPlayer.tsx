@@ -15,7 +15,6 @@ import {
     PlayArrow,
     Stop,
     Fullscreen,
-    Settings,
     SignalWifi4Bar,
     SignalWifiOff,
 } from '@mui/icons-material';
@@ -115,6 +114,11 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     const isStreamingRef = useRef(false);
     const startStreamRef = useRef<(() => Promise<void>) | null>(null);
     const stopStreamRef = useRef<(() => Promise<void>) | null>(null);
+    // Grace timer for the transient "player not registered yet" state.
+    const waitingGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Auto-reconnect after a dead peer connection (consent expiry, network blip).
+    const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const intentionallyStoppedRef = useRef(false);
 
     // Latency monitoring
     const startLatencyMonitoring = useCallback(() => {
@@ -136,6 +140,11 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
     const stopStream = useCallback(async () => {
         try {
             isStreamingRef.current = false;
+
+            if (waitingGraceRef.current) {
+                clearTimeout(waitingGraceRef.current);
+                waitingGraceRef.current = null;
+            }
 
             // Remove SignalR event handlers FIRST to prevent duplicate handlers
             if (streamingHubRef.current) {
@@ -183,6 +192,11 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
         }
 
         try {
+            intentionallyStoppedRef.current = false;
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
             setStatus('connecting');
             setError(null);
 
@@ -309,14 +323,37 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                         break;
                     case 'disconnected':
                     case 'failed':
-                        setStatus('error');
-                        setError('Connection failed');
-                        onError?.(new Error('WebRTC connection failed'));
+                    case 'closed': {
+                        // A live view dying (WebRTC consent expiry when the tab was
+                        // backgrounded, a network blip, the player restarting) is
+                        // recoverable — tear down and automatically reconnect
+                        // instead of parking on an error the user has to click
+                        // through. Deliberate Stop Watching sets
+                        // intentionallyStoppedRef and skips this.
+                        if (intentionallyStoppedRef.current) {
+                            setStatus('stopped');
+                            onStreamEnd?.();
+                            break;
+                        }
+                        logIST('[WebRTC]', `Peer ${pc.connectionState} — auto-reconnecting in 4s`);
+                        setStatus('connecting');
+                        setError(null);
+                        onError?.(new Error('WebRTC connection lost — reconnecting'));
+                        if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+                        reconnectTimerRef.current = setTimeout(async () => {
+                            if (intentionallyStoppedRef.current) return;
+                            // Mark the teardown as intentional so the dying pc's own
+                            // 'closed' event doesn't schedule a second reconnect.
+                            intentionallyStoppedRef.current = true;
+                            try {
+                                await stopStreamRef.current?.();
+                            } catch { /* best effort teardown */ }
+                            intentionallyStoppedRef.current = false;
+                            setStatus('connecting');
+                            startStreamRef.current?.();
+                        }, 4000);
                         break;
-                    case 'closed':
-                        setStatus('stopped');
-                        onStreamEnd?.();
-                        break;
+                    }
                 }
             };
 
@@ -324,6 +361,13 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             const handleOffer = async (offerSdp: string) => {
                 try {
                     if (!peerConnectionRef.current) return;
+
+                    // The player found us — cancel any pending "player offline" verdict.
+                    if (waitingGraceRef.current) {
+                        clearTimeout(waitingGraceRef.current);
+                        waitingGraceRef.current = null;
+                    }
+                    setError(null);
 
                     if (peerConnectionRef.current.signalingState !== 'stable') {
                         logIST('[WebRTC]', 'Ignoring duplicate offer');
@@ -376,6 +420,25 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                     logIST('[WebRTC]', 'Ignoring stream error - already connected');
                     return;
                 }
+
+                // "Waiting for player..." is transient, not fatal: the hub sends it
+                // whenever its in-memory broadcaster registry has no entry — which
+                // happens after every backend restart until the player re-registers
+                // (~60s), and the player also discovers waiting viewers through its
+                // HTTP poll within seconds. Hold a grace window before surfacing an
+                // error; an incoming offer or OnStreamAvailable cancels it.
+                if (errorMessage.startsWith('Waiting for player')) {
+                    logIST('[WebRTC]', 'Player not registered yet — holding grace period before erroring');
+                    if (waitingGraceRef.current) clearTimeout(waitingGraceRef.current);
+                    waitingGraceRef.current = setTimeout(() => {
+                        if (peerConnectionRef.current?.connectionState !== 'connected' && !isStreamingRef.current) {
+                            setError('The screen player appears to be offline right now. Streaming will start automatically as soon as it reconnects.');
+                            setStatus('error');
+                        }
+                    }, 30000);
+                    return;
+                }
+
                 logErrorIST('[WebRTC]', 'Stream error:', errorMessage);
                 setError(errorMessage);
                 setStatus('error');
@@ -399,6 +462,10 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
             streamingHubRef.current.on('OnStreamAvailable', (availableScreenId: string) => {
                 if (availableScreenId === screenId && peerConnectionRef.current?.connectionState !== 'connected') {
                     logIST('[WebRTC]', 'Stream became available, auto-requesting...');
+                    if (waitingGraceRef.current) {
+                        clearTimeout(waitingGraceRef.current);
+                        waitingGraceRef.current = null;
+                    }
                     setError(null);
                     setStatus('connecting');
                     streamingHubRef.current?.invoke('RequestStream', screenId).catch((err: unknown) => {
@@ -467,6 +534,11 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
 
         return () => {
             isMounted = false;
+            intentionallyStoppedRef.current = true;
+            if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
             if (stopStreamRef.current) {
                 stopStreamRef.current();
             }
@@ -661,7 +733,9 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                     )}
                 </Box>
 
-                {/* Control Buttons */}
+                {/* Control Buttons — these control WATCHING only; the broadcast from
+                    the physical screen is unaffected, so label them accordingly
+                    (an advertiser seeing "Stop Stream" reads it as killing the screen). */}
                 <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                     <Box sx={{ flex: 1 }}>
                         {status === 'idle' || status === 'stopped' || status === 'error' ? (
@@ -672,7 +746,7 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                                 startIcon={<PlayArrow />}
                                 onClick={startStream}
                             >
-                                Start Stream
+                                Watch Live
                             </Button>
                         ) : (
                             <Button
@@ -680,21 +754,19 @@ export const WebRTCPlayer: React.FC<WebRTCPlayerProps> = ({
                                 variant="outlined"
                                 color="secondary"
                                 startIcon={<Stop />}
-                                onClick={stopStream}
+                                onClick={() => {
+                                    // Deliberate stop: suppress auto-reconnect.
+                                    intentionallyStoppedRef.current = true;
+                                    if (reconnectTimerRef.current) {
+                                        clearTimeout(reconnectTimerRef.current);
+                                        reconnectTimerRef.current = null;
+                                    }
+                                    stopStream();
+                                }}
                             >
-                                Stop Stream
+                                Stop Watching
                             </Button>
                         )}
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            startIcon={<Settings />}
-                            disabled={status === 'connecting' || status === 'live'}
-                        >
-                            Settings
-                        </Button>
                     </Box>
                 </Box>
 

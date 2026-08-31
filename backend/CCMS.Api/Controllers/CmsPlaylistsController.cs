@@ -136,10 +136,16 @@ public class CmsPlaylistsController : ControllerBase
         Guid id, [FromQuery] Guid screenId, CancellationToken ct)
     {
         try
-        {await _hub.Clients.Group(CmsControlHub.GroupName(screenId))
-                .SendAsync("playlist_updated", new { screenId, playlistId = id, defaultChanged = true }, ct);
-            
+        {
             await _service.SetDefaultAsync(GetUserId(), screenId, id, ct);
+
+            // Notify only after the change is persisted — broadcasting first
+            // let a player re-handshake into a race where it could read the
+            // still-old default, and a failed SetDefaultAsync would have
+            // told the player about a change that never actually happened.
+            await _hub.Clients.Group(CmsControlHub.GroupName(screenId))
+                .SendAsync("playlist_updated", new { screenId, playlistId = id, defaultChanged = true }, ct);
+
             return Ok(ApiResponse<bool>.SuccessResponse(true, "Default playlist set"));
         }
         catch (KeyNotFoundException ex)
