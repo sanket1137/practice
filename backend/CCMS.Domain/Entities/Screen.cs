@@ -9,11 +9,25 @@ public class Screen : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     
-    // Physical dimensions
-    public decimal PhysicalWidth { get; set; }  // in feet or meters
+    // What the physical asset is (billboard, video wall, TV, ...). Orthogonal
+    // to DisplayType, which describes the environment (indoor/outdoor).
+    public ScreenType ScreenType { get; set; } = ScreenType.Unclassified;
+
+    // Physical dimensions. PhysicalWidth/Height + DimensionUnit are what the
+    // owner typed ("feet" | "inches" | "meters" | "centimeters"); the *Mm
+    // columns are the canonical millimetre values every search filter, sort
+    // and comparison must use so unit math never leaks into queries.
+    public decimal PhysicalWidth { get; set; }
     public decimal PhysicalHeight { get; set; }
-    public string DimensionUnit { get; set; } = "feet"; // "feet" or "meters"
-    
+    public string DimensionUnit { get; set; } = "feet";
+    public int? PhysicalWidthMm { get; set; }
+    public int? PhysicalHeightMm { get; set; }
+
+    // LED pixel pitch in millimetres (P2.5 = 2.5) — the first spec an
+    // experienced buyer asks about an LED asset. Only meaningful for
+    // Billboard / LedWall / VideoWall types.
+    public decimal? PixelPitchMm { get; set; }
+
     // Screen resolution
     public int ResolutionWidth { get; set; }  // e.g., 1920
     public int ResolutionHeight { get; set; } // e.g., 1080
@@ -37,13 +51,30 @@ public class Screen : BaseEntity
     // Device information
     public string DeviceId { get; set; } = string.Empty;
     public DateTime? LastSyncAt { get; set; }
-    public ScreenStatus Status { get; set; } = ScreenStatus.Active;
+
+    // Lifecycle state. Screens are born Draft and only reach Active through
+    // ScreenLifecycleService's guarded transitions (verification, device
+    // pairing). The old default of Active let unverified, deviceless screens
+    // straight into the marketplace — never restore it.
+    public ScreenStatus Status { get; set; } = ScreenStatus.Draft;
     
     // Online status tracking
     public bool IsOnline { get; set; } = false;
     public DateTime? LastSeenAt { get; set; }
     public string? ConnectedDeviceId { get; set; }
     public string? ApiKeyHash { get; set; } // Hashed API key for player authentication
+
+    // Zero-downtime key rotation: on rotate, the outgoing hash moves here and
+    // stays valid for a 24h grace window (see ScreenApiKeys.Verify), so the
+    // player can be reconfigured without the screen ever going offline.
+    public string? ApiKeyHashPrevious { get; set; }
+    public DateTime? ApiKeyRotatedAt { get; set; }
+
+    // Sync health: how many impressions the player is still holding locally,
+    // self-reported with each heartbeat. Lets the owner see "all plays
+    // reported" (or a growing backlog) without SSHing into the device.
+    public int? PendingImpressionsCount { get; set; }
+    public DateTime? PendingImpressionsAt { get; set; }
     
     // Device binding for security
     public string? DeviceFingerprintHash { get; set; } // SHA256 hash of device fingerprint

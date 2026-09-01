@@ -312,7 +312,7 @@ public class StreamingHub : Hub
                         throw new HubException("Access denied: Screen not found");
                     }
 
-                    if (string.IsNullOrEmpty(screen.ApiKeyHash) || !BCrypt.Net.BCrypt.Verify(streamKey, screen.ApiKeyHash))
+                    if (string.IsNullOrEmpty(screen.ApiKeyHash) || !CCMS.Api.Security.ScreenApiKeys.Verify(screen, streamKey))
                     {
                         _logger.LogWarning("RegisterStream rejected: invalid stream key for screen {ScreenId}", screenId);
                         throw new HubException("Access denied: Invalid stream key");

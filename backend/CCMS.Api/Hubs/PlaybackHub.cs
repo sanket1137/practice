@@ -78,7 +78,7 @@ public class PlaybackHub : Hub
 
             if (!string.IsNullOrEmpty(screen.ApiKeyHash))
             {
-                if (string.IsNullOrEmpty(apiKey) || !BCrypt.Net.BCrypt.Verify(apiKey, screen.ApiKeyHash))
+                if (!CCMS.Api.Security.ScreenApiKeys.Verify(screen, apiKey))
                 {
                     _logger.LogWarning("[PlaybackHub] Rejecting player connection: invalid API key for screen {ScreenId}", screenId);
                     Context.Abort();

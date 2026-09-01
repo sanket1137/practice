@@ -237,9 +237,13 @@ export default function ScreensPage() {
                                     displayEmpty
                                 >
                                     <MenuItem value="all">All Statuses</MenuItem>
+                                    <MenuItem value="Draft">Draft</MenuItem>
+                                    <MenuItem value="PendingVerification">Pending Verification</MenuItem>
+                                    <MenuItem value="Ready">Ready</MenuItem>
                                     <MenuItem value="Active">Active</MenuItem>
-                                    <MenuItem value="Inactive">Inactive</MenuItem>
+                                    <MenuItem value="Paused">Paused</MenuItem>
                                     <MenuItem value="Maintenance">Maintenance</MenuItem>
+                                    <MenuItem value="Archived">Archived</MenuItem>
                                 </Select>
                             </FormControl>
                             <ToggleButtonGroup

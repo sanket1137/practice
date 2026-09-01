@@ -252,8 +252,11 @@ class CCMSPlayer:
             api_key=self.api_key,
             screen_id=self.screen_id
         )
-        self.device_fingerprint = SecurePlayerConfig.generate_device_fingerprint()
-        logger.info(f"Device fingerprint generated: {self.device_fingerprint[:16]}...")
+        # Persisted on first run — see get_or_create_device_fingerprint. A
+        # recomputed-per-boot fingerprint drifts with network hardware and
+        # kills the handshake's device binding.
+        self.device_fingerprint = SecurePlayerConfig.get_or_create_device_fingerprint(Config.BASE_DIR / "data")
+        logger.info(f"Device fingerprint loaded: {self.device_fingerprint[:16]}...")
         
         # MPV Player for gapless playback
         from mpv_dual_player import MPVDualPlayer
@@ -700,7 +703,13 @@ class CCMSPlayer:
     def send_heartbeat(self):
         """Send heartbeat to maintain online status"""
         try:
-            payload = {"screenId": self.screen_id, "apiKey": self.api_key}
+            # Self-report the local impression backlog so the owner's Device tab
+            # can show sync health ("all plays reported" vs a growing queue).
+            try:
+                pending = self.impression_store.get_pending_count()
+            except Exception:
+                pending = None
+            payload = {"screenId": self.screen_id, "apiKey": self.api_key, "pendingImpressions": pending}
             response = requests.post(
                 f"{self.api_url}/api/v1/player/heartbeat",
                 json=payload,
@@ -728,84 +737,100 @@ class CCMSPlayer:
             now = datetime.now()
             session_duration = now - self.session_data['start_time']
             
-            # Get pending impressions from ImpressionStore (Single Source of Truth)
-            pending_impressions = self.impression_store.get_pending_impressions()
-            
-            if not pending_impressions:
-                logger.info("No pending impressions to sync")
-                return True
-            
-            logger.info(f"Found {len(pending_impressions)} pending impressions to sync")
-            
-            # Format impressions for server sync
-            # Server expects flat array of impressions with UPSERT handling
-            impressions_to_sync = []
-            for imp in pending_impressions:
-                impressions_to_sync.append({
-                    'impressionId': imp['impression_id'],
-                    'slotPlayKey': imp['slot_play_key'],  # Server uses for UPSERT
-                    'bookingId': imp['booking_id'],
-                    'campaignId': imp['campaign_id'],
-                    'creativeId': imp['creative_id'],
-                    'ownerContentId': imp['owner_content_id'],
-                    'slotNumber': imp['slot_number'],
-                    'playedAt': imp['played_at'],
-                    'verificationHash': imp['verification_hash'],
-                    'screenId': self.screen_id,
-                    # Playback duration tracking (for advertiser reporting)
-                    'durationSeconds': imp.get('duration_seconds'),
-                    'expectedDurationSeconds': imp.get('expected_duration_seconds'),
-                    'wasFullPlay': bool(imp.get('was_full_play', 1))
-                })
-            
-            sync_data = {
-                'date': self.session_data['date'].isoformat(),
-                'startTime': self.session_data['start_time'].strftime("%H:%M:%S"),
-                'endTime': now.strftime("%H:%M:%S"),
-                'uptime': str(session_duration),
-                'downtime': "00:00:00",
-                'impressions': impressions_to_sync,  # Flat array for UPSERT
-                'playerVersion': Config.PLAYER_VERSION
-            }
-            
-            logger.info(f"Syncing {len(impressions_to_sync)} impressions...")
-            
-            sync_payload = {
-                "screenId": self.screen_id,
-                "apiKey": self.api_key,
-                "syncData": sync_data
-            }
-            response = requests.post(
-                f"{self.api_url}/api/v1/player/sync",
-                json=sync_payload,
-                headers=self._signed_headers(sync_payload) or None,
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                data = response.json().get("data", {})
-                if data.get("success"):
-                    saved_count = data.get('impressionsSaved', 0)
-                    duplicates_ignored = data.get('duplicatesIgnored', 0)
-                    logger.info(f"[OK] Sync successful! {saved_count} new, {duplicates_ignored} duplicates ignored")
-                    
-                    # Mark impressions as synced in ImpressionStore
-                    impression_ids = [imp['impressionId'] for imp in impressions_to_sync]
-                    self.impression_store.mark_synced(impression_ids)
-                    logger.info(f"[ImpressionStore] Marked {len(impression_ids)} impressions as synced")
-                    
+            # Drain the pending backlog in bounded batches (500 per request).
+            # A single batch per 10-minute cycle would take hours to catch up
+            # after a long offline stretch, and delivery-linked payouts need
+            # the backlog on the server promptly once connectivity returns.
+            MAX_BATCHES_PER_SYNC = 20
+            batches_done = 0
+            while batches_done < MAX_BATCHES_PER_SYNC:
+                pending_impressions = self.impression_store.get_pending_impressions()
+
+                if not pending_impressions:
+                    if batches_done == 0:
+                        logger.info("No pending impressions to sync")
                     return True
+
+                logger.info(f"Found {len(pending_impressions)} pending impressions to sync (batch {batches_done + 1})")
+
+                # Format impressions for server sync
+                # Server expects flat array of impressions with UPSERT handling
+                impressions_to_sync = []
+                for imp in pending_impressions:
+                    impressions_to_sync.append({
+                        'impressionId': imp['impression_id'],
+                        'slotPlayKey': imp['slot_play_key'],  # Server uses for UPSERT
+                        'bookingId': imp['booking_id'],
+                        'campaignId': imp['campaign_id'],
+                        'creativeId': imp['creative_id'],
+                        'ownerContentId': imp['owner_content_id'],
+                        'slotNumber': imp['slot_number'],
+                        'playedAt': imp['played_at'],
+                        'verificationHash': imp['verification_hash'],
+                        'screenId': self.screen_id,
+                        # Playback duration tracking (for advertiser reporting)
+                        'durationSeconds': imp.get('duration_seconds'),
+                        'expectedDurationSeconds': imp.get('expected_duration_seconds'),
+                        'wasFullPlay': bool(imp.get('was_full_play', 1))
+                    })
+
+                sync_data = {
+                    'date': self.session_data['date'].isoformat(),
+                    'startTime': self.session_data['start_time'].strftime("%H:%M:%S"),
+                    'endTime': now.strftime("%H:%M:%S"),
+                    'uptime': str(session_duration),
+                    'downtime': "00:00:00",
+                    'impressions': impressions_to_sync,  # Flat array for UPSERT
+                    'playerVersion': Config.PLAYER_VERSION
+                }
+
+                logger.info(f"Syncing {len(impressions_to_sync)} impressions...")
+
+                sync_payload = {
+                    "screenId": self.screen_id,
+                    "apiKey": self.api_key,
+                    "syncData": sync_data
+                }
+                response = requests.post(
+                    f"{self.api_url}/api/v1/player/sync",
+                    json=sync_payload,
+                    headers=self._signed_headers(sync_payload) or None,
+                    timeout=30
+                )
+
+                impression_ids = [imp['impressionId'] for imp in impressions_to_sync]
+
+                if response.status_code == 200:
+                    data = response.json().get("data", {})
+                    if data.get("success"):
+                        saved_count = data.get('impressionsSaved', 0)
+                        duplicates_ignored = data.get('duplicatesIgnored', 0)
+                        logger.info(f"[OK] Sync successful! {saved_count} new, {duplicates_ignored} duplicates ignored")
+
+                        # Mark impressions as synced in ImpressionStore
+                        self.impression_store.mark_synced(impression_ids)
+                        logger.info(f"[ImpressionStore] Marked {len(impression_ids)} impressions as synced")
+
+                        batches_done += 1
+                        if len(pending_impressions) < 500:
+                            return True  # backlog fully drained
+                        continue  # more pending — keep draining this cycle
+                    else:
+                        logger.error(f"Sync failed: {data.get('message')}")
+                        self.impression_store.increment_sync_attempts(impression_ids)
+                        return False
                 else:
-                    logger.error(f"Sync failed: {data.get('message')}")
+                    logger.error(f"Sync HTTP error: {response.status_code}")
+                    try:
+                        error_detail = response.json()
+                        logger.error(f"Sync error details: {error_detail}")
+                    except:
+                        logger.error(f"Sync error response: {response.text[:500] if response.text else 'No response body'}")
+                    self.impression_store.increment_sync_attempts(impression_ids)
                     return False
-            else:
-                logger.error(f"Sync HTTP error: {response.status_code}")
-                try:
-                    error_detail = response.json()
-                    logger.error(f"Sync error details: {error_detail}")
-                except:
-                    logger.error(f"Sync error response: {response.text[:500] if response.text else 'No response body'}")
-                return False
+
+            logger.info(f"Sync batch cap reached ({MAX_BATCHES_PER_SYNC}); remaining backlog continues next cycle")
+            return True
                 
         except Exception as e:
             logger.error(f"Sync error: {e}")

@@ -1,11 +1,11 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Box, CircularProgress } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SnackbarProvider } from 'notistack';
 import * as Sentry from '@sentry/react';
 import { isAxiosError } from 'axios';
-import theme from './theme';
+import { ThemeModeProvider } from './ThemeModeContext';
 import { useAuthStore } from './store/authStore';
 import { isTokenExpired } from './utils/tokenUtils';
 import { doRefresh } from './services/api';
@@ -57,17 +57,14 @@ const CommunityGuidelines = lazy(() => import('./pages/legal/CommunityGuidelines
 const Disclaimer = lazy(() => import('./pages/legal/Disclaimer'));
 const ProfileSettingsPage = lazy(() => import('./pages/profile/ProfileSettingsPage'));
 const AdminPayoutsPage = lazy(() => import('./pages/payouts/AdminPayoutsPage'));
+const PlayLogsPage = lazy(() => import('./pages/playlogs/PlayLogsPage'));
 const AdminMachinesPage = lazy(() => import('./pages/admin/AdminMachinesPage'));
 const AdminVerificationsPage = lazy(() => import('./pages/admin/AdminVerificationsPage'));
 const AdminVisibilityRequestsPage = lazy(() => import('./pages/admin/AdminVisibilityRequestsPage'));
 const VerifyScreenPage = lazy(() => import('./pages/verification/VerifyScreenPage'));
 const ClaimPlayerQrPage = lazy(() => import('./pages/player-pairing/ClaimPlayerQrPage'));
-const PricingRulesPage = lazy(() => import('./pages/screens/PricingRulesPage'));
 const AdminCreativeReviewPage = lazy(() => import('./pages/admin/AdminCreativeReviewPage'));
 const MediaLibraryPage = lazy(() => import('./pages/media/MediaLibraryPage'));
-const FestivePricingPage = lazy(() =>
-  import('./pages/screens/FestivePricingPage').then((m) => ({ default: m.FestivePricingPage }))
-);
 const CmsBillingPage = lazy(() =>
   import('./pages/cms/CmsBillingPage').then((m) => ({ default: m.CmsBillingPage }))
 );
@@ -172,6 +169,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+// Legacy /screens/:id/pricing[/festive] links land on the Slots & Pricing tab
+const PricingTabRedirect: React.FC = () => {
+  const { id } = useParams();
+  return <Navigate to={`/screens/${id}?tab=slots-pricing`} replace />;
+};
+
 // Shows landing page for guests; redirects authenticated users into the app
 const SmartRoot: React.FC = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -194,8 +197,7 @@ function App() {
     <Sentry.ErrorBoundary fallback={<ErrorBoundary><div /></ErrorBoundary>}>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
+        <ThemeModeProvider>
           <SnackbarProvider maxSnack={3}>
             <AppGlobalHandlers>
               <BrowserRouter>
@@ -244,8 +246,9 @@ function App() {
                   <Route path="screens/discover" element={<DiscoverScreensPage />} />
                   <Route path="screens/:id/edit" element={<UpdateScreenPage />} />
                   <Route path="screens/:id" element={<ScreenDetailPage />} />
-                  <Route path="screens/:id/pricing" element={<PricingRulesPage />} />
-                  <Route path="screens/:screenId/pricing/festive" element={<FestivePricingPage />} />
+                  {/* Pricing now lives in the screen console's Slots & Pricing tab; old links redirect */}
+                  <Route path="screens/:id/pricing" element={<PricingTabRedirect />} />
+                  <Route path="screens/:id/pricing/festive" element={<PricingTabRedirect />} />
                   <Route path="bookings" element={<RoleAccessGate rule="bookings"><BookingsPage /></RoleAccessGate>} />
                   <Route path="bookings/new" element={<RoleAccessGate rule="bookings"><CreateBookingPage /></RoleAccessGate>} />
                   <Route path="bookings/:id" element={<RoleAccessGate rule="bookings"><BookingDetailPage /></RoleAccessGate>} />
@@ -253,6 +256,7 @@ function App() {
                   <Route path="reports/campaigns/:campaignId" element={<CampaignReportPage />} />
                   <Route path="analytics" element={<AnalyticsPage />} />
                   <Route path="payouts" element={<RoleAccessGate rule="payouts"><PayoutsPage /></RoleAccessGate>} />
+                  <Route path="logs" element={<PlayLogsPage />} />
                   <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="notifications/settings" element={<NotificationPreferencesPage />} />
                   <Route path="profile" element={<ProfileSettingsPage />} />
@@ -292,7 +296,7 @@ function App() {
               </BrowserRouter>
             </AppGlobalHandlers>
           </SnackbarProvider>
-        </ThemeProvider>
+        </ThemeModeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
     </Sentry.ErrorBoundary>

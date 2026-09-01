@@ -7,9 +7,14 @@ public class ScreenDto
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    /// <summary>Billboard | LedWall | VideoWall | TvDisplay | Kiosk | Projection | TransitDisplay | Standee | Unclassified</summary>
+    public string ScreenType { get; set; } = "Unclassified";
     public decimal PhysicalWidth { get; set; }
     public decimal PhysicalHeight { get; set; }
+    /// <summary>feet | inches | meters | centimeters</summary>
     public string DimensionUnit { get; set; } = "feet";
+    /// <summary>LED pixel pitch in millimetres (P2.5 = 2.5). Only meaningful for LED asset types.</summary>
+    public decimal? PixelPitchMm { get; set; }
     public int ResolutionWidth { get; set; }
     public int ResolutionHeight { get; set; }
     public AddressDto Location { get; set; } = new();
@@ -71,14 +76,23 @@ public class CreateScreenRequest
     [StringLength(2000)]
     public string Description { get; set; } = string.Empty;
 
+    /// <summary>Billboard | LedWall | VideoWall | TvDisplay | Kiosk | Projection | TransitDisplay | Standee</summary>
+    [StringLength(30)]
+    public string? ScreenType { get; set; }
+
     [Range(0.01, double.MaxValue)]
     public decimal PhysicalWidth { get; set; }
 
     [Range(0.01, double.MaxValue)]
     public decimal PhysicalHeight { get; set; }
 
+    /// <summary>feet | inches | meters | centimeters (short aliases accepted)</summary>
     [StringLength(20)]
     public string DimensionUnit { get; set; } = "feet";
+
+    /// <summary>LED pixel pitch in millimetres, e.g. 2.5 for P2.5.</summary>
+    [Range(0.1, 100)]
+    public decimal? PixelPitchMm { get; set; }
 
     [Range(1, int.MaxValue)]
     public int ResolutionWidth { get; set; }
@@ -124,11 +138,20 @@ public class UpdateScreenRequest
     [StringLength(2000)]
     public string? Description { get; set; }
 
+    [StringLength(30)]
+    public string? ScreenType { get; set; }
+
     [Range(0.01, double.MaxValue)]
     public decimal? PhysicalWidth { get; set; }
 
     [Range(0.01, double.MaxValue)]
     public decimal? PhysicalHeight { get; set; }
+
+    [StringLength(20)]
+    public string? DimensionUnit { get; set; }
+
+    [Range(0.1, 100)]
+    public decimal? PixelPitchMm { get; set; }
 
     [Range(1, int.MaxValue)]
     public int? ResolutionWidth { get; set; }
@@ -149,6 +172,9 @@ public class UpdateScreenRequest
     [Range(0, double.MaxValue)]
     public decimal? PricePerSlot { get; set; }
 
+    /// <summary>DEPRECATED and ignored: screen status is managed exclusively by the
+    /// lifecycle endpoints (/screens/{id}/lifecycle/*). Kept so older clients that
+    /// still send it keep deserializing.</summary>
     [StringLength(50)]
     public string? Status { get; set; }
 

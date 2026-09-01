@@ -5,15 +5,18 @@
 # One-command setup for Raspberry Pi 5 OS (Bookworm/Trixie)
 # Tested on: Raspberry Pi OS based on Debian Trixie
 #
-# Usage:
-#   curl -sSL https://your-server.com/setup-raspberry-pi.sh | sudo bash
-#   OR
-#   wget -qO- https://your-server.com/setup-raspberry-pi.sh | sudo bash
-#   OR
-#   sudo bash setup-raspberry-pi.sh
+# Usage — run from a copy of the player/raspberrypi folder (the script installs
+# the player files that sit next to it; it can NOT be piped from curl/wget):
+#   scp -r player/raspberrypi pi@<pi-host>:/home/pi/ccms-player-src
+#   ssh pi@<pi-host>
+#   cd /home/pi/ccms-player-src && sudo bash setup-raspberry-pi.sh
 #
 # Non-interactive (recommended):
-#   sudo bash setup-raspberry-pi.sh --screen-id YOUR_ID --api-key YOUR_KEY --server http://your-server.com
+#   sudo bash setup-raspberry-pi.sh --screen-id YOUR_ID --api-key YOUR_KEY --server https://ccms.pixelspot.in
+#
+# Updating an existing install later:
+#   scp -r player/raspberrypi pi@<pi-host>:/home/pi/ccms-player-src
+#   ssh pi@<pi-host> '/home/pi/ccms-player/update-player.sh /home/pi/ccms-player-src'
 #
 
 set -e
@@ -333,312 +336,36 @@ EOF
     log_info "Python dependencies installed"
 }
 
-create_player_script() {
-    log_info "Creating player script..."
-    
-    cat > "$INSTALL_DIR/player.py" << 'PLAYEREOF'
-"""
-CCMS Raspberry Pi Player
-Digital Signage Content Player with Real-time Reporting
+install_player_files() {
+    log_info "Installing player files from repository..."
 
-This script runs on Raspberry Pi devices to:
-1. Connect to CCMS server via WebSocket
-2. Download and cache playlist content
-3. Play videos in sequence
-4. Report impressions in real-time
-"""
+    # The real player lives next to this script in the repo (ccms_player.py and
+    # its modules). The old behaviour of writing an embedded copy of the player
+    # from a heredoc is gone for good: it silently installed a stale player that
+    # lacked gapless playback, the impression store, WebRTC streaming, and
+    # device-fingerprint persistence. This script must be run from a copy of
+    # player/raspberrypi/ (scp the folder to the Pi), never piped from curl.
+    local SCRIPT_DIR
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-import os
-import sys
-import time
-import json
-import hashlib
-import requests
-import socketio
-import subprocess
-from datetime import datetime
-from pathlib import Path
-import logging
+    if [[ ! -f "$SCRIPT_DIR/ccms_player.py" ]]; then
+        log_error "ccms_player.py not found next to this script ($SCRIPT_DIR)."
+        log_error "Copy the whole player/raspberrypi/ folder to the Pi and run setup from inside it:"
+        log_error "    scp -r player/raspberrypi pi@<pi-host>:/home/pi/ccms-player-src"
+        log_error "    ssh pi@<pi-host> 'cd /home/pi/ccms-player-src && sudo ./setup-raspberry-pi.sh'"
+        exit 1
+    fi
 
-# Load config file
-CONFIG_FILE = Path(__file__).parent / "config.json"
-with open(CONFIG_FILE, 'r') as f:
-    config = json.load(f)
+    # Player code + support modules. -p keeps timestamps so update diffs are honest.
+    cp -p "$SCRIPT_DIR"/*.py "$INSTALL_DIR/"
 
-# Configuration
-API_BASE_URL = config.get("server_url", "http://localhost:5257")
-DEVICE_ID = config.get("screen_id", os.getenv("DEVICE_ID", "YOUR_DEVICE_ID_HERE"))
-DEVICE_TOKEN = config.get("api_key", os.getenv("DEVICE_TOKEN", "YOUR_DEVICE_TOKEN_HERE"))
-CACHE_DIR = Path(os.getenv("CACHE_DIR", "./cache"))
-LOG_FILE = Path(__file__).parent / "logs" / "player.log"
+    # Bundled mpv IPC library, if present in the repo copy
+    if [[ -d "$SCRIPT_DIR/mpv_lib" ]]; then
+        rm -rf "$INSTALL_DIR/mpv_lib"
+        cp -rp "$SCRIPT_DIR/mpv_lib" "$INSTALL_DIR/"
+    fi
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-logger = logging.getLogger(__name__)
-
-# Create cache directory
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-class CCMSPlayer:
-    def __init__(self):
-        self.sio = socketio.Client()
-        self.playlist = None
-        self.is_playing = False
-        self.current_creative = None
-        self.vlc_instance = None
-        self.media_player = None
-        
-        # Setup Socket.IO event handlers
-        self.sio.on('connect', self.on_connect)
-        self.sio.on('disconnect', self.on_disconnect)
-        self.sio.on('playlist_update', self.on_playlist_update)
-        
-        # Initialize VLC
-        self._init_vlc()
-        
-    def _init_vlc(self):
-        """Initialize VLC player"""
-        try:
-            import vlc
-            # Pi 5 optimized VLC arguments
-            vlc_args = [
-                '--aout=alsa',
-                '--vout=xcb_x11',  # For X11
-                '--no-xlib',
-                '--fullscreen',
-                '--no-video-title-show',
-                '--no-osd',
-                '--loop'
-            ]
-            self.vlc_instance = vlc.Instance(' '.join(vlc_args))
-            self.media_player = self.vlc_instance.media_player_new()
-            self.media_player.set_fullscreen(True)
-            logger.info("VLC initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize VLC: {e}")
-            
-    def on_connect(self):
-        logger.info("Connected to CCMS server")
-        self.handshake()
-        
-    def on_disconnect(self):
-        logger.warning("Disconnected from CCMS server")
-        
-    def on_playlist_update(self, data):
-        logger.info("Received playlist update")
-        self.update_playlist(data)
-        
-    def handshake(self):
-        """Perform handshake with server and get today's playlist"""
-        try:
-            url = f"{API_BASE_URL}/api/player/handshake"
-            payload = {
-                "screenId": DEVICE_ID,
-                "apiKey": DEVICE_TOKEN,
-                "playerVersion": "1.0.0",
-                "osInfo": self.get_os_version()
-            }
-            
-            response = requests.post(url, json=payload, timeout=30)
-            response.raise_for_status()
-            
-            data = response.json()
-            if data.get('success'):
-                logger.info("Handshake successful")
-                playlist_data = data.get('data', {}).get('playlist')
-                if playlist_data:
-                    self.update_playlist(playlist_data)
-            else:
-                logger.error(f"Handshake failed: {data.get('message')}")
-                
-        except Exception as e:
-            logger.error(f"Handshake error: {e}")
-            
-    def get_os_version(self):
-        """Get OS version information"""
-        try:
-            with open('/etc/os-release', 'r') as f:
-                for line in f:
-                    if line.startswith('PRETTY_NAME='):
-                        return line.split('=')[1].strip().strip('"')
-        except:
-            pass
-        return "Raspberry Pi OS"
-    
-    def update_playlist(self, playlist_data):
-        """Update playlist and download new content"""
-        self.playlist = playlist_data.get('items', [])
-        logger.info(f"Playlist updated with {len(self.playlist)} items")
-        
-        # Download missing content
-        for item in self.playlist:
-            self.download_content(item)
-            
-    def download_content(self, item):
-        """Download and cache content file"""
-        url = item.get('url') or item.get('fileUrl')
-        if not url:
-            return
-            
-        # Create filename from URL
-        filename = url.split('/')[-1]
-        filepath = CACHE_DIR / filename
-        
-        if filepath.exists():
-            logger.debug(f"Content already cached: {filename}")
-            return filepath
-            
-        try:
-            logger.info(f"Downloading: {filename}")
-            response = requests.get(url, stream=True, timeout=60)
-            response.raise_for_status()
-            
-            with open(filepath, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-                    
-            logger.info(f"Downloaded: {filename}")
-            return filepath
-            
-        except Exception as e:
-            logger.error(f"Download failed for {filename}: {e}")
-            return None
-            
-    def report_impression(self, creative_id, duration, completed=True):
-        """Report impression to server"""
-        try:
-            url = f"{API_BASE_URL}/api/player/impression"
-            payload = {
-                "screenId": DEVICE_ID,
-                "creativeId": creative_id,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
-                "duration": duration,
-                "completed": completed
-            }
-            
-            response = requests.post(url, json=payload, timeout=10)
-            if response.status_code == 200:
-                logger.debug(f"Impression reported for creative {creative_id}")
-            else:
-                logger.warning(f"Failed to report impression: {response.status_code}")
-                
-        except Exception as e:
-            logger.error(f"Impression report error: {e}")
-            
-    def play_content(self, item):
-        """Play a single content item"""
-        import vlc
-        
-        url = item.get('url') or item.get('fileUrl')
-        creative_id = item.get('creativeId') or item.get('id')
-        duration = item.get('duration', 10)
-        
-        if not url:
-            return
-            
-        # Check cache first
-        filename = url.split('/')[-1]
-        filepath = CACHE_DIR / filename
-        
-        if filepath.exists():
-            media_path = str(filepath)
-        else:
-            media_path = url
-            
-        try:
-            logger.info(f"Playing: {filename} for {duration}s")
-            self.current_creative = creative_id
-            
-            # Create media and play
-            media = self.vlc_instance.media_new(media_path)
-            self.media_player.set_media(media)
-            self.media_player.play()
-            
-            # Wait for duration
-            start_time = time.time()
-            while time.time() - start_time < duration:
-                state = self.media_player.get_state()
-                if state == vlc.State.Ended or state == vlc.State.Error:
-                    break
-                time.sleep(0.5)
-                
-            self.media_player.stop()
-            
-            # Report impression
-            actual_duration = min(time.time() - start_time, duration)
-            self.report_impression(creative_id, actual_duration, completed=True)
-            
-        except Exception as e:
-            logger.error(f"Playback error: {e}")
-            
-    def play_default_content(self):
-        """Play default content when no playlist available"""
-        default_dir = Path(__file__).parent / "default"
-        default_files = list(default_dir.glob("*.mp4")) + list(default_dir.glob("*.jpg")) + list(default_dir.glob("*.png"))
-        
-        if default_files:
-            for f in default_files:
-                try:
-                    import vlc
-                    media = self.vlc_instance.media_new(str(f))
-                    self.media_player.set_media(media)
-                    self.media_player.play()
-                    time.sleep(10)  # Play for 10 seconds
-                    self.media_player.stop()
-                except Exception as e:
-                    logger.error(f"Error playing default content: {e}")
-        else:
-            logger.info("No default content available, waiting...")
-            time.sleep(5)
-            
-    def run(self):
-        """Main player loop"""
-        logger.info("Starting CCMS Player...")
-        logger.info(f"Screen ID: {DEVICE_ID}")
-        logger.info(f"Server URL: {API_BASE_URL}")
-        
-        # Initial handshake
-        self.handshake()
-        
-        # Main playback loop
-        while True:
-            try:
-                if self.playlist and len(self.playlist) > 0:
-                    for item in self.playlist:
-                        self.play_content(item)
-                else:
-                    # No playlist - play default content or wait
-                    self.play_default_content()
-                    
-                # Refresh playlist periodically
-                self.handshake()
-                
-            except KeyboardInterrupt:
-                logger.info("Player stopped by user")
-                break
-            except Exception as e:
-                logger.error(f"Player error: {e}")
-                time.sleep(5)  # Wait before retry
-                
-        # Cleanup
-        if self.media_player:
-            self.media_player.stop()
-        logger.info("Player shutdown complete")
-
-
-if __name__ == "__main__":
-    player = CCMSPlayer()
-    player.run()
-PLAYEREOF
-
-    log_info "Player script created"
+    log_info "Player files installed ($(ls "$INSTALL_DIR"/*.py | wc -l) modules)"
 }
 
 create_config_file() {
@@ -674,7 +401,7 @@ WorkingDirectory=$INSTALL_DIR
 Environment="DISPLAY=:0"
 Environment="XAUTHORITY=/home/$PI_USER/.Xauthority"
 ExecStartPre=/bin/sleep 10
-ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/player.py
+ExecStart=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/ccms_player.py
 Restart=always
 RestartSec=10
 StandardOutput=append:$INSTALL_DIR/logs/player.log
@@ -702,7 +429,7 @@ create_autostart_desktop() {
 Type=Application
 Name=CCMS Player
 Comment=Digital Signage Player
-Exec=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/player.py
+Exec=$INSTALL_DIR/venv/bin/python $INSTALL_DIR/ccms_player.py
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
@@ -751,7 +478,7 @@ set_permissions() {
     log_info "Setting file permissions..."
     
     chown -R "$PI_USER:$PI_USER" "$INSTALL_DIR"
-    chmod +x "$INSTALL_DIR/player.py"
+    chmod +x "$INSTALL_DIR/ccms_player.py"
     
     log_info "Permissions set"
 }
@@ -763,7 +490,7 @@ create_management_scripts() {
     cat > "$INSTALL_DIR/start.sh" << EOF
 #!/bin/bash
 cd "$INSTALL_DIR"
-./venv/bin/python player.py
+./venv/bin/python ccms_player.py
 EOF
     chmod +x "$INSTALL_DIR/start.sh"
     
@@ -818,6 +545,34 @@ echo "Configuration updated. Restarting player..."
 sudo systemctl restart ccms-player
 EOF
     chmod +x "$INSTALL_DIR/update-config.sh"
+
+    # Update player code script — brings an existing install up to the latest
+    # player without re-running full setup. Usage:
+    #   scp -r player/raspberrypi pi@<pi>:/home/pi/ccms-player-src
+    #   ssh pi@<pi> '/home/pi/ccms-player/update-player.sh /home/pi/ccms-player-src'
+    cat > "$INSTALL_DIR/update-player.sh" << EOF
+#!/bin/bash
+set -e
+SRC="\${1:-/home/$PI_USER/ccms-player-src}"
+if [[ ! -f "\$SRC/ccms_player.py" ]]; then
+    echo "ERROR: \$SRC does not contain ccms_player.py"
+    echo "Usage: \$0 /path/to/player/raspberrypi"
+    exit 1
+fi
+echo "Updating player code from \$SRC ..."
+cp -p "\$SRC"/*.py "$INSTALL_DIR/"
+if [[ -d "\$SRC/mpv_lib" ]]; then
+    rm -rf "$INSTALL_DIR/mpv_lib"
+    cp -rp "\$SRC/mpv_lib" "$INSTALL_DIR/"
+fi
+# config.json, data/ (device fingerprint, impression store) and cache/ are untouched.
+echo "Restarting player service..."
+sudo systemctl restart $SERVICE_NAME
+echo "Done. Recent log:"
+sleep 3
+tail -5 "$INSTALL_DIR/logs/player.log" || true
+EOF
+    chmod +x "$INSTALL_DIR/update-player.sh"
     
     chown -R "$PI_USER:$PI_USER" "$INSTALL_DIR"
     
@@ -892,7 +647,7 @@ main() {
     install_system_dependencies
     create_user_if_needed
     setup_player_directory
-    create_player_script
+    install_player_files
     create_config_file
     create_systemd_service
     create_autostart_desktop
@@ -905,3 +660,4 @@ main() {
 
 # Run main function with all arguments
 main "$@"
+

@@ -32,6 +32,7 @@ public class ScreensController : ControllerBase
     private readonly ScreenTaggingService _taggingService;
     private readonly ApplicationDbContext _context;
     private readonly IScreenImageService _imageService;
+    private readonly CCMS.Api.Services.ScreenLifecycleService _lifecycleService;
     private readonly ILogger<ScreensController> _logger;
 
     public ScreensController(
@@ -39,13 +40,76 @@ public class ScreensController : ControllerBase
         ScreenTaggingService taggingService,
         ApplicationDbContext context,
         IScreenImageService imageService,
+        CCMS.Api.Services.ScreenLifecycleService lifecycleService,
         ILogger<ScreensController> logger)
     {
         _mediator = mediator;
         _taggingService = taggingService;
         _context = context;
         _imageService = imageService;
+        _lifecycleService = lifecycleService;
         _logger = logger;
+    }
+
+    // ==========================================
+    // LIFECYCLE — the only way status changes
+    // ==========================================
+
+    /// <summary>
+    /// Current lifecycle state + the actions available from it. The UI renders
+    /// its lifecycle buttons from this response — never from client-side rules.
+    /// </summary>
+    [HttpGet("{id}/lifecycle")]
+    public async Task<ActionResult<ApiResponse<object>>> GetLifecycle(Guid id)
+    {
+        var screen = await _context.Screens.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
+        if (screen == null)
+            return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        if (screen.OwnerId != userId && !User.IsInRole("Admin"))
+            return StatusCode(403, ApiResponse<object>.ErrorResponse("You can only view your own screens"));
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            status = screen.Status.ToString(),
+            verificationStatus = screen.VerificationStatus.ToString(),
+            isOnline = screen.IsOnline,
+            allowedActions = CCMS.Api.Services.ScreenLifecycleService.AllowedActions(screen)
+                .Select(a => a.ToString()).ToList(),
+        }));
+    }
+
+    public class LifecycleActionRequest
+    {
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// Perform a lifecycle transition. Action names match ScreenLifecycleAction:
+    /// SubmitForVerification | Activate | Pause | Resume | StartMaintenance |
+    /// EndMaintenance | Archive. Guards (verification, device pairing, active
+    /// bookings) are enforced server-side and returned as plain-language errors.
+    /// </summary>
+    [HttpPost("{id}/lifecycle/{action}")]
+    public async Task<ActionResult<ApiResponse<object>>> Transition(
+        Guid id, string action, [FromBody] LifecycleActionRequest? request)
+    {
+        if (!Enum.TryParse<CCMS.Api.Services.ScreenLifecycleAction>(action, ignoreCase: true, out var parsed))
+            return BadRequest(ApiResponse<object>.ErrorResponse($"Unknown lifecycle action '{action}'."));
+
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var result = await _lifecycleService.TransitionAsync(
+            id, parsed, userId, User.IsInRole("Admin"), request?.Reason);
+
+        if (!result.Success)
+            return BadRequest(ApiResponse<object>.ErrorResponse(result.Error ?? "Transition not allowed"));
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            status = result.Status.ToString(),
+            allowedActions = result.AllowedActions,
+        }));
     }
 
     [HttpGet]
@@ -262,6 +326,178 @@ public class ScreensController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving slot calendar for screen {ScreenId}", id);
             return StatusCode(500, ApiResponse<SlotCalendarDto>.ErrorResponse("Failed to retrieve slot calendar."));
+        }
+    }
+
+    /// <summary>
+    /// Per-day demand for the next N days (default 90, max 180), read from the
+    /// same SlotAvailability rows the booking flow maintains — so the heatmap
+    /// can never disagree with what bookings actually reserved. Days with no
+    /// row are fully available.
+    /// </summary>
+    [HttpGet("{id}/demand")]
+    public async Task<ActionResult<ApiResponse<List<DayDemandDto>>>> GetDemand(
+        Guid id,
+        [FromQuery] int days = 90)
+    {
+        try
+        {
+            days = Math.Clamp(days, 1, 180);
+
+            var screen = await _context.Screens
+                .AsNoTracking()
+                .Where(s => s.Id == id && !s.IsDeleted)
+                .Select(s => new { s.SlotsPerFrame })
+                .FirstOrDefaultAsync();
+
+            if (screen == null)
+                return NotFound(ApiResponse<List<DayDemandDto>>.ErrorResponse("Screen not found"));
+
+            // Same visibility rule as availability/calendar: advertisers can't
+            // probe private screens.
+            if (User.IsInRole("Advertiser") && await IsScreenPrivateAsync(id))
+                return NotFound(ApiResponse<List<DayDemandDto>>.ErrorResponse("Screen not found"));
+
+            var start = DateTime.UtcNow.Date;
+            var end = start.AddDays(days);
+
+            var rows = await _context.SlotAvailabilities
+                .AsNoTracking()
+                .Where(a => a.ScreenId == id && a.Date >= start && a.Date < end)
+                .Select(a => new { a.Date, a.TotalSlots, a.BookedSlots })
+                .ToDictionaryAsync(a => a.Date.Date, a => a);
+
+            var result = new List<DayDemandDto>(days);
+            for (var d = start; d < end; d = d.AddDays(1))
+            {
+                rows.TryGetValue(d, out var row);
+                var total = row?.TotalSlots > 0 ? row.TotalSlots : screen.SlotsPerFrame;
+                var booked = Math.Min(row?.BookedSlots ?? 0, total);
+                result.Add(new DayDemandDto
+                {
+                    Date = d.ToString("yyyy-MM-dd"),
+                    TotalSlots = total,
+                    BookedSlots = booked
+                });
+            }
+
+            return Ok(ApiResponse<List<DayDemandDto>>.SuccessResponse(result));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving demand for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<List<DayDemandDto>>.ErrorResponse("Failed to retrieve demand."));
+        }
+    }
+
+    /// <summary>
+    /// Sync health for the owner's device tab: the impression backlog the
+    /// player self-reports with each heartbeat. Owner/Admin only.
+    /// </summary>
+    [HttpGet("{id}/sync-health")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> GetSyncHealth(Guid id)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var isAdmin = User.IsInRole("Admin");
+
+        var screen = await _context.Screens
+            .AsNoTracking()
+            .Where(s => s.Id == id && !s.IsDeleted)
+            .Select(s => new { s.OwnerId, s.IsOnline, s.LastSeenAt, s.PendingImpressionsCount, s.PendingImpressionsAt })
+            .FirstOrDefaultAsync();
+
+        if (screen == null)
+            return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+        if (!isAdmin && screen.OwnerId != userId)
+            return Forbid();
+
+        return Ok(ApiResponse<object>.SuccessResponse(new
+        {
+            isOnline = screen.IsOnline,
+            lastSeenAt = screen.LastSeenAt,
+            pendingImpressions = screen.PendingImpressionsCount,
+            reportedAt = screen.PendingImpressionsAt
+        }));
+    }
+
+    /// <summary>
+    /// Price benchmark: what comparable active screens charge per slot.
+    /// Comparable = same city (fallback: same state, then platform-wide),
+    /// preferring the same screen type when enough samples exist. Only
+    /// aggregates are returned, never individual screens' prices, and only
+    /// when at least 3 screens contribute.
+    /// </summary>
+    [HttpGet("{id}/price-benchmark")]
+    public async Task<ActionResult<ApiResponse<PriceBenchmarkDto>>> GetPriceBenchmark(Guid id)
+    {
+        try
+        {
+            var me = await _context.Screens
+                .AsNoTracking()
+                .Where(s => s.Id == id && !s.IsDeleted)
+                .Select(s => new { s.PricePerSlot, s.Currency, City = s.Location.City, State = s.Location.State, s.ScreenType })
+                .FirstOrDefaultAsync();
+
+            if (me == null)
+                return NotFound(ApiResponse<PriceBenchmarkDto>.ErrorResponse("Screen not found"));
+
+            var candidates = await _context.Screens
+                .AsNoTracking()
+                .Where(s => !s.IsDeleted && s.Id != id
+                    && s.Status == ScreenStatus.Active
+                    && s.PricePerSlot > 0
+                    && s.Currency == me.Currency)
+                .Select(s => new { s.PricePerSlot, City = s.Location.City, State = s.Location.State, s.ScreenType })
+                .ToListAsync();
+
+            // Narrowest comparable pool with at least 3 screens.
+            var pools = new[]
+            {
+                (label: $"{me.City} · {me.ScreenType}", items: candidates.Where(c => c.City == me.City && c.ScreenType == me.ScreenType)),
+                (label: me.City ?? "your city", items: candidates.Where(c => c.City == me.City)),
+                (label: me.State ?? "your state", items: candidates.Where(c => c.State == me.State)),
+                (label: "the platform", items: candidates.AsEnumerable()),
+            };
+
+            foreach (var (label, items) in pools)
+            {
+                var prices = items.Select(c => c.PricePerSlot).OrderBy(p => p).ToList();
+                if (prices.Count < 3) continue;
+
+                decimal Percentile(double p)
+                {
+                    var rank = p * (prices.Count - 1);
+                    var lo = (int)Math.Floor(rank);
+                    var hi = (int)Math.Ceiling(rank);
+                    return Math.Round(prices[lo] + (prices[hi] - prices[lo]) * (decimal)(rank - lo), 0);
+                }
+
+                return Ok(ApiResponse<PriceBenchmarkDto>.SuccessResponse(new PriceBenchmarkDto
+                {
+                    Scope = label,
+                    SampleSize = prices.Count,
+                    Currency = me.Currency,
+                    YourPrice = me.PricePerSlot,
+                    P25 = Percentile(0.25),
+                    Median = Percentile(0.5),
+                    P75 = Percentile(0.75)
+                }));
+            }
+
+            // Not enough comparable screens anywhere — say so rather than fake it.
+            return Ok(ApiResponse<PriceBenchmarkDto>.SuccessResponse(new PriceBenchmarkDto
+            {
+                Scope = null,
+                SampleSize = 0,
+                Currency = me.Currency,
+                YourPrice = me.PricePerSlot
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error computing price benchmark for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<PriceBenchmarkDto>.ErrorResponse("Failed to compute benchmark."));
         }
     }
 
@@ -683,6 +919,63 @@ public class ScreensController : ControllerBase
         {
             _logger.LogError(ex, "Error generating API key for screen {ScreenId}", id);
             return StatusCode(500, ApiResponse<GenerateApiKeyResponse>.ErrorResponse("Failed to generate API key."));
+        }
+    }
+
+    /// <summary>
+    /// Rotate the API key with a 24-hour grace window: the new key takes effect
+    /// immediately, and the outgoing key keeps authenticating until the window
+    /// closes — so the player can be reconfigured without the screen ever going
+    /// offline. Unlike generate-api-key (a hard cutover for first-time setup or
+    /// emergencies), rotation is the safe periodic-hygiene path.
+    /// </summary>
+    [HttpPost("{id}/rotate-api-key")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<GenerateApiKeyResponse>>> RotateApiKey(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? throw new UnauthorizedAccessException("User not authenticated"));
+            var isAdmin = User.IsInRole("Admin");
+
+            var screen = await _context.Screens.FirstOrDefaultAsync(s => s.Id == id);
+            if (screen == null)
+                return NotFound(ApiResponse<GenerateApiKeyResponse>.ErrorResponse("Screen not found"));
+
+            if (!isAdmin && screen.OwnerId != userId)
+                return StatusCode(403, ApiResponse<GenerateApiKeyResponse>.ErrorResponse(
+                    "Only the screen owner can rotate API keys"));
+
+            if (string.IsNullOrEmpty(screen.ApiKeyHash))
+                return BadRequest(ApiResponse<GenerateApiKeyResponse>.ErrorResponse(
+                    "No API key exists yet — generate one first."));
+
+            var apiKey = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+            var apiKeyHash = BCrypt.Net.BCrypt.HashPassword(apiKey, workFactor: 12);
+
+            screen.ApiKeyHashPrevious = screen.ApiKeyHash;
+            screen.ApiKeyRotatedAt = DateTime.UtcNow;
+            screen.ApiKeyHash = apiKeyHash;
+            screen.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            var graceUntil = screen.ApiKeyRotatedAt.Value.Add(CCMS.Api.Security.ScreenApiKeys.RotationGrace);
+            _logger.LogInformation("API key rotated for screen {ScreenId}; previous key valid until {GraceUntil:u}", id, graceUntil);
+
+            return Ok(ApiResponse<GenerateApiKeyResponse>.SuccessResponse(
+                new GenerateApiKeyResponse
+                {
+                    ScreenId = id,
+                    ApiKey = apiKey,
+                    Message = $"Key rotated. The old key keeps working until {graceUntil:u} — update the player's config before then. Store the new key securely; it cannot be retrieved again."
+                },
+                "API key rotated with 24h grace window"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rotating API key for screen {ScreenId}", id);
+            return StatusCode(500, ApiResponse<GenerateApiKeyResponse>.ErrorResponse("Failed to rotate API key."));
         }
     }
 

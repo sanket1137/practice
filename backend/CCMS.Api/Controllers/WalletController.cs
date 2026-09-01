@@ -185,39 +185,40 @@ public class WalletController : ControllerBase
         }
 
         // Atomic credit — wallet update + transaction insert must commit or roll back together.
-        await _unitOfWork.BeginTransactionAsync();
+        // ExecuteInTransactionAsync makes begin→work→commit one retriable unit under the
+        // Npgsql retry strategy (a raw BeginTransactionAsync throws with EnableRetryOnFailure).
         try
         {
-            var wallet = await GetOrCreateWalletAsync(userId);
-            var balanceBefore = wallet.Balance;
-            wallet.Balance += request.Amount;
-            wallet.LastTopUpAt = DateTime.UtcNow;
-            await _walletRepository.UpdateAsync(wallet);
-
-            var transaction = new WalletTransaction
+            return await _unitOfWork.ExecuteInTransactionAsync<ActionResult<ApiResponse<WalletDto>>>(async _ =>
             {
-                WalletId = wallet.Id,
-                Type = WalletTransactionType.TopUp,
-                Amount = request.Amount,
-                Description = $"Wallet top-up via Razorpay (Order: {request.RazorpayOrderId}, Payment: {request.RazorpayPaymentId})",
-                ReferenceType = "RazorpayTopUp",
-                ReferenceId = idempotencyRef,
-                BalanceBefore = balanceBefore,
-                BalanceAfter = wallet.Balance
-            };
-            await _transactionRepository.AddAsync(transaction);
+                var wallet = await GetOrCreateWalletAsync(userId);
+                var balanceBefore = wallet.Balance;
+                wallet.Balance += request.Amount;
+                wallet.LastTopUpAt = DateTime.UtcNow;
+                await _walletRepository.UpdateAsync(wallet);
 
-            await _unitOfWork.CommitTransactionAsync();
+                var transaction = new WalletTransaction
+                {
+                    WalletId = wallet.Id,
+                    Type = WalletTransactionType.TopUp,
+                    Amount = request.Amount,
+                    Description = $"Wallet top-up via Razorpay (Order: {request.RazorpayOrderId}, Payment: {request.RazorpayPaymentId})",
+                    ReferenceType = "RazorpayTopUp",
+                    ReferenceId = idempotencyRef,
+                    BalanceBefore = balanceBefore,
+                    BalanceAfter = wallet.Balance
+                };
+                await _transactionRepository.AddAsync(transaction);
 
-            _logger.LogInformation(
-                "Wallet top-up CREDITED. User={UserId} Amount={Amount} {Currency} NewBalance={NewBalance} Order={OrderId}",
-                userId, request.Amount, wallet.Currency, wallet.Balance, request.RazorpayOrderId);
+                _logger.LogInformation(
+                    "Wallet top-up CREDITED. User={UserId} Amount={Amount} {Currency} NewBalance={NewBalance} Order={OrderId}",
+                    userId, request.Amount, wallet.Currency, wallet.Balance, request.RazorpayOrderId);
 
-            return Ok(ApiResponse<WalletDto>.SuccessResponse(MapToDto(wallet), "Top-up successful"));
+                return Ok(ApiResponse<WalletDto>.SuccessResponse(MapToDto(wallet), "Top-up successful"));
+            });
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogError(ex,
                 "Wallet top-up FAILED during persistence. User={UserId} Order={OrderId} Amount={Amount}",
                 userId, request.RazorpayOrderId, request.Amount);
@@ -320,55 +321,52 @@ public class WalletController : ControllerBase
         if (existingDebit)
             return Conflict(ApiResponse<WalletDto>.ErrorResponse("This booking has already been debited"));
 
-        await _unitOfWork.BeginTransactionAsync();
         try
         {
-            // Re-load the wallet INSIDE the transaction with a tracked entity so RowVersion-based
-            // optimistic concurrency catches any racing debit on the same wallet.
-            var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == userId)
-                ?? throw new InvalidOperationException("Wallet not found");
-
-            if (wallet.Balance < booking.TotalPrice)
+            // Retry-strategy-safe transaction; each attempt re-reads the wallet fresh, and
+            // RowVersion-based optimistic concurrency still catches racing debits.
+            return await _unitOfWork.ExecuteInTransactionAsync<ActionResult<ApiResponse<WalletDto>>>(async _ =>
             {
-                await _unitOfWork.RollbackTransactionAsync();
-                return BadRequest(ApiResponse<WalletDto>.ErrorResponse(
-                    $"Insufficient balance. Required: {booking.TotalPrice:F2} {booking.Currency}, Available: {wallet.Balance:F2} {wallet.Currency}"));
-            }
+                var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == userId)
+                    ?? throw new InvalidOperationException("Wallet not found");
 
-            var balanceBefore = wallet.Balance;
-            wallet.Balance -= booking.TotalPrice;
-            // Don't call repository.UpdateAsync — it auto-saves and would break the transaction boundary.
-            _dbContext.Wallets.Update(wallet);
+                if (wallet.Balance < booking.TotalPrice)
+                {
+                    return BadRequest(ApiResponse<WalletDto>.ErrorResponse(
+                        $"Insufficient balance. Required: {booking.TotalPrice:F2} {booking.Currency}, Available: {wallet.Balance:F2} {wallet.Currency}"));
+                }
 
-            _dbContext.WalletTransactions.Add(new WalletTransaction
-            {
-                WalletId = wallet.Id,
-                Type = WalletTransactionType.Debit,
-                Amount = booking.TotalPrice,
-                Description = $"Payment for booking {booking.Id}",
-                ReferenceId = booking.Id,
-                ReferenceType = "Booking",
-                BalanceBefore = balanceBefore,
-                BalanceAfter = wallet.Balance
+                var balanceBefore = wallet.Balance;
+                wallet.Balance -= booking.TotalPrice;
+                // Don't call repository.UpdateAsync — it auto-saves and would break the transaction boundary.
+                _dbContext.Wallets.Update(wallet);
+
+                _dbContext.WalletTransactions.Add(new WalletTransaction
+                {
+                    WalletId = wallet.Id,
+                    Type = WalletTransactionType.Debit,
+                    Amount = booking.TotalPrice,
+                    Description = $"Payment for booking {booking.Id}",
+                    ReferenceId = booking.Id,
+                    ReferenceType = "Booking",
+                    BalanceBefore = balanceBefore,
+                    BalanceAfter = wallet.Balance
+                });
+
+                booking.PaymentStatus = PaymentStatus.Captured;
+                booking.PaymentMethod = "Wallet";
+                booking.UpdatedAt = DateTime.UtcNow;
+                _dbContext.Bookings.Update(booking);
+
+                _logger.LogInformation(
+                    "Wallet payment SUCCESS. User={UserId} Amount={Amount} {Currency} BookingId={BookingId} NewBalance={NewBalance}",
+                    userId, booking.TotalPrice, booking.Currency, booking.Id, wallet.Balance);
+
+                return Ok(ApiResponse<WalletDto>.SuccessResponse(MapToDto(wallet), "Payment successful"));
             });
-
-            booking.PaymentStatus = PaymentStatus.Captured;
-            booking.PaymentMethod = "Wallet";
-            booking.UpdatedAt = DateTime.UtcNow;
-            _dbContext.Bookings.Update(booking);
-
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
-
-            _logger.LogInformation(
-                "Wallet payment SUCCESS. User={UserId} Amount={Amount} {Currency} BookingId={BookingId} NewBalance={NewBalance}",
-                userId, booking.TotalPrice, booking.Currency, booking.Id, wallet.Balance);
-
-            return Ok(ApiResponse<WalletDto>.SuccessResponse(MapToDto(wallet), "Payment successful"));
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogWarning(ex,
                 "Wallet payment CONCURRENCY conflict. User={UserId} BookingId={BookingId} — refusing to debit",
                 userId, request.BookingId);
@@ -377,7 +375,6 @@ public class WalletController : ControllerBase
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogError(ex,
                 "Wallet payment FAILED. User={UserId} BookingId={BookingId}",
                 userId, request.BookingId);
@@ -399,84 +396,80 @@ public class WalletController : ControllerBase
         if (campaign == null || campaign.AdvertiserId != userId)
             return NotFound(ApiResponse<WalletDto>.ErrorResponse("Campaign not found"));
 
-        await _unitOfWork.BeginTransactionAsync();
         try
         {
-            // Pull tracked entities inside the transaction so concurrent writers can't slip in.
-            var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == userId)
-                ?? throw new InvalidOperationException("Wallet not found");
-
-            var bookings = await _dbContext.Bookings
-                .Where(b => b.CampaignId == request.CampaignId
-                    && !b.IsDeleted
-                    && b.PaymentStatus != PaymentStatus.Captured
-                    && b.PaymentStatus != PaymentStatus.Refunded
-                    && b.Status != BookingStatus.Cancelled
-                    && b.Status != BookingStatus.Rejected)
-                .ToListAsync();
-
-            if (!bookings.Any())
+            // Retry-strategy-safe transaction; every read below happens inside the unit so
+            // each retry attempt sees fresh state and concurrent writers can't slip in.
+            return await _unitOfWork.ExecuteInTransactionAsync<ActionResult<ApiResponse<WalletDto>>>(async _ =>
             {
-                await _unitOfWork.RollbackTransactionAsync();
-                return BadRequest(ApiResponse<WalletDto>.ErrorResponse("No unpaid bookings found for this campaign"));
-            }
+                var wallet = await _dbContext.Wallets.FirstOrDefaultAsync(w => w.UserId == userId)
+                    ?? throw new InvalidOperationException("Wallet not found");
 
-            // Idempotency at campaign level — a successful campaign debit writes one row with
-            // ReferenceType="Campaign". Reject if it's already there.
-            var campaignDebited = await _dbContext.WalletTransactions
-                .AnyAsync(t => t.ReferenceType == "Campaign" && t.ReferenceId == request.CampaignId
-                    && t.Type == WalletTransactionType.Debit && !t.IsDeleted);
-            if (campaignDebited)
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                return Conflict(ApiResponse<WalletDto>.ErrorResponse("Campaign has already been paid from wallet"));
-            }
+                var bookings = await _dbContext.Bookings
+                    .Where(b => b.CampaignId == request.CampaignId
+                        && !b.IsDeleted
+                        && b.PaymentStatus != PaymentStatus.Captured
+                        && b.PaymentStatus != PaymentStatus.Refunded
+                        && b.Status != BookingStatus.Cancelled
+                        && b.Status != BookingStatus.Rejected)
+                    .ToListAsync();
 
-            var totalAmount = bookings.Sum(b => b.TotalPrice);
-            if (wallet.Balance < totalAmount)
-            {
-                await _unitOfWork.RollbackTransactionAsync();
-                return BadRequest(ApiResponse<WalletDto>.ErrorResponse(
-                    $"Insufficient balance. Required: {totalAmount:F2} {wallet.Currency}, Available: {wallet.Balance:F2} {wallet.Currency}"));
-            }
+                if (!bookings.Any())
+                {
+                    return BadRequest(ApiResponse<WalletDto>.ErrorResponse("No unpaid bookings found for this campaign"));
+                }
 
-            var balanceBefore = wallet.Balance;
-            wallet.Balance -= totalAmount;
-            _dbContext.Wallets.Update(wallet);
+                // Idempotency at campaign level — a successful campaign debit writes one row with
+                // ReferenceType="Campaign". Reject if it's already there.
+                var campaignDebited = await _dbContext.WalletTransactions
+                    .AnyAsync(t => t.ReferenceType == "Campaign" && t.ReferenceId == request.CampaignId
+                        && t.Type == WalletTransactionType.Debit && !t.IsDeleted);
+                if (campaignDebited)
+                {
+                    return Conflict(ApiResponse<WalletDto>.ErrorResponse("Campaign has already been paid from wallet"));
+                }
 
-            _dbContext.WalletTransactions.Add(new WalletTransaction
-            {
-                WalletId = wallet.Id,
-                Type = WalletTransactionType.Debit,
-                Amount = totalAmount,
-                Description = $"Payment for campaign: {campaign.Name}",
-                ReferenceId = request.CampaignId,
-                ReferenceType = "Campaign",
-                BalanceBefore = balanceBefore,
-                BalanceAfter = wallet.Balance
+                var totalAmount = bookings.Sum(b => b.TotalPrice);
+                if (wallet.Balance < totalAmount)
+                {
+                    return BadRequest(ApiResponse<WalletDto>.ErrorResponse(
+                        $"Insufficient balance. Required: {totalAmount:F2} {wallet.Currency}, Available: {wallet.Balance:F2} {wallet.Currency}"));
+                }
+
+                var balanceBefore = wallet.Balance;
+                wallet.Balance -= totalAmount;
+                _dbContext.Wallets.Update(wallet);
+
+                _dbContext.WalletTransactions.Add(new WalletTransaction
+                {
+                    WalletId = wallet.Id,
+                    Type = WalletTransactionType.Debit,
+                    Amount = totalAmount,
+                    Description = $"Payment for campaign: {campaign.Name}",
+                    ReferenceId = request.CampaignId,
+                    ReferenceType = "Campaign",
+                    BalanceBefore = balanceBefore,
+                    BalanceAfter = wallet.Balance
+                });
+
+                foreach (var booking in bookings)
+                {
+                    booking.PaymentStatus = PaymentStatus.Captured;
+                    booking.PaymentMethod = "Wallet";
+                    booking.UpdatedAt = DateTime.UtcNow;
+                    _dbContext.Bookings.Update(booking);
+                }
+
+                _logger.LogInformation(
+                    "Wallet campaign payment SUCCESS. User={UserId} CampaignId={CampaignId} Amount={Amount} Bookings={Count}",
+                    userId, request.CampaignId, totalAmount, bookings.Count);
+
+                return Ok(ApiResponse<WalletDto>.SuccessResponse(MapToDto(wallet),
+                    $"Payment of {totalAmount:F2} {wallet.Currency} successful for {bookings.Count} booking(s)"));
             });
-
-            foreach (var booking in bookings)
-            {
-                booking.PaymentStatus = PaymentStatus.Captured;
-                booking.PaymentMethod = "Wallet";
-                booking.UpdatedAt = DateTime.UtcNow;
-                _dbContext.Bookings.Update(booking);
-            }
-
-            await _unitOfWork.SaveChangesAsync();
-            await _unitOfWork.CommitTransactionAsync();
-
-            _logger.LogInformation(
-                "Wallet campaign payment SUCCESS. User={UserId} CampaignId={CampaignId} Amount={Amount} Bookings={Count}",
-                userId, request.CampaignId, totalAmount, bookings.Count);
-
-            return Ok(ApiResponse<WalletDto>.SuccessResponse(MapToDto(wallet),
-                $"Payment of {totalAmount:F2} {wallet.Currency} successful for {bookings.Count} booking(s)"));
         }
         catch (DbUpdateConcurrencyException ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogWarning(ex,
                 "Wallet campaign payment CONCURRENCY conflict. User={UserId} CampaignId={CampaignId}",
                 userId, request.CampaignId);
@@ -485,7 +478,6 @@ public class WalletController : ControllerBase
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogError(ex,
                 "Wallet campaign payment FAILED. User={UserId} CampaignId={CampaignId}",
                 userId, request.CampaignId);

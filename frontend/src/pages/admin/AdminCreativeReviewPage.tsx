@@ -123,9 +123,9 @@ export default function AdminCreativeReviewPage() {
           mb: 3,
           borderRadius: 3,
           background:
-            'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
-          border: '1px solid rgba(16, 24, 40, 0.08)',
-          boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+            'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), var(--ps-surface)',
+          border: '1px solid var(--ps-border)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
         }}
       >
         <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>Creative review queue</Typography>

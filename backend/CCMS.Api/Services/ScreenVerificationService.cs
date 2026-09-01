@@ -13,6 +13,7 @@ namespace CCMS.Api.Services;
 public class ScreenVerificationService
 {
     private readonly ApplicationDbContext _context;
+    private readonly ScreenLifecycleService _lifecycleService;
     private readonly ILogger<ScreenVerificationService> _logger;
 
     private const int QR_CHALLENGE_TTL_MINUTES = 5;
@@ -20,9 +21,11 @@ public class ScreenVerificationService
 
     public ScreenVerificationService(
         ApplicationDbContext context,
+        ScreenLifecycleService lifecycleService,
         ILogger<ScreenVerificationService> logger)
     {
         _context = context;
+        _lifecycleService = lifecycleService;
         _logger = logger;
     }
 
@@ -150,6 +153,11 @@ public class ScreenVerificationService
 
         await _context.SaveChangesAsync();
 
+        // Verification is a lifecycle guard, not a lifecycle state — passing it
+        // moves a pending screen to Ready ("you're ready to earn"), through the
+        // one service allowed to change status.
+        await _lifecycleService.OnVerificationPassedAsync(verification.Screen);
+
         _logger.LogInformation("Screen {ScreenId} verification {VerificationId} approved by admin {AdminId}",
             verification.ScreenId, verificationId, adminUserId);
 
@@ -184,6 +192,10 @@ public class ScreenVerificationService
         verification.Screen.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        // Rejection sends the screen back to Draft so the owner can fix the
+        // problem and resubmit; the reason lands in the lifecycle audit trail.
+        await _lifecycleService.OnVerificationRejectedAsync(verification.Screen, reason);
 
         _logger.LogInformation("Screen {ScreenId} verification {VerificationId} rejected by admin {AdminId}: {Reason}",
             verification.ScreenId, verificationId, adminUserId, reason);

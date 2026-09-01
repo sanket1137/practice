@@ -10,6 +10,8 @@ interface PendingBooking {
     campaignName: string;
     screenName: string;
     creativeName: string;
+    creativeFileUrl?: string;
+    creativeMimeType?: string;
     startDate: string;
     endDate: string;
     totalPrice: number;
@@ -102,9 +104,19 @@ export default function OwnerApprovalQueue() {
                                 }}
                                 onClick={() => navigate(`/bookings/${booking.id}`)}
                             >
-                                <Avatar sx={{ bgcolor: 'warning.main' }}>
-                                    {booking.campaignName.charAt(0)}
-                                </Avatar>
+                                {booking.creativeFileUrl ? (
+                                    (booking.creativeMimeType ?? '').startsWith('video') ? (
+                                        <Box component="video" src={booking.creativeFileUrl} muted
+                                            sx={{ width: 72, height: 44, objectFit: 'cover', borderRadius: 1, flexShrink: 0, bgcolor: 'black' }} />
+                                    ) : (
+                                        <Box component="img" src={booking.creativeFileUrl} alt=""
+                                            sx={{ width: 72, height: 44, objectFit: 'cover', borderRadius: 1, flexShrink: 0 }} />
+                                    )
+                                ) : (
+                                    <Avatar sx={{ bgcolor: 'warning.main' }}>
+                                        {booking.campaignName.charAt(0)}
+                                    </Avatar>
+                                )}
                                 <Box flex={1}>
                                     <Typography variant="subtitle2" fontWeight="bold">
                                         {booking.campaignName}

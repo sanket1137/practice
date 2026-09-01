@@ -378,8 +378,8 @@ export default function CreateBookingPage() {
                     mb: 3,
                     borderRadius: 3,
                     background:
-                        'radial-gradient(900px 340px at 100% -8%, rgba(10, 102, 216, 0.12), transparent 60%), #ffffff',
-                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10, 102, 216, 0.12), transparent 60%), var(--ps-surface)',
+                    border: '1px solid var(--ps-border)',
                 }}
             >
                 <Typography variant="h4" gutterBottom>

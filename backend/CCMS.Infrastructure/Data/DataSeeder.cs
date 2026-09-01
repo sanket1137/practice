@@ -245,7 +245,7 @@ public static class DataSeeder
             TimeFrameMinutes = 2,
             SlotsPerFrame = 4,
             DeviceId = "device-005",
-            Status = ScreenStatus.Inactive,
+            Status = ScreenStatus.Paused,
             IsOnline = false,
             PricePerSlot = 100,
             Currency = "USD",

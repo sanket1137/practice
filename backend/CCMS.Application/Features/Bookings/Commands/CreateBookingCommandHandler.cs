@@ -68,6 +68,12 @@ public class CreateBookingCommandHandler : IRequestHandler<CreateBookingCommand,
             throw new InvalidOperationException(
                 "This screen has not been verified yet. Only verified screens can accept bookings.");
 
+        // Lifecycle gate: only Active screens are open for booking. Paused,
+        // Maintenance and pre-launch states must never take new demand.
+        if (screen.Status != ScreenStatus.Active)
+            throw new InvalidOperationException(
+                $"This screen is not open for booking right now (status: {screen.Status}).");
+
         // Check screen owner visibility — private owners reject public bookings
         var screenOwner = await _userRepository.GetByIdAsync(screen.OwnerId, cancellationToken);
         if (screenOwner != null && screenOwner.AccountVisibility == ScreenVisibility.Private)

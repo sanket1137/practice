@@ -423,6 +423,132 @@ public class PayoutsController : ControllerBase
     }
 
     /// <summary>
+    /// The owner's full payout ledger: every payout in every state (the history
+    /// endpoint shows only completed ones), newest first, with booking context —
+    /// the data behind the Earnings hub and its CSV statement.
+    /// </summary>
+    [HttpGet("mine")]
+    public async Task<ActionResult<ApiResponse<List<PendingPayoutDto>>>> GetMine(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (userRole != "ScreenOwner" && userRole != "Admin")
+            return Forbid();
+
+        if (page < 1) page = 1;
+        pageSize = Math.Clamp(pageSize, 1, 200);
+
+        var payouts = await _dbContext.Payouts
+            .AsNoTracking()
+            .Where(p => p.ScreenOwnerId == userId && !p.IsDeleted)
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Include(p => p.Booking).ThenInclude(b => b!.Screen)
+            .Include(p => p.Booking).ThenInclude(b => b!.Campaign)
+            .ToListAsync();
+
+        var dtos = payouts.Select(p => new PendingPayoutDto
+        {
+            Id = p.Id,
+            BookingId = p.BookingId,
+            PayoutType = p.Type.ToString(),
+            ScreenName = p.Booking?.Screen?.Name ?? "N/A",
+            CampaignName = p.Booking?.Campaign?.Name,
+            GrossAmount = p.GrossAmount,
+            CommissionPercentage = p.CommissionPercentage,
+            CommissionAmount = p.CommissionAmount,
+            NetAmount = p.NetAmount,
+            AdvancePercentage = p.AdvancePercentage,
+            Currency = p.Currency,
+            Status = p.Status.ToString(),
+            CreatedAt = p.CreatedAt
+        }).ToList();
+
+        return Ok(ApiResponse<List<PendingPayoutDto>>.SuccessResponse(dtos));
+    }
+
+    /// <summary>
+    /// Earnings timeline for one booking — the money split, delivery progress,
+    /// and every payout recorded against it. Visible to the screen's owner and admins.
+    /// </summary>
+    [HttpGet("bookings/{bookingId:guid}")]
+    public async Task<ActionResult<ApiResponse<BookingEarningsDto>>> GetBookingEarnings(Guid bookingId)
+    {
+        var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+        var booking = await _dbContext.Bookings
+            .AsNoTracking()
+            .Include(b => b.Screen)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && !b.IsDeleted);
+
+        if (booking?.Screen == null)
+            return NotFound(ApiResponse<BookingEarningsDto>.ErrorResponse("Booking not found"));
+
+        if (userRole != "Admin" && booking.Screen.OwnerId != userId)
+            return Forbid();
+
+        var payouts = await _dbContext.Payouts
+            .AsNoTracking()
+            .Where(p => p.BookingId == bookingId && !p.IsDeleted)
+            .OrderBy(p => p.CreatedAt)
+            .ToListAsync();
+
+        var delivered = await _dbContext.Impressions.CountAsync(i => i.BookingId == bookingId);
+        var expected = booking.ExpectedImpressions;
+        var deliveryPct = expected > 0
+            ? Math.Min(100m, Math.Round(delivered * 100m / expected, 1))
+            : 100m;
+
+        // Mirror the payout engine's rate resolution so projected numbers match
+        // what the sweep will actually record (advance's snapshot wins once it exists).
+        var advance = payouts.FirstOrDefault(p => p.Type == PayoutType.Advance);
+        var commissionPct = advance?.CommissionPercentage
+            ?? (booking.Screen.CommissionPercentage > 0
+                ? booking.Screen.CommissionPercentage
+                : _configuration.GetValue<decimal>("Platform:CommissionPercentage", 10m));
+        var advancePct = advance?.AdvancePercentage
+            ?? _configuration.GetValue<decimal>("Platform:DefaultAdvancePercentage", 50m);
+
+        var gross = booking.TotalPrice;
+        var commissionAmount = Math.Round(gross * (commissionPct / 100m), 2);
+
+        var dto = new BookingEarningsDto
+        {
+            BookingId = booking.Id,
+            BookingStatus = booking.Status.ToString(),
+            Currency = booking.Currency,
+            GrossAmount = gross,
+            CommissionPercentage = commissionPct,
+            CommissionAmount = commissionAmount,
+            NetToOwner = gross - commissionAmount,
+            AdvancePercentage = advancePct,
+            IsInternal = booking.Source == BookingSource.SelfReserved && booking.IsInternalPayment,
+            DeliveredImpressions = delivered,
+            ExpectedImpressions = expected,
+            DeliveryPercentage = deliveryPct,
+            Payouts = payouts.Select(p => new BookingPayoutEntryDto
+            {
+                Id = p.Id,
+                Type = p.Type.ToString(),
+                Status = p.Status.ToString(),
+                GrossAmount = p.GrossAmount,
+                CommissionAmount = p.CommissionAmount,
+                NetAmount = p.NetAmount,
+                AdvancePercentage = p.AdvancePercentage,
+                AdminNotes = p.AdminNotes,
+                CreatedAt = p.CreatedAt,
+                ProcessedAt = p.ProcessedAt
+            }).ToList()
+        };
+
+        return Ok(ApiResponse<BookingEarningsDto>.SuccessResponse(dto));
+    }
+
+    /// <summary>
     /// Get payout history (screen owners see their own, admins see all)
     /// </summary>
     [HttpGet("history")]

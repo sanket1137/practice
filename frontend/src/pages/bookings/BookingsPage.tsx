@@ -35,6 +35,7 @@ import {
     Timer as TimerIcon,
 } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -359,6 +360,27 @@ export default function BookingsPage() {
         setSelectedBooking(booking);
         setApproveDialogOpen(true);
     };
+
+    // Deep links from the dashboard approvals queue auto-open the right dialog
+    // once the list loads: ?review=<id> (approve view) or ?action=approve|reject&id=<id>.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const reviewId = searchParams.get('review') ?? searchParams.get('id');
+    const reviewAction = searchParams.get('review') ? 'approve' : searchParams.get('action');
+    useEffect(() => {
+        if (!reviewId || !reviewAction || !bookings) return;
+        const target = bookings.find(b => b.id === reviewId && b.status === 'Pending');
+        if (target) {
+            setSelectedBooking(target);
+            if (reviewAction === 'reject') setRejectDialogOpen(true);
+            else setApproveDialogOpen(true);
+        }
+        // Consume the params either way so refreshes don't re-open the dialog.
+        searchParams.delete('review');
+        searchParams.delete('action');
+        searchParams.delete('id');
+        setSearchParams(searchParams, { replace: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reviewId, reviewAction, bookings]);
 
     const handleOpenReject = (booking: Booking) => {
         blurActive();
@@ -685,7 +707,7 @@ export default function BookingsPage() {
                     mb: 3,
                     borderRadius: 3,
                     background:
-                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), var(--ps-surface)',
                 }}
             >
                 <Typography variant="h4" gutterBottom>
@@ -761,16 +783,36 @@ export default function BookingsPage() {
                                     md: 6
                                 }}>
                                 <Card>
-                                    <CardMedia
-                                        component={selectedBooking.creativeMimeType.startsWith('video/') ? 'video' : 'img'}
-                                        image={selectedBooking.creativeFileUrl}
-                                        sx={{ height: 300 }}
-                                        controls={selectedBooking.creativeMimeType.startsWith('video/')}
-                                    />
+                                    {/* The exact ad that will play — video gets a real
+                                        player (CardMedia's `image` prop doesn't feed
+                                        <video>, so src it directly), image gets img,
+                                        and a missing/unknown creative degrades to a
+                                        placeholder instead of crashing the dialog. */}
+                                    {selectedBooking.creativeFileUrl && (selectedBooking.creativeMimeType ?? '').startsWith('video/') ? (
+                                        <CardMedia
+                                            component="video"
+                                            src={selectedBooking.creativeFileUrl}
+                                            sx={{ height: 300, backgroundColor: '#000' }}
+                                            controls
+                                            muted
+                                            autoPlay
+                                            loop
+                                        />
+                                    ) : selectedBooking.creativeFileUrl ? (
+                                        <CardMedia
+                                            component="img"
+                                            image={selectedBooking.creativeFileUrl}
+                                            sx={{ height: 300, objectFit: 'contain', backgroundColor: '#000' }}
+                                        />
+                                    ) : (
+                                        <Box sx={{ height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'action.hover' }}>
+                                            <Typography color="text.secondary">Creative preview unavailable</Typography>
+                                        </Box>
+                                    )}
                                     <CardContent>
                                         <Typography variant="h6">{selectedBooking.creativeName}</Typography>
                                         <Typography variant="body2" color="textSecondary">
-                                            {selectedBooking.creativeMimeType}
+                                            {selectedBooking.creativeMimeType ?? 'Unknown format'}
                                         </Typography>
                                     </CardContent>
                                 </Card>
@@ -843,8 +885,25 @@ export default function BookingsPage() {
                 <DialogTitle>Reject Booking Request</DialogTitle>
                 <DialogContent>
                     <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                        Please provide a reason for rejecting this booking request.
+                        The advertiser sees this reason — pick one or write your own.
                     </Typography>
+                    <Box display="flex" gap={1} flexWrap="wrap" mb={2}>
+                        {[
+                            'Content not suitable for this screen',
+                            'Conflicts with an existing advertiser',
+                            'Dates not available',
+                            'Pricing does not work for these dates',
+                        ].map((preset) => (
+                            <Chip
+                                key={preset}
+                                label={preset}
+                                size="small"
+                                variant={rejectNote === preset ? 'filled' : 'outlined'}
+                                color={rejectNote === preset ? 'primary' : 'default'}
+                                onClick={() => setRejectNote(preset)}
+                            />
+                        ))}
+                    </Box>
                     <TextField
                         fullWidth
                         multiline

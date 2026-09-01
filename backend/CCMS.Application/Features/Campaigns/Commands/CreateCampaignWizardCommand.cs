@@ -109,6 +109,9 @@ public class CreateCampaignWizardCommandHandler : IRequestHandler<CreateCampaign
             if (screen.VerificationStatus != ScreenVerificationStatus.Verified)
                 throw new InvalidOperationException($"Screen '{screen.Name}' is not yet verified and cannot accept bookings.");
 
+            if (screen.Status != ScreenStatus.Active)
+                throw new InvalidOperationException($"Screen '{screen.Name}' is not open for booking right now (status: {screen.Status}).");
+
             var screenOwner = await _userRepository.GetByIdAsync(screen.OwnerId, cancellationToken);
             if (screenOwner?.AccountVisibility == ScreenVisibility.Private)
                 throw new InvalidOperationException($"Screen owner for '{screen.Name}' is not accepting public bookings.");

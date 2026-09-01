@@ -273,6 +273,307 @@ public class ReportsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Owner-wide proof-of-play log across all of the caller's screens, filterable
+    /// by screen / campaign / booking / date range. This is the log an owner hands
+    /// an advertiser when asked "prove my ad played": every entry carries the
+    /// screen, campaign, advertiser, slot, duration, and verification flag.
+    /// </summary>
+    [HttpGet("owner/play-log")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> GetOwnerPlayLog(
+        [FromQuery] Guid? screenId = null,
+        [FromQuery] Guid? campaignId = null,
+        [FromQuery] Guid? bookingId = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null,
+        [FromQuery] string? contentType = null,   // all | campaign | house
+        [FromQuery] string? quality = null,       // all | full | partial
+        [FromQuery] string? verification = null,  // all | verified | late
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var isAdmin = User.IsInRole("Admin");
+
+            var screenIdsQuery = _context.Screens.Where(s => !s.IsDeleted);
+            if (!isAdmin) screenIdsQuery = screenIdsQuery.Where(s => s.OwnerId == userId);
+            if (screenId.HasValue) screenIdsQuery = screenIdsQuery.Where(s => s.Id == screenId.Value);
+            var screenIds = await screenIdsQuery.Select(s => s.Id).ToListAsync();
+            if (screenIds.Count == 0)
+                return Ok(ApiResponse<object>.SuccessResponse(new { totalCount = 0, page, pageSize, totals = new { plays = 0, fullPlays = 0, verified = 0 }, entries = Array.Empty<object>() }));
+
+            var fromUtc = DateTime.SpecifyKind((from ?? DateTime.UtcNow.AddDays(-7)).Date, DateTimeKind.Utc);
+            var toUtc = DateTime.SpecifyKind((to ?? DateTime.UtcNow).Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 500);
+
+            var query = _context.Impressions.AsNoTracking()
+                .Where(i => screenIds.Contains(i.ScreenId) && i.PlayedAt >= fromUtc && i.PlayedAt <= toUtc);
+            if (campaignId.HasValue) query = query.Where(i => i.CampaignId == campaignId.Value);
+            if (bookingId.HasValue) query = query.Where(i => i.BookingId == bookingId.Value);
+            if (contentType == "campaign") query = query.Where(i => i.OwnerContentId == null);
+            else if (contentType == "house") query = query.Where(i => i.OwnerContentId != null);
+            if (quality == "full") query = query.Where(i => i.WasFullPlay);
+            else if (quality == "partial") query = query.Where(i => !i.WasFullPlay);
+            if (verification == "verified") query = query.Where(i => i.IsVerified);
+            else if (verification == "late") query = query.Where(i => !i.IsVerified);
+
+            var totalCount = await query.CountAsync();
+            var fullPlays = await query.CountAsync(i => i.WasFullPlay);
+            var verified = await query.CountAsync(i => i.IsVerified);
+
+            var entries = await query
+                .OrderByDescending(i => i.PlayedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(i => new
+                {
+                    playedAt = i.PlayedAt,
+                    screenId = i.ScreenId,
+                    screenName = _context.Screens.Where(s => s.Id == i.ScreenId).Select(s => s.Name).FirstOrDefault(),
+                    campaignId = i.CampaignId,
+                    campaignName = i.CampaignId != null
+                        ? _context.Campaigns.Where(c => c.Id == i.CampaignId).Select(c => c.Name).FirstOrDefault()
+                        : null,
+                    advertiserName = i.CampaignId != null
+                        ? _context.Campaigns.Where(c => c.Id == i.CampaignId)
+                            .Join(_context.Users, c => c.AdvertiserId, u => u.Id,
+                                (c, u) => u.CompanyName ?? (u.FirstName + " " + u.LastName))
+                            .FirstOrDefault()
+                        : null,
+                    bookingId = i.BookingId,
+                    isHouseContent = i.OwnerContentId != null,
+                    slotPosition = i.SlotPosition,
+                    durationSeconds = i.DurationSeconds,
+                    wasFullPlay = i.WasFullPlay,
+                    isVerified = i.IsVerified,
+                    // Proof fields: device-side identity + tamper-evidence hashes,
+                    // plus every raw value the canonical record hash is built from,
+                    // so exports are independently recomputable without trusting us.
+                    impressionId = i.ImpressionId,
+                    slotPlayKey = i.SlotPlayKey,
+                    verificationHash = i.VerificationHash,
+                    canonicalId = i.ImpressionId ?? i.Id.ToString(),
+                    playedAtTicks = i.PlayedAt.Ticks,
+                    ownerContentId = i.OwnerContentId
+                })
+                .ToListAsync();
+
+            return Ok(ApiResponse<object>.SuccessResponse(new
+            {
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                from = fromUtc,
+                to = toUtc,
+                totals = new { plays = totalCount, fullPlays, verified },
+                entries
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error building owner play log");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Error fetching play log"));
+        }
+    }
+
+    /// <summary>
+    /// Ledger integrity for one screen's play log: a per-screen, per-day hash
+    /// chain. Every closed UTC day is sealed exactly once — RecordsRoot is the
+    /// SHA-256 digest of the day's canonical impression records, and each
+    /// SealHash binds that root to the previous day's seal. Verification
+    /// recomputes every root from the raw records live and re-derives every
+    /// link, so this endpoint PROVES integrity on each call rather than
+    /// asserting it. Editing or deleting any historical play breaks the chain
+    /// visibly.
+    /// </summary>
+    [HttpGet("owner/play-log/integrity")]
+    [Authorize(Roles = "ScreenOwner,Admin")]
+    public async Task<ActionResult<ApiResponse<object>>> GetPlayLogIntegrity(
+        [FromQuery] Guid screenId,
+        [FromQuery] int days = 30)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var isAdmin = User.IsInRole("Admin");
+
+            var screen = await _context.Screens.AsNoTracking()
+                .Where(s => s.Id == screenId && !s.IsDeleted)
+                .Select(s => new { s.OwnerId, s.Name })
+                .FirstOrDefaultAsync();
+            if (screen == null)
+                return NotFound(ApiResponse<object>.ErrorResponse("Screen not found"));
+            if (!isAdmin && screen.OwnerId != userId)
+                return Forbid();
+
+            days = Math.Clamp(days, 1, 90);
+            var todayUtc = DateTime.UtcNow.Date;
+
+            // ── Seal any not-yet-sealed closed days, in order, so the chain is
+            // contiguous from the first recorded play to yesterday. ──
+            var firstPlay = await _context.Impressions
+                .Where(i => i.ScreenId == screenId)
+                .OrderBy(i => i.PlayedAt)
+                .Select(i => (DateTime?)i.PlayedAt)
+                .FirstOrDefaultAsync();
+
+            if (firstPlay.HasValue)
+            {
+                var lastSealedDay = await _context.PlayLogSeals
+                    .Where(s => s.ScreenId == screenId)
+                    .MaxAsync(s => (DateTime?)s.Day);
+                var sealFrom = lastSealedDay?.AddDays(1) ?? firstPlay.Value.Date;
+                // Bounded per request; older backlog completes across calls.
+                var sealed_ = 0;
+                for (var day = sealFrom; day < todayUtc && sealed_ < 120; day = day.AddDays(1), sealed_++)
+                {
+                    await SealDayAsync(screenId, DateTime.SpecifyKind(day, DateTimeKind.Utc));
+                }
+            }
+
+            // ── Load the window and verify every link live. ──
+            var windowFrom = todayUtc.AddDays(-days);
+            var seals = await _context.PlayLogSeals.AsNoTracking()
+                .Where(s => s.ScreenId == screenId && s.Day >= windowFrom)
+                .OrderBy(s => s.Day)
+                .ToListAsync();
+
+            // The link before the window anchors the first in-window check.
+            var anchor = await _context.PlayLogSeals.AsNoTracking()
+                .Where(s => s.ScreenId == screenId && s.Day < windowFrom)
+                .OrderByDescending(s => s.Day)
+                .FirstOrDefaultAsync();
+
+            var chainIntact = true;
+            var results = new List<object>();
+            var prevHash = anchor?.SealHash;
+            foreach (var seal in seals)
+            {
+                var liveRoot = await ComputeDayRootAsync(screenId, seal.Day);
+                var rootMatches = string.Equals(liveRoot.root, seal.RecordsRoot, StringComparison.OrdinalIgnoreCase)
+                                  && liveRoot.count == seal.RecordCount;
+                var linkOk = prevHash == null || string.Equals(seal.PrevSealHash, prevHash, StringComparison.OrdinalIgnoreCase);
+                var sealOk = string.Equals(
+                    ComputeSealHash(screenId, seal.Day, seal.RecordCount, seal.RecordsRoot, seal.PrevSealHash),
+                    seal.SealHash, StringComparison.OrdinalIgnoreCase);
+                if (!(rootMatches && linkOk && sealOk)) chainIntact = false;
+
+                results.Add(new
+                {
+                    day = seal.Day.ToString("yyyy-MM-dd"),
+                    recordCount = seal.RecordCount,
+                    recordsRoot = seal.RecordsRoot,
+                    prevSealHash = seal.PrevSealHash,
+                    sealHash = seal.SealHash,
+                    sealedAt = seal.SealedAt,
+                    verified = rootMatches && linkOk && sealOk,
+                });
+                prevHash = seal.SealHash;
+            }
+            results.Reverse(); // newest first for display
+
+            var pendingToday = await _context.Impressions
+                .CountAsync(i => i.ScreenId == screenId && i.PlayedAt >= todayUtc);
+
+            return Ok(ApiResponse<object>.SuccessResponse(new
+            {
+                screenId,
+                screenName = screen.Name,
+                algorithm = "SHA-256 hash chain: per-record canonical hash → daily RecordsRoot → SealHash = SHA256(screenId|day|count|root|prevSeal)",
+                verifiedAt = DateTime.UtcNow,
+                chainIntact,
+                sealedDays = seals.Count,
+                latestSealHash = seals.LastOrDefault()?.SealHash ?? anchor?.SealHash,
+                pendingToday,
+                note = "Today's plays are still accumulating and seal automatically when the UTC day closes. " +
+                       "Each 'verified' flag means this call recomputed the day's digest from the raw records " +
+                       "just now and it matched the stored seal and its chain link.",
+                days = results
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying play-log integrity for screen {ScreenId}", screenId);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Integrity check failed"));
+        }
+    }
+
+    /// <summary>Canonical per-day digest: sorted records → per-record SHA-256 → SHA-256 of the concatenation.</summary>
+    private async Task<(string root, int count)> ComputeDayRootAsync(Guid screenId, DateTime dayUtc)
+    {
+        var next = dayUtc.AddDays(1);
+        // Ordering ties break on SlotPlayKey (unique and present in exports),
+        // never on the internal row id — so an outside party holding only the
+        // exported CSV can reproduce the exact same sequence and digest.
+        var records = await _context.Impressions.AsNoTracking()
+            .Where(i => i.ScreenId == screenId && i.PlayedAt >= dayUtc && i.PlayedAt < next)
+            .OrderBy(i => i.PlayedAt).ThenBy(i => i.SlotPlayKey)
+            .Select(i => new
+            {
+                i.Id, i.ImpressionId, i.SlotPlayKey, i.PlayedAt, i.BookingId, i.CampaignId,
+                i.OwnerContentId, i.SlotPosition, i.DurationSeconds, i.WasFullPlay
+            })
+            .ToListAsync();
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var r in records)
+        {
+            var canonical =
+                $"{r.ImpressionId ?? r.Id.ToString()}|{r.SlotPlayKey}|{r.PlayedAt.Ticks}|{r.BookingId}|" +
+                $"{r.CampaignId}|{r.OwnerContentId}|{r.SlotPosition}|{r.DurationSeconds}|{r.WasFullPlay}";
+            sb.Append(Sha256Hex(canonical));
+        }
+        return (Sha256Hex(sb.ToString()), records.Count);
+    }
+
+    private static string ComputeSealHash(Guid screenId, DateTime day, int count, string root, string prev) =>
+        Sha256Hex($"{screenId:D}|{day:yyyy-MM-dd}|{count}|{root}|{prev}");
+
+    private static string Sha256Hex(string input)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
+    /// <summary>Seal one closed day (idempotent — the unique (ScreenId, Day) index guards races).</summary>
+    private async Task SealDayAsync(Guid screenId, DateTime dayUtc)
+    {
+        if (await _context.PlayLogSeals.AnyAsync(s => s.ScreenId == screenId && s.Day == dayUtc)) return;
+
+        var prev = await _context.PlayLogSeals
+            .Where(s => s.ScreenId == screenId && s.Day < dayUtc)
+            .OrderByDescending(s => s.Day)
+            .Select(s => s.SealHash)
+            .FirstOrDefaultAsync() ?? "GENESIS";
+
+        var (root, count) = await ComputeDayRootAsync(screenId, dayUtc);
+        var seal = new PlayLogSeal
+        {
+            ScreenId = screenId,
+            Day = dayUtc,
+            RecordCount = count,
+            RecordsRoot = root,
+            PrevSealHash = prev,
+            SealHash = ComputeSealHash(screenId, dayUtc, count, root, prev),
+            SealedAt = DateTime.UtcNow,
+        };
+        _context.PlayLogSeals.Add(seal);
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // A concurrent request sealed the same day first — theirs stands.
+            _context.Entry(seal).State = EntityState.Detached;
+        }
+    }
+
     #region Private Helper Methods
 
     private async Task<BookingImpressionReport> BuildBookingImpressionReport(Booking booking, DateTime from, DateTime to)

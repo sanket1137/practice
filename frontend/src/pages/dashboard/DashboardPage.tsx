@@ -28,6 +28,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
+import FleetStrip from '../../components/dashboard/FleetStrip';
+import { NeedsAttention } from '../../components/dashboard/OwnerActionQueues';
+import OwnerAnalyticsPanel from '../../components/dashboard/OwnerAnalyticsPanel';
 import { proposalsApi } from '../../services/proposalsApi';
 import { useAuthStore } from '../../store/authStore';
 import { useUserRole } from '../../hooks/useUserRole';
@@ -174,9 +177,9 @@ export default function DashboardPage() {
         mb: 4,
         p: { xs: 2, md: 3 },
         borderRadius: 3,
-        border: '1px solid rgba(16, 24, 40, 0.08)',
+        border: '1px solid var(--ps-border)',
         background:
-            'radial-gradient(900px 360px at 100% -10%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
+            'radial-gradient(900px 360px at 100% -10%, rgba(10,102,216,0.12), transparent 60%), var(--ps-surface)',
     };
 
     if (isLoading) {
@@ -316,6 +319,15 @@ export default function DashboardPage() {
                         </Grid>
                     ))}
                 </Grid>
+
+                {/* Screens that are silently not earning — offline or stuck pre-Active */}
+                {isScreenOwner && <NeedsAttention screens={screens ?? []} />}
+
+                {/* Analytics band: revenue/plays/uptime KPIs + trend + per-screen split */}
+                {isScreenOwner && <OwnerAnalyticsPanel />}
+
+                {/* Fleet at a glance — live dot + lifecycle per screen, real-time */}
+                <FleetStrip screens={screens ?? []} />
 
                 {/* Main Content */}
                 <Grid container spacing={3}>

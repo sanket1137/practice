@@ -217,6 +217,36 @@ class SecurePlayerConfig:
             return config.get("api_key", "")
     
     @staticmethod
+    def get_or_create_device_fingerprint(data_dir) -> str:
+        """
+        Return this device's fingerprint, generating and PERSISTING it on first
+        run. The raw generator hashes volatile inputs — uuid.getnode() returns
+        the MAC of whichever interface Python resolves (and a random number when
+        none resolves), so a laptop switching Wi-Fi or a Pi getting a USB NIC
+        would silently produce a new fingerprint and fail the server's device
+        binding with "fingerprint does not match". Persisting the first value
+        makes the fingerprint stable for the life of the installation; a
+        legitimate hardware swap goes through the owner's device-binding reset.
+        """
+        from pathlib import Path
+        path = Path(data_dir) / "device_fingerprint"
+        try:
+            if path.exists():
+                stored = path.read_text(encoding="utf-8").strip()
+                if len(stored) == 64:  # sha256 hex
+                    return stored
+        except Exception:
+            pass  # unreadable cache — fall through and regenerate
+
+        fingerprint = SecurePlayerConfig.generate_device_fingerprint()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(fingerprint, encoding="utf-8")
+        except Exception:
+            pass  # persistence is best-effort; worst case we're no worse than before
+        return fingerprint
+
+    @staticmethod
     def generate_device_fingerprint() -> str:
         """
         Generate a unique device fingerprint for additional verification

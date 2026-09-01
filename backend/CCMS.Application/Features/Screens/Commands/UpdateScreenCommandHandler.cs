@@ -88,28 +88,44 @@ public class UpdateScreenCommandHandler : IRequestHandler<UpdateScreenCommand, S
         if (request.Request.PricePerSlot.HasValue)
             screen.PricePerSlot = request.Request.PricePerSlot.Value;
 
-        var statusChanged = false;
-        if (request.Request.Status != null)
+        // Screen status is deliberately NOT writable here. The old free-form
+        // Enum.Parse write was the lifecycle bypass that let a screen become
+        // "Active" with no verification and no device — status now changes only
+        // through ScreenLifecycleService's guarded transitions. Older clients
+        // may still send the field; it is ignored, not rejected, so cached
+        // frontends keep working.
+
+        if (request.Request.ScreenType != null)
         {
-            var newStatus = Enum.Parse<Domain.Enums.ScreenStatus>(request.Request.Status);
-            statusChanged = screen.Status != newStatus;
-            screen.Status = newStatus;
+            if (!Enum.TryParse<Domain.Enums.ScreenType>(request.Request.ScreenType, ignoreCase: true, out var screenType))
+                throw new InvalidOperationException($"Unknown screen type '{request.Request.ScreenType}'.");
+            screen.ScreenType = screenType;
         }
+        if (request.Request.PixelPitchMm.HasValue)
+            screen.PixelPitchMm = request.Request.PixelPitchMm.Value;
+
+        if (request.Request.DimensionUnit != null)
+        {
+            var unit = Domain.ValueObjects.DimensionUnits.Normalize(request.Request.DimensionUnit);
+            if (unit == null)
+                throw new InvalidOperationException(
+                    $"Unsupported dimension unit '{request.Request.DimensionUnit}'. Use one of: {string.Join(", ", Domain.ValueObjects.DimensionUnits.Supported)}.");
+            screen.DimensionUnit = unit;
+        }
+
+        // Keep the canonical millimetre columns in step whenever size or unit moved.
+        if (request.Request.PhysicalWidth.HasValue || request.Request.PhysicalHeight.HasValue || request.Request.DimensionUnit != null)
+        {
+            screen.PhysicalWidthMm = Domain.ValueObjects.DimensionUnits.ToMillimeters(screen.PhysicalWidth, screen.DimensionUnit);
+            screen.PhysicalHeightMm = Domain.ValueObjects.DimensionUnits.ToMillimeters(screen.PhysicalHeight, screen.DimensionUnit);
+        }
+
         if (!string.IsNullOrEmpty(request.Request.Timezone))
             screen.Timezone = request.Request.Timezone;
 
         screen.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        // Broadcast after persistence so dashboards never learn about a state
-        // that failed to save. Best-effort inside the service — a broadcast
-        // failure never fails the update.
-        if (statusChanged)
-        {
-            await _screenNotificationService.NotifyScreenStatusChangedAsync(
-                screen.Id, screen.Status.ToString(), cancellationToken);
-        }
 
         var screenDto = _mapper.Map<ScreenDto>(screen);
         screenDto.RevenueEstimate = _revenueCalculationService.CalculateRevenueEstimate(screen);

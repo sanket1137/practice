@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "frontend",
+      "name": "frontend-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 5173
+      "runtimeArgs": ["run", "preview", "--prefix", "frontend"],
+      "port": 4173
     }
   ]
 }

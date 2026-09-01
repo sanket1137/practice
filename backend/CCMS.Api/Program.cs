@@ -394,6 +394,7 @@ else
 builder.Services.AddScoped<VideoMetadataService>();
 builder.Services.AddScoped<BookingStatusUpdateService>();
 builder.Services.AddScoped<IStreamAccessService, StreamAccessService>();
+builder.Services.AddScoped<CCMS.Api.Services.ScreenLifecycleService>();
 builder.Services.AddScoped<ScreenVerificationService>();
 
 // Report export service
@@ -460,11 +461,13 @@ builder.Services.AddHostedService<CCMS.Api.Services.RefreshTokenCleanupService>(
 // Add orphaned blob cleanup service (storage - removes old files after 160 days)
 builder.Services.AddHostedService<CCMS.Api.Services.OrphanedBlobCleanupService>();
 
-// Add Booking status monitor (in development only)
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddHostedService<BookingStatusBackgroundService>();
-}
+// Booking status sweep — every 5 minutes, in EVERY environment. This drives
+// Approved→Active→Completed transitions, auto-expiry, and the activation/
+// completion payout records. It was previously registered only in Development
+// on the assumption that the CCMS.Functions job covered production — but that
+// job could never construct its dependencies, so production bookings only ever
+// changed status when someone manually triggered the update-all endpoint.
+builder.Services.AddHostedService<BookingStatusBackgroundService>();
 
 
 // Azure Blob Storage

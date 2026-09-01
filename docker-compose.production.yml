@@ -56,6 +56,11 @@ services:
       - Razorpay__KeyId=${RAZORPAY_KEY_ID}
       - Razorpay__KeySecret=${RAZORPAY_KEY_SECRET}
       - Razorpay__WebhookSecret=${RAZORPAY_WEBHOOK_SECRET:-}
+      # Go-live flip: set REQUIRE_PREPAYMENT=true in .env (with the Razorpay
+      # keys above) to enforce payment before bookings activate. Everything
+      # downstream (capture webhook → advance payout → delivery-linked final)
+      # is already wired to this flag.
+      - Payments__RequirePrepayment=${REQUIRE_PREPAYMENT:-false}
       # Google Places (screen auto-tagging)
       - GooglePlaces__ApiKey=${GOOGLE_PLACES_API_KEY:-}
       # Error tracking

@@ -215,8 +215,7 @@ public class StreamingController : ControllerBase
             }
 
             if (string.IsNullOrEmpty(screen.ApiKeyHash) ||
-                string.IsNullOrEmpty(request.ApiKey) ||
-                !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
+                !CCMS.Api.Security.ScreenApiKeys.Verify(screen, request.ApiKey))
             {
                 _logger.LogWarning("HTTP RegisterStream rejected: invalid API key for screen {ScreenId}", request.ScreenId);
                 return Unauthorized(new { success = false, message = "Invalid API key" });

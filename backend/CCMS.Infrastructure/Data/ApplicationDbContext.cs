@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PhoneVerificationOtp> PhoneVerificationOtps => Set<PhoneVerificationOtp>();
     public DbSet<Screen> Screens => Set<Screen>();
     public DbSet<SlotAvailability> SlotAvailabilities => Set<SlotAvailability>();
+    public DbSet<PlayLogSeal> PlayLogSeals => Set<PlayLogSeal>();
     public DbSet<Campaign> Campaigns => Set<Campaign>();
     public DbSet<Creative> Creatives => Set<Creative>();
     public DbSet<Booking> Bookings => Set<Booking>();
@@ -30,6 +31,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<OwnerContent> OwnerContents => Set<OwnerContent>();
     public DbSet<ImpressionDailySummary> ImpressionDailySummaries => Set<ImpressionDailySummary>();
     public DbSet<ScreenTag> ScreenTags => Set<ScreenTag>();
+    public DbSet<ScreenLifecycleEvent> ScreenLifecycleEvents => Set<ScreenLifecycleEvent>();
     public DbSet<ScreenTagAssignment> ScreenTagAssignments => Set<ScreenTagAssignment>();
     public DbSet<ScreenImage> ScreenImages => Set<ScreenImage>();
     public DbSet<DeviceOverrideHistory> DeviceOverrideHistories => Set<DeviceOverrideHistory>();
@@ -224,7 +226,22 @@ public class ApplicationDbContext : DbContext
                 .WithMany(u => u.Screens)
                 .HasForeignKey(e => e.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
+
+            entity.HasQueryFilter(e => !e.IsDeleted);
+        });
+
+        // Lifecycle audit trail — append-only, read newest-first per screen.
+        modelBuilder.Entity<ScreenLifecycleEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ActorRole).HasMaxLength(20);
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+            entity.HasIndex(e => new { e.ScreenId, e.CreatedAt })
+                .HasDatabaseName("IX_ScreenLifecycleEvents_Screen_CreatedAt");
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity.HasQueryFilter(e => !e.IsDeleted);
         });
 
@@ -597,6 +614,21 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Organization)
                 .WithMany(o => o.Memberships)
                 .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // PlayLogSeal — per-screen daily hash chain over the play log
+        modelBuilder.Entity<PlayLogSeal>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ScreenId, e.Day }).IsUnique();
+            entity.Property(e => e.RecordsRoot).HasMaxLength(64);
+            entity.Property(e => e.PrevSealHash).HasMaxLength(64);
+            entity.Property(e => e.SealHash).HasMaxLength(64);
+            entity.Property(e => e.Algorithm).HasMaxLength(40);
+            entity.HasOne(e => e.Screen)
+                .WithMany()
+                .HasForeignKey(e => e.ScreenId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

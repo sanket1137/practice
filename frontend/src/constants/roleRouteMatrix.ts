@@ -9,6 +9,7 @@ export type NavIconKey =
   | 'campaigns'
   | 'screens'
   | 'bookings'
+  | 'logs'
   | 'analytics'
   | 'settings'
   | 'discover'
@@ -42,12 +43,13 @@ export function getSidebarNavigation(context: RoleContext): NavigationItem[] {
     if (!isPrivate) {
       items.push(
         { text: 'Booking Requests', iconKey: 'bookings', path: '/bookings' },
-        { text: 'Payouts', iconKey: 'payouts', path: '/payouts' },
+        { text: 'Earnings', iconKey: 'payouts', path: '/payouts' },
       );
     }
 
     items.push(
       { text: isPrivate ? 'Screen Analytics' : 'Earnings & Analytics', iconKey: 'analytics', path: '/analytics' },
+      { text: 'Play Logs', iconKey: 'logs', path: '/logs' },
       { text: 'Settings', iconKey: 'settings', path: '/profile' },
     );
 

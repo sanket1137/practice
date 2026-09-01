@@ -1492,6 +1492,61 @@ namespace CCMS.Infrastructure.Migrations
                     b.ToTable("PhoneVerificationOtps");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.PlayLogSeal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("Day")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PrevSealHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("RecordCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RecordsRoot")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SealHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("SealedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScreenId", "Day")
+                        .IsUnique();
+
+                    b.ToTable("PlayLogSeals");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.PlayerPairingToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1856,6 +1911,12 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<string>("ApiKeyHash")
                         .HasColumnType("text");
 
+                    b.Property<string>("ApiKeyHashPrevious")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ApiKeyRotatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<decimal>("AudienceQualityScore")
                         .HasColumnType("numeric");
 
@@ -1988,13 +2049,28 @@ namespace CCMS.Infrastructure.Migrations
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("PendingImpressionsAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("PendingImpressionsCount")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("PhysicalHeight")
                         .HasPrecision(8, 2)
                         .HasColumnType("decimal(8,2)");
 
+                    b.Property<int?>("PhysicalHeightMm")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("PhysicalWidth")
                         .HasPrecision(8, 2)
                         .HasColumnType("decimal(8,2)");
+
+                    b.Property<int?>("PhysicalWidthMm")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("PixelPitchMm")
+                        .HasColumnType("numeric");
 
                     b.Property<string>("PreviousDeviceFingerprintHash")
                         .HasColumnType("text");
@@ -2010,6 +2086,9 @@ namespace CCMS.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.Property<int>("ResolutionWidth")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ScreenType")
                         .HasColumnType("integer");
 
                     b.Property<int>("SlotsPerFrame")
@@ -2253,6 +2332,50 @@ namespace CCMS.Infrastructure.Migrations
                         .HasDatabaseName("IX_ScreenImages_Screen_Primary");
 
                     b.ToTable("ScreenImages");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.ScreenLifecycleEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorRole")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("FromStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("ScreenId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScreenId", "CreatedAt")
+                        .HasDatabaseName("IX_ScreenLifecycleEvents_Screen_CreatedAt");
+
+                    b.ToTable("ScreenLifecycleEvents");
                 });
 
             modelBuilder.Entity("CCMS.Domain.Entities.ScreenTag", b =>
@@ -3145,6 +3268,17 @@ namespace CCMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("CCMS.Domain.Entities.PlayLogSeal", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany()
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Screen");
+                });
+
             modelBuilder.Entity("CCMS.Domain.Entities.PlayerPairingToken", b =>
                 {
                     b.HasOne("CCMS.Domain.Entities.User", "ClaimedByUser")
@@ -3562,6 +3696,17 @@ namespace CCMS.Infrastructure.Migrations
                 {
                     b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
                         .WithMany("Images")
+                        .HasForeignKey("ScreenId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Screen");
+                });
+
+            modelBuilder.Entity("CCMS.Domain.Entities.ScreenLifecycleEvent", b =>
+                {
+                    b.HasOne("CCMS.Domain.Entities.Screen", "Screen")
+                        .WithMany()
                         .HasForeignKey("ScreenId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

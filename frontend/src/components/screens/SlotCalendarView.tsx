@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Box, Typography, Paper, IconButton, Chip, Grid, CircularProgress } from '@mui/material';
+import { Box, Typography, Paper, IconButton, CircularProgress, Tooltip, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import { startOfMonth, endOfMonth, addMonths, format, startOfWeek, endOfWeek, addDays, isSameMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, addMonths, format, startOfWeek, endOfWeek, addDays, isSameMonth, isToday } from 'date-fns';
 
 interface SlotCalendarViewProps {
     screenId: string;
@@ -25,7 +26,15 @@ interface SlotCalendarResponse {
     days: SlotCalendarDay[];
 }
 
+type DayKind = 'available' | 'partial' | 'full' | 'off';
+
+/**
+ * Month view of slot occupancy. Soft-tinted status cells (readable in both
+ * themes — the old design painted saturated fills that swallowed the text),
+ * a today ring, per-day tooltips, and a legend that matches the cells.
+ */
 export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
+    const theme = useTheme();
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
     const monthStart = startOfMonth(currentMonth);
@@ -49,58 +58,86 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
     const prevMonth = () => setCurrentMonth(addMonths(currentMonth, -1));
     const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
-    const getAvailabilityColor = (day: SlotCalendarDay | undefined) => {
-        if (!day?.isOperating) return '#424242'; // Gray - not operating
-        if (!day?.slots) return '#424242';
-
-        const bookedCount = day.slots.filter((s) => s.status === 'booked').length;
-        const totalSlots = day.slots.length;
-
-        if (bookedCount === 0) return '#4caf50'; // Green - all available
-        if (bookedCount === totalSlots) return '#f44336'; // Red - fully booked
-        return '#ff9800'; // Orange - partial
+    const kindOf = (day: SlotCalendarDay | undefined): DayKind => {
+        if (!day?.isOperating || !day?.slots?.length) return 'off';
+        const booked = day.slots.filter((s) => s.status === 'booked').length;
+        if (booked === 0) return 'available';
+        if (booked === day.slots.length) return 'full';
+        return 'partial';
     };
 
-    const renderCalendar = () => {
-        const days = [];
+    const kindColor: Record<DayKind, string> = {
+        available: theme.palette.success.main,
+        partial: theme.palette.warning.main,
+        full: theme.palette.error.main,
+        off: theme.palette.text.disabled,
+    };
+
+    const cellSx = (kind: DayKind, inMonth: boolean, today: boolean) => {
+        const c = kindColor[kind];
+        return {
+            borderRadius: '10px',
+            p: 0.75,
+            minHeight: 56,
+            display: 'flex',
+            flexDirection: 'column' as const,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 0.25,
+            bgcolor: kind === 'off' ? alpha(c, 0.08) : alpha(c, theme.palette.mode === 'dark' ? 0.16 : 0.12),
+            border: '1px solid',
+            borderColor: today ? theme.palette.primary.main : alpha(c, kind === 'off' ? 0.15 : 0.45),
+            boxShadow: today ? `0 0 0 1px ${theme.palette.primary.main}` : 'none',
+            opacity: inMonth ? 1 : 0.35,
+            transition: 'transform 120ms ease, box-shadow 120ms ease',
+            '&:hover': { transform: 'translateY(-1px)', boxShadow: theme.shadows[2] },
+        };
+    };
+
+    const kindLabel: Record<DayKind, string> = {
+        available: 'All slots open',
+        partial: 'Partially booked',
+        full: 'Fully booked',
+        off: 'Not operating',
+    };
+
+    const renderCells = () => {
+        const cells = [];
         let day = startDate;
-
         while (day <= endDate) {
-            const calendarDay = calendar?.days?.find(
-                (d) => format(new Date(d.date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
-            );
+            const key = format(day, 'yyyy-MM-dd');
+            const calendarDay = calendar?.days?.find((d) => format(new Date(d.date), 'yyyy-MM-dd') === key);
+            const kind = kindOf(calendarDay);
+            const booked = calendarDay?.slots?.filter((s) => s.status === 'booked').length ?? 0;
+            const total = calendarDay?.slots?.length || calendar?.slotsPerFrame || 0;
+            const inMonth = isSameMonth(day, currentMonth);
 
-            const bookedSlots = calendarDay?.slots?.filter((s) => s.status === 'booked') || [];
-            const totalSlots = calendarDay?.slots?.length || calendar?.slotsPerFrame || 6;
-
-            days.push(
-                <Box
-                    key={day.toString()}
-                    sx={{
-                        textAlign: 'center',
-                        p: 1,
-                        border: '1px solid #e0e0e0',
-                        bgcolor: getAvailabilityColor(calendarDay),
-                        color: '#fff',
-                        opacity: isSameMonth(day, currentMonth) ? 1 : 0.3,
-                        cursor: calendarDay ? 'pointer' : 'default',
-                        '&:hover': calendarDay ? { opacity: 0.8 } : {},
-                    }}
+            cells.push(
+                <Tooltip
+                    key={key}
+                    arrow
+                    title={calendarDay
+                        ? `${format(day, 'EEE d MMM')} — ${kindLabel[kind]}${kind !== 'off' ? ` · ${booked}/${total} slots booked` : ''}`
+                        : format(day, 'EEE d MMM')}
                 >
-                    <Typography variant="body2" fontWeight="bold">
-                        {format(day, 'd')}
-                    </Typography>
-                    {calendarDay && (
-                        <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>
-                            {bookedSlots.length}/{totalSlots}
+                    <Box sx={cellSx(kind, inMonth, isToday(day))}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1, color: 'text.primary' }}>
+                            {format(day, 'd')}
                         </Typography>
-                    )}
-                </Box>
+                        {calendarDay && kind !== 'off' && (
+                            <Typography variant="caption" sx={{
+                                lineHeight: 1, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                                color: kindColor[kind],
+                            }}>
+                                {booked}/{total}
+                            </Typography>
+                        )}
+                    </Box>
+                </Tooltip>
             );
             day = addDays(day, 1);
         }
-
-        return days;
+        return cells;
     };
 
     if (isLoading) {
@@ -113,35 +150,41 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
 
     return (
         <Paper sx={{ p: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <IconButton onClick={prevMonth}>
-                    <ChevronLeft />
-                </IconButton>
-                <Typography variant="h6">{format(currentMonth, 'MMMM yyyy')}</Typography>
-                <IconButton onClick={nextMonth}>
-                    <ChevronRight />
-                </IconButton>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
+                <IconButton onClick={prevMonth} size="small"><ChevronLeft /></IconButton>
+                <Typography variant="h4">{format(currentMonth, 'MMMM yyyy')}</Typography>
+                <IconButton onClick={nextMonth} size="small"><ChevronRight /></IconButton>
             </Box>
-            {/* Day headers */}
-            <Grid container spacing={0} sx={{ mb: 1 }}>
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                    <Grid key={day} size={12 / 7}>
-                        <Typography variant="caption" fontWeight="bold" textAlign="center" display="block">
-                            {day}
-                        </Typography>
-                    </Grid>
+
+            {/* Weekday header + cells share the same 7-column grid */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', mb: '6px' }}>
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                    <Typography key={d} variant="caption" sx={{
+                        textAlign: 'center', fontWeight: 700, color: 'text.disabled',
+                        textTransform: 'uppercase', letterSpacing: '1px', fontSize: 10,
+                    }}>
+                        {d}
+                    </Typography>
                 ))}
-            </Grid>
-            {/* Calendar grid */}
-            <Grid container spacing={0}>
-                {renderCalendar()}
-            </Grid>
-            {/* Legend */}
-            <Box display="flex" gap={2} mt={3} justifyContent="center" flexWrap="wrap">
-                <Chip label="Available" sx={{ bgcolor: '#4caf50', color: '#fff' }} size="small" />
-                <Chip label="Partial" sx={{ bgcolor: '#ff9800', color: '#fff' }} size="small" />
-                <Chip label="Fully Booked" sx={{ bgcolor: '#f44336', color: '#fff' }} size="small" />
-                <Chip label="Not Operating" sx={{ bgcolor: '#424242', color: '#fff' }} size="small" />
+            </Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+                {renderCells()}
+            </Box>
+
+            {/* Legend — same tints as the cells */}
+            <Box display="flex" gap={1.5} mt={2.5} justifyContent="center" flexWrap="wrap">
+                {(['available', 'partial', 'full', 'off'] as DayKind[]).map((kind) => (
+                    <Box key={kind} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Box sx={{
+                            width: 12, height: 12, borderRadius: '4px',
+                            bgcolor: alpha(kindColor[kind], theme.palette.mode === 'dark' ? 0.16 : 0.12),
+                            border: `1px solid ${alpha(kindColor[kind], 0.45)}`,
+                        }} />
+                        <Typography variant="caption" color="text.secondary">
+                            {kind === 'available' ? 'Available' : kind === 'partial' ? 'Partial' : kind === 'full' ? 'Fully booked' : 'Not operating'}
+                        </Typography>
+                    </Box>
+                ))}
             </Box>
         </Paper>
     );

@@ -64,7 +64,7 @@ export default function BookingCalendarView({
             sx={{
                 p: { xs: 2, sm: 3 },
                 borderRadius: 3,
-                border: '1px solid rgba(16, 24, 40, 0.08)',
+                border: '1px solid var(--ps-border)',
                 boxShadow: '0 10px 28px rgba(16, 24, 40, 0.08)',
                 background:
                     'radial-gradient(1000px 300px at 100% -10%, rgba(10, 102, 216, 0.09), transparent 58%), #ffffff',
@@ -185,7 +185,7 @@ export default function BookingCalendarView({
                 })}
             </Grid>
             {/* Legend */}
-            <Box mt={3} display="flex" gap={2} flexWrap="wrap" sx={{ pt: 1, borderTop: '1px solid rgba(16, 24, 40, 0.08)' }}>
+            <Box mt={3} display="flex" gap={2} flexWrap="wrap" sx={{ pt: 1, borderTop: '1px solid var(--ps-border)' }}>
                 {Object.entries(STATUS_COLORS).map(([status, color]) => (
                     <Box key={status} display="flex" alignItems="center" gap={0.5}>
                         <Box

@@ -22,24 +22,21 @@ import {
     Tab,
     Alert,
 } from '@mui/material';
-import type { ChipProps } from '@mui/material';
 import {
     LocationOn as LocationIcon,
     Tv as TvIcon,
     AttachMoney as MoneyIcon,
     Schedule as ScheduleIcon,
     BookOnline as BookIcon,
-    Edit as EditIcon,
     Delete as DeleteIcon,
+    Settings as SettingsIcon,
     LocalOffer as TagIcon,
     CalendarMonth as CalendarIcon,
     Visibility as VisibilityIcon,
     PhotoLibrary as ImagesIcon,
     LiveTv as LiveTvIcon,
     VideoSettings as VideoSettingsIcon,
-    ShowChart as ActivityIcon,
     DevicesOther as DevicesIcon,
-    Verified as VerifiedIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -54,9 +51,14 @@ import DefaultVideoSettings from '../../components/screens/DefaultVideoSettings'
 import LiveActivityTab from '../../components/screens/LiveActivityTab';
 import ScreenTagsTab from '../../components/screens/ScreenTagsTab';
 import ScreenTagChip from '../../components/screens/ScreenTagChip';
+import ScreenStatusChip from '../../components/screens/ScreenStatusChip';
+import ScreenLifecycleActions from '../../components/screens/ScreenLifecycleActions';
 import ScreenImageUpload from '../../components/screens/ScreenImageUpload';
 import ScreenImageGallery from '../../components/screens/ScreenImageGallery';
 import DeviceManagementTab from '../../components/screens/DeviceManagementTab';
+import SlotsPricingTab from '../../components/screens/SlotsPricingTab';
+import UpdateScreenPage from './UpdateScreenPage';
+import DeviceOnboardingChecklist from '../../components/screens/DeviceOnboardingChecklist';
 import RevenueEstimateCard, { type RevenueEstimate } from '../../components/screens/RevenueEstimateCard';
 import SelfReserveDialog from '../../components/bookings/SelfReserveDialog';
 import VerificationTab from '../../components/screens/VerificationTab';
@@ -157,19 +159,20 @@ export default function ScreenDetailPage() {
         return user.role === 'ScreenOwner' || user.role === 'Admin';
     }, [user]);
 
-    // Define tabs based on user role
+    // Define tabs based on user role.
+    // Owner tabs follow the workspace blueprint: one surface per job, with the
+    // old scattered pages absorbed (live stream lives in Device, live activity
+    // in Overview, verification/edit/danger-zone in Settings).
     const tabs = useMemo(() => {
         if (isOwner) {
-            // Screen Owner / Admin tabs
             return [
                 { id: 'overview', label: 'Overview', icon: <VisibilityIcon /> },
-                { id: 'images', label: 'Images', icon: <ImagesIcon /> },
                 { id: 'bookings', label: 'Bookings', icon: <CalendarIcon /> },
-                { id: 'live-activity', label: 'Live Activity', icon: <ActivityIcon /> },
-                { id: 'default-video', label: 'Default Video', icon: <VideoSettingsIcon /> },
+                { id: 'slots-pricing', label: 'Slots & Pricing', icon: <MoneyIcon /> },
+                { id: 'content', label: 'Content', icon: <VideoSettingsIcon /> },
                 { id: 'device', label: 'Device', icon: <DevicesIcon /> },
-                { id: 'verification', label: 'Verification', icon: <VerifiedIcon /> },
-                { id: 'live-stream', label: 'Live Stream', icon: <LiveTvIcon /> },
+                { id: 'media', label: 'Media', icon: <ImagesIcon /> },
+                { id: 'settings', label: 'Settings', icon: <SettingsIcon /> },
             ];
         } else {
             // Advertiser tabs - focused on booking decision
@@ -198,18 +201,8 @@ export default function ScreenDetailPage() {
         setDeleteDialogOpen(false);
     };
 
-    const getStatusColor = (status: string): ChipProps['color'] => {
-        switch (status) {
-            case 'Active':
-                return 'success';
-            case 'Inactive':
-                return 'error';
-            case 'Maintenance':
-                return 'warning';
-            default:
-                return 'default';
-        }
-    };
+    // Status rendering + lifecycle actions come from the shared components,
+    // which follow the server's state machine — no local status rules here.
 
     // Get current tab id
     const currentTabId = tabs[activeTab]?.id || 'overview';
@@ -217,16 +210,28 @@ export default function ScreenDetailPage() {
     // Deep-linking: honour ?tab=<id> (e.g. the campaign page's "Watch live"
     // button links to ?tab=live-stream). Runs whenever the tab list settles —
     // access-gated tabs (live-stream) appear only after the access check loads.
+    // Legacy tab ids from before the workspace consolidation are aliased so
+    // old notification links and bookmarks keep landing somewhere sensible.
     const [searchParams] = useSearchParams();
     const requestedTab = searchParams.get('tab');
     useEffect(() => {
         if (!requestedTab) return;
-        const index = tabs.findIndex(t => t.id === requestedTab);
+        const legacyAliases: Record<string, string> = isOwner
+            ? {
+                'images': 'media',
+                'default-video': 'content',
+                'verification': 'settings',
+                'live-activity': 'overview',
+                'live-stream': 'device',
+            }
+            : {};
+        const target = legacyAliases[requestedTab] ?? requestedTab;
+        const index = tabs.findIndex(t => t.id === target);
         if (index >= 0 && index !== activeTab) {
             setActiveTab(index);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [requestedTab, tabs]);
+    }, [requestedTab, tabs, isOwner]);
 
     if (isLoading) {
         return (
@@ -253,7 +258,7 @@ export default function ScreenDetailPage() {
                         {screen.name}
                     </Typography>
                     <Box display="flex" gap={1} alignItems="center">
-                        <Chip label={screen.status} color={getStatusColor(screen.status)} />
+                        <ScreenStatusChip status={screen.status} size="medium" />
                         <Box display="flex" alignItems="center" gap={0.5} ml={2}>
                             <LocationIcon fontSize="small" color="action" />
                             <Typography variant="body2" color="textSecondary">
@@ -261,34 +266,15 @@ export default function ScreenDetailPage() {
                             </Typography>
                         </Box>
                     </Box>
+                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
+                        <Box mt={1.5}>
+                            <ScreenLifecycleActions screenId={screen.id} />
+                        </Box>
+                    )}
                 </Box>
                 <Box display="flex" gap={1}>
-                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && (
-                        <>
-                            <Button
-                                variant="outlined"
-                                startIcon={<EditIcon />}
-                                onClick={() => navigate(`/screens/${id}/edit`)}
-                            >
-                                Edit
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                startIcon={<MoneyIcon />}
-                                onClick={() => navigate(`/screens/${id}/pricing`)}
-                            >
-                                Pricing rules
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                color="error"
-                                startIcon={<DeleteIcon />}
-                                onClick={() => setDeleteDialogOpen(true)}
-                            >
-                                Delete
-                            </Button>
-                        </>
-                    )}
+                    {/* Edit and Delete live in the Settings tab — the header keeps
+                        only the primary action and the lifecycle controls. */}
                     {/* Self-reserve button for Screen Owners */}
                     {user?.role === 'ScreenOwner' && (
                         <Button
@@ -619,22 +605,31 @@ export default function ScreenDetailPage() {
                                 />
                             </Grid>
                         )}
+
+                        {/* Live activity — "what plays on my screen right now",
+                            folded into Overview from its old standalone tab */}
+                        {isOwner && (
+                            <Grid size={12}>
+                                <LiveActivityTab screenId={id!} />
+                            </Grid>
+                        )}
                     </Grid>
                 )
             }
 
-            {/* Images Tab (Owner only) */}
-            {currentTabId === 'images' && isOwner && (
+            {/* Media Tab (Owner only) — photos that sell the screen */}
+            {currentTabId === 'media' && isOwner && (
                 <Paper sx={{ p: 3 }}>
                     <Typography variant="h6" gutterBottom>
-                        Screen Images
+                        Media
                     </Typography>
                     <Typography variant="body2" color="textSecondary" paragraph>
-                        Upload photos of your screen and its surroundings. These images help advertisers understand
-                        the screen's location and audience. A primary image will be shown on the screen card.
+                        These photos are what advertisers see before they book. The four that convert best:
+                        the screen straight on, its surroundings for context, a night shot, and one showing
+                        the foot or road traffic passing it. The primary image becomes your screen card.
                     </Typography>
-                    <ScreenImageUpload 
-                        screenId={id!} 
+                    <ScreenImageUpload
+                        screenId={id!}
                         onImagesChanged={() => queryClient.invalidateQueries({ queryKey: ['screen', id] })}
                     />
                 </Paper>
@@ -659,28 +654,121 @@ export default function ScreenDetailPage() {
                 </Box>
             )}
 
-            {/* Live Activity Tab (Owner only) */}
-            {currentTabId === 'live-activity' && isOwner && (
-                <LiveActivityTab screenId={id as string} />
+            {/* Slots & Pricing Tab (Owner only) */}
+            {currentTabId === 'slots-pricing' && isOwner && screen && (
+                <SlotsPricingTab screen={screen} />
             )}
 
-            {/* Default Video Tab (Owner only) */}
-            {currentTabId === 'default-video' && isOwner && (
-                <DefaultVideoSettings screenId={id!} />
+            {/* Content Tab (Owner only) — what fills the screen when advertisers don't */}
+            {currentTabId === 'content' && isOwner && (
+                <Box>
+                    <Paper sx={{ p: 3, mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                            House content — your own ads in unsold slots
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Reserve any open slot for your own promotions — it books the slot like a
+                            campaign (at zero cost to you), shows on the calendar, and plays in the loop.
+                            Reserved slots appear under Bookings like any other booking.
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            startIcon={<BookIcon />}
+                            onClick={() => setSelfReserveOpen(true)}
+                            disabled={screen?.status !== 'Active'}
+                        >
+                            Reserve a slot
+                        </Button>
+                        {screen?.status !== 'Active' && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                Available once the screen is Active.
+                            </Typography>
+                        )}
+                    </Paper>
+                    <Paper sx={{ p: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Default video — the final fallback
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Plays only when a slot has nothing else: no booking and no house content.
+                            The screen is never black.
+                        </Typography>
+                        <DefaultVideoSettings screenId={id!} />
+                    </Paper>
+                </Box>
             )}
 
-            {/* Device Management Tab (Owner only) */}
+            {/* Device Tab (Owner only) — pairing, keys, player status, live stream */}
             {currentTabId === 'device' && isOwner && (
-                <DeviceManagementTab screenId={id!} hasApiKey={screen?.hasApiKey ?? false} />
+                <Box>
+                    <DeviceOnboardingChecklist screenId={id!} />
+                    <DeviceManagementTab screenId={id!} hasApiKey={screen?.hasApiKey ?? false} />
+                    <Paper sx={{ p: 3, mt: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Live stream
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Watch exactly what the player is putting on the glass right now.
+                        </Typography>
+                        <Grid container spacing={3}>
+                            <Grid size={{ xs: 12, md: 8 }}>
+                                <WebRTCPlayer screenId={id!} autoStart={false} />
+                            </Grid>
+                            <Grid size={{ xs: 12, md: 4 }}>
+                                <LivePreviewWidget screenId={id!} mode="screen" isScreenOnline={screen?.isOnline} />
+                            </Grid>
+                        </Grid>
+                    </Paper>
+                </Box>
             )}
 
-            {/* Verification Tab (Owner only) */}
-            {currentTabId === 'verification' && isOwner && (
-                <VerificationTab screenId={id!} />
+            {/* Settings Tab (Owner only) — lifecycle, details, verification, danger zone */}
+            {currentTabId === 'settings' && isOwner && (
+                <Box>
+                    <Paper sx={{ p: 3, mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Availability & lifecycle
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Pause hides the screen from new bookings without touching existing ones.
+                            Maintenance signals downtime to advertisers. Archive retires the screen for
+                            good — it's blocked while active bookings exist.
+                        </Typography>
+                        <ScreenLifecycleActions screenId={id!} />
+                    </Paper>
+
+                    <Box sx={{ mb: 3 }}>
+                        <UpdateScreenPage embedded />
+                    </Box>
+
+                    <Paper sx={{ p: 3, mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>
+                            Verification
+                        </Typography>
+                        <VerificationTab screenId={id!} />
+                    </Paper>
+
+                    <Paper sx={{ p: 3, border: 1, borderColor: 'error.main' }}>
+                        <Typography variant="h6" color="error" gutterBottom>
+                            Danger zone
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Deleting removes this screen and affects all of its bookings. This cannot be undone.
+                        </Typography>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => setDeleteDialogOpen(true)}
+                        >
+                            Delete this screen
+                        </Button>
+                    </Paper>
+                </Box>
             )}
 
-            {/* Live Stream Tab (Owner or Advertiser with access) */}
-            {currentTabId === 'live-stream' && (isOwner || streamAccess?.hasAccess) && (
+            {/* Live Stream Tab (Advertiser with access — owners have it under Device) */}
+            {currentTabId === 'live-stream' && !isOwner && streamAccess?.hasAccess && (
                     <Box>
                         <Typography variant="h6" gutterBottom>
                             Real-Time Screen Activity

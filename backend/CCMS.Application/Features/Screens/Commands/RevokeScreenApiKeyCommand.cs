@@ -30,7 +30,11 @@ public class RevokeScreenApiKeyCommandHandler : IRequestHandler<RevokeScreenApiK
             throw new KeyNotFoundException($"Screen {request.ScreenId} not found");
         }
 
+        // Revocation kills everything — including a rotated-out key still inside
+        // its grace window. Grace exists for planned rotations, never revokes.
         screen.ApiKeyHash = null;
+        screen.ApiKeyHashPrevious = null;
+        screen.ApiKeyRotatedAt = null;
         await _screenRepository.UpdateAsync(screen);
         await _unitOfWork.SaveChangesAsync();
 

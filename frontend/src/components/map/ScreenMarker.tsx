@@ -18,32 +18,56 @@ interface ScreenMarkerProps {
     isOwnerView?: boolean;
 }
 
-// Create custom marker icons
-const createMarkerIcon = (isOnline: boolean, isSelected: boolean, isOwnerView: boolean) => {
-    const color = isOwnerView 
-        ? (isOnline ? '#2196f3' : '#9e9e9e') // Blue for owner's screens
-        : (isOnline ? '#4caf50' : '#ff9800'); // Green for active, orange for inactive
+// Marker color speaks the screen's real state, not just a binary dot.
+// Owner view: green = live now (with pulse), red = should be live but dark,
+// amber = paused/maintenance, blue = still in setup, grey = archived.
+const ownerMarkerColor = (status: string | undefined, isOnline: boolean | undefined) => {
+    if (isOnline) return { color: '#34d27b', pulse: true, label: 'live' };
+    switch (status) {
+        case 'Active': return { color: '#f87171', pulse: false, label: 'offline' };
+        case 'Paused':
+        case 'Maintenance': return { color: '#f59e0b', pulse: false, label: status.toLowerCase() };
+        case 'Archived': return { color: '#9e9e9e', pulse: false, label: 'archived' };
+        default: return { color: '#5c86ff', pulse: false, label: 'setup' };
+    }
+};
+
+const createMarkerIcon = (screen: Screen, isSelected: boolean, isOwnerView: boolean) => {
+    const { color, pulse } = isOwnerView
+        ? ownerMarkerColor(screen.status, screen.isOnline)
+        : { color: screen.isOnline ? '#4caf50' : '#ff9800', pulse: !!screen.isOnline };
 
     const selectedStyle = isSelected ? 'transform: scale(1.2); filter: drop-shadow(0 0 8px rgba(255,255,255,0.8));' : '';
+    const pulseRing = pulse
+        ? `<span style="
+                position: absolute; inset: -6px; border-radius: 50%;
+                border: 2px solid ${color}; opacity: 0.6;
+                animation: ps-marker-pulse 2s ease-out infinite;
+            "></span>
+            <style>@keyframes ps-marker-pulse { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.35); opacity: 0; } }</style>`
+        : '';
 
     return L.divIcon({
         html: `
-            <div style="
-                width: 36px;
-                height: 36px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: ${color};
-                border: 3px solid white;
-                border-radius: 50%;
-                box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-                ${selectedStyle}
-                transition: transform 0.2s ease;
-            ">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                    <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/>
-                </svg>
+            <div style="position: relative; width: 36px; height: 36px;">
+                ${pulseRing}
+                <div style="
+                    width: 36px;
+                    height: 36px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: ${color};
+                    border: 3px solid white;
+                    border-radius: 50%;
+                    box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+                    ${selectedStyle}
+                    transition: transform 0.2s ease;
+                ">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                        <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/>
+                    </svg>
+                </div>
             </div>
         `,
         className: 'custom-screen-marker',
@@ -63,8 +87,8 @@ export function ScreenMarker({
     const position: [number, number] = [screen.latitude!, screen.longitude!];
 
     const icon = useMemo(
-        () => createMarkerIcon(screen.isOnline ?? screen.status === 'Active', isSelected, isOwnerView),
-        [screen.isOnline, screen.status, isSelected, isOwnerView]
+        () => createMarkerIcon(screen, isSelected, isOwnerView),
+        [screen, isSelected, isOwnerView]
     );
 
     // Get primary tag for display

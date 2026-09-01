@@ -55,7 +55,12 @@ public class PlayerController : ControllerBase
             return false;
         }
 
-        return !string.IsNullOrEmpty(providedApiKey) && BCrypt.Net.BCrypt.Verify(providedApiKey, screen.ApiKeyHash);
+        var ok = CCMS.Api.Security.ScreenApiKeys.Verify(screen, providedApiKey, out var usedPrevious);
+        if (ok && usedPrevious)
+        {
+            _logger.LogWarning("Screen {ScreenId} authenticated with its PRE-ROTATION key (grace window active) — player not reconfigured yet", screen.Id);
+        }
+        return ok;
     }
 
     private readonly CCMS.Api.Security.PlayerSessionStore _sessionStore;
@@ -71,7 +76,8 @@ public class PlayerController : ControllerBase
         PlayerDeviceManager deviceManager,
         ICmsPlaylistService cmsPlaylistService,
         ApplicationDbContext dbContext,
-        CCMS.Api.Security.PlayerSessionStore sessionStore)
+        CCMS.Api.Security.PlayerSessionStore sessionStore,
+        CCMS.Application.Interfaces.INotificationService notificationService)
     {
         _screenRepository = screenRepository;
         _playlistService = playlistService;
@@ -84,7 +90,10 @@ public class PlayerController : ControllerBase
         _cmsPlaylistService = cmsPlaylistService;
         _dbContext = dbContext;
         _sessionStore = sessionStore;
+        _notificationService = notificationService;
     }
+
+    private readonly CCMS.Application.Interfaces.INotificationService _notificationService;
 
     /// <summary>
     /// Player handshake - called once when player starts
@@ -120,11 +129,14 @@ public class PlayerController : ControllerBase
                     "Screen has no API key configured. Generate one from the dashboard before pairing this player."));
             }
 
-            if (string.IsNullOrEmpty(request.ApiKey) ||
-                !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
+            if (!CCMS.Api.Security.ScreenApiKeys.Verify(screen, request.ApiKey, out var usedPreviousKey))
             {
                 _logger.LogWarning($"Handshake failed: Invalid API key for screen {request.ScreenId}");
                 return Unauthorized(ApiResponse<HandshakeResponse>.ErrorResponse("Invalid API key"));
+            }
+            if (usedPreviousKey)
+            {
+                _logger.LogWarning("Screen {ScreenId} handshake used its PRE-ROTATION key (grace window active)", screen.Id);
             }
             _logger.LogDebug($"API key verified for screen {request.ScreenId}");
 
@@ -677,6 +689,11 @@ public class PlayerController : ControllerBase
             var wasOffline = !screen.IsOnline;
             screen.LastSeenAt = DateTime.UtcNow;
             screen.IsOnline = true;
+            if (request.PendingImpressions.HasValue)
+            {
+                screen.PendingImpressionsCount = request.PendingImpressions.Value;
+                screen.PendingImpressionsAt = DateTime.UtcNow;
+            }
             await _screenRepository.UpdateAsync(screen);
 
             // If screen was offline and now online, broadcast status change
@@ -691,6 +708,31 @@ public class PlayerController : ControllerBase
                         lastSeen = screen.LastSeenAt,
                         timestamp = DateTime.UtcNow
                     });
+
+                // Close the loop on the offline-during-booking alert: if paid
+                // bookings are running, the owner learns delivery has resumed.
+                // Only fires on the offline→online transition, so it cannot spam.
+                try
+                {
+                    var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                    var atRisk = await _dbContext.Bookings.AsNoTracking().CountAsync(b =>
+                        b.ScreenId == screenGuid && !b.IsDeleted &&
+                        (b.Status == Domain.Enums.BookingStatus.Active || b.Status == Domain.Enums.BookingStatus.Approved) &&
+                        b.StartDate <= today && b.EndDate >= today);
+                    if (atRisk > 0)
+                    {
+                        await _notificationService.CreateNotificationAsync(
+                            screen.OwnerId,
+                            "Screen back online",
+                            $"'{screen.Name}' reconnected — playback for {atRisk} active booking(s) has resumed.",
+                            Domain.Enums.NotificationType.SystemAlert,
+                            $"/screens/{screen.Id}");
+                    }
+                }
+                catch (Exception notifyEx)
+                {
+                    _logger.LogWarning(notifyEx, "Recovery notification failed for screen {ScreenId}", screenGuid);
+                }
             }
 
             var response = new HeartbeatResponse
@@ -732,6 +774,8 @@ public class HeartbeatRequest
 {
     public string ScreenId { get; set; } = string.Empty;
     public string? ApiKey { get; set; }
+    /// <summary>Impressions still queued on the device, self-reported for the sync-health badge.</summary>
+    public int? PendingImpressions { get; set; }
 }
 
 public class HeartbeatResponse

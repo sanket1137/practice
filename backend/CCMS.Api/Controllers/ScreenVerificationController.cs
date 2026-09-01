@@ -57,11 +57,11 @@ public class ScreenVerificationController : ControllerBase
         Guid screenId,
         [FromBody] PlayerQrChallengeRequest request)
     {
-        // Validate API key (same pattern as PlayerController)
+        // Validate API key (same pattern as PlayerController, rotation-grace aware)
         var screen = await _context.Screens
             .AsNoTracking()
             .Where(s => s.Id == screenId && !s.IsDeleted)
-            .Select(s => new { s.ApiKeyHash })
+            .Select(s => new { s.ApiKeyHash, s.ApiKeyHashPrevious, s.ApiKeyRotatedAt })
             .FirstOrDefaultAsync();
 
         if (screen == null)
@@ -69,8 +69,7 @@ public class ScreenVerificationController : ControllerBase
 
         if (!string.IsNullOrEmpty(screen.ApiKeyHash))
         {
-            if (string.IsNullOrEmpty(request.ApiKey) ||
-                !BCrypt.Net.BCrypt.Verify(request.ApiKey, screen.ApiKeyHash))
+            if (!CCMS.Api.Security.ScreenApiKeys.Verify(request.ApiKey, screen.ApiKeyHash, screen.ApiKeyHashPrevious, screen.ApiKeyRotatedAt))
             {
                 return Unauthorized(ApiResponse<QrChallengeResponse>.ErrorResponse("Invalid API key"));
             }

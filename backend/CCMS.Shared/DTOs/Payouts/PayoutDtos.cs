@@ -2,6 +2,46 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CCMS.Shared.DTOs.Payouts;
 
+/// <summary>
+/// Owner-facing earnings breakdown for one booking: the money split,
+/// delivery progress, and every payout recorded against it.
+/// </summary>
+public class BookingEarningsDto
+{
+    public Guid BookingId { get; set; }
+    public string BookingStatus { get; set; } = string.Empty;
+    public string Currency { get; set; } = "INR";
+    public decimal GrossAmount { get; set; }
+    public decimal CommissionPercentage { get; set; }
+    public decimal CommissionAmount { get; set; }
+    public decimal NetToOwner { get; set; }
+    /// <summary>Platform advance percentage applied on activation (e.g. 50).</summary>
+    public decimal AdvancePercentage { get; set; }
+    /// <summary>Self-reserved internal bookings never generate payouts.</summary>
+    public bool IsInternal { get; set; }
+    public int DeliveredImpressions { get; set; }
+    public int ExpectedImpressions { get; set; }
+    /// <summary>0–100, capped at 100. 100 when nothing was expected.</summary>
+    public decimal DeliveryPercentage { get; set; }
+    public List<BookingPayoutEntryDto> Payouts { get; set; } = new();
+}
+
+public class BookingPayoutEntryDto
+{
+    public Guid Id { get; set; }
+    /// <summary>Advance | Final | Full</summary>
+    public string Type { get; set; } = string.Empty;
+    /// <summary>Pending | Processing | Completed | Failed</summary>
+    public string Status { get; set; } = string.Empty;
+    public decimal GrossAmount { get; set; }
+    public decimal CommissionAmount { get; set; }
+    public decimal NetAmount { get; set; }
+    public decimal AdvancePercentage { get; set; }
+    public string? AdminNotes { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+}
+
 public class PendingPayoutDto
 {
     public Guid Id { get; set; }

@@ -2,9 +2,13 @@
   box-sizing: border-box;
 }
 
+/* Ground color comes from the active MUI theme via CSS variables set on :root
+   (see theme.ts MuiCssBaseline). The dark value is only the pre-mount fallback
+   so there is no white flash before React hydrates; once the theme mounts,
+   light mode paints cream and dark mode paints black — this file must never
+   pin a mode. */
 html, body {
-  background-color: #050505;
-  color: #f0f0f0;
+  background-color: var(--ps-bg, #050505);
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
@@ -54,27 +58,5 @@ html, body {
   display: inline-block;
 }
 
-/* Custom Skeleton shimmer pulse */
-@keyframes skeletonShimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.MuiSkeleton-root {
-  background: rgba(255,255,255,0.05) !important;
-  position: relative;
-  overflow: hidden;
-}
-.MuiSkeleton-root::after {
-  content: "";
-  position: absolute;
-  top: 0; right: 0; bottom: 0; left: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02), transparent) !important;
-  background-size: 200% 100%;
-  animation: skeletonShimmer 1.5s linear infinite !important;
-}
-
-/* Global scrollbars overrides */
-::-webkit-scrollbar        { width: 4px; height: 4px; }
-::-webkit-scrollbar-track  { background: transparent; }
-::-webkit-scrollbar-thumb  { background: rgba(255,255,255,0.1); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+/* Skeleton and scrollbar styling now come from the theme (MuiSkeleton override
+   and MuiCssBaseline) so both light and dark modes render correctly. */

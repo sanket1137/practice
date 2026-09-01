@@ -52,6 +52,13 @@ public class SelfReserveSlotCommandHandler : IRequestHandler<SelfReserveSlotComm
         if (screen.OwnerId != request.UserId)
             throw new UnauthorizedAccessException("Only the screen owner can self-reserve slots");
 
+        // Owners may reserve on a screen that is open (Active) or verified and
+        // about to open (Ready) — e.g. loading house promos before launch.
+        // Draft/pending/paused/archived screens can't hold reservations.
+        if (screen.Status is not (ScreenStatus.Active or ScreenStatus.Ready))
+            throw new InvalidOperationException(
+                $"Slots can only be reserved while the screen is Ready or Active (current status: {screen.Status}).");
+
         var creative = await _creativeRepository.GetByIdAsync(request.Request.CreativeId, cancellationToken);
         if (creative == null)
             throw new KeyNotFoundException("Creative not found");

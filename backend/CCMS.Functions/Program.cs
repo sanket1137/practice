@@ -39,6 +39,14 @@ var host = new HostBuilder()
         // Application Services
         services.AddScoped<BookingStatusUpdateService>();
 
+        // BookingStatusUpdateService dependencies this host was silently missing —
+        // resolving the service previously THREW at runtime (IRazorpayService was
+        // never registered here), so the serverless status job has been dead
+        // since refund polling was added. Notifications become log lines in this
+        // host (no SignalR infrastructure); Razorpay uses the real client.
+        services.AddScoped<CCMS.Application.Interfaces.IRazorpayService, CCMS.Infrastructure.Services.RazorpayService>();
+        services.AddScoped<CCMS.Application.Interfaces.INotificationService, CCMS.Application.Services.NullNotificationService>();
+
         // Infrastructure services used by jobs
         services.AddScoped<IEmailService, EmailService>();
 

@@ -173,6 +173,27 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
         },
     });
 
+    // Rotate API key: zero-downtime — new key issued now, old key keeps working
+    // for a 24h grace window while the player is reconfigured. This is the safe
+    // path for periodic key hygiene; "Generate" stays the hard cutover.
+    const rotateApiKeyMutation = useMutation<{ apiKey: string; message: string }>({
+        mutationFn: async () => {
+            const response = await api.post(`/screens/${screenId}/rotate-api-key`);
+            return response.data.data;
+        },
+        onSuccess: (data) => {
+            setGeneratedApiKey(data.apiKey);
+            enqueueSnackbar('Key rotated — the old key keeps working for 24 hours while you update the player.', { variant: 'success' });
+            queryClient.invalidateQueries({ queryKey: ['screen', screenId] });
+        },
+        onError: (error: unknown) => {
+            enqueueSnackbar(
+                getApiErrorMessage(error, 'Failed to rotate API key'),
+                { variant: 'error' }
+            );
+        },
+    });
+
     // Revoke API key mutation
     const revokeApiKeyMutation = useMutation({
         mutationFn: async () => {
@@ -350,6 +371,18 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
                     {hasApiKey && (
                         <Button
                             variant="outlined"
+                            color="primary"
+                            startIcon={<RegenerateIcon />}
+                            onClick={() => rotateApiKeyMutation.mutate()}
+                            disabled={rotateApiKeyMutation.isPending}
+                        >
+                            {rotateApiKeyMutation.isPending ? 'Rotating…' : 'Rotate Key (24h grace)'}
+                        </Button>
+                    )}
+
+                    {hasApiKey && (
+                        <Button
+                            variant="outlined"
                             color="error"
                             startIcon={<RevokeIcon />}
                             onClick={() => setRevokeDialogOpen(true)}
@@ -359,6 +392,13 @@ export default function DeviceManagementTab({ screenId, hasApiKey }: DeviceManag
                         </Button>
                     )}
                 </Box>
+
+                {hasApiKey && (
+                    <Typography variant="caption" color="text.secondary" display="block" mt={1}>
+                        Rotate issues a new key while the old one keeps working for 24 hours —
+                        zero downtime. Regenerate cuts over immediately; Revoke disconnects the player.
+                    </Typography>
+                )}
             </Paper>
 
             {/* Binding Status Card */}

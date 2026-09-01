@@ -1,5 +1,7 @@
+using CCMS.Application.Interfaces;
 using CCMS.Domain.Interfaces;
 using CCMS.Domain.Entities;
+using CCMS.Domain.Enums;
 using Microsoft.AspNetCore.SignalR;
 using CCMS.Api.Hubs;
 
@@ -54,6 +56,8 @@ public class ScreenStatusMonitor : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var screenRepository = scope.ServiceProvider.GetRequiredService<IRepository<Screen>>();
+        var bookingRepository = scope.ServiceProvider.GetRequiredService<IRepository<Booking>>();
+        var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
         var screens = await screenRepository.GetAllAsync();
         var offlineThreshold = DateTime.UtcNow.AddSeconds(-OFFLINE_TIMEOUT_SECONDS);
@@ -78,7 +82,49 @@ public class ScreenStatusMonitor : BackgroundService
                         lastSeen = screen.LastSeenAt,
                         timestamp = DateTime.UtcNow
                     }, stoppingToken);
+
+                // A dark screen while paid campaigns are running is lost revenue
+                // and a delivery-percentage hit — the owner hears about it the
+                // moment it's detected, not when the payout comes up short.
+                // Debounce comes free: this only runs on the online→offline
+                // transition (the screen is excluded from the loop once offline).
+                await AlertOwnerIfBookingAtRiskAsync(screen, bookingRepository, notificationService);
             }
+        }
+    }
+
+    private async Task AlertOwnerIfBookingAtRiskAsync(
+        Screen screen,
+        IRepository<Booking> bookingRepository,
+        INotificationService notificationService)
+    {
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var atRisk = (await bookingRepository.FindAsync(b =>
+                b.ScreenId == screen.Id && !b.IsDeleted &&
+                (b.Status == BookingStatus.Active || b.Status == BookingStatus.Approved) &&
+                b.StartDate <= today && b.EndDate >= today)).ToList();
+
+            if (atRisk.Count == 0) return;
+
+            var revenueAtRisk = atRisk.Sum(b => b.TotalPrice);
+            await notificationService.CreateNotificationAsync(
+                screen.OwnerId,
+                "Screen offline during active campaign",
+                $"'{screen.Name}' stopped responding while {atRisk.Count} paid booking(s) " +
+                $"worth {atRisk.First().Currency} {revenueAtRisk:N0} are running. " +
+                "Plays are not being delivered until the player reconnects.",
+                NotificationType.SystemAlert,
+                $"/screens/{screen.Id}?tab=device");
+
+            _logger.LogWarning(
+                "Screen {ScreenId} went offline with {Count} active booking(s) at risk (owner notified)",
+                screen.Id, atRisk.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send offline-during-booking alert for screen {ScreenId}", screen.Id);
         }
     }
 }

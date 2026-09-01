@@ -58,7 +58,7 @@ const MAP_PAGE_SIZE = 200; // Load more screens for map view
 const SIDEBAR_WIDTH = 380;
 const PREMIUM_SURFACE = {
     backgroundColor: 'background.paper',
-    border: '1px solid rgba(16, 24, 40, 0.08)',
+    border: '1px solid var(--ps-border)',
     boxShadow: '0 10px 28px rgba(16, 24, 40, 0.08)',
 };
 
@@ -486,8 +486,8 @@ export default function DiscoverScreensPage() {
                     mb: 3,
                     borderRadius: 3,
                     background:
-                        'radial-gradient(900px 340px at 100% -8%, rgba(10, 102, 216, 0.12), transparent 60%), #ffffff',
-                    border: '1px solid rgba(16, 24, 40, 0.08)',
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10, 102, 216, 0.12), transparent 60%), var(--ps-surface)',
+                    border: '1px solid var(--ps-border)',
                 }}
             >
                 <Typography variant="h4" gutterBottom>

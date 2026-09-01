@@ -31,7 +31,12 @@ public class UpdateScreenApiKeyCommandHandler : IRequestHandler<UpdateScreenApiK
             throw new KeyNotFoundException($"Screen {request.ScreenId} not found");
         }
 
+        // generate-api-key is the HARD-cutover path (first-time setup or
+        // emergency replacement) — it must not leave an old key alive in a
+        // rotation grace window. Planned zero-downtime changes use rotate-api-key.
         screen.ApiKeyHash = request.ApiKeyHash;
+        screen.ApiKeyHashPrevious = null;
+        screen.ApiKeyRotatedAt = null;
         await _screenRepository.UpdateAsync(screen);
         await _unitOfWork.SaveChangesAsync();
 

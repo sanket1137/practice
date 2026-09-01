@@ -98,7 +98,7 @@ export function ScreenAvailabilityCalendar({ screenId }: ScreenAvailabilityCalen
   return (
     <Box
       sx={{
-        border: '1px solid rgba(16, 24, 40, 0.08)',
+        border: '1px solid var(--ps-border)',
         borderRadius: 3,
         p: 2,
         background:

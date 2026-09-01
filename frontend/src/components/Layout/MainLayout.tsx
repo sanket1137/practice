@@ -37,6 +37,7 @@ import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import QuickActions from '../common/QuickActions';
 import KeyboardShortcutsPanel from '../common/KeyboardShortcutsPanel';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import { ThemeToggle } from '../../ThemeModeContext';
 import {
     Menu as MenuIcon,
     Dashboard as DashboardIcon,
@@ -56,6 +57,7 @@ import {
     VerifiedUser as VerifiedUserIcon,
     Visibility as VisibilityIcon,
     PermMedia as MediaIcon,
+    ReceiptLong as ReceiptLongIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -103,6 +105,7 @@ const MainLayout = () => {
         verifications: <VerifiedUserIcon sx={{ fontSize: 16 }} />,
         visibility: <VisibilityIcon sx={{ fontSize: 16 }} />,
         media: <MediaIcon sx={{ fontSize: 16 }} />,
+        logs: <ReceiptLongIcon sx={{ fontSize: 16 }} />,
     };
 
     const menuItems = getSidebarNavigation({
@@ -122,7 +125,7 @@ const MainLayout = () => {
         if (['Payouts', 'Machines', 'Verifications', 'Visibility Requests'].includes(text)) {
             return 'ADMIN';
         }
-        if (['Earnings & Analytics', 'Screen Analytics', 'Campaign Analytics', 'Platform Analytics', 'Analytics'].includes(text)) {
+        if (['Earnings & Analytics', 'Screen Analytics', 'Campaign Analytics', 'Platform Analytics', 'Analytics', 'Play Logs'].includes(text)) {
             return 'ANALYTICS';
         }
         if (['Settings'].includes(text)) {
@@ -144,7 +147,7 @@ const MainLayout = () => {
     const drawer = (
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Logo area */}
-            <Toolbar sx={{ height: 56, minHeight: '56px !important', px: '20px !important', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <Toolbar sx={{ height: 56, minHeight: '56px !important', px: '20px !important', borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Stack direction="row" alignItems="center" gap={1.5}>
                     <Box sx={{
                         width: 28,
@@ -166,7 +169,7 @@ const MainLayout = () => {
                         fontWeight: 500,
                         fontSize: '15px',
                         letterSpacing: '0.05em',
-                        color: '#f0f0f0'
+                        color: 'text.primary'
                     }}>
                         PixelSpot
                     </Typography>
@@ -186,7 +189,7 @@ const MainLayout = () => {
                                 fontWeight: 700,
                                 letterSpacing: '2.5px',
                                 textTransform: 'uppercase',
-                                color: '#333333',
+                                color: 'text.disabled',
                                 px: '24px',
                                 py: '8px'
                             }}>
@@ -205,22 +208,20 @@ const MainLayout = () => {
                                                 sx={{
                                                     height: 36,
                                                     px: '12px',
-                                                    borderRadius: '8px',
+                                                    borderRadius: '10px',
                                                     backgroundColor: isActive ? 'rgba(59,110,245,0.12) !important' : 'transparent',
-                                                    borderLeft: isActive ? '2px solid #3b6ef5' : 'none',
                                                     '&:hover': {
-                                                        backgroundColor: isActive ? 'rgba(59,110,245,0.12)' : 'rgba(255,255,255,0.04)',
-                                                        '& .MuiListItemText-primary': {
-                                                            color: isActive ? '#f0f0f0' : '#888888',
-                                                        }
+                                                        backgroundColor: isActive ? 'rgba(59,110,245,0.12)' : 'action.hover',
+                                                        '& .MuiListItemText-primary': { color: 'text.primary' },
+                                                        '& .MuiListItemIcon-root': { color: 'text.primary', opacity: 0.9 },
                                                     },
                                                     transition: 'all 0.15s ease'
                                                 }}
                                             >
                                                 <ListItemIcon sx={{
                                                     minWidth: 28,
-                                                    color: isActive ? '#f0f0f0' : '#555555',
-                                                    opacity: isActive ? 1 : 0.5,
+                                                    color: isActive ? 'primary.main' : 'text.disabled',
+                                                    opacity: isActive ? 1 : 0.6,
                                                     transition: 'all 0.15s ease'
                                                 }}>
                                                     {item.icon}
@@ -230,12 +231,15 @@ const MainLayout = () => {
                                                     primaryTypographyProps={{
                                                         sx: {
                                                             fontSize: '13px',
-                                                            fontWeight: 500,
-                                                            color: isActive ? '#f0f0f0' : '#555555',
+                                                            fontWeight: isActive ? 600 : 500,
+                                                            color: isActive ? 'text.primary' : 'text.secondary',
                                                             fontFamily: "'Inter', system-ui, sans-serif"
                                                         }
                                                     }}
                                                 />
+                                                {isActive && (
+                                                    <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: 'primary.main', ml: 1 }} />
+                                                )}
                                             </ListItemButton>
                                         </ListItem>
                                     );
@@ -247,16 +251,16 @@ const MainLayout = () => {
             </Box>
 
             {/* Sidebar Bottom Details */}
-            <Box sx={{ p: 2, borderTop: '1px solid rgba(255,255,255,0.05)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+            <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', backgroundColor: 'background.subtle' }}>
                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                     <Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.main', fontSize: '12px' }}>
                         {user?.firstName?.charAt(0)}
                     </Avatar>
                     <Box sx={{ overflow: 'hidden' }}>
-                        <Typography noWrap sx={{ fontSize: '13px', fontWeight: 500, color: '#f0f0f0' }}>
+                        <Typography noWrap sx={{ fontSize: '13px', fontWeight: 500, color: 'text.primary' }}>
                             {user?.firstName} {user?.lastName}
                         </Typography>
-                        <Typography noWrap sx={{ fontSize: '10px', color: '#555555', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        <Typography noWrap sx={{ fontSize: '10px', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {user?.role}
                         </Typography>
                     </Box>
@@ -268,14 +272,14 @@ const MainLayout = () => {
                     sx={{
                         height: 32,
                         fontSize: '12px',
-                        color: '#888888',
+                        color: 'text.secondary',
                         justifyContent: 'flex-start',
                         px: 1.5,
                         backgroundColor: 'transparent',
                         borderRadius: '6px',
                         '&:hover': {
-                            backgroundColor: 'rgba(255,255,255,0.04)',
-                            color: '#f0f0f0'
+                            backgroundColor: 'action.hover',
+                            color: 'text.primary'
                         }
                     }}
                 >
@@ -286,7 +290,7 @@ const MainLayout = () => {
     );
 
     return (
-        <Box sx={{ display: 'flex', bgcolor: '#050505', minHeight: '100vh' }}>
+        <Box sx={{ display: 'flex', bgcolor: 'background.default', minHeight: '100vh' }}>
             <AppBar
                 position="fixed"
                 sx={{
@@ -321,11 +325,14 @@ const MainLayout = () => {
                         {/* Connection status pill */}
                         <ConnectionStatus status={connectionState} />
 
+                        {/* Dark / light theme toggle */}
+                        <ThemeToggle />
+
                         {/* Global Search Trigger */}
                         <IconButton
                             color="inherit"
                             onClick={() => setSearchOpen(true)}
-                            sx={{ color: '#555555', '&:hover': { color: '#f0f0f0' } }}
+                            sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary' } }}
                         >
                             <SearchIcon sx={{ fontSize: 20 }} />
                         </IconButton>
@@ -334,7 +341,7 @@ const MainLayout = () => {
                         <IconButton
                             color="inherit"
                             onClick={(e) => setNotifAnchorEl(e.currentTarget)}
-                            sx={{ color: '#555555', '&:hover': { color: '#f0f0f0' } }}
+                            sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary' } }}
                         >
                             <Badge badgeContent={unreadCount} max={99}>
                                 <NotificationsIcon sx={{ fontSize: 20 }} />
@@ -368,8 +375,8 @@ const MainLayout = () => {
                     <ListItemText
                         primary="Role"
                         secondary={user?.role}
-                        primaryTypographyProps={{ sx: { fontSize: '11px', color: '#555555', textTransform: 'uppercase', letterSpacing: '0.5px' } }}
-                        secondaryTypographyProps={{ sx: { fontSize: '13px', color: '#f0f0f0', fontWeight: 500 } }}
+                        primaryTypographyProps={{ sx: { fontSize: '11px', color: 'text.disabled', textTransform: 'uppercase', letterSpacing: '0.5px' } }}
+                        secondaryTypographyProps={{ sx: { fontSize: '13px', color: 'text.primary', fontWeight: 500 } }}
                     />
                 </MenuItem>
                 <Divider />
@@ -395,7 +402,7 @@ const MainLayout = () => {
                 }}
             >
                 <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '14px', color: '#f0f0f0' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '14px', color: 'text.primary' }}>
                         Notifications
                     </Typography>
                     {unreadCount > 0 && (
@@ -403,7 +410,7 @@ const MainLayout = () => {
                             size="small"
                             onClick={() => { markAllAsRead(); }}
                             title="Mark all as read"
-                            sx={{ color: '#555555', '&:hover': { color: '#f0f0f0' } }}
+                            sx={{ color: 'text.disabled', '&:hover': { color: 'text.primary' } }}
                         >
                             <DoneAllIcon fontSize="small" />
                         </IconButton>
@@ -412,7 +419,7 @@ const MainLayout = () => {
                 <Divider />
                 {recentNotifications.length === 0 ? (
                     <Box sx={{ p: 3, textAlign: 'center' }}>
-                        <Typography sx={{ fontSize: '13px', color: '#555555' }}>
+                        <Typography sx={{ fontSize: '13px', color: 'text.disabled' }}>
                             No notifications yet
                         </Typography>
                     </Box>
@@ -439,7 +446,7 @@ const MainLayout = () => {
                                         primary={notif.title}
                                         secondary={
                                             <Box component="span">
-                                                <Typography sx={{ fontSize: '12px', color: '#888888', mt: 0.5 }}>
+                                                <Typography sx={{ fontSize: '12px', color: 'text.secondary', mt: 0.5 }}>
                                                     {notif.message}
                                                 </Typography>
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
@@ -458,7 +465,7 @@ const MainLayout = () => {
                                             sx: {
                                                 fontSize: '13px',
                                                 fontWeight: notif.isRead ? 400 : 600,
-                                                color: '#f0f0f0'
+                                                color: 'text.primary'
                                             }
                                         }}
                                     />
@@ -521,7 +528,7 @@ const MainLayout = () => {
                     width: { sm: `calc(100% - ${drawerWidth}px)` },
                     mt: '56px',
                     mb: { xs: 8, md: 0 },
-                    bgcolor: '#050505',
+                    bgcolor: 'background.default',
                     minHeight: '100vh',
                 }}
             >

@@ -31,6 +31,7 @@ export default function CreateScreenPage() {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
+        screenType: 'LedWall',
         physicalWidth: '',
         physicalHeight: '',
         dimensionUnit: 'feet',
@@ -81,6 +82,7 @@ export default function CreateScreenPage() {
             const response = await api.post('/screens', {
                 name: data.name,
                 description: data.description,
+                screenType: data.screenType,
                 physicalWidth: parseFloat(data.physicalWidth),
                 physicalHeight: parseFloat(data.physicalHeight),
                 dimensionUnit: data.dimensionUnit,
@@ -217,10 +219,36 @@ export default function CreateScreenPage() {
                             />
                         </Grid>
 
+                        {/* Screen type — what the physical asset is. Environment
+                            (indoor/outdoor) is a separate property. */}
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField
+                                select
+                                required
+                                fullWidth
+                                name="screenType"
+                                label="Screen type"
+                                value={formData.screenType}
+                                onChange={handleChange}
+                            >
+                                <MenuItem value="Billboard">Billboard</MenuItem>
+                                <MenuItem value="LedWall">LED Wall</MenuItem>
+                                <MenuItem value="VideoWall">Video Wall</MenuItem>
+                                <MenuItem value="TvDisplay">TV / Display</MenuItem>
+                                <MenuItem value="Kiosk">Kiosk</MenuItem>
+                                <MenuItem value="Projection">Projection</MenuItem>
+                                <MenuItem value="TransitDisplay">Transit Display</MenuItem>
+                                <MenuItem value="Standee">Digital Standee</MenuItem>
+                            </TextField>
+                        </Grid>
+
                         {/* Physical Dimensions */}
                         <Grid size={12}>
                             <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                                 Physical Dimensions
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Physical size of the screen itself — resolution in pixels is set separately below.
                             </Typography>
                         </Grid>
                         <Grid
@@ -267,7 +295,9 @@ export default function CreateScreenPage() {
                                 onChange={handleChange}
                             >
                                 <MenuItem value="feet">Feet</MenuItem>
+                                <MenuItem value="inches">Inches</MenuItem>
                                 <MenuItem value="meters">Meters</MenuItem>
+                                <MenuItem value="centimeters">Centimeters</MenuItem>
                             </TextField>
                         </Grid>
 

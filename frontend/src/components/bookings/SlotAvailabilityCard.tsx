@@ -135,9 +135,9 @@ const SlotAvailabilityCard: React.FC<SlotAvailabilityCardProps> = ({
         <Card
             sx={{
                 borderRadius: 3,
-                border: '1px solid rgba(16, 24, 40, 0.08)',
+                border: '1px solid var(--ps-border)',
                 background:
-                    'radial-gradient(900px 340px at 100% -10%, rgba(10, 102, 216, 0.08), transparent 60%), #ffffff',
+                    'radial-gradient(900px 340px at 100% -10%, rgba(10, 102, 216, 0.08), transparent 60%), var(--ps-surface)',
             }}
         >
             <CardContent>

@@ -101,23 +101,23 @@ public class PlayerAuthenticationServiceTests
         expiresAt.Should().BeAfter(before).And.BeBefore(after);
     }
 
+    // ValidateSignature contract: message = "{payload}|{timestamp}", HMAC-SHA256
+    // keyed by the session token, lowercase hex, ±5-minute timestamp drift.
+    private static string Sign(string payload, string timestamp, string sessionToken)
+    {
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(sessionToken));
+        var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes($"{payload}|{timestamp}"));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
+
     [Fact]
     public void ValidateSignature_ValidSignature_ReturnsTrue()
     {
         var payload = "{\"data\":\"test\"}";
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
         var sessionToken = "session-token-abc";
-        var apiKey = "my-api-key";
-        var serverSalt = "my-salt";
 
-        // Compute expected signature the same way the service does
-        var message = $"{payload}|{timestamp}|{sessionToken}";
-        var signingKey = $"{apiKey}{serverSalt}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(signingKey));
-        var signatureBytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
-        var signature = Convert.ToHexString(signatureBytes).ToLowerInvariant();
-
-        _sut.ValidateSignature(payload, timestamp, sessionToken, signature, apiKey, serverSalt)
+        _sut.ValidateSignature(payload, timestamp, sessionToken, Sign(payload, timestamp, sessionToken))
             .Should().BeTrue();
     }
 
@@ -126,38 +126,41 @@ public class PlayerAuthenticationServiceTests
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
         var sessionToken = "session-token";
-        var apiKey = "key";
-        var salt = "salt";
 
-        var message = $"original|{timestamp}|{sessionToken}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes($"{apiKey}{salt}"));
-        var sig = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(message))).ToLowerInvariant();
+        var sig = Sign("original", timestamp, sessionToken);
 
-        _sut.ValidateSignature("tampered", timestamp, sessionToken, sig, apiKey, salt)
+        _sut.ValidateSignature("tampered", timestamp, sessionToken, sig)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void ValidateSignature_WrongSessionToken_ReturnsFalse()
+    {
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+
+        var sig = Sign("payload", timestamp, "token-a");
+
+        _sut.ValidateSignature("payload", timestamp, "token-b", sig)
             .Should().BeFalse();
     }
 
     [Fact]
     public void ValidateSignature_ExpiredTimestamp_ReturnsFalse()
     {
-        // Timestamp from 10 minutes ago exceeds 5-minute drift
+        // Timestamp from 10 minutes ago exceeds the 5-minute drift window
         var oldTimestamp = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 600).ToString();
-        var apiKey = "key";
-        var salt = "salt";
         var sessionToken = "tok";
 
-        var message = $"payload|{oldTimestamp}|{sessionToken}";
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes($"{apiKey}{salt}"));
-        var sig = Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(message))).ToLowerInvariant();
+        var sig = Sign("payload", oldTimestamp, sessionToken);
 
-        _sut.ValidateSignature("payload", oldTimestamp, sessionToken, sig, apiKey, salt)
+        _sut.ValidateSignature("payload", oldTimestamp, sessionToken, sig)
             .Should().BeFalse();
     }
 
     [Fact]
     public void ValidateSignature_InvalidTimestamp_ReturnsFalse()
     {
-        _sut.ValidateSignature("payload", "not-a-number", "tok", "sig", "key", "salt")
+        _sut.ValidateSignature("payload", "not-a-number", "tok", "sig")
             .Should().BeFalse();
     }
 

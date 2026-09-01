@@ -7,12 +7,11 @@ import {
     Button,
     Grid,
     Box,
-    MenuItem,
     Alert,
     LinearProgress,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
 import { useSnackbar } from 'notistack';
@@ -20,9 +19,15 @@ import OperatingScheduleForm from '../../components/screens/OperatingScheduleFor
 import TimezoneSelector from '../../components/common/TimezoneSelector';
 import ScreenTagsManager from '../../components/screens/ScreenTagsManager';
 
-export default function UpdateScreenPage() {
+/**
+ * Screen edit form. Renders as a full page at /screens/:id/edit, and also
+ * embeds inside the workspace's Settings tab (embedded mode drops the page
+ * chrome and stays in place on save instead of navigating away).
+ */
+export default function UpdateScreenPage({ embedded = false }: { embedded?: boolean }) {
     const { id } = useParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { enqueueSnackbar } = useSnackbar();
 
     const [formData, setFormData] = useState({
@@ -127,7 +132,8 @@ export default function UpdateScreenPage() {
         },
         onSuccess: () => {
             enqueueSnackbar('Screen updated successfully', { variant: 'success' });
-            navigate(`/screens/${id}`);
+            queryClient.invalidateQueries({ queryKey: ['screen', id] });
+            if (!embedded) navigate(`/screens/${id}`);
         },
         onError: (error: unknown) => {
             const message = isAxiosError(error) ? (error.response?.data as { message?: string } | undefined)?.message : undefined;
@@ -158,23 +164,27 @@ export default function UpdateScreenPage() {
     };
 
     if (isLoading) {
-        return (
-            <Container maxWidth="lg" sx={{ mt: 4 }}>
+        const progress = (
+            <>
                 <LinearProgress />
                 <Typography sx={{ mt: 2 }}>Loading screen details...</Typography>
-            </Container>
+            </>
         );
+        return embedded ? <Box>{progress}</Box> : <Container maxWidth="lg" sx={{ mt: 4 }}>{progress}</Container>;
     }
 
-    return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            <Paper sx={{ p: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Edit Screen
-                </Typography>
-                <Typography variant="body2" color="textSecondary" paragraph>
-                    Update screen details below. Changes will be saved immediately.
-                </Typography>
+    const form = (
+            <Paper sx={{ p: embedded ? 3 : 4 }} variant={embedded ? 'outlined' : 'elevation'}>
+                {!embedded && (
+                    <>
+                        <Typography variant="h4" gutterBottom>
+                            Edit Screen
+                        </Typography>
+                        <Typography variant="body2" color="textSecondary" paragraph>
+                            Update screen details below. Changes will be saved immediately.
+                        </Typography>
+                    </>
+                )}
 
                 <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
                     <Grid container spacing={3}>
@@ -354,24 +364,22 @@ export default function UpdateScreenPage() {
                             </Grid>
                         )}
 
-                        {/* Status */}
+                        {/* Status is managed by lifecycle actions (Activate / Pause /
+                            Maintenance / Archive) on the screen page — the server
+                            enforces verification and device guards there, so a free
+                            edit here would just be rejected. */}
                         <Grid
                             size={{
                                 xs: 12,
                                 sm: 6
                             }}>
                             <TextField
-                                select
                                 fullWidth
-                                name="status"
                                 label="Status"
                                 value={formData.status}
-                                onChange={handleChange}
-                            >
-                                <MenuItem value="Active">Active</MenuItem>
-                                <MenuItem value="Inactive">Inactive</MenuItem>
-                                <MenuItem value="Maintenance">Maintenance</MenuItem>
-                            </TextField>
+                                disabled
+                                helperText="Change status with the lifecycle actions on the screen page."
+                            />
                         </Grid>
 
                         {/* Timezone Selection */}
@@ -410,12 +418,14 @@ export default function UpdateScreenPage() {
                         {/* Actions */}
                         <Grid size={12}>
                             <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 3 }}>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => navigate(`/screens/${id}`)}
-                                >
-                                    Cancel
-                                </Button>
+                                {!embedded && (
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => navigate(`/screens/${id}`)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                )}
                                 <Button
                                     type="submit"
                                     variant="contained"
@@ -436,6 +446,7 @@ export default function UpdateScreenPage() {
                     </Grid>
                 </Box>
             </Paper>
-        </Container>
     );
+
+    return embedded ? form : <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>{form}</Container>;
 }

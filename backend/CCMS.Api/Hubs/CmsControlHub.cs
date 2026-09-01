@@ -93,7 +93,7 @@ public class CmsControlHub : Hub
         var screen = await _context.Screens
             .AsNoTracking()
             .Where(s => s.Id == screenId)
-            .Select(s => new { s.Id, s.ApiKeyHash })
+            .Select(s => new { s.Id, s.ApiKeyHash, s.ApiKeyHashPrevious, s.ApiKeyRotatedAt })
             .FirstOrDefaultAsync();
 
         if (screen is null || string.IsNullOrEmpty(screen.ApiKeyHash))
@@ -101,7 +101,8 @@ public class CmsControlHub : Hub
             throw new HubException("Screen not found");
         }
 
-        if (!_playerAuth.ValidateApiKey(apiKey, screen.ApiKeyHash))
+        // Grace-aware: a just-rotated key keeps working for the rotation window.
+        if (!Security.ScreenApiKeys.Verify(apiKey, screen.ApiKeyHash, screen.ApiKeyHashPrevious, screen.ApiKeyRotatedAt))
         {
             _logger.LogWarning("[CmsControlHub] SubscribePlayer auth failed for screen {ScreenId}", screenId);
             throw new HubException("Authentication failed");

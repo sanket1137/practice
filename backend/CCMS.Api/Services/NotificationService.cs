@@ -64,8 +64,10 @@ public class NotificationService : INotificationService
 
     public async Task<int> GetUnreadCountAsync(Guid userId)
     {
-        var all = await _notificationRepository.GetAllAsync();
-        return all.Count(n => n.UserId == userId && !n.IsRead);
+        // Counted in the database — this runs on every dashboard poll for
+        // every user; materializing the whole Notifications table for it
+        // scaled with total platform traffic, not with this user's data.
+        return await _notificationRepository.CountAsync(n => n.UserId == userId && !n.IsRead);
     }
 
     public async Task<(List<NotificationDto> Items, int TotalCount)> GetNotificationsPagedAsync(
@@ -73,9 +75,10 @@ public class NotificationService : INotificationService
         int page = 1,
         int pageSize = 20)
     {
-        var all = await _notificationRepository.GetAllAsync();
-        var query = all
-            .Where(n => n.UserId == userId)
+        // Filtered to this user in the database; ordering/paging the user's own
+        // rows in memory is bounded and fine.
+        var mine = await _notificationRepository.FindAsync(n => n.UserId == userId);
+        var query = mine
             .OrderByDescending(n => n.CreatedAt);
 
         var totalCount = query.Count();
@@ -103,8 +106,7 @@ public class NotificationService : INotificationService
 
     public async Task MarkAllAsReadAsync(Guid userId)
     {
-        var all = await _notificationRepository.GetAllAsync();
-        var unread = all.Where(n => n.UserId == userId && !n.IsRead).ToList();
+        var unread = (await _notificationRepository.FindAsync(n => n.UserId == userId && !n.IsRead)).ToList();
 
         foreach (var notification in unread)
         {

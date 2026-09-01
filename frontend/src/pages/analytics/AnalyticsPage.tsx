@@ -29,6 +29,8 @@ import {
 } from 'recharts';
 import DownloadIcon from '@mui/icons-material/Download';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import { useTheme } from '@mui/material/styles';
+import { TrendAreaChart } from '../../components/ui/charts';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -249,6 +251,7 @@ export default function AnalyticsPage() {
 // SCREEN OWNER ANALYTICS COMPONENT
 // ============================================
 function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
+    const muiTheme = useTheme();
     const [dateRange, setDateRange] = useState<DateRange>({ from: subDays(new Date(), 29), to: new Date() });
     const [exporting, setExporting] = useState(false);
     const [exportingPdf, setExportingPdf] = useState(false);
@@ -312,9 +315,9 @@ function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
                     mb: 3,
                     borderRadius: 3,
                     background:
-                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
-                    border: '1px solid rgba(16, 24, 40, 0.08)',
-                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), var(--ps-surface)',
+                    border: '1px solid var(--ps-border)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
                     display: 'flex',
                     alignItems: { sm: 'center' },
                     flexDirection: { xs: 'column', sm: 'row' },
@@ -434,22 +437,19 @@ function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
                     {dailyLoading ? <ChartSkeleton height={350} /> : (
                         <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
                             <Typography variant="h6" gutterBottom>
-                                Weekly Revenue
+                                Revenue & plays
                             </Typography>
                             {dailyRevenue && dailyRevenue.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="90%">
-                                    <BarChart
-                                        data={dailyRevenue}
-                                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="dayName" />
-                                        <YAxis />
-                                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                                        <Legend />
-                                        <Bar dataKey="revenue" fill="#4caf50" name="Revenue (₹)" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <Box sx={{ height: '88%' }}>
+                                    <TrendAreaChart
+                                        data={dailyRevenue as unknown as Record<string, unknown>[]}
+                                        xKey="dayName"
+                                        series={[
+                                            { key: 'revenue', name: 'Revenue', format: formatCurrency },
+                                            { key: 'impressions', name: 'Plays', axis: 'right' },
+                                        ]}
+                                    />
+                                </Box>
                             ) : (
                                 <Box display="flex" alignItems="center" justifyContent="center" height="80%">
                                     <Typography color="textSecondary">No revenue data available</Typography>
@@ -507,28 +507,16 @@ function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
                     {dailyLoading ? <ChartSkeleton height={350} /> : (
                         <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
                             <Typography variant="h6" gutterBottom>
-                                Total Impressions Delivered
+                                Plays delivered
                             </Typography>
                             {dailyRevenue && dailyRevenue.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="90%">
-                                    <LineChart
-                                        data={dailyRevenue}
-                                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="dayName" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="impressions"
-                                            stroke="#2196f3"
-                                            name="Total Plays"
-                                            strokeWidth={2}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                <Box sx={{ height: '88%' }}>
+                                    <TrendAreaChart
+                                        data={dailyRevenue as unknown as Record<string, unknown>[]}
+                                        xKey="dayName"
+                                        series={[{ key: 'impressions', name: 'Plays' }]}
+                                    />
+                                </Box>
                             ) : (
                                 <Box display="flex" alignItems="center" justifyContent="center" height="80%">
                                     <Typography color="textSecondary">No impression data available</Typography>
@@ -545,15 +533,13 @@ function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
                             <Typography variant="h6" gutterBottom>
                                 Revenue Over Time ({dateFrom} → {dateTo})
                             </Typography>
-                            <ResponsiveContainer width="100%" height="90%">
-                                <AreaChart data={dateRangeData.revenueOverTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} />
-                                    <YAxis />
-                                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                                    <Area type="monotone" dataKey="amount" stroke="#22c55e" fill="#22c55e33" name="Revenue (₹)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            <Box sx={{ height: '88%' }}>
+                                <TrendAreaChart
+                                    data={dateRangeData.revenueOverTime.map((r) => ({ ...r, day: r.date.slice(5) }))}
+                                    xKey="day"
+                                    series={[{ key: 'amount', name: 'Revenue', format: formatCurrency }]}
+                                />
+                            </Box>
                         </Paper>
                     </Grid>
                 )}
@@ -567,11 +553,18 @@ function ScreenOwnerAnalytics({ isPrivate }: { isPrivate: boolean }) {
                             </Typography>
                             <ResponsiveContainer width="100%" height="90%">
                                 <BarChart data={dateRangeData.fillRateByScreen} layout="vertical" margin={{ top: 5, right: 30, left: 60, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                                    <YAxis type="category" dataKey="screenName" width={80} tick={{ fontSize: 11 }} />
-                                    <Tooltip formatter={(v: number) => `${v}%`} />
-                                    <Bar dataKey="fillRate" fill="#6366f1" name="Fill Rate %" />
+                                    <CartesianGrid stroke={muiTheme.palette.divider} horizontal={false} />
+                                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`}
+                                        tick={{ fontSize: 11, fill: muiTheme.palette.text.disabled }} axisLine={false} tickLine={false} />
+                                    <YAxis type="category" dataKey="screenName" width={80}
+                                        tick={{ fontSize: 11, fill: muiTheme.palette.text.secondary }} axisLine={false} tickLine={false} />
+                                    <Tooltip formatter={(v: number) => `${v}%`}
+                                        contentStyle={{
+                                            background: muiTheme.palette.background.paper,
+                                            border: `1px solid ${muiTheme.palette.divider}`,
+                                            borderRadius: 10, fontSize: 12, color: muiTheme.palette.text.primary,
+                                        }} />
+                                    <Bar dataKey="fillRate" fill={muiTheme.palette.secondary.main} radius={[0, 6, 6, 0]} name="Fill Rate %" />
                                 </BarChart>
                             </ResponsiveContainer>
                         </Paper>
@@ -650,9 +643,9 @@ function AdvertiserAnalytics() {
                     mb: 3,
                     borderRadius: 3,
                     background:
-                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
-                    border: '1px solid rgba(16, 24, 40, 0.08)',
-                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), var(--ps-surface)',
+                    border: '1px solid var(--ps-border)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
                     display: 'flex',
                     alignItems: { sm: 'center' },
                     flexDirection: { xs: 'column', sm: 'row' },
@@ -904,9 +897,9 @@ function AdminAnalytics() {
                     mb: 4,
                     borderRadius: 3,
                     background:
-                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), #ffffff',
-                    border: '1px solid rgba(16, 24, 40, 0.08)',
-                    boxShadow: '0 8px 24px rgba(16, 24, 40, 0.06)',
+                        'radial-gradient(900px 340px at 100% -8%, rgba(10,102,216,0.12), transparent 60%), var(--ps-surface)',
+                    border: '1px solid var(--ps-border)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.10)',
                 }}
             >
                 <Typography variant="h4" gutterBottom sx={{ mb: 0.5 }}>

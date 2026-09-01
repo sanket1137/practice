@@ -23,6 +23,7 @@ public class MappingProfiles : Profile
         // Screen mappings
         CreateMap<Screen, ScreenDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.ScreenType, opt => opt.MapFrom(src => src.ScreenType.ToString()))
             .ForMember(dest => dest.DisplayType, opt => opt.MapFrom(src => src.DisplayType.ToString()))
             .ForMember(dest => dest.Orientation, opt => opt.MapFrom(src => src.Orientation.ToString()))
             .ForMember(dest => dest.VerificationStatus, opt => opt.MapFrom(src => src.VerificationStatus.ToString()))
@@ -53,7 +54,13 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.OwnerId, opt => opt.Ignore())
             .ForMember(dest => dest.Owner, opt => opt.Ignore())
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(_ => ScreenStatus.Active))
+            // Screens are born Draft — see the screen lifecycle state machine.
+            // (This mapping's old hardcoded Active was one of the bypasses that
+            // let unverified screens straight into the marketplace.)
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(_ => ScreenStatus.Draft))
+            // Parsed with a friendly error in CreateScreenCommandHandler, not here.
+            .ForMember(dest => dest.ScreenType, opt => opt.Ignore())
+            .ForMember(dest => dest.DimensionUnit, opt => opt.Ignore())
             .ForMember(dest => dest.IsOnline, opt => opt.MapFrom(_ => false))
             .ForMember(dest => dest.LastSeenAt, opt => opt.Ignore())
             .ForMember(dest => dest.LastSyncAt, opt => opt.Ignore())

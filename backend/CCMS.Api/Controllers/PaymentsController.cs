@@ -426,43 +426,43 @@ public class PaymentsController : ControllerBase
 
         if (string.IsNullOrEmpty(orderId)) return;
 
-        await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var payments = await _paymentRepository.FindAsync(p => p.RazorpayOrderId == orderId);
-            var payment = payments.FirstOrDefault();
-            if (payment != null && payment.Status == PaymentStatus.Captured)
+            // Execution-strategy-safe transaction: begin→work→commit runs as one
+            // retriable unit, and each retry attempt re-reads fresh state.
+            await _unitOfWork.ExecuteInTransactionAsync(async _ =>
             {
-                // Replay: webhook delivered twice for the same captured payment. Acknowledge silently.
-                _logger.LogInformation("Webhook replay ignored: payment {OrderId} already captured", orderId);
-                await _unitOfWork.RollbackTransactionAsync();
-                return;
-            }
+                var payments = await _paymentRepository.FindAsync(p => p.RazorpayOrderId == orderId);
+                var payment = payments.FirstOrDefault();
+                if (payment != null && payment.Status == PaymentStatus.Captured)
+                {
+                    // Replay: webhook delivered twice for the same captured payment. Acknowledge silently.
+                    _logger.LogInformation("Webhook replay ignored: payment {OrderId} already captured", orderId);
+                    return;
+                }
 
-            if (payment != null)
-            {
-                payment.RazorpayPaymentId = razorpayPaymentId;
-                payment.Status = PaymentStatus.Captured;
-                payment.GatewayResponse = paymentEntity.GetRawText();
-                await _paymentRepository.UpdateAsync(payment);
-            }
+                if (payment != null)
+                {
+                    payment.RazorpayPaymentId = razorpayPaymentId;
+                    payment.Status = PaymentStatus.Captured;
+                    payment.GatewayResponse = paymentEntity.GetRawText();
+                    await _paymentRepository.UpdateAsync(payment);
+                }
 
-            var bookings = await _bookingRepository.FindAsync(b => b.RazorpayOrderId == orderId);
-            var booking = bookings.FirstOrDefault();
-            if (booking != null && booking.PaymentStatus != PaymentStatus.Captured)
-            {
-                booking.RazorpayPaymentId = razorpayPaymentId;
-                booking.PaymentStatus = PaymentStatus.Captured;
-                booking.PaymentMethod = method?.ToUpperInvariant() == "BANK_TRANSFER" ? "BankTransfer" : "UPI";
-                booking.UpdatedAt = DateTime.UtcNow;
-                await _bookingRepository.UpdateAsync(booking);
-            }
-
-            await _unitOfWork.CommitTransactionAsync();
+                var bookings = await _bookingRepository.FindAsync(b => b.RazorpayOrderId == orderId);
+                var booking = bookings.FirstOrDefault();
+                if (booking != null && booking.PaymentStatus != PaymentStatus.Captured)
+                {
+                    booking.RazorpayPaymentId = razorpayPaymentId;
+                    booking.PaymentStatus = PaymentStatus.Captured;
+                    booking.PaymentMethod = method?.ToUpperInvariant() == "BANK_TRANSFER" ? "BankTransfer" : "UPI";
+                    booking.UpdatedAt = DateTime.UtcNow;
+                    await _bookingRepository.UpdateAsync(booking);
+                }
+            });
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogError(ex, "Webhook HandlePaymentCaptured FAILED for order {OrderId}", orderId);
             throw; // Re-throw so Razorpay sees non-2xx and retries.
         }
@@ -475,32 +475,31 @@ public class PaymentsController : ControllerBase
 
         if (string.IsNullOrEmpty(orderId)) return;
 
-        await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var payments = await _paymentRepository.FindAsync(p => p.RazorpayOrderId == orderId);
-            var payment = payments.FirstOrDefault();
-            if (payment != null)
+            await _unitOfWork.ExecuteInTransactionAsync(async _ =>
             {
-                payment.Status = PaymentStatus.Expired;
-                payment.GatewayResponse = paymentEntity.GetRawText();
-                await _paymentRepository.UpdateAsync(payment);
-            }
+                var payments = await _paymentRepository.FindAsync(p => p.RazorpayOrderId == orderId);
+                var payment = payments.FirstOrDefault();
+                if (payment != null)
+                {
+                    payment.Status = PaymentStatus.Expired;
+                    payment.GatewayResponse = paymentEntity.GetRawText();
+                    await _paymentRepository.UpdateAsync(payment);
+                }
 
-            var bookings = await _bookingRepository.FindAsync(b => b.RazorpayOrderId == orderId);
-            var booking = bookings.FirstOrDefault();
-            if (booking != null && booking.PaymentStatus == PaymentStatus.OrderCreated)
-            {
-                booking.PaymentStatus = PaymentStatus.Expired;
-                booking.UpdatedAt = DateTime.UtcNow;
-                await _bookingRepository.UpdateAsync(booking);
-            }
-
-            await _unitOfWork.CommitTransactionAsync();
+                var bookings = await _bookingRepository.FindAsync(b => b.RazorpayOrderId == orderId);
+                var booking = bookings.FirstOrDefault();
+                if (booking != null && booking.PaymentStatus == PaymentStatus.OrderCreated)
+                {
+                    booking.PaymentStatus = PaymentStatus.Expired;
+                    booking.UpdatedAt = DateTime.UtcNow;
+                    await _bookingRepository.UpdateAsync(booking);
+                }
+            });
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogError(ex, "Webhook HandlePaymentFailed FAILED for order {OrderId}", orderId);
             throw;
         }
@@ -514,42 +513,40 @@ public class PaymentsController : ControllerBase
 
         if (string.IsNullOrEmpty(razorpayPaymentId)) return;
 
-        await _unitOfWork.BeginTransactionAsync();
         try
         {
-            var payments = await _paymentRepository.FindAsync(p => p.RazorpayPaymentId == razorpayPaymentId);
-            var payment = payments.FirstOrDefault();
-            if (payment != null && payment.Status == PaymentStatus.Refunded)
+            await _unitOfWork.ExecuteInTransactionAsync(async _ =>
             {
-                _logger.LogInformation("Webhook replay ignored: payment {PaymentId} already refunded", razorpayPaymentId);
-                await _unitOfWork.RollbackTransactionAsync();
-                return;
-            }
+                var payments = await _paymentRepository.FindAsync(p => p.RazorpayPaymentId == razorpayPaymentId);
+                var payment = payments.FirstOrDefault();
+                if (payment != null && payment.Status == PaymentStatus.Refunded)
+                {
+                    _logger.LogInformation("Webhook replay ignored: payment {PaymentId} already refunded", razorpayPaymentId);
+                    return;
+                }
 
-            if (payment != null)
-            {
-                payment.Status = PaymentStatus.Refunded;
-                payment.RefundedAt = DateTime.UtcNow;
-                payment.RefundAmount = refundEntity.GetProperty("amount").GetDecimal() / 100m;
-                payment.GatewayResponse = refundEntity.GetRawText();
-                await _paymentRepository.UpdateAsync(payment);
-            }
+                if (payment != null)
+                {
+                    payment.Status = PaymentStatus.Refunded;
+                    payment.RefundedAt = DateTime.UtcNow;
+                    payment.RefundAmount = refundEntity.GetProperty("amount").GetDecimal() / 100m;
+                    payment.GatewayResponse = refundEntity.GetRawText();
+                    await _paymentRepository.UpdateAsync(payment);
+                }
 
-            var bookings = await _bookingRepository.FindAsync(b => b.RazorpayPaymentId == razorpayPaymentId);
-            var booking = bookings.FirstOrDefault();
-            if (booking != null && booking.PaymentStatus != PaymentStatus.Refunded)
-            {
-                booking.PaymentStatus = PaymentStatus.Refunded;
-                booking.RazorpayRefundId = refundId;
-                booking.UpdatedAt = DateTime.UtcNow;
-                await _bookingRepository.UpdateAsync(booking);
-            }
-
-            await _unitOfWork.CommitTransactionAsync();
+                var bookings = await _bookingRepository.FindAsync(b => b.RazorpayPaymentId == razorpayPaymentId);
+                var booking = bookings.FirstOrDefault();
+                if (booking != null && booking.PaymentStatus != PaymentStatus.Refunded)
+                {
+                    booking.PaymentStatus = PaymentStatus.Refunded;
+                    booking.RazorpayRefundId = refundId;
+                    booking.UpdatedAt = DateTime.UtcNow;
+                    await _bookingRepository.UpdateAsync(booking);
+                }
+            });
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync();
             _logger.LogError(ex, "Webhook HandleRefundProcessed FAILED for payment {PaymentId}", razorpayPaymentId);
             throw;
         }

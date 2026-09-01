@@ -26,6 +26,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useAuthStore } from '../../store/authStore';
 import { createPaymentOrder } from '../../services/paymentApi';
 import PaymentScreen from '../../components/bookings/PaymentScreen';
+import BookingEarningsCard from '../../components/bookings/BookingEarningsCard';
 import type { CreateOrderResponse } from '../../types/payment';
 import { useSnackbar } from 'notistack';
 
@@ -102,6 +103,28 @@ export default function BookingDetailPage() {
                         <Chip label={booking.status} color={getStatusColor(booking.status)} />
                     </Box>
                     <Box display="flex" gap={1}>
+                        {/* Proof of play: the timestamped log advertisers ask for */}
+                        {(user?.role === 'ScreenOwner' || user?.role === 'Admin') &&
+                            ['Active', 'Approved', 'Completed'].includes(booking.status) && (
+                            <Button
+                                variant="outlined"
+                                onClick={async () => {
+                                    try {
+                                        const res = await api.get(`/reports/bookings/${id}/logs/export`, { responseType: 'blob' });
+                                        const url = URL.createObjectURL(res.data);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `play-log-booking-${id}.csv`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    } catch {
+                                        enqueueSnackbar('Play log export failed', { variant: 'error' });
+                                    }
+                                }}
+                            >
+                                Play log (CSV)
+                            </Button>
+                        )}
                         {['Active', 'Approved', 'Completed'].includes(booking.status) && (
                             <Button
                                 variant="contained"
@@ -245,6 +268,14 @@ export default function BookingDetailPage() {
                             </CardContent>
                         </Card>
                     </Grid>
+
+                    {/* Earnings & payout timeline — screen owner / admin only
+                        (the card hides itself when the API says not-your-booking) */}
+                    {(user?.role === 'ScreenOwner' || user?.role === 'Admin') && id && (
+                        <Grid size={12}>
+                            <BookingEarningsCard bookingId={id} />
+                        </Grid>
+                    )}
                 </Grid>
             </Paper>
 

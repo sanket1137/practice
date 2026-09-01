@@ -55,8 +55,10 @@ public class CreateOwnerContentHandler : IRequestHandler<CreateOwnerContentComma
                 $"This screen has {screen.SlotsPerFrame} slots per frame (valid: 1–{screen.SlotsPerFrame}).");
 
         // 3. Check slot is not taken by active booking
-        // Use GetAllAsync and filter in memory since SlotNumbers is a JSON column
-        var allBookings = (await _bookingRepo.GetAllAsync(cancellationToken)).ToList();
+        // Filter to this screen's bookings in the database; only the JSON
+        // SlotNumbers check needs to happen in memory.
+        var allBookings = (await _bookingRepo.FindAsync(
+            b => b.ScreenId == request.ScreenId && !b.IsDeleted, cancellationToken)).ToList();
         var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);
         
         // Single comprehensive check: slot must not have any currently-active booking
