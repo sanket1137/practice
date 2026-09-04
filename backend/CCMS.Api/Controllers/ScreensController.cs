@@ -308,11 +308,13 @@ public class ScreensController : ControllerBase
                     return NotFound(ApiResponse<SlotCalendarDto>.ErrorResponse("Screen not found"));
             }
 
+            var callerIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var query = new GetSlotCalendarQuery
             {
                 ScreenId = id,
                 StartDate = DateOnly.FromDateTime(startDate),
-                EndDate = DateOnly.FromDateTime(endDate)
+                EndDate = DateOnly.FromDateTime(endDate),
+                RequesterId = Guid.TryParse(callerIdClaim, out var callerId) ? callerId : null
             };
 
             var result = await _mediator.Send(query);
@@ -1606,6 +1608,20 @@ public class ScreensController : ControllerBase
                 Enum.TryParse<ScreenDisplayType>(request.DisplayType, true, out var displayType))
             {
                 query = query.Where(s => s.DisplayType == displayType);
+            }
+
+            // Screen type (Billboard / LED wall / Video wall / ...)
+            if (!string.IsNullOrWhiteSpace(request.ScreenType) &&
+                Enum.TryParse<ScreenType>(request.ScreenType, true, out var screenType))
+            {
+                query = query.Where(s => s.ScreenType == screenType);
+            }
+
+            // Venue (cafe / mall / gym / airport / ...)
+            if (!string.IsNullOrWhiteSpace(request.VenueType) &&
+                Enum.TryParse<VenueType>(request.VenueType, true, out var venueType))
+            {
+                query = query.Where(s => s.VenueType == venueType);
             }
 
             // Orientation (Landscape / Portrait)

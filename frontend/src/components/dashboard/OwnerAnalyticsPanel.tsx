@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Box, Grid, Skeleton, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import CurrencyRupeeIcon from '@mui/icons-material/CurrencyRupee';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -53,7 +53,7 @@ export default function OwnerAnalyticsPanel() {
     // Plays that arrived over the live socket since the last summary refetch.
     const [liveTicks, setLiveTicks] = useState(0);
 
-    const { data: summary, isLoading: summaryLoading, dataUpdatedAt } = useQuery<OwnerSummary>({
+    const { data: summary, isLoading: summaryLoading } = useQuery<OwnerSummary>({
         queryKey: ['owner-analytics-summary'],
         queryFn: async () => (await api.get('/analytics/owner/summary')).data.data,
         refetchInterval: 30 * 1000,
@@ -82,7 +82,17 @@ export default function OwnerAnalyticsPanel() {
             websocketService.off('AdCompleted', onPlay);
         };
     }, []);
-    useEffect(() => { setLiveTicks(0); }, [dataUpdatedAt]);
+    // Reconcile: subtract only what the server's today-count has absorbed.
+    const prevTodayRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (summary == null) return;
+        const prev = prevTodayRef.current;
+        if (prev != null) {
+            const absorbed = Math.max(0, summary.todayImpressions - prev);
+            if (absorbed > 0) setLiveTicks((t) => Math.max(0, t - absorbed));
+        }
+        prevTodayRef.current = summary.todayImpressions;
+    }, [summary]);
 
     const chartData = daily.map((d) => ({
         day: new Date(d.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),

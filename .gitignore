@@ -569,3 +569,6 @@ player/chromeos/node_modules/
 player/chromeos/dist/
 
 player/raspberrypi.zip
+player/*.zip
+player/**/*.zip
+*.zip

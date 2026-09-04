@@ -3,6 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
+    Alert,
     Box,
     Container,
     Typography,
@@ -429,6 +430,30 @@ export default function CreateBookingPage() {
                                         )}
                                     />
                                 </Grid>
+
+                                {/* First-time advertiser off-ramp: bookings live inside a
+                                    campaign, so with none yet this page is a dead end —
+                                    hand them to the wizard with this screen pre-selected. */}
+                                {campaigns && campaigns.length === 0 && (
+                                    <Grid size={12}>
+                                        <Alert
+                                            severity="info"
+                                            action={
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    onClick={() => navigate(`/campaigns/new${preSelectedScreenId ? `?screen=${preSelectedScreenId}` : ''}`)}
+                                                >
+                                                    Start campaign
+                                                </Button>
+                                            }
+                                        >
+                                            A campaign holds your creative and its bookings. Create your
+                                            first one — the wizard uploads your ad and books this screen
+                                            in a couple of minutes.
+                                        </Alert>
+                                    </Grid>
+                                )}
 
                                 {/* Creative */}
                                 <Grid size={12}>

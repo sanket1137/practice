@@ -1,0 +1,7 @@
+/*
+ * Tailwind utilities for the static marketing page (index.html).
+ * Compiled at build time by @tailwindcss/vite — replaces the Play CDN
+ * script the production CSP (script-src 'self') rightly blocks.
+ * Imported only by src/landing.ts, so none of this touches the MUI app.
+ */
+@import "tailwindcss";

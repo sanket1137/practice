@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using CCMS.Application.Features.Campaigns.Commands;
@@ -19,12 +20,155 @@ namespace CCMS.Api.Controllers;
 public class CampaignsController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly CCMS.Infrastructure.Data.ApplicationDbContext _context;
     private readonly ILogger<CampaignsController> _logger;
 
-    public CampaignsController(IMediator mediator, ILogger<CampaignsController> logger)
+    public CampaignsController(
+        IMediator mediator,
+        CCMS.Infrastructure.Data.ApplicationDbContext context,
+        ILogger<CampaignsController> logger)
     {
         _mediator = mediator;
+        _context = context;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// The Command Center feed: everything the campaign monitor renders in one
+    /// call — derived status + sub-state, delivery vs target, per-day pacing,
+    /// and per-screen rows scoped to THIS campaign's plays (never the screen's
+    /// global numbers). Advertiser-owned or admin.
+    /// </summary>
+    [HttpGet("{id}/monitor")]
+    public async Task<ActionResult<ApiResponse<object>>> GetMonitor(Guid id)
+    {
+        try
+        {
+            var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var isAdmin = User.IsInRole("Admin");
+
+            var campaign = await _context.Campaigns
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+            if (campaign == null)
+                return NotFound(ApiResponse<object>.ErrorResponse("Campaign not found"));
+            if (!isAdmin && campaign.AdvertiserId != userId)
+                return Forbid();
+
+            var bookings = await _context.Bookings
+                .Where(b => b.CampaignId == id && !b.IsDeleted)
+                .Include(b => b.Screen)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var todayUtc = DateTime.UtcNow.Date;
+
+            // Window + expectations
+            var start = bookings.Count > 0 ? bookings.Min(b => b.StartDate) : today;
+            var end = bookings.Count > 0 ? bookings.Max(b => b.EndDate) : today;
+            var expectedTotal = bookings.Sum(b => b.ExpectedImpressions);
+            var spend = bookings
+                .Where(b => b.Status != Domain.Enums.BookingStatus.Cancelled
+                         && b.Status != Domain.Enums.BookingStatus.Rejected)
+                .Sum(b => b.TotalPrice);
+
+            // Delivered — per booking and per day, campaign-scoped
+            var impressions = await _context.Impressions
+                .Where(i => i.CampaignId == id)
+                .Select(i => new { i.BookingId, i.ScreenId, i.PlayedAt })
+                .ToListAsync();
+
+            var deliveredTotal = impressions.Count;
+            var deliveredToday = impressions.Count(i => i.PlayedAt >= todayUtc);
+            var deliveryPct = expectedTotal > 0
+                ? Math.Round(Math.Min(100m, deliveredTotal * 100m / expectedTotal), 1) : 0m;
+
+            // Pacing: cumulative delivered per day vs a straight-line target
+            var totalDays = Math.Max(1, end.DayNumber - start.DayNumber + 1);
+            var elapsedDays = Math.Clamp(today.DayNumber - start.DayNumber + 1, 0, totalDays);
+            var byDay = impressions
+                .GroupBy(i => DateOnly.FromDateTime(i.PlayedAt))
+                .ToDictionary(g => g.Key, g => g.Count());
+            var pacing = new List<object>();
+            var cumulative = 0;
+            for (var d = start; d <= end && d <= today; d = d.AddDays(1))
+            {
+                cumulative += byDay.GetValueOrDefault(d);
+                var dayIndex = d.DayNumber - start.DayNumber + 1;
+                pacing.Add(new
+                {
+                    date = d.ToString("yyyy-MM-dd"),
+                    delivered = byDay.GetValueOrDefault(d),
+                    deliveredCum = cumulative,
+                    targetCum = (int)Math.Round((decimal)expectedTotal * dayIndex / totalDays),
+                });
+            }
+
+            // Per-screen rows — this campaign's plays only
+            var playsByBooking = impressions.Where(i => i.BookingId.HasValue)
+                .GroupBy(i => i.BookingId!.Value)
+                .ToDictionary(g => g.Key, g => new
+                {
+                    total = g.Count(),
+                    todayCount = g.Count(i => i.PlayedAt >= todayUtc),
+                    last = g.Max(i => i.PlayedAt),
+                });
+            var screens = bookings.Select(b =>
+            {
+                playsByBooking.TryGetValue(b.Id, out var p);
+                return new
+                {
+                    bookingId = b.Id,
+                    bookingStatus = b.Status.ToString(),
+                    screenId = b.ScreenId,
+                    screenName = b.Screen?.Name ?? "Screen",
+                    city = b.Screen?.Location?.City,
+                    isOnline = b.Screen?.IsOnline ?? false,
+                    startDate = b.StartDate.ToString("yyyy-MM-dd"),
+                    endDate = b.EndDate.ToString("yyyy-MM-dd"),
+                    expected = b.ExpectedImpressions,
+                    plays = p?.total ?? 0,
+                    playsToday = p?.todayCount ?? 0,
+                    deliveryPct = b.ExpectedImpressions > 0
+                        ? Math.Round(Math.Min(100m, (p?.total ?? 0) * 100m / b.ExpectedImpressions), 1) : 0m,
+                    lastPlayAt = p?.last,
+                };
+            }).ToList();
+
+            // Sub-state mirrors the sweep's derivation
+            string subState =
+                bookings.Any(b => b.Status == Domain.Enums.BookingStatus.Active) ? "live"
+                : bookings.Any(b => b.Status == Domain.Enums.BookingStatus.Approved) ? "scheduled"
+                : bookings.Any(b => b.Status == Domain.Enums.BookingStatus.Pending) ? "awaiting-approval"
+                : bookings.Any(b => b.Status == Domain.Enums.BookingStatus.Completed) ? "completed"
+                : bookings.Count == 0 ? "draft" : "cancelled";
+
+            return Ok(ApiResponse<object>.SuccessResponse(new
+            {
+                campaignId = campaign.Id,
+                name = campaign.Name,
+                status = campaign.Status.ToString(),
+                subState,
+                currency = bookings.FirstOrDefault()?.Currency ?? "INR",
+                startDate = start.ToString("yyyy-MM-dd"),
+                endDate = end.ToString("yyyy-MM-dd"),
+                totalDays,
+                elapsedDays,
+                spend,
+                expectedTotal,
+                deliveredTotal,
+                deliveredToday,
+                deliveryPct,
+                cpm = deliveredTotal > 0 ? Math.Round(spend * 1000m / deliveredTotal, 0) : (decimal?)null,
+                pacing,
+                screens,
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error building campaign monitor for {CampaignId}", id);
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to load campaign monitor."));
+        }
     }
 
     // GET /api/campaigns

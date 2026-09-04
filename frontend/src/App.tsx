@@ -30,6 +30,7 @@ const CampaignsPage = lazy(() => import('./pages/campaigns/CampaignsPage'));
 const CreateCampaignPage = lazy(() => import('./pages/campaigns/CreateCampaignPage'));
 const EditCampaignPage = lazy(() => import('./pages/campaigns/EditCampaignPage'));
 const CampaignDetailPage = lazy(() => import('./pages/campaigns/CampaignDetailPage'));
+const CampaignCreativeUploadPage = lazy(() => import('./pages/campaigns/CampaignCreativeUploadPage'));
 const ScreensPage = lazy(() => import('./pages/screens/ScreensPage'));
 const CreateScreenPage = lazy(() => import('./pages/screens/CreateScreenPage'));
 const UpdateScreenPage = lazy(() => import('./pages/screens/UpdateScreenPage'));
@@ -58,6 +59,7 @@ const Disclaimer = lazy(() => import('./pages/legal/Disclaimer'));
 const ProfileSettingsPage = lazy(() => import('./pages/profile/ProfileSettingsPage'));
 const AdminPayoutsPage = lazy(() => import('./pages/payouts/AdminPayoutsPage'));
 const PlayLogsPage = lazy(() => import('./pages/playlogs/PlayLogsPage'));
+const MonitorRoomPage = lazy(() => import('./pages/monitor/MonitorRoomPage'));
 const AdminMachinesPage = lazy(() => import('./pages/admin/AdminMachinesPage'));
 const AdminVerificationsPage = lazy(() => import('./pages/admin/AdminVerificationsPage'));
 const AdminVisibilityRequestsPage = lazy(() => import('./pages/admin/AdminVisibilityRequestsPage'));
@@ -240,6 +242,7 @@ function App() {
                   <Route path="campaigns/create" element={<CreateCampaignPage />} />
                   <Route path="campaigns/:id/edit" element={<EditCampaignPage />} />
                   <Route path="campaigns/:id" element={<CampaignDetailPage />} />
+                  <Route path="campaigns/:id/creatives/new" element={<CampaignCreativeUploadPage />} />
                   <Route path="media" element={<MediaLibraryPage />} />
                   <Route path="screens" element={<ScreensPage />} />
                   <Route path="screens/new" element={<CreateScreenPage />} />
@@ -257,6 +260,7 @@ function App() {
                   <Route path="analytics" element={<AnalyticsPage />} />
                   <Route path="payouts" element={<RoleAccessGate rule="payouts"><PayoutsPage /></RoleAccessGate>} />
                   <Route path="logs" element={<PlayLogsPage />} />
+                  <Route path="monitor" element={<MonitorRoomPage />} />
                   <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="notifications/settings" element={<NotificationPreferencesPage />} />
                   <Route path="profile" element={<ProfileSettingsPage />} />

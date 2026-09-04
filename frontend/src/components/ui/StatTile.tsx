@@ -1,13 +1,14 @@
 import { Box, Card, CardContent, Typography } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 
 /**
  * KPI tile: label, big value, optional delta vs previous period, optional
  * "live" pulse dot for realtime numbers, optional footer. Theme-aware.
  */
-export default function StatTile({ label, value, delta, deltaLabel, live, icon, footer }: {
+export default function StatTile({ label, value, delta, deltaLabel, live, icon, footer, pulseOn }: {
     label: string;
     value: ReactNode;
     /** Percent change vs previous period; colors green/red by sign. */
@@ -17,7 +18,19 @@ export default function StatTile({ label, value, delta, deltaLabel, live, icon, 
     live?: boolean;
     icon?: ReactNode;
     footer?: ReactNode;
+    /** When this changes (after mount), the value briefly pulses — wire it to the live counter. */
+    pulseOn?: string | number;
 }) {
+    const [pulsing, setPulsing] = useState(false);
+    const prevPulse = useRef(pulseOn);
+    useEffect(() => {
+        if (pulseOn === undefined || prevPulse.current === pulseOn) return;
+        prevPulse.current = pulseOn;
+        setPulsing(true);
+        const t = setTimeout(() => setPulsing(false), 650);
+        return () => clearTimeout(t);
+    }, [pulseOn]);
+
     return (
         <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
@@ -38,7 +51,18 @@ export default function StatTile({ label, value, delta, deltaLabel, live, icon, 
                     )}
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexWrap: 'wrap' }}>
-                    <Typography variant="h3" component="div" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    <Typography variant="h3" component="div" sx={{
+                        fontVariantNumeric: 'tabular-nums',
+                        transformOrigin: 'left center',
+                        ...(pulsing && {
+                            animation: 'ps-tile-pop 0.65s cubic-bezier(0.22, 1.2, 0.36, 1)',
+                            '@keyframes ps-tile-pop': {
+                                '0%': { transform: 'scale(1)', textShadow: 'none' },
+                                '30%': { transform: 'scale(1.06)', textShadow: '0 0 18px rgba(52,210,123,0.45)' },
+                                '100%': { transform: 'scale(1)', textShadow: 'none' },
+                            },
+                        }),
+                    }}>
                         {value}
                     </Typography>
                     {delta != null && Number.isFinite(delta) && (

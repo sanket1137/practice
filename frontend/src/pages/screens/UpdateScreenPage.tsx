@@ -9,11 +9,13 @@ import {
     Box,
     Alert,
     LinearProgress,
+    MenuItem,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { api } from '../../services/api';
+import { VENUE_TYPE_OPTIONS } from '../../types/screen';
 import { useSnackbar } from 'notistack';
 import OperatingScheduleForm from '../../components/screens/OperatingScheduleForm';
 import TimezoneSelector from '../../components/common/TimezoneSelector';
@@ -33,6 +35,7 @@ export default function UpdateScreenPage({ embedded = false }: { embedded?: bool
     const [formData, setFormData] = useState({
         name: '',
         description: '',
+        venueType: '',
         physicalWidth: '',
         physicalHeight: '',
         resolutionWidth: '',
@@ -80,6 +83,7 @@ export default function UpdateScreenPage({ embedded = false }: { embedded?: bool
         setFormData({
             name: screen.name || '',
             description: screen.description || '',
+            venueType: screen.venueType && screen.venueType !== 'Unclassified' ? screen.venueType : '',
             physicalWidth: screen.physicalWidth?.toString() || '',
             physicalHeight: screen.physicalHeight?.toString() || '',
             resolutionWidth: screen.resolutionWidth?.toString() || '',
@@ -108,6 +112,7 @@ export default function UpdateScreenPage({ embedded = false }: { embedded?: bool
             const response = await api.put(`/screens/${id}`, {
                 name: data.name,
                 description: data.description,
+                venueType: data.venueType || undefined,
                 physicalWidth: data.physicalWidth ? parseFloat(data.physicalWidth) : undefined,
                 physicalHeight: data.physicalHeight ? parseFloat(data.physicalHeight) : undefined,
                 resolutionWidth: data.resolutionWidth ? parseInt(data.resolutionWidth) : undefined,
@@ -213,6 +218,21 @@ export default function UpdateScreenPage({ embedded = false }: { embedded?: bool
                                 value={formData.description}
                                 onChange={handleChange}
                             />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField
+                                select
+                                fullWidth
+                                name="venueType"
+                                label="Venue type"
+                                value={formData.venueType}
+                                onChange={handleChange}
+                                helperText="Where the screen is installed — shown to advertisers and in proposals"
+                            >
+                                {VENUE_TYPE_OPTIONS.map((v) => (
+                                    <MenuItem key={v.value} value={v.value}>{v.label}</MenuItem>
+                                ))}
+                            </TextField>
                         </Grid>
 
                         {/* Resolution */}

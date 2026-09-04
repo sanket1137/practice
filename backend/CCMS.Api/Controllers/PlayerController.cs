@@ -77,8 +77,10 @@ public class PlayerController : ControllerBase
         ICmsPlaylistService cmsPlaylistService,
         ApplicationDbContext dbContext,
         CCMS.Api.Security.PlayerSessionStore sessionStore,
-        CCMS.Application.Interfaces.INotificationService notificationService)
+        CCMS.Application.Interfaces.INotificationService notificationService,
+        IConfiguration configuration)
     {
+        _configuration = configuration;
         _screenRepository = screenRepository;
         _playlistService = playlistService;
         _impressionRepository = impressionRepository;
@@ -94,6 +96,7 @@ public class PlayerController : ControllerBase
     }
 
     private readonly CCMS.Application.Interfaces.INotificationService _notificationService;
+    private readonly IConfiguration _configuration;
 
     /// <summary>
     /// Player handshake - called once when player starts
@@ -307,7 +310,11 @@ public class PlayerController : ControllerBase
                 Success = true,
                 ServerTime = DateTime.UtcNow,
                 Playlist = verificationMode ? null : playlist,
-                SyncIntervalMinutes = 10,
+                // 2 minutes: plays reach the database fast enough that reports,
+                // report pages, and freshly-opened dashboards stay within a
+                // couple of minutes of the live feed. Config-overridable; the
+                // player adopts the value at its next handshake, fleet-wide.
+                SyncIntervalMinutes = int.TryParse(_configuration["Player:SyncIntervalMinutes"], out var si) && si > 0 ? si : 10,
                 Message = verificationMode ? "Screen requires verification" : "Handshake successful",
                 ScreenTimezone = screen.Timezone,
                 OperatingHours = operatingHours,
@@ -383,29 +390,46 @@ public class PlayerController : ControllerBase
             if (request.SyncData.Impressions != null && request.SyncData.Impressions.Count > 0)
             {
                 _logger.LogInformation($"Processing {request.SyncData.Impressions.Count} flat impressions with UPSERT deduplication");
-                
+
+                // Batched dedup: ONE query for the whole batch instead of one
+                // per impression — at fleet scale the per-row lookups were the
+                // dominant database cost of every sync.
+                var batchKeys = request.SyncData.Impressions
+                    .Where(i => !string.IsNullOrEmpty(i.SlotPlayKey))
+                    .Select(i => i.SlotPlayKey!).ToList();
+                var batchIds = request.SyncData.Impressions
+                    .Where(i => string.IsNullOrEmpty(i.SlotPlayKey) && !string.IsNullOrEmpty(i.ImpressionId))
+                    .Select(i => i.ImpressionId!).ToList();
+                var existingKeys = batchKeys.Count > 0
+                    ? (await _dbContext.Impressions.AsNoTracking()
+                        .Where(x => x.SlotPlayKey != null && batchKeys.Contains(x.SlotPlayKey))
+                        .Select(x => x.SlotPlayKey!).ToListAsync()).ToHashSet()
+                    : new HashSet<string>();
+                var existingIds = batchIds.Count > 0
+                    ? (await _dbContext.Impressions.AsNoTracking()
+                        .Where(x => x.ImpressionId != null && batchIds.Contains(x.ImpressionId))
+                        .Select(x => x.ImpressionId!).ToListAsync()).ToHashSet()
+                    : new HashSet<string>();
+
                 foreach (var imp in request.SyncData.Impressions)
                 {
-                    // Check for duplicate using SlotPlayKey (most reliable deduplication)
                     if (!string.IsNullOrEmpty(imp.SlotPlayKey))
                     {
-                        var existingByKey = await _impressionRepository.FindAsync(x => x.SlotPlayKey == imp.SlotPlayKey);
-                        if (existingByKey.Any())
+                        if (existingKeys.Contains(imp.SlotPlayKey))
                         {
                             duplicateCount++;
-                            _logger.LogDebug($"Skipping duplicate impression (SlotPlayKey: {imp.SlotPlayKey[..16]}...)");
                             continue;
                         }
+                        existingKeys.Add(imp.SlotPlayKey); // in-batch duplicates too
                     }
-                    // Fallback: Check by ImpressionId
                     else if (!string.IsNullOrEmpty(imp.ImpressionId))
                     {
-                        var existingById = await _impressionRepository.FindAsync(x => x.ImpressionId == imp.ImpressionId);
-                        if (existingById.Any())
+                        if (existingIds.Contains(imp.ImpressionId))
                         {
                             duplicateCount++;
                             continue;
                         }
+                        existingIds.Add(imp.ImpressionId);
                     }
                     
                     // Basic fraud detection: check if timestamp is reasonable

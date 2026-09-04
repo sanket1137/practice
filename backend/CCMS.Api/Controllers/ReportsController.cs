@@ -382,6 +382,187 @@ public class ReportsController : ControllerBase
     }
 
     /// <summary>
+    /// Price/reach estimate for a selection of screens over a date range —
+    /// the Plan tray's numbers, priced through the REAL booking engine (per-day
+    /// pricing rules included) so the tray always equals checkout. Also the
+    /// data source for the proposal PDF, so the document can never disagree
+    /// with the estimate the buyer saw.
+    /// </summary>
+    [HttpPost("proposal/estimate")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<object>>> EstimateProposal(
+        [FromBody] ProposalRequest request,
+        [FromServices] CCMS.Application.Services.BookingCalculationService calculationService,
+        [FromServices] CCMS.Application.Services.SlotAvailabilityService availabilityService)
+    {
+        try
+        {
+            var plan = await BuildPlanAsync(request, calculationService, availabilityService);
+            if (plan == null)
+                return BadRequest(ApiResponse<object>.ErrorResponse("Pick 1–20 screens and a valid date range."));
+            return Ok(ApiResponse<object>.SuccessResponse(plan));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error estimating proposal");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Estimate failed"));
+        }
+    }
+
+    /// <summary>
+    /// The client-ready proposal PDF: plan summary, per-screen spec cards
+    /// (type, environment, resolution, physical size, audience, footfall,
+    /// prices from the real engine), creative spec sheet, and the proof
+    /// promise. Same numbers as the estimate — one source of truth.
+    /// </summary>
+    [HttpPost("proposal")]
+    [Authorize]
+    public async Task<IActionResult> DownloadProposal(
+        [FromBody] ProposalRequest request,
+        [FromServices] CCMS.Application.Services.BookingCalculationService calculationService,
+        [FromServices] CCMS.Application.Services.SlotAvailabilityService availabilityService,
+        [FromServices] CCMS.Application.Interfaces.IFileStorageService fileStorage)
+    {
+        try
+        {
+            var plan = await BuildPlanAsync(request, calculationService, availabilityService);
+            if (plan == null)
+                return BadRequest("Pick 1–20 screens and a valid date range.");
+
+            // Resolve stored image URLs to bytes for embedding. A missing or
+            // unreadable image never blocks the document — the card simply
+            // renders without that photo.
+            var imageBytes = new Dictionary<Guid, List<byte[]>>();
+            foreach (var item in plan.Screens)
+            {
+                var list = new List<byte[]>();
+                foreach (var url in item.ImageUrls.Take(2))
+                {
+                    try
+                    {
+                        await using var stream = await fileStorage.GetFileAsync(url);
+                        using var ms = new MemoryStream();
+                        await stream.CopyToAsync(ms);
+                        if (ms.Length > 0 && ms.Length <= 15 * 1024 * 1024)
+                            list.Add(ms.ToArray());
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Proposal image fetch failed for {Url}", url);
+                    }
+                }
+                if (list.Count > 0) imageBytes[item.ScreenId] = list;
+            }
+
+            var pdf = _exportService.ExportProposalToPdf(plan, imageBytes);
+            return File(pdf, "application/pdf",
+                $"pixelspot-media-plan-{request.From:yyyy-MM-dd}-to-{request.To:yyyy-MM-dd}.pdf");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating proposal PDF");
+            return StatusCode(500, "Proposal generation failed");
+        }
+    }
+
+    private async Task<ProposalPlan?> BuildPlanAsync(
+        ProposalRequest request,
+        CCMS.Application.Services.BookingCalculationService calculationService,
+        CCMS.Application.Services.SlotAvailabilityService availabilityService)
+    {
+        if (request.ScreenIds == null || request.ScreenIds.Count is 0 or > 20) return null;
+        var from = request.From.Date;
+        var to = request.To.Date;
+        if (to < from || (to - from).TotalDays > 92) return null;
+
+        var screens = await _context.Screens
+            .Where(s => request.ScreenIds.Contains(s.Id) && !s.IsDeleted
+                        && s.Status == Domain.Enums.ScreenStatus.Active)
+            .ToListAsync();
+        if (screens.Count == 0) return null;
+
+        var screenIds = screens.Select(s => s.Id).ToList();
+        var tagsByScreen = (await _context.ScreenTagAssignments.AsNoTracking()
+                .Where(a => screenIds.Contains(a.ScreenId))
+                .OrderByDescending(a => a.IsPrimary).ThenByDescending(a => a.Score)
+                .Select(a => new { a.ScreenId, a.Tag.DisplayName })
+                .ToListAsync())
+            .GroupBy(t => t.ScreenId)
+            .ToDictionary(g => g.Key, g => g.Select(t => t.DisplayName).Distinct().Take(5).ToList());
+        // Screen photo first (primary leading), then one surrounding shot — the
+        // proposal shows at most two images per screen.
+        var imagesByScreen = (await _context.ScreenImages.AsNoTracking()
+                .Where(i => screenIds.Contains(i.ScreenId) && !i.IsDeleted)
+                .OrderByDescending(i => i.IsPrimary).ThenBy(i => i.DisplayOrder)
+                .Select(i => new { i.ScreenId, i.ImageUrl, i.ImageType })
+                .ToListAsync())
+            .GroupBy(i => i.ScreenId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                {
+                    var screenShot = g.Where(x => x.ImageType == Domain.Enums.ScreenImageType.Screen)
+                        .Select(x => x.ImageUrl).FirstOrDefault();
+                    var surrounding = g.Where(x => x.ImageType == Domain.Enums.ScreenImageType.Surrounding)
+                        .Select(x => x.ImageUrl).FirstOrDefault();
+                    return new[] { screenShot, surrounding }.Where(u => !string.IsNullOrWhiteSpace(u))
+                        .Select(u => u!).ToList();
+                });
+
+        var items = new List<ProposalScreenItem>();
+        foreach (var screen in screens)
+        {
+            var calc = await calculationService.CalculateBookingWithAvailability(
+                screen, 1, from, to, availabilityService);
+            var playsRange = calc.DailyBreakdown.Where(d => d.IsAvailable).Sum(d => d.Frames);
+            var availableDays = calc.DailyBreakdown.Count(d => d.IsAvailable);
+            items.Add(new ProposalScreenItem
+            {
+                ScreenId = screen.Id,
+                Name = screen.Name,
+                City = screen.Location?.City ?? "",
+                State = screen.Location?.State ?? "",
+                ScreenType = screen.ScreenType.ToString(),
+                VenueType = screen.VenueType == Domain.Enums.VenueType.Unclassified
+                    ? "" : screen.VenueType.ToString(),
+                Description = screen.Description ?? "",
+                Tags = tagsByScreen.GetValueOrDefault(screen.Id) ?? new List<string>(),
+                ImageUrls = imagesByScreen.GetValueOrDefault(screen.Id) ?? new List<string>(),
+                Environment = screen.DisplayType.ToString(),
+                Orientation = screen.Orientation.ToString(),
+                ResolutionWidth = screen.ResolutionWidth,
+                ResolutionHeight = screen.ResolutionHeight,
+                PhysicalSize = screen.PhysicalWidth > 0
+                    ? $"{screen.PhysicalWidth:0.#} × {screen.PhysicalHeight:0.#} {screen.DimensionUnit}" : "—",
+                SlotSeconds = screen.SlotsPerFrame > 0
+                    ? (int)Math.Round(screen.TimeFrameMinutes * 60.0 / screen.SlotsPerFrame) : 0,
+                Aqs = screen.AudienceQualityScore,
+                DailyFootfall = screen.DailyTotalImpressions,
+                PricePerSlot = screen.PricePerSlot,
+                Currency = screen.Currency,
+                AvailableDays = availableDays,
+                TotalDays = calc.DailyBreakdown.Count,
+                EstPlays = playsRange,
+                EstCost = Math.Round(calc.TotalCost, 0),
+            });
+        }
+
+        return new ProposalPlan
+        {
+            PreparedFor = string.IsNullOrWhiteSpace(request.PreparedFor) ? null : request.PreparedFor.Trim(),
+            From = from,
+            To = to,
+            Days = (int)(to - from).TotalDays + 1,
+            Currency = items[0].Currency,
+            Screens = items.OrderByDescending(i => i.EstCost).ToList(),
+            TotalFootfallPerDay = items.Sum(i => (long)i.DailyFootfall),
+            TotalEstPlays = items.Sum(i => (long)i.EstPlays),
+            TotalEstCost = items.Sum(i => i.EstCost),
+            GeneratedAt = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>
     /// Ledger integrity for one screen's play log: a per-screen, per-day hash
     /// chain. Every closed UTC day is sealed exactly once — RecordsRoot is the
     /// SHA-256 digest of the day's canonical impression records, and each
@@ -1073,4 +1254,55 @@ public class ReportsController : ControllerBase
     }
 
     #endregion
+}
+
+/// <summary>Request body for proposal estimate + PDF.</summary>
+public class ProposalRequest
+{
+    public List<Guid> ScreenIds { get; set; } = new();
+    public DateTime From { get; set; }
+    public DateTime To { get; set; }
+    public string? PreparedFor { get; set; }
+}
+
+public class ProposalScreenItem
+{
+    public Guid ScreenId { get; set; }
+    public string Name { get; set; } = "";
+    public string City { get; set; } = "";
+    public string State { get; set; } = "";
+    public string ScreenType { get; set; } = "";
+    public string VenueType { get; set; } = "";
+    public string Description { get; set; } = "";
+    public List<string> Tags { get; set; } = new();
+    /// <summary>Stored image URLs (screen photo first, then surrounding) — resolved to bytes only for the PDF.</summary>
+    public List<string> ImageUrls { get; set; } = new();
+    public string Environment { get; set; } = "";
+    public string Orientation { get; set; } = "";
+    public int ResolutionWidth { get; set; }
+    public int ResolutionHeight { get; set; }
+    public string PhysicalSize { get; set; } = "";
+    public int SlotSeconds { get; set; }
+    public decimal Aqs { get; set; }
+    public int DailyFootfall { get; set; }
+    public decimal PricePerSlot { get; set; }
+    public string Currency { get; set; } = "INR";
+    public int AvailableDays { get; set; }
+    public int TotalDays { get; set; }
+    public int EstPlays { get; set; }
+    public decimal EstCost { get; set; }
+}
+
+public class ProposalPlan
+{
+    public string? PreparedFor { get; set; }
+    public DateTime From { get; set; }
+    public DateTime To { get; set; }
+    public int Days { get; set; }
+    public string Currency { get; set; } = "INR";
+    public List<ProposalScreenItem> Screens { get; set; } = new();
+    public long TotalFootfallPerDay { get; set; }
+    public long TotalEstPlays { get; set; }
+    public decimal TotalEstCost { get; set; }
+    public DateTime GeneratedAt { get; set; }
 }

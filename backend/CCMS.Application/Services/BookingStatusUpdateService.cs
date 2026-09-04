@@ -128,6 +128,23 @@ public class BookingStatusUpdateService
                             "(Campaign: {CampaignId}, Screen: {ScreenName})",
                             booking.Id, oldStatus, newStatus, booking.CampaignId, screen.Name);
 
+                        // The on-air moment: the CampaignLive notification finally
+                        // has a real trigger — the first play-eligible transition.
+                        if (newStatus == BookingStatus.Active && booking.CampaignId.HasValue)
+                        {
+                            var liveCampaign = await _campaignRepository.GetByIdAsync(booking.CampaignId.Value, cancellationToken);
+                            if (liveCampaign != null)
+                            {
+                                await SafeNotifyAsync(liveCampaign.AdvertiserId,
+                                    "Your campaign is live",
+                                    $"'{liveCampaign.Name}' is now playing on '{screen.Name}'. Watch it in the Command Center.",
+                                    NotificationType.CampaignLive,
+                                    $"/campaigns/{liveCampaign.Id}");
+                                await _notificationService.BroadcastCampaignEventAsync(liveCampaign.Id,
+                                    "CampaignStatusChanged",
+                                    new { campaignId = liveCampaign.Id.ToString(), status = "Active", subState = "live" });
+                            }
+                        }
                     }
 
                     // Payout moments — idempotent and best-effort, so a payout
@@ -228,6 +245,12 @@ public class BookingStatusUpdateService
             {
                 _logger.LogInformation("No bookings required status updates");
             }
+
+            // Campaign state is a pure function of the campaign's bookings —
+            // derived here, after booking transitions, by the only writer.
+            // (Before this existed, CampaignStatus was set to Draft at creation
+            // and never touched again: every campaign read "Draft" forever.)
+            await UpdateCampaignStatusesAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -236,6 +259,112 @@ public class BookingStatusUpdateService
         }
 
         return updatedCount;
+    }
+
+    // ── Campaign lifecycle: derived, single-writer ──────────────────────────
+
+    private static CampaignStatus DeriveCampaignStatus(CampaignStatus current, List<Booking>? bookings)
+    {
+        if (bookings == null || bookings.Count == 0)
+            return current == CampaignStatus.Paused ? CampaignStatus.Paused : CampaignStatus.Draft;
+
+        var anyOpen = bookings.Any(b =>
+            b.Status == BookingStatus.Pending ||
+            b.Status == BookingStatus.Approved ||
+            b.Status == BookingStatus.Active);
+
+        if (anyOpen)
+            // A manual pause holds while the campaign still has open bookings.
+            return current == CampaignStatus.Paused ? CampaignStatus.Paused : CampaignStatus.Active;
+
+        // Everything terminal: it ran if anything completed, otherwise it never aired.
+        return bookings.Any(b => b.Status == BookingStatus.Completed)
+            ? CampaignStatus.Completed
+            : CampaignStatus.Cancelled;
+    }
+
+    /// <summary>Sub-state for UI/pings: what "Active" means right now.</summary>
+    private static string CampaignSubState(List<Booking>? bookings, DateOnly today)
+    {
+        if (bookings == null || bookings.Count == 0) return "draft";
+        if (bookings.Any(b => b.Status == BookingStatus.Active)) return "live";
+        if (bookings.Any(b => b.Status == BookingStatus.Approved)) return "scheduled";
+        if (bookings.Any(b => b.Status == BookingStatus.Pending)) return "awaiting-approval";
+        return bookings.Any(b => b.Status == BookingStatus.Completed) ? "completed" : "cancelled";
+    }
+
+    private async Task UpdateCampaignStatusesAsync(CancellationToken ct)
+    {
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var campaigns = (await _campaignRepository.FindAsync(c => !c.IsDeleted, ct)).ToList();
+            if (campaigns.Count == 0) return;
+
+            var campaignBookings = (await _bookingRepository.FindAsync(
+                    b => b.CampaignId != null && !b.IsDeleted, ct))
+                .GroupBy(b => b.CampaignId!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var changed = 0;
+            foreach (var campaign in campaigns)
+            {
+                campaignBookings.TryGetValue(campaign.Id, out var bookings);
+                var derived = DeriveCampaignStatus(campaign.Status, bookings);
+                if (derived == campaign.Status) continue;
+
+                var oldStatus = campaign.Status;
+                campaign.Status = derived;
+                campaign.UpdatedAt = DateTime.UtcNow;
+                await _campaignRepository.UpdateAsync(campaign, ct);
+                changed++;
+
+                _logger.LogInformation(
+                    "Campaign {CampaignId} '{Name}': {Old} → {New}",
+                    campaign.Id, campaign.Name, oldStatus, derived);
+
+                var subState = CampaignSubState(bookings, today);
+                await _notificationService.BroadcastCampaignEventAsync(campaign.Id,
+                    "CampaignStatusChanged",
+                    new { campaignId = campaign.Id.ToString(), status = derived.ToString(), subState });
+
+                // Personal pings only for the endings — booking-level notifications
+                // already cover the journey in.
+                if (derived == CampaignStatus.Completed)
+                {
+                    await SafeNotifyAsync(campaign.AdvertiserId,
+                        "Campaign completed",
+                        $"'{campaign.Name}' has finished. Your delivery report and verified play log are ready.",
+                        NotificationType.CampaignCompleted,
+                        $"/reports/campaigns/{campaign.Id}");
+                }
+                else if (derived == CampaignStatus.Cancelled && oldStatus != CampaignStatus.Draft)
+                {
+                    await SafeNotifyAsync(campaign.AdvertiserId,
+                        "Campaign didn't run",
+                        $"'{campaign.Name}' ended without any booking airing. You can re-book the screens with fresh dates.",
+                        NotificationType.SystemAlert,
+                        $"/campaigns/{campaign.Id}");
+                }
+            }
+
+            if (changed > 0)
+            {
+                await _unitOfWork.SaveChangesAsync(ct);
+                _logger.LogInformation("Campaign lifecycle: {Count} campaign(s) transitioned", changed);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Best-effort: campaign derivation must never fail the booking sweep.
+            _logger.LogError(ex, "Campaign lifecycle derivation failed");
+        }
+    }
+
+    private async Task SafeNotifyAsync(Guid userId, string title, string message, NotificationType type, string url)
+    {
+        try { await _notificationService.CreateNotificationAsync(userId, title, message, type, url); }
+        catch (Exception ex) { _logger.LogWarning(ex, "Campaign notification failed for {UserId}", userId); }
     }
 
     // ── Payout engine hooks ─────────────────────────────────────────────────

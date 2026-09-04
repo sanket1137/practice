@@ -118,9 +118,30 @@ public class ScreenStatusMonitor : BackgroundService
                 NotificationType.SystemAlert,
                 $"/screens/{screen.Id}?tab=device");
 
+            // The advertiser paying for those plays hears it too — with the
+            // reassurance that delivery-linked settlement protects their spend.
+            using var scope = _serviceProvider.CreateScope();
+            var campaignRepository = scope.ServiceProvider.GetRequiredService<IRepository<Campaign>>();
+            var advertiserIds = new HashSet<Guid>();
+            foreach (var booking in atRisk.Where(b => b.CampaignId.HasValue))
+            {
+                var campaign = await campaignRepository.GetByIdAsync(booking.CampaignId!.Value);
+                if (campaign != null && advertiserIds.Add(campaign.AdvertiserId))
+                {
+                    await notificationService.CreateNotificationAsync(
+                        campaign.AdvertiserId,
+                        "Your campaign screen is offline",
+                        $"'{screen.Name}' went offline while your campaign is running. Plays are " +
+                        "paused and every play is counted — your final settlement is delivery-linked, " +
+                        "so you only pay for what actually airs. We've alerted the screen owner.",
+                        NotificationType.SystemAlert,
+                        $"/bookings/{booking.Id}");
+                }
+            }
+
             _logger.LogWarning(
-                "Screen {ScreenId} went offline with {Count} active booking(s) at risk (owner notified)",
-                screen.Id, atRisk.Count);
+                "Screen {ScreenId} went offline with {Count} active booking(s) at risk (owner + {AdvCount} advertiser(s) notified)",
+                screen.Id, atRisk.Count, advertiserIds.Count);
         }
         catch (Exception ex)
         {

@@ -37,6 +37,12 @@ public class NullNotificationService : INotificationService
         return Task.CompletedTask;
     }
 
+    public Task BroadcastCampaignEventAsync(Guid campaignId, string eventName, object payload)
+    {
+        _logger.LogDebug("[Campaign broadcast suppressed in this host] {Event} for {CampaignId}", eventName, campaignId);
+        return Task.CompletedTask;
+    }
+
     public Task<int> GetUnreadCountAsync(Guid userId) => Task.FromResult(0);
 
     public Task<(List<NotificationDto> Items, int TotalCount)> GetNotificationsPagedAsync(

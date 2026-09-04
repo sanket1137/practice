@@ -8,11 +8,19 @@ import { startOfMonth, endOfMonth, addMonths, format, startOfWeek, endOfWeek, ad
 
 interface SlotCalendarViewProps {
     screenId: string;
+    /**
+     * Who is looking. Owners see occupancy ("2/6" booked — fleet-ops framing);
+     * advertisers see buyability ("4 left" / "Sold out") — the raw booked/total
+     * fraction read backwards to buyers ("0/6" looked like nothing available).
+     */
+    audience?: 'owner' | 'advertiser';
 }
 
 interface SlotCalendarSlot {
     slotNumber: number;
     status: string;
+    isMine?: boolean;
+    campaignName?: string | null;
 }
 
 interface SlotCalendarDay {
@@ -33,8 +41,9 @@ type DayKind = 'available' | 'partial' | 'full' | 'off';
  * themes — the old design painted saturated fills that swallowed the text),
  * a today ring, per-day tooltips, and a legend that matches the cells.
  */
-export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
+export default function SlotCalendarView({ screenId, audience = 'advertiser' }: SlotCalendarViewProps) {
     const theme = useTheme();
+    const forBuyer = audience === 'advertiser';
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
     const monthStart = startOfMonth(currentMonth);
@@ -96,8 +105,8 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
 
     const kindLabel: Record<DayKind, string> = {
         available: 'All slots open',
-        partial: 'Partially booked',
-        full: 'Fully booked',
+        partial: forBuyer ? 'Limited availability' : 'Partially booked',
+        full: forBuyer ? 'Sold out' : 'Fully booked',
         off: 'Not operating',
     };
 
@@ -109,28 +118,51 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
             const calendarDay = calendar?.days?.find((d) => format(new Date(d.date), 'yyyy-MM-dd') === key);
             const kind = kindOf(calendarDay);
             const booked = calendarDay?.slots?.filter((s) => s.status === 'booked').length ?? 0;
+            const mine = calendarDay?.slots?.filter((s) => s.isMine).length ?? 0;
             const total = calendarDay?.slots?.length || calendar?.slotsPerFrame || 0;
             const inMonth = isSameMonth(day, currentMonth);
+
+            const left = total - booked;
+            const cellCaption = forBuyer
+                ? (kind === 'full' ? 'Sold out' : kind === 'partial' ? `${left} left` : null)
+                : (kind !== 'off' ? `${booked}/${total}` : null);
+            const tooltipDetail = forBuyer
+                ? (kind === 'full' ? 'Sold out' : `${left} of ${total} slots open`)
+                : `${booked}/${total} slots booked`;
 
             cells.push(
                 <Tooltip
                     key={key}
                     arrow
                     title={calendarDay
-                        ? `${format(day, 'EEE d MMM')} — ${kindLabel[kind]}${kind !== 'off' ? ` · ${booked}/${total} slots booked` : ''}`
+                        ? `${format(day, 'EEE d MMM')} — ${kindLabel[kind]}` +
+                          (kind !== 'off' ? ` · ${tooltipDetail}` : '') +
+                          (mine > 0 ? ` · ${mine} slot${mine === 1 ? '' : 's'} yours` : '')
                         : format(day, 'EEE d MMM')}
                 >
-                    <Box sx={cellSx(kind, inMonth, isToday(day))}>
+                    <Box sx={{
+                        ...cellSx(kind, inMonth, isToday(day)),
+                        ...(mine > 0 && {
+                            outline: `2px solid ${theme.palette.secondary.main}`,
+                            outlineOffset: '-2px',
+                        }),
+                    }}>
                         <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1, color: 'text.primary' }}>
                             {format(day, 'd')}
                         </Typography>
-                        {calendarDay && kind !== 'off' && (
+                        {calendarDay && cellCaption && (
                             <Typography variant="caption" sx={{
                                 lineHeight: 1, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
-                                color: kindColor[kind],
+                                color: kindColor[kind], fontSize: 10,
                             }}>
-                                {booked}/{total}
+                                {cellCaption}
                             </Typography>
+                        )}
+                        {mine > 0 && (
+                            <Box sx={{
+                                width: 6, height: 6, borderRadius: '50%',
+                                bgcolor: 'secondary.main', mt: 0.25,
+                            }} />
                         )}
                     </Box>
                 </Tooltip>
@@ -181,10 +213,19 @@ export default function SlotCalendarView({ screenId }: SlotCalendarViewProps) {
                             border: `1px solid ${alpha(kindColor[kind], 0.45)}`,
                         }} />
                         <Typography variant="caption" color="text.secondary">
-                            {kind === 'available' ? 'Available' : kind === 'partial' ? 'Partial' : kind === 'full' ? 'Fully booked' : 'Not operating'}
+                            {kind === 'available' ? 'Available'
+                                : kind === 'partial' ? (forBuyer ? 'Limited' : 'Partial')
+                                : kind === 'full' ? 'Sold out' : 'Not operating'}
                         </Typography>
                     </Box>
                 ))}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{
+                        width: 12, height: 12, borderRadius: '4px',
+                        border: `2px solid ${theme.palette.secondary.main}`,
+                    }} />
+                    <Typography variant="caption" color="text.secondary">Your booking</Typography>
+                </Box>
             </Box>
         </Paper>
     );

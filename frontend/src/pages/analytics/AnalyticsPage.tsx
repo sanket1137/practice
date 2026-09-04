@@ -24,8 +24,6 @@ import {
     ResponsiveContainer,
     LineChart,
     Line,
-    AreaChart,
-    Area,
 } from 'recharts';
 import DownloadIcon from '@mui/icons-material/Download';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
@@ -742,22 +740,16 @@ function AdvertiserAnalytics() {
                     {dailyLoading ? <ChartSkeleton height={350} /> : (
                         <Paper sx={{ p: { xs: 2, sm: 3 }, height: { xs: 300, sm: 350, md: 400 } }}>
                             <Typography variant="h6" gutterBottom>
-                                Weekly Impressions
+                                Plays delivered
                             </Typography>
                             {dailyImpressions && dailyImpressions.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="90%">
-                                    <BarChart
-                                        data={dailyImpressions}
-                                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="dayName" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Bar dataKey="impressions" fill="#8884d8" name="Impressions" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                <Box sx={{ height: '88%' }}>
+                                    <TrendAreaChart
+                                        data={dailyImpressions as unknown as Record<string, unknown>[]}
+                                        xKey="dayName"
+                                        series={[{ key: 'impressions', name: 'Plays' }]}
+                                    />
+                                </Box>
                             ) : (
                                 <Box display="flex" alignItems="center" justifyContent="center" height="80%">
                                     <Typography color="textSecondary">No impression data available</Typography>
@@ -812,25 +804,13 @@ function AdvertiserAnalytics() {
                                 Booking Trends
                             </Typography>
                             {dailyImpressions && dailyImpressions.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="90%">
-                                    <LineChart
-                                        data={dailyImpressions}
-                                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="dayName" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Line
-                                            type="monotone"
-                                            dataKey="bookings"
-                                            stroke="#82ca9d"
-                                            name="Bookings"
-                                            strokeWidth={2}
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
+                                <Box sx={{ height: '88%' }}>
+                                    <TrendAreaChart
+                                        data={dailyImpressions as unknown as Record<string, unknown>[]}
+                                        xKey="dayName"
+                                        series={[{ key: 'bookings', name: 'Bookings' }]}
+                                    />
+                                </Box>
                             ) : (
                                 <Box display="flex" alignItems="center" justifyContent="center" height="80%">
                                     <Typography color="textSecondary">No booking data available</Typography>
@@ -847,15 +827,13 @@ function AdvertiserAnalytics() {
                             <Typography variant="h6" gutterBottom>
                                 Spend Over Time ({dateFrom} → {dateTo})
                             </Typography>
-                            <ResponsiveContainer width="100%" height="90%">
-                                <AreaChart data={dateRangeData.spendOverTime} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} />
-                                    <YAxis />
-                                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                                    <Area type="monotone" dataKey="amount" stroke="#6366f1" fill="#6366f133" name="Spend (₹)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            <Box sx={{ height: '88%' }}>
+                                <TrendAreaChart
+                                    data={dateRangeData.spendOverTime.map((r) => ({ ...r, day: r.date.slice(5) }))}
+                                    xKey="day"
+                                    series={[{ key: 'amount', name: 'Spend', format: formatCurrency }]}
+                                />
+                            </Box>
                         </Paper>
                     </Grid>
                 )}

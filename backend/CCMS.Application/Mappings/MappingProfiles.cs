@@ -24,6 +24,7 @@ public class MappingProfiles : Profile
         CreateMap<Screen, ScreenDto>()
             .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
             .ForMember(dest => dest.ScreenType, opt => opt.MapFrom(src => src.ScreenType.ToString()))
+            .ForMember(dest => dest.VenueType, opt => opt.MapFrom(src => src.VenueType.ToString()))
             .ForMember(dest => dest.DisplayType, opt => opt.MapFrom(src => src.DisplayType.ToString()))
             .ForMember(dest => dest.Orientation, opt => opt.MapFrom(src => src.Orientation.ToString()))
             .ForMember(dest => dest.VerificationStatus, opt => opt.MapFrom(src => src.VerificationStatus.ToString()))
@@ -60,6 +61,7 @@ public class MappingProfiles : Profile
             .ForMember(dest => dest.Status, opt => opt.MapFrom(_ => ScreenStatus.Draft))
             // Parsed with a friendly error in CreateScreenCommandHandler, not here.
             .ForMember(dest => dest.ScreenType, opt => opt.Ignore())
+            .ForMember(dest => dest.VenueType, opt => opt.Ignore())
             .ForMember(dest => dest.DimensionUnit, opt => opt.Ignore())
             .ForMember(dest => dest.IsOnline, opt => opt.MapFrom(_ => false))
             .ForMember(dest => dest.LastSeenAt, opt => opt.Ignore())

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
     Container,
     Paper,
@@ -31,6 +31,8 @@ import {
     ListItemIcon,
     ListItemText,
     ListItemButton,
+    FormControlLabel,
+    Switch,
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -44,16 +46,35 @@ import ViewListIcon from '@mui/icons-material/ViewList';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import CircleIcon from '@mui/icons-material/Circle';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import PlaylistAddCheckIcon from '@mui/icons-material/PlaylistAddCheck';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { searchScreens, getAllTags } from '../../services/screenTagsService';
 import ScreenTagChip from '../../components/screens/ScreenTagChip';
 import BookScreenDialog from '../../components/screens/BookScreenDialog';
+import PlanTray from '../../components/screens/PlanTray';
+import { usePlan, togglePlan } from '../../store/planStore';
 import { ScreensMap } from '../../components/map';
 import type { Screen, MasterTag, SearchScreensRequest } from '../../types/screen';
-import { TAG_CATEGORIES, TAG_CATEGORY_LABELS } from '../../types/screen';
+import { TAG_CATEGORIES, TAG_CATEGORY_LABELS, VENUE_TYPE_OPTIONS } from '../../types/screen';
 
 const DEFAULT_PAGE_SIZE = 12;
+const SCREEN_TYPE_OPTIONS = [
+    { value: 'Billboard', label: 'Billboard' },
+    { value: 'LedWall', label: 'LED Wall' },
+    { value: 'VideoWall', label: 'Video Wall' },
+    { value: 'TvDisplay', label: 'TV Display' },
+    { value: 'Kiosk', label: 'Kiosk' },
+    { value: 'Projection', label: 'Projection' },
+    { value: 'TransitDisplay', label: 'Transit Display' },
+    { value: 'Standee', label: 'Standee' },
+];
+const ENVIRONMENT_OPTIONS = [
+    { value: 'Indoor', label: 'Indoor' },
+    { value: 'Outdoor', label: 'Outdoor' },
+    { value: 'SemiIndoor', label: 'Semi-indoor' },
+];
 const MAP_PAGE_SIZE = 200; // Load more screens for map view
 const SIDEBAR_WIDTH = 380;
 const PREMIUM_SURFACE = {
@@ -77,6 +98,9 @@ export default function DiscoverScreensPage() {
         setScreenToBook({ id: screenId, name: screenName });
         setBookDialogOpen(true);
     };
+
+    const plan = usePlan();
+    const planIds = useMemo(() => new Set(plan.map((p) => p.id)), [plan]);
     
     // Search and filter state
     const [searchText, setSearchText] = useState('');
@@ -85,6 +109,15 @@ export default function DiscoverScreensPage() {
     const [city, setCity] = useState('');
     const [state, setState] = useState('');
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
+    const [availableFrom, setAvailableFrom] = useState('');
+    const [availableTo, setAvailableTo] = useState('');
+    const [envType, setEnvType] = useState('');
+    const [screenType, setScreenType] = useState('');
+    const [venueType, setVenueType] = useState('');
+    const [orientation, setOrientation] = useState('');
+    const [onlineOnly, setOnlineOnly] = useState(false);
+    const [minImpressions, setMinImpressions] = useState('');
+    const [maxCpm, setMaxCpm] = useState('');
     const [sortBy, setSortBy] = useState<string>('created');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
     const [page, setPage] = useState(1);
@@ -119,9 +152,38 @@ export default function DiscoverScreensPage() {
         if (priceRange[1] < 10000) {
             request.maxPrice = priceRange[1];
         }
+        if (availableFrom && availableTo && availableFrom <= availableTo) {
+            request.availableFrom = availableFrom;
+            request.availableTo = availableTo;
+        }
+        if (envType) {
+            request.displayType = envType;
+        }
+        if (screenType) {
+            request.screenType = screenType;
+        }
+        if (venueType) {
+            request.venueType = venueType;
+        }
+        if (orientation) {
+            request.orientation = orientation;
+        }
+        if (onlineOnly) {
+            request.onlineOnly = true;
+        }
+        const minImp = parseInt(minImpressions, 10);
+        if (!Number.isNaN(minImp) && minImp > 0) {
+            request.minDailyImpressions = minImp;
+        }
+        const cpmCap = parseFloat(maxCpm);
+        if (!Number.isNaN(cpmCap) && cpmCap > 0) {
+            request.maxCpm = cpmCap;
+        }
 
         return request;
-    }, [page, viewMode, searchText, city, state, selectedTags, selectedCategory, priceRange, sortBy, sortDirection]);
+    }, [page, viewMode, searchText, city, state, selectedTags, selectedCategory, priceRange,
+        availableFrom, availableTo, envType, screenType, venueType, orientation, onlineOnly,
+        minImpressions, maxCpm, sortBy, sortDirection]);
 
     // Fetch all master tags for filter
     const { data: allTags } = useQuery({
@@ -152,6 +214,15 @@ export default function DiscoverScreensPage() {
         setCity('');
         setState('');
         setPriceRange([0, 10000]);
+        setAvailableFrom('');
+        setAvailableTo('');
+        setEnvType('');
+        setScreenType('');
+        setVenueType('');
+        setOrientation('');
+        setOnlineOnly(false);
+        setMinImpressions('');
+        setMaxCpm('');
         setPage(1);
     };
 
@@ -167,7 +238,10 @@ export default function DiscoverScreensPage() {
         setPage(1);
     };
 
-    const hasActiveFilters = searchText || selectedTags.length > 0 || selectedCategory || city || state || priceRange[0] > 0 || priceRange[1] < 10000;
+    const hasActiveFilters = searchText || selectedTags.length > 0 || selectedCategory || city || state
+        || priceRange[0] > 0 || priceRange[1] < 10000
+        || availableFrom || availableTo || envType || screenType || venueType || orientation
+        || onlineOnly || minImpressions || maxCpm;
 
     // Map view - fills entire content area with sidebar containing all controls
     if (viewMode === 'map') {
@@ -323,6 +397,119 @@ export default function DiscoverScreensPage() {
                                         </Select>
                                     </FormControl>
                                 </Grid>
+                                <Grid size={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Available from"
+                                        type="date"
+                                        value={availableFrom}
+                                        onChange={(e) => setAvailableFrom(e.target.value)}
+                                        size="small"
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                </Grid>
+                                <Grid size={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Available to"
+                                        type="date"
+                                        value={availableTo}
+                                        onChange={(e) => setAvailableTo(e.target.value)}
+                                        size="small"
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                </Grid>
+                                <Grid size={6}>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Environment</InputLabel>
+                                        <Select
+                                            value={envType}
+                                            label="Environment"
+                                            onChange={(e) => setEnvType(e.target.value)}
+                                        >
+                                            <MenuItem value="">Any</MenuItem>
+                                            {ENVIRONMENT_OPTIONS.map(o => (
+                                                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid size={6}>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Screen type</InputLabel>
+                                        <Select
+                                            value={screenType}
+                                            label="Screen type"
+                                            onChange={(e) => setScreenType(e.target.value)}
+                                        >
+                                            <MenuItem value="">Any</MenuItem>
+                                            {SCREEN_TYPE_OPTIONS.map(o => (
+                                                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid size={6}>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Venue</InputLabel>
+                                        <Select
+                                            value={venueType}
+                                            label="Venue"
+                                            onChange={(e) => setVenueType(e.target.value)}
+                                        >
+                                            <MenuItem value="">Any</MenuItem>
+                                            {VENUE_TYPE_OPTIONS.map(o => (
+                                                <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid size={6}>
+                                    <FormControl fullWidth size="small">
+                                        <InputLabel>Orientation</InputLabel>
+                                        <Select
+                                            value={orientation}
+                                            label="Orientation"
+                                            onChange={(e) => setOrientation(e.target.value)}
+                                        >
+                                            <MenuItem value="">Any</MenuItem>
+                                            <MenuItem value="Landscape">Landscape</MenuItem>
+                                            <MenuItem value="Portrait">Portrait</MenuItem>
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                <Grid size={6} sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                size="small"
+                                                checked={onlineOnly}
+                                                onChange={(e) => setOnlineOnly(e.target.checked)}
+                                            />
+                                        }
+                                        label={<Typography variant="caption">Online now</Typography>}
+                                    />
+                                </Grid>
+                                <Grid size={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Min views/day"
+                                        type="number"
+                                        value={minImpressions}
+                                        onChange={(e) => setMinImpressions(e.target.value)}
+                                        size="small"
+                                    />
+                                </Grid>
+                                <Grid size={6}>
+                                    <TextField
+                                        fullWidth
+                                        label="Max CPM ₹"
+                                        type="number"
+                                        value={maxCpm}
+                                        onChange={(e) => setMaxCpm(e.target.value)}
+                                        size="small"
+                                    />
+                                </Grid>
                                 <Grid size={12}>
                                     <Typography variant="caption" color="text.secondary">
                                         Price: ₹{priceRange[0]} - ₹{priceRange[1]}
@@ -450,6 +637,20 @@ export default function DiscoverScreensPage() {
                                         </Box>
                                     }
                                 />
+                                <Tooltip title={planIds.has(screen.id) ? 'Remove from plan' : 'Add to plan'}>
+                                    <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            togglePlan(screen);
+                                        }}
+                                        sx={{ color: planIds.has(screen.id) ? '#8B5CF6' : 'text.secondary' }}
+                                    >
+                                        {planIds.has(screen.id)
+                                            ? <PlaylistAddCheckIcon fontSize="small" />
+                                            : <PlaylistAddIcon fontSize="small" />}
+                                    </IconButton>
+                                </Tooltip>
                             </ListItemButton>
                         ))}
                         {!isLoading && !error && (!searchResult?.screens || searchResult.screens.filter(s => s.latitude && s.longitude).length === 0) && (
@@ -470,8 +671,12 @@ export default function DiscoverScreensPage() {
                         onScreenClick={(screen) => navigate(`/screens/${screen.id}`)}
                         selectedScreenId={selectedScreenId || undefined}
                         isOwnerView={false}
+                        onAddToPlan={togglePlan}
+                        planScreenIds={planIds}
                     />
                 </Box>
+
+                <PlanTray />
             </Box>
         );
     }
@@ -678,6 +883,128 @@ export default function DiscoverScreensPage() {
                                 }
                             />
                         </Grid>
+                        <Grid size={12}>
+                            <Divider textAlign="left">
+                                <Typography variant="caption" color="text.secondary">
+                                    Availability &amp; hardware
+                                </Typography>
+                            </Divider>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                            <TextField
+                                fullWidth
+                                label="Available from"
+                                type="date"
+                                value={availableFrom}
+                                onChange={(e) => setAvailableFrom(e.target.value)}
+                                size="small"
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                            <TextField
+                                fullWidth
+                                label="Available to"
+                                type="date"
+                                value={availableTo}
+                                onChange={(e) => setAvailableTo(e.target.value)}
+                                size="small"
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Environment</InputLabel>
+                                <Select
+                                    value={envType}
+                                    label="Environment"
+                                    onChange={(e) => setEnvType(e.target.value)}
+                                >
+                                    <MenuItem value="">Any</MenuItem>
+                                    {ENVIRONMENT_OPTIONS.map(o => (
+                                        <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Screen type</InputLabel>
+                                <Select
+                                    value={screenType}
+                                    label="Screen type"
+                                    onChange={(e) => setScreenType(e.target.value)}
+                                >
+                                    <MenuItem value="">Any</MenuItem>
+                                    {SCREEN_TYPE_OPTIONS.map(o => (
+                                        <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Venue</InputLabel>
+                                <Select
+                                    value={venueType}
+                                    label="Venue"
+                                    onChange={(e) => setVenueType(e.target.value)}
+                                >
+                                    <MenuItem value="">Any</MenuItem>
+                                    {VENUE_TYPE_OPTIONS.map(o => (
+                                        <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>Orientation</InputLabel>
+                                <Select
+                                    value={orientation}
+                                    label="Orientation"
+                                    onChange={(e) => setOrientation(e.target.value)}
+                                >
+                                    <MenuItem value="">Any</MenuItem>
+                                    <MenuItem value="Landscape">Landscape</MenuItem>
+                                    <MenuItem value="Portrait">Portrait</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3, md: 2 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        size="small"
+                                        checked={onlineOnly}
+                                        onChange={(e) => setOnlineOnly(e.target.checked)}
+                                    />
+                                }
+                                label={<Typography variant="body2">Online now</Typography>}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                            <TextField
+                                fullWidth
+                                label="Min audience/day"
+                                type="number"
+                                value={minImpressions}
+                                onChange={(e) => setMinImpressions(e.target.value)}
+                                size="small"
+                                helperText="Owner-declared daily views"
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 6, sm: 3 }}>
+                            <TextField
+                                fullWidth
+                                label="Max CPM (₹)"
+                                type="number"
+                                value={maxCpm}
+                                onChange={(e) => setMaxCpm(e.target.value)}
+                                size="small"
+                                helperText="Cost per 1,000 views"
+                            />
+                        </Grid>
                     </Grid>
                 </Collapse>
             </Paper>
@@ -738,7 +1065,13 @@ export default function DiscoverScreensPage() {
                     <Grid container spacing={3}>
                         {searchResult?.screens.map((screen) => (
                             <Grid key={screen.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                                <ScreenCard screen={screen} onTagClick={handleTagClick} onBook={handleBookScreen} />
+                                <ScreenCard
+                                    screen={screen}
+                                    onTagClick={handleTagClick}
+                                    onBook={handleBookScreen}
+                                    inPlan={planIds.has(screen.id)}
+                                    onTogglePlan={togglePlan}
+                                />
                             </Grid>
                         ))}
                     </Grid>
@@ -756,6 +1089,8 @@ export default function DiscoverScreensPage() {
                     )}
                 </>
             )}
+
+            <PlanTray />
 
             {/* Book Screen Dialog */}
             {screenToBook && (
@@ -777,9 +1112,11 @@ interface ScreenCardProps {
     screen: Screen;
     onTagClick?: (tag: MasterTag) => void;
     onBook?: (screenId: string, screenName: string) => void;
+    inPlan?: boolean;
+    onTogglePlan?: (screen: Screen) => void;
 }
 
-function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
+function ScreenCard({ screen, onTagClick, onBook, inPlan = false, onTogglePlan }: ScreenCardProps) {
     const navigate = useNavigate();
 
     return (
@@ -827,12 +1164,22 @@ function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
                     <Typography variant="h6" component="div" noWrap sx={{ maxWidth: '70%' }}>
                         {screen.name}
                     </Typography>
-                    <Chip
-                        label={screen.status}
-                        size="small"
-                        color={screen.status === 'Active' ? 'success' : 'default'}
-                        variant={screen.status === 'Active' ? 'filled' : 'outlined'}
-                    />
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        {screen.venueType && screen.venueType !== 'Unclassified' && (
+                            <Chip
+                                label={VENUE_TYPE_OPTIONS.find(v => v.value === screen.venueType)?.label ?? screen.venueType}
+                                size="small"
+                                variant="outlined"
+                                sx={{ borderColor: '#8B5CF6', color: '#8B5CF6' }}
+                            />
+                        )}
+                        <Chip
+                            label={screen.status}
+                            size="small"
+                            color={screen.status === 'Active' ? 'success' : 'default'}
+                            variant={screen.status === 'Active' ? 'filled' : 'outlined'}
+                        />
+                    </Box>
                 </Box>
 
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2, height: 40, overflow: 'hidden' }}>
@@ -899,6 +1246,20 @@ function ScreenCard({ screen, onTagClick, onBook }: ScreenCardProps) {
                 <Button size="small" color="primary" variant="contained" onClick={() => onBook?.(screen.id, screen.name)}>
                     Book now
                 </Button>
+                <Box sx={{ flex: 1 }} />
+                <Tooltip title={inPlan ? 'Remove from plan' : 'Add to plan for a combined estimate & proposal'}>
+                    <Button
+                        size="small"
+                        variant={inPlan ? 'contained' : 'outlined'}
+                        startIcon={inPlan ? <PlaylistAddCheckIcon /> : <PlaylistAddIcon />}
+                        onClick={() => onTogglePlan?.(screen)}
+                        sx={inPlan
+                            ? { bgcolor: '#8B5CF6', '&:hover': { bgcolor: '#7C3AED' } }
+                            : { borderColor: '#8B5CF6', color: '#8B5CF6' }}
+                    >
+                        {inPlan ? 'In plan' : 'Plan'}
+                    </Button>
+                </Tooltip>
             </CardActions>
         </Card>
     );

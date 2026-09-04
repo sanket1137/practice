@@ -13,6 +13,9 @@ public class Screen : BaseEntity
     // to DisplayType, which describes the environment (indoor/outdoor).
     public ScreenType ScreenType { get; set; } = ScreenType.Unclassified;
 
+    /// <summary>The kind of place the screen lives in (cafe, mall, gym...). Required at registration.</summary>
+    public VenueType VenueType { get; set; } = VenueType.Unclassified;
+
     // Physical dimensions. PhysicalWidth/Height + DimensionUnit are what the
     // owner typed ("feet" | "inches" | "meters" | "centimeters"); the *Mm
     // columns are the canonical millimetre values every search filter, sort

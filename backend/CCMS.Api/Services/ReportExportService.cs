@@ -198,7 +198,7 @@ public class ReportExportService
                         .Bold()
                         .FontColor(Color.FromHex(PrimaryColor));
                         
-                    col.Item().Text("Digital Signage Platform")
+                    col.Item().Text("Media Marketplace")
                         .FontSize(10)
                         .FontColor(Color.FromHex("#6B7280"));
                 });
@@ -628,6 +628,164 @@ public class ReportExportService
             _logger.LogError(ex, "Error generating screen health PDF: {Message}", ex.Message);
             throw;
         }
+    }
+
+    /// <summary>
+    /// The client-ready screen-plan proposal: summary, per-screen spec cards
+    /// (specs, audience, footfall, engine-priced estimates), creative spec
+    /// sheet, and the proof promise. Prices come from the same BookingCalculation
+    /// engine that bills real bookings, so this document always equals checkout.
+    /// </summary>
+    public byte[] ExportProposalToPdf(
+        CCMS.Api.Controllers.ProposalPlan plan,
+        IReadOnlyDictionary<Guid, List<byte[]>>? screenImages = null)
+    {
+        string Money(decimal v) => $"{plan.Currency} {v:N0}";
+        // "RetailStore" -> "Retail store" for buyer-facing venue labels.
+        static string Humanize(string enumName) =>
+            string.Concat(enumName.Select((ch, i) =>
+                i > 0 && char.IsUpper(ch) ? " " + char.ToLower(ch) : ch.ToString()));
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(40);
+                page.DefaultTextStyle(x => x.FontSize(10).FontColor(Color.FromHex(TextColor)));
+                page.Header().Element(c => ComposeHeader(c, "Media Plan"));
+                page.Footer().Element(ComposeFooter);
+
+                page.Content().Column(col =>
+                {
+                    col.Spacing(12);
+
+                    // Cover block
+                    col.Item().Column(c =>
+                    {
+                        if (!string.IsNullOrEmpty(plan.PreparedFor))
+                            c.Item().Text($"Prepared for {plan.PreparedFor}").FontSize(13).SemiBold();
+                        c.Item().Text($"Flight: {plan.From:dd MMM yyyy} – {plan.To:dd MMM yyyy}  ({plan.Days} days)").FontSize(11);
+                        c.Item().Text($"Generated {plan.GeneratedAt:dd MMM yyyy HH:mm} UTC · Prices held for 7 days, subject to slot availability at booking time.")
+                            .FontSize(8).FontColor(Color.FromHex("#6B7280"));
+                    });
+
+                    // Plan summary
+                    col.Item().Background(Color.FromHex("#F5F3FF")).Padding(10).Row(r =>
+                    {
+                        void Cell(QuestPDF.Infrastructure.IContainer c2, string label, string value)
+                        {
+                            c2.Column(cc =>
+                            {
+                                cc.Item().Text(label).FontSize(7).FontColor(Color.FromHex("#6B7280"));
+                                cc.Item().Text(value).FontSize(12).SemiBold().FontColor(Color.FromHex(AccentColor));
+                            });
+                        }
+                        Cell(r.RelativeItem(), "SCREENS", plan.Screens.Count.ToString());
+                        Cell(r.RelativeItem(), "EST. FOOTFALL / DAY*", plan.TotalFootfallPerDay.ToString("N0"));
+                        Cell(r.RelativeItem(), "EST. PLAYS (FLIGHT)", plan.TotalEstPlays.ToString("N0"));
+                        Cell(r.RelativeItem(), "EST. TOTAL", Money(plan.TotalEstCost));
+                    });
+
+                    // Per-screen spec cards
+                    foreach (var s2 in plan.Screens)
+                    {
+                        col.Item().Border(1).BorderColor(Color.FromHex("#E5E7EB")).Padding(10).Column(card =>
+                        {
+                            card.Spacing(4);
+                            var location = string.Join(", ", new[] { s2.City, s2.State }
+                                .Where(x => !string.IsNullOrWhiteSpace(x)));
+                            card.Item().Row(r =>
+                            {
+                                r.RelativeItem().Text(location.Length > 0 ? $"{s2.Name} — {location}" : s2.Name)
+                                    .FontSize(11).SemiBold();
+                                r.ConstantItem(120).AlignRight().Text(Money(s2.EstCost)).FontSize(11).SemiBold()
+                                    .FontColor(Color.FromHex(AccentColor));
+                            });
+                            card.Item().Row(r =>
+                            {
+                                var photos = screenImages != null && screenImages.TryGetValue(s2.ScreenId, out var pb)
+                                    ? pb : null;
+                                if (photos is { Count: > 0 })
+                                {
+                                    // Screen photo + surrounding shot, downsampled at render time
+                                    // so a 20-screen plan stays a sane file size.
+                                    foreach (var photo in photos.Take(2))
+                                    {
+                                        r.ConstantItem(104).PaddingRight(6).Column(pc =>
+                                            pc.Item().Height(70).Image(photo)
+                                                .FitArea()
+                                                .WithCompressionQuality(ImageCompressionQuality.Medium)
+                                                .WithRasterDpi(120));
+                                    }
+                                }
+                                r.RelativeItem().Column(info =>
+                                {
+                                    info.Spacing(3);
+                                    var venueParts = new List<string>();
+                                    if (!string.IsNullOrWhiteSpace(s2.VenueType))
+                                        venueParts.Add($"Venue: {Humanize(s2.VenueType)}");
+                                    venueParts.Add(Humanize(s2.Environment));
+                                    venueParts.Add(s2.Orientation.ToLowerInvariant() + " orientation");
+                                    info.Item().Text(string.Join(" · ", venueParts))
+                                        .FontSize(8.5f).SemiBold().FontColor(Color.FromHex("#374151"));
+                                    var specParts = new List<string> { Humanize(s2.ScreenType) };
+                                    if (s2.ResolutionWidth > 0 && s2.ResolutionHeight > 0)
+                                        specParts.Add($"{s2.ResolutionWidth}×{s2.ResolutionHeight}px");
+                                    if (!string.IsNullOrWhiteSpace(s2.PhysicalSize) && s2.PhysicalSize != "—")
+                                        specParts.Add(s2.PhysicalSize);
+                                    info.Item().Text(string.Join(" · ", specParts.Where(x => !string.IsNullOrWhiteSpace(x))))
+                                        .FontSize(8.5f).FontColor(Color.FromHex("#4B5563"));
+                                    if (!string.IsNullOrWhiteSpace(s2.Description))
+                                    {
+                                        var desc = s2.Description.Trim();
+                                        if (desc.Length > 260) desc = desc[..257] + "…";
+                                        info.Item().Text(desc).FontSize(8).Italic()
+                                            .FontColor(Color.FromHex("#6B7280"));
+                                    }
+                                    if (s2.Tags.Count > 0)
+                                        info.Item().Text("Tags: " + string.Join(", ", s2.Tags))
+                                            .FontSize(8).FontColor(Color.FromHex("#6D28D9"));
+                                });
+                            });
+                            card.Item().Text(
+                                (s2.SlotSeconds > 0 ? $"Slot: {s2.SlotSeconds}s per loop · " : "") +
+                                $"{plan.Currency} {s2.PricePerSlot:0.##}/slot base · " +
+                                $"Est. plays: {s2.EstPlays:N0} over {s2.AvailableDays}/{s2.TotalDays} available days · " +
+                                $"Footfall*: {s2.DailyFootfall:N0}/day · Audience score: {s2.Aqs:0.#}/100")
+                                .FontSize(8.5f).FontColor(Color.FromHex("#4B5563"));
+                        });
+                    }
+
+                    // Creative spec sheet
+                    col.Item().PaddingTop(4).Column(c =>
+                    {
+                        c.Item().Text("Creative specifications").FontSize(11).SemiBold();
+                        c.Item().Text(
+                            "Formats: MP4 / WebM video, JPEG / PNG / WebP image · up to 100 MB per creative. " +
+                            "Any resolution is accepted — the platform fits your creative to every screen " +
+                            "automatically (no black bars, no redesign). Videos play their own length up to the " +
+                            "slot duration shown per screen; images display for the full slot.")
+                            .FontSize(8.5f).FontColor(Color.FromHex("#4B5563"));
+                    });
+
+                    // Proof promise
+                    col.Item().Background(Color.FromHex("#ECFDF5")).Padding(10).Column(c =>
+                    {
+                        c.Item().Text("Every play, proven").FontSize(11).SemiBold().FontColor(Color.FromHex("#047857"));
+                        c.Item().Text(
+                            "PixelSpot campaigns come with a live play counter, delivery-linked billing (you pay only " +
+                            "for plays that actually air), and cryptographically sealed play logs — every impression is " +
+                            "hashed on the screen device the moment it airs and chained into daily tamper-evident seals " +
+                            "you can verify independently, offline.")
+                            .FontSize(8.5f).FontColor(Color.FromHex("#065F46"));
+                    });
+
+                    col.Item().Text("*Footfall figures are owner-declared daily audience estimates, not measured counts.")
+                        .FontSize(7).FontColor(Color.FromHex("#9CA3AF"));
+                });
+            });
+        });
+        return document.GeneratePdf();
     }
 
     #endregion

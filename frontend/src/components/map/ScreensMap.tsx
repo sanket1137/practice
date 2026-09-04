@@ -110,6 +110,9 @@ interface ScreensMapProps {
     initialZoom?: number;
     showSearchAreaButton?: boolean;
     isOwnerView?: boolean;
+    /** Marketplace plan basket: toggle a screen in/out of the plan from the popup. */
+    onAddToPlan?: (screen: Screen) => void;
+    planScreenIds?: Set<string>;
 }
 
 // Component to handle map events
@@ -241,6 +244,8 @@ export default function ScreensMap({
     initialZoom = 11,
     showSearchAreaButton = true,
     isOwnerView = false,
+    onAddToPlan,
+    planScreenIds,
 }: ScreensMapProps) {
     // Inject cluster styles
     useEffect(() => {
@@ -310,6 +315,8 @@ export default function ScreensMap({
                             onClick={onScreenClick}
                             onHover={onScreenHover}
                             isOwnerView={isOwnerView}
+                            onAddToPlan={onAddToPlan}
+                            inPlan={planScreenIds?.has(screen.id) ?? false}
                         />
                     ))}
                 </MarkerClusterGroup>

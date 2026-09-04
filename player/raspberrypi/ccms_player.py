@@ -598,6 +598,9 @@ class CCMSPlayer:
 
                         sync_interval = data.get("syncIntervalMinutes", 10)
                         Config.SYNC_INTERVAL_MINUTES = sync_interval
+                        Config.SYNC_INTERVAL_NORMAL = sync_interval * 60
+                        if Config.current_sync_interval != Config.SYNC_INTERVAL_FAST:
+                            Config.current_sync_interval = Config.SYNC_INTERVAL_NORMAL
                         return True
 
                     playlist_data = data.get("playlist")
@@ -619,6 +622,9 @@ class CCMSPlayer:
                     
                     sync_interval = data.get("syncIntervalMinutes", 10)
                     Config.SYNC_INTERVAL_MINUTES = sync_interval
+                    Config.SYNC_INTERVAL_NORMAL = sync_interval * 60
+                    if Config.current_sync_interval != Config.SYNC_INTERVAL_FAST:
+                        Config.current_sync_interval = Config.SYNC_INTERVAL_NORMAL
                     logger.info(f"  Sync interval: {sync_interval} minutes")
                     
                     return True
@@ -710,19 +716,28 @@ class CCMSPlayer:
             except Exception:
                 pending = None
             payload = {"screenId": self.screen_id, "apiKey": self.api_key, "pendingImpressions": pending}
-            response = requests.post(
-                f"{self.api_url}/api/v1/player/heartbeat",
-                json=payload,
-                headers=self._signed_headers(payload) or None,
-                timeout=5
-            )
-            
-            if response.status_code == 200:
-                return True
-            else:
-                logger.warning(f"Heartbeat failed: {response.status_code}")
-                return False
-                
+            # One transient failure (deploy restart, slow response) must not cost
+            # us the 90s liveness window: allow 10s per attempt and retry once
+            # immediately, so a single blip never shows the screen as offline.
+            last_error = None
+            for attempt in range(2):
+                try:
+                    response = requests.post(
+                        f"{self.api_url}/api/v1/player/heartbeat",
+                        json=payload,
+                        headers=self._signed_headers(payload) or None,
+                        timeout=10
+                    )
+                    if response.status_code == 200:
+                        return True
+                    last_error = f"HTTP {response.status_code}"
+                except Exception as e:
+                    last_error = str(e)
+                if attempt == 0:
+                    time.sleep(2)
+            logger.warning(f"Heartbeat failed after retry: {last_error}")
+            return False
+
         except Exception as e:
             logger.error(f"Heartbeat error: {e}")
             return False
@@ -998,6 +1013,51 @@ class CCMSPlayer:
         except Exception as e:
             logger.error(f"Failed to handle SlotStatusChanged event: {e}")
     
+
+    async def signalr_watchdog_loop(self):
+        """Never-give-up supervisor for the PlaybackHub connection.
+
+        signalrcore's built-in reconnect tries a bounded number of times and
+        then stops forever; worse, the websocket thread can die without ever
+        firing on_close. A player must run day and night and always be
+        reachable, so this loop is the authority: every 10s it checks the
+        connection flag, and once the hub has been down ~20s (giving the
+        library's own reconnect first shot) it tears the old connection down
+        completely and rebuilds it from a fresh builder — retrying forever
+        with backoff capped at 60s. on_open re-subscribes the screen group,
+        so playlist pushes, SetSyncMode, and live play events all resume.
+        Plays are never at risk here: they land in the local store regardless.
+        """
+        down_since = None
+        backoff = 5
+        while self.is_running:
+            await asyncio.sleep(10)
+            if self.signalr_connected:
+                down_since = None
+                backoff = 5
+                continue
+            now_mono = time.monotonic()
+            if down_since is None:
+                down_since = now_mono
+                continue
+            if now_mono - down_since < 20:
+                continue
+            logger.warning(
+                f"[Watchdog] PlaybackHub down for {int(now_mono - down_since)}s — rebuilding connection")
+            try:
+                old_conn = self.signalr_connection
+                self.signalr_connection = None
+                if old_conn is not None:
+                    try:
+                        old_conn.stop()
+                    except Exception:
+                        pass
+                self.connect_signalr()
+            except Exception as e:
+                logger.error(f"[Watchdog] Rebuild attempt failed: {e}")
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)
+
     def _on_signalr_open(self):
         """Called when SignalR connection opens"""
         logger.info("Connected to SignalR PlaybackHub")
@@ -1357,7 +1417,10 @@ class CCMSPlayer:
             self.signalr_connection.send("AdStarted", [self._build_playback_event(item)])
             logger.debug(f"Emitted AdStarted event for slot {item.get('slotNumber')} campaign {item.get('campaignId')}")
         except Exception as e:
-            logger.error(f"Failed to emit AdStarted: {e}")
+            logger.warning(f"Failed to emit AdStarted (marking hub down): {e}")
+            # The transport can die WITHOUT firing on_close — a failed send is
+            # the earliest reliable signal. Flag it so the watchdog rebuilds.
+            self.signalr_connected = False
     
     def emit_ad_completed(self, item):
         """Emit AdCompleted event to SignalR"""
@@ -1373,7 +1436,8 @@ class CCMSPlayer:
             self.signalr_connection.send("AdCompleted", [self._build_playback_event(item)])
             logger.debug(f"Emitted AdCompleted event for campaign {item.get('campaignId')}")
         except Exception as e:
-            logger.error(f"Failed to emit AdCompleted: {e}")
+            logger.warning(f"Failed to emit AdCompleted (marking hub down): {e}")
+            self.signalr_connected = False
 
     def _build_playback_event(self, item):
         """Build the AdPlaybackEvent payload for AdStarted/AdCompleted.
@@ -1409,10 +1473,17 @@ class CCMSPlayer:
             await asyncio.sleep(Config.HEARTBEAT_INTERVAL_SECONDS)
     
     async def sync_loop(self):
-        """Sync data every 10 minutes"""
+        """Sync on the current interval — normal (handshake-set, default 10 min)
+        or fast (60s) while a dashboard is actually watching this screen. Sleeps
+        in short slices so a mode flip takes effect within seconds, not at the
+        end of a long sleep already in flight."""
+        elapsed = 0
         while self.is_running:
-            await asyncio.sleep(Config.SYNC_INTERVAL_MINUTES * 60)
-            self.sync_daily_data()
+            await asyncio.sleep(5)
+            elapsed += 5
+            if elapsed >= Config.current_sync_interval:
+                elapsed = 0
+                self.sync_daily_data()
     
     async def playlist_refresh_loop(self):
         """Periodically refresh playlist to pick up owner content changes.
@@ -2025,6 +2096,7 @@ class CCMSPlayer:
         
         # Start tasks
         heartbeat_task = asyncio.create_task(self.heartbeat_loop())
+        signalr_watchdog_task = asyncio.create_task(self.signalr_watchdog_loop())
         sync_task = asyncio.create_task(self.sync_loop())
         cache_cleanup_task = asyncio.create_task(self.cache_cleanup_loop())
         playlist_refresh_task = asyncio.create_task(self.playlist_refresh_loop())

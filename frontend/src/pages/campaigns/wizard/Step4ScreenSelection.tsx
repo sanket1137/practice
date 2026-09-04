@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import api from '../../../services/api';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Avatar,
@@ -91,7 +93,27 @@ const SLOTS_PER_DAY = 6 * 24; // 6 ten-minute slots per hour × 24 hours
 
 export function Step4ScreenSelection({ onNext }: Step4Props) {
   const { step1, step2, step3, step4: savedData, setStep4, setSelectedScreens } = useCampaignWizardStore();
-  const [selectedIds, setSelectedIds] = useState<string[]>(savedData?.selectedScreenIds ?? []);
+  // "Book This Screen" entry points land here as /campaigns/new?screen=<id> —
+  // that screen arrives pre-selected so the 3-minute promise holds.
+  const [wizardSearchParams] = useSearchParams();
+  // Single screen (?screen=) from "Book This Screen"; a whole plan (?screens=a,b,c)
+  // from the Discover tray's "Book these screens".
+  const preselectIds = useMemo(() => {
+    const one = wizardSearchParams.get('screen') ?? wizardSearchParams.get('screenId');
+    const many = wizardSearchParams.get('screens');
+    const ids = [
+      ...(one ? [one] : []),
+      ...(many ? many.split(',') : []),
+    ].map((x) => x.trim()).filter(Boolean);
+    return [...new Set(ids)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [selectedIds, setSelectedIds] = useState<string[]>(() => {
+    const base = savedData?.selectedScreenIds ?? [];
+    const merged = [...base];
+    for (const id of preselectIds) if (!merged.includes(id)) merged.push(id);
+    return merged;
+  });
   const [activeTab, setActiveTab] = useState<'recommended' | 'all' | 'map'>('recommended');
   const [sortKey, setSortKey] = useState<SortKey>('recommended');
   const [searchText, setSearchText] = useState('');
@@ -237,6 +259,21 @@ export function Step4ScreenSelection({ onNext }: Step4Props) {
   // Compiler can't verify this memoization even though `screens` and
   // `recommendedScreens` are both themselves stably memoized above; this Map
   // merge is cheap and correctness doesn't depend on the compiler's auto-memo.
+  // The preselected screen may not sit in the current search page — fetch it
+  // directly so its card, cost math, and downstream steps have the full object.
+  const { data: preselectedScreens } = useQuery<Screen[]>({
+    queryKey: ['wizard-preselect', preselectIds.join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(preselectIds.map(async (id) => {
+        try { return (await api.get(`/screens/${id}`)).data.data as Screen; }
+        catch { return null; }
+      }));
+      return results.filter((s2): s2 is Screen => s2 != null);
+    },
+    enabled: preselectIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- see comment above
   const allKnownScreens = useMemo(() => {
     const m = new Map<string, Screen>();
@@ -244,8 +281,9 @@ export function Step4ScreenSelection({ onNext }: Step4Props) {
     recommendedScreens.forEach((s) => {
       if (!m.has(s.id)) m.set(s.id, s);
     });
+    (preselectedScreens ?? []).forEach((s2) => { if (!m.has(s2.id)) m.set(s2.id, s2); });
     return m;
-  }, [screens, recommendedScreens]);
+  }, [screens, recommendedScreens, preselectedScreens]);
 
   const estimatedDays = step3?.startDate && step3?.endDate
     ? Math.max(

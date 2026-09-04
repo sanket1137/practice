@@ -10,6 +10,7 @@ export type NavIconKey =
   | 'screens'
   | 'bookings'
   | 'logs'
+  | 'monitor'
   | 'analytics'
   | 'settings'
   | 'discover'
@@ -60,6 +61,7 @@ export function getSidebarNavigation(context: RoleContext): NavigationItem[] {
     return [
       { text: 'Dashboard', iconKey: 'dashboard', path: '/dashboard' },
       { text: 'Campaigns', iconKey: 'campaigns', path: '/campaigns' },
+      { text: 'Monitor', iconKey: 'monitor', path: '/monitor' },
       { text: 'Media', iconKey: 'media', path: '/media' },
       { text: 'Discover Screens', iconKey: 'discover', path: '/screens/discover' },
       { text: 'My Bookings', iconKey: 'bookings', path: '/bookings' },
@@ -89,6 +91,7 @@ export function getMobileNavigation(context: RoleContext): NavigationItem[] {
     return [
       { text: 'Dashboard', iconKey: 'dashboard', path: '/dashboard' },
       { text: 'Campaigns', iconKey: 'campaigns', path: '/campaigns' },
+      { text: 'Monitor', iconKey: 'monitor', path: '/monitor' },
       { text: 'Media', iconKey: 'media', path: '/media' },
       { text: 'Screens', iconKey: 'discover', path: '/screens/discover' },
       { text: 'Analytics', iconKey: 'analytics', path: '/analytics' },

@@ -35,6 +35,164 @@ public class AnalyticsController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// The Monitor Room feed: every campaign worth watching (open ones, plus
+    /// anything that completed in the last 7 days) with live rollups, pacing
+    /// points, and the deduplicated screen list for the fleet map — one call
+    /// renders the whole wall. Advertiser-scoped.
+    /// </summary>
+    [HttpGet("advertiser/monitor")]
+    public async Task<ActionResult<ApiResponse<object>>> GetAdvertiserMonitor()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var role = GetCurrentUserRole();
+            if (role != "Advertiser" && role != "Admin")
+                return Forbid();
+
+            var recentCutoff = DateTime.UtcNow.AddDays(-7);
+            var campaignsQuery = _context.Campaigns.AsNoTracking()
+                .Where(c => !c.IsDeleted);
+            if (role == "Advertiser")
+                campaignsQuery = campaignsQuery.Where(c => c.AdvertiserId == userId);
+            var campaigns = await campaignsQuery
+                .Where(c => c.Status == CampaignStatus.Active
+                         || c.Status == CampaignStatus.Paused
+                         || (c.Status == CampaignStatus.Completed && c.UpdatedAt >= recentCutoff))
+                .ToListAsync();
+
+            var campaignIds = campaigns.Select(c => c.Id).ToList();
+            if (campaignIds.Count == 0)
+            {
+                return Ok(ApiResponse<object>.SuccessResponse(new
+                {
+                    totals = new { liveCampaigns = 0, playsToday = 0, screensOnline = 0, screensTotal = 0 },
+                    campaigns = Array.Empty<object>(),
+                    screens = Array.Empty<object>(),
+                }));
+            }
+
+            var bookings = await _context.Bookings.AsNoTracking()
+                .Where(b => b.CampaignId != null && campaignIds.Contains(b.CampaignId.Value) && !b.IsDeleted)
+                .Include(b => b.Screen)
+                .ToListAsync();
+            var bookingsByCampaign = bookings.GroupBy(b => b.CampaignId!.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var todayUtc = DateTime.UtcNow.Date;
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var impressions = await _context.Impressions.AsNoTracking()
+                .Where(i => i.CampaignId != null && campaignIds.Contains(i.CampaignId.Value))
+                .Select(i => new { CampaignId = i.CampaignId!.Value, i.PlayedAt })
+                .ToListAsync();
+            var impByCampaign = impressions.GroupBy(i => i.CampaignId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.PlayedAt).ToList());
+
+            var tiles = new List<object>();
+            var liveCount = 0;
+            foreach (var c in campaigns)
+            {
+                bookingsByCampaign.TryGetValue(c.Id, out var cb);
+                cb ??= new List<Domain.Entities.Booking>();
+                impByCampaign.TryGetValue(c.Id, out var plays);
+                plays ??= new List<DateTime>();
+
+                var start = cb.Count > 0 ? cb.Min(b => b.StartDate) : today;
+                var end = cb.Count > 0 ? cb.Max(b => b.EndDate) : today;
+                var totalDays = Math.Max(1, end.DayNumber - start.DayNumber + 1);
+                var elapsedDays = Math.Clamp(today.DayNumber - start.DayNumber + 1, 0, totalDays);
+                var expected = cb.Sum(b => b.ExpectedImpressions);
+
+                var byDay = plays.GroupBy(p => DateOnly.FromDateTime(p))
+                    .ToDictionary(g => g.Key, g => g.Count());
+                var pacing = new List<object>();
+                var cum = 0;
+                for (var d = start; d <= end && d <= today; d = d.AddDays(1))
+                {
+                    cum += byDay.GetValueOrDefault(d);
+                    var dayIndex = d.DayNumber - start.DayNumber + 1;
+                    pacing.Add(new
+                    {
+                        date = d.ToString("yyyy-MM-dd"),
+                        delivered = byDay.GetValueOrDefault(d),
+                        deliveredCum = cum,
+                        targetCum = (int)Math.Round((decimal)expected * dayIndex / totalDays),
+                    });
+                }
+
+                var subState =
+                    cb.Any(b => b.Status == BookingStatus.Active) ? "live"
+                    : cb.Any(b => b.Status == BookingStatus.Approved) ? "scheduled"
+                    : cb.Any(b => b.Status == BookingStatus.Pending) ? "awaiting-approval"
+                    : cb.Any(b => b.Status == BookingStatus.Completed) ? "completed"
+                    : cb.Count == 0 ? "draft" : "cancelled";
+                if (subState == "live") liveCount++;
+
+                tiles.Add(new
+                {
+                    campaignId = c.Id,
+                    name = c.Name,
+                    status = c.Status.ToString(),
+                    subState,
+                    startDate = start.ToString("yyyy-MM-dd"),
+                    endDate = end.ToString("yyyy-MM-dd"),
+                    expectedTotal = expected,
+                    deliveredTotal = plays.Count,
+                    deliveredToday = plays.Count(p => p >= todayUtc),
+                    deliveryPct = expected > 0
+                        ? Math.Round(Math.Min(100m, plays.Count * 100m / expected), 1) : 0m,
+                    elapsedDays,
+                    totalDays,
+                    screensOnline = cb.Where(b => b.Screen != null).Select(b => b.Screen!)
+                        .DistinctBy(s => s.Id).Count(s => s.IsOnline),
+                    screensTotal = cb.Where(b => b.Screen != null).Select(b => b.ScreenId).Distinct().Count(),
+                    pacing,
+                });
+            }
+
+            // Fleet map: every distinct screen these campaigns run on
+            var screenTiles = bookings
+                .Where(b => b.Screen != null)
+                .GroupBy(b => b.ScreenId)
+                .Select(g =>
+                {
+                    var s = g.First().Screen!;
+                    return new
+                    {
+                        screenId = s.Id,
+                        name = s.Name,
+                        city = s.Location?.City,
+                        latitude = s.Latitude,
+                        longitude = s.Longitude,
+                        isOnline = s.IsOnline,
+                        campaigns = g.Select(b => b.CampaignId!.Value).Distinct()
+                            .Select(id => campaigns.FirstOrDefault(c => c.Id == id)?.Name)
+                            .Where(n => n != null).ToList(),
+                    };
+                })
+                .ToList();
+
+            return Ok(ApiResponse<object>.SuccessResponse(new
+            {
+                totals = new
+                {
+                    liveCampaigns = liveCount,
+                    playsToday = impressions.Count(i => i.PlayedAt >= todayUtc),
+                    screensOnline = screenTiles.Count(s => s.isOnline),
+                    screensTotal = screenTiles.Count,
+                },
+                campaigns = tiles,
+                screens = screenTiles,
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error building advertiser monitor");
+            return StatusCode(500, ApiResponse<object>.ErrorResponse("Failed to load the monitor."));
+        }
+    }
+
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 

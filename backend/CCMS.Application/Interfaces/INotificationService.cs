@@ -31,6 +31,13 @@ public interface INotificationService
         string? actionUrl = null,
         Guid? referenceId = null,
         string? referenceType = null);
+
+    /// <summary>
+    /// Push a realtime event to everyone watching a campaign (the SignalR
+    /// campaign_{id} group) — e.g. CampaignStatusChanged. No-op in hosts
+    /// without a hub (Functions).
+    /// </summary>
+    Task BroadcastCampaignEventAsync(Guid campaignId, string eventName, object payload);
 }
 
 public class NotificationDto

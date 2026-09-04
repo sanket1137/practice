@@ -21,4 +21,7 @@ public class CalendarSlotDto
     public string Status { get; set; } = "available"; // available, booked
     public Guid? BookingId { get; set; }
     public string? CampaignName { get; set; }
+    /// <summary>True when this booked slot belongs to the requesting user
+    /// (their campaign, or their own reservation on their own screen).</summary>
+    public bool IsMine { get; set; }
 }

@@ -14,6 +14,7 @@ public class NotificationService : INotificationService
     private readonly IRepository<User> _userRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IHubContext<NotificationHub> _hubContext;
+    private readonly IHubContext<PlaybackHub> _playbackHub;
     private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(
@@ -21,13 +22,27 @@ public class NotificationService : INotificationService
         IRepository<User> userRepository,
         IUnitOfWork unitOfWork,
         IHubContext<NotificationHub> hubContext,
+        IHubContext<PlaybackHub> playbackHub,
         ILogger<NotificationService> logger)
     {
         _notificationRepository = notificationRepository;
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
         _hubContext = hubContext;
+        _playbackHub = playbackHub;
         _logger = logger;
+    }
+
+    public async Task BroadcastCampaignEventAsync(Guid campaignId, string eventName, object payload)
+    {
+        try
+        {
+            await _playbackHub.Clients.Group($"campaign_{campaignId}").SendAsync(eventName, payload);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Campaign broadcast {Event} failed for {CampaignId}", eventName, campaignId);
+        }
     }
 
     public async Task CreateNotificationAsync(

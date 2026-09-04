@@ -20,7 +20,6 @@ import {
     LinearProgress,
     Divider,
 } from '@mui/material';
-import type { ChipProps } from '@mui/material';
 import {
     Edit as EditIcon,
     Delete as DeleteIcon,
@@ -33,8 +32,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSnackbar } from 'notistack';
 import { api } from '../../services/api';
-import LivePreviewWidget from '../../components/common/LivePreviewWidget';
-import CampaignScreenStats from '../../components/campaigns/CampaignScreenStats';
+import CampaignCommandCenter from '../../components/campaigns/CampaignCommandCenter';
+import CampaignStatusPill from '../../components/campaigns/CampaignStatusPill';
 
 interface Campaign {
     id: string;
@@ -124,18 +123,6 @@ export default function CampaignDetailPage() {
         },
     });
 
-    const getStatusColor = (status: string): ChipProps['color'] => {
-        switch (status) {
-            case 'Active':
-                return 'success';
-            case 'Completed':
-                return 'default';
-            case 'Draft':
-                return 'warning';
-            default:
-                return 'default';
-        }
-    };
 
     if (campaignLoading) {
         return (
@@ -156,19 +143,19 @@ export default function CampaignDetailPage() {
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             {/* Header */}
-            <Box display="flex" justifyContent="space-between" alignItems="start" mb={3}>
-                <Box>
-                    <Typography variant="h4" gutterBottom>
+            <Box display="flex" justifyContent="space-between" alignItems="start" mb={3} flexWrap="wrap" gap={1.5}>
+                <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h4" gutterBottom sx={{ overflowWrap: 'anywhere' }}>
                         {campaign.name}
                     </Typography>
-                    <Box display="flex" gap={1} alignItems="center">
-                        <Chip label={campaign.status} color={getStatusColor(campaign.status)} />
+                    <Box display="flex" gap={1} alignItems="center" flexWrap="wrap">
+                        <CampaignStatusPill status={campaign.status} />
                         <Typography variant="body2" color="textSecondary">
                             Created on {new Date(campaign.createdAt).toLocaleDateString()}
                         </Typography>
                     </Box>
                 </Box>
-                <Box display="flex" gap={1}>
+                <Box display="flex" gap={1} flexWrap="wrap">
                     <Button
                         variant="contained"
                         startIcon={<ReportIcon />}
@@ -194,57 +181,9 @@ export default function CampaignDetailPage() {
                     </Button>
                 </Box>
             </Box>
-            {/* Campaign Info */}
-            <Grid container spacing={3} mb={3}>
-                <Grid
-                    size={{
-                        xs: 12,
-                        md: 4
-                    }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Budget
-                            </Typography>
-                            <Typography variant="h5">
-                                {campaign.currency} {campaign.budget.toLocaleString()}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid
-                    size={{
-                        xs: 12,
-                        md: 4
-                    }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                Start Date
-                            </Typography>
-                            <Typography variant="h6">
-                                {new Date(campaign.startDate).toLocaleDateString()}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-                <Grid
-                    size={{
-                        xs: 12,
-                        md: 4
-                    }}>
-                    <Card>
-                        <CardContent>
-                            <Typography color="textSecondary" gutterBottom>
-                                End Date
-                            </Typography>
-                            <Typography variant="h6">
-                                {new Date(campaign.endDate).toLocaleDateString()}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
+            {/* The Command Center — live state, pacing, per-screen rows, stream */}
+            <CampaignCommandCenter campaignId={id!} />
+
             {/* Description */}
             <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
@@ -257,7 +196,6 @@ export default function CampaignDetailPage() {
                 <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
                     <Tab label="Creatives" />
                     <Tab label="Bookings" />
-                    <Tab label="Live Activity" />
                 </Tabs>
                 <Divider />
 
@@ -458,25 +396,6 @@ export default function CampaignDetailPage() {
                     </Box>
                 )}
 
-                {/* Live Activity Tab */}
-                {tabValue === 2 && (
-                    <Box p={3}>
-                        <Typography variant="h6" gutterBottom>
-                            Real-Time Campaign Activity
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary" paragraph>
-                            Monitor live playback of your campaign across all booked screens
-                        </Typography>
-
-                        {/* Screen-level breakdown */}
-                        <CampaignScreenStats campaignId={id!} />
-
-                        {/* Original live preview widget */}
-                        <Box mt={3}>
-                            <LivePreviewWidget campaignId={id!} mode="campaign" />
-                        </Box>
-                    </Box>
-                )}
             </Paper>
         </Container>
     );

@@ -55,6 +55,13 @@ public class CreateScreenCommandHandler : IRequestHandler<CreateScreenCommand, S
                 throw new InvalidOperationException($"Unknown screen type '{request.Request.ScreenType}'.");
             screen.ScreenType = screenType;
         }
+
+        if (!string.IsNullOrWhiteSpace(request.Request.VenueType))
+        {
+            if (!Enum.TryParse<VenueType>(request.Request.VenueType, ignoreCase: true, out var venueType))
+                throw new InvalidOperationException($"Unknown venue type '{request.Request.VenueType}'.");
+            screen.VenueType = venueType;
+        }
         screen.PixelPitchMm = request.Request.PixelPitchMm;
 
         await _screenRepository.AddAsync(screen, cancellationToken);

@@ -9,6 +9,7 @@ public class ScreenDto
     public string Description { get; set; } = string.Empty;
     /// <summary>Billboard | LedWall | VideoWall | TvDisplay | Kiosk | Projection | TransitDisplay | Standee | Unclassified</summary>
     public string ScreenType { get; set; } = "Unclassified";
+    public string VenueType { get; set; } = "Unclassified";
     public decimal PhysicalWidth { get; set; }
     public decimal PhysicalHeight { get; set; }
     /// <summary>feet | inches | meters | centimeters</summary>
@@ -80,6 +81,10 @@ public class CreateScreenRequest
     [StringLength(30)]
     public string? ScreenType { get; set; }
 
+    /// <summary>Venue the screen lives in: Cafe | Restaurant | Mall | Gym | Airport | ... (see VenueType enum).</summary>
+    [StringLength(30)]
+    public string? VenueType { get; set; }
+
     [Range(0.01, double.MaxValue)]
     public decimal PhysicalWidth { get; set; }
 
@@ -140,6 +145,10 @@ public class UpdateScreenRequest
 
     [StringLength(30)]
     public string? ScreenType { get; set; }
+
+    /// <summary>Cafe | Restaurant | Mall | Gym | Airport | ... (see VenueType enum).</summary>
+    [StringLength(30)]
+    public string? VenueType { get; set; }
 
     [Range(0.01, double.MaxValue)]
     public decimal? PhysicalWidth { get; set; }
@@ -446,6 +455,10 @@ public class SearchScreensRequest
 
     /// <summary>Indoor | Outdoor | SemiIndoor (case-insensitive). Null = any.</summary>
     public string? DisplayType { get; set; }
+    /// <summary>Billboard | LedWall | VideoWall | TvDisplay | Kiosk | Projection | TransitDisplay | Standee</summary>
+    public string? ScreenType { get; set; }
+    /// <summary>Venue filter: Cafe | Restaurant | Mall | Gym | Airport | ...</summary>
+    public string? VenueType { get; set; }
 
     /// <summary>Landscape | Portrait (case-insensitive). Null = any.</summary>
     public string? Orientation { get; set; }

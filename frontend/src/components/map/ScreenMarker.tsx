@@ -6,6 +6,8 @@ import {
     Circle as CircleIcon,
     Edit as EditIcon,
     BookOnline as BookIcon,
+    PlaylistAdd as PlaylistAddIcon,
+    PlaylistAddCheck as PlaylistAddCheckIcon,
 } from '@mui/icons-material';
 import L from 'leaflet';
 import type { Screen } from '../../types/screen';
@@ -16,6 +18,9 @@ interface ScreenMarkerProps {
     onClick?: (screen: Screen) => void;
     onHover?: (screen: Screen | null) => void;
     isOwnerView?: boolean;
+    /** Marketplace plan basket (advertiser view only). */
+    onAddToPlan?: (screen: Screen) => void;
+    inPlan?: boolean;
 }
 
 // Marker color speaks the screen's real state, not just a binary dot.
@@ -83,6 +88,8 @@ export function ScreenMarker({
     onClick,
     onHover,
     isOwnerView = false,
+    onAddToPlan,
+    inPlan = false,
 }: ScreenMarkerProps) {
     const position: [number, number] = [screen.latitude!, screen.longitude!];
 
@@ -204,6 +211,23 @@ export function ScreenMarker({
                     >
                         {isOwnerView ? 'Manage Screen' : 'Book This Screen'}
                     </Button>
+                    {!isOwnerView && onAddToPlan && (
+                        <Button
+                            variant={inPlan ? 'contained' : 'outlined'}
+                            fullWidth
+                            size="small"
+                            startIcon={inPlan ? <PlaylistAddCheckIcon /> : <PlaylistAddIcon />}
+                            onClick={() => onAddToPlan(screen)}
+                            sx={{
+                                mt: 1,
+                                ...(inPlan
+                                    ? { bgcolor: '#8B5CF6', '&:hover': { bgcolor: '#7C3AED' } }
+                                    : { borderColor: '#8B5CF6', color: '#8B5CF6' }),
+                            }}
+                        >
+                            {inPlan ? 'In plan' : 'Add to plan'}
+                        </Button>
+                    )}
                 </Box>
             </Popup>
         </Marker>

@@ -182,9 +182,15 @@ export default function ScreenDetailPage() {
                 { id: 'bookings', label: 'Availability', icon: <CalendarIcon /> },
             ];
             
-            // Add live stream tab if advertiser has access (e.g., approved booking)
+            // Live viewing for advertisers: with a booking it's their stream;
+            // without one, public Active screens grant a marketplace preview
+            // ("watch the screen before you book") — the server decides which.
             if (streamAccess?.hasAccess) {
-                advertiserTabs.push({ id: 'live-stream', label: 'Live Stream', icon: <LiveTvIcon /> });
+                advertiserTabs.push({
+                    id: 'live-stream',
+                    label: streamAccess?.isPreviewAccess ? 'Live Preview' : 'Live Stream',
+                    icon: <LiveTvIcon />,
+                });
             }
             
             return advertiserTabs;
@@ -650,7 +656,7 @@ export default function ScreenDetailPage() {
                             </Typography>
                         </Alert>
                     )}
-                    <SlotCalendarView screenId={id!} />
+                    <SlotCalendarView screenId={id!} audience={isOwner ? 'owner' : 'advertiser'} />
                 </Box>
             )}
 

@@ -9,13 +9,16 @@ public class GetSlotCalendarQueryHandler : IRequestHandler<GetSlotCalendarQuery,
 {
     private readonly IRepository<Screen> _screenRepository;
     private readonly IRepository<Booking> _bookingRepository;
+    private readonly IRepository<Campaign> _campaignRepository;
 
     public GetSlotCalendarQueryHandler(
         IRepository<Screen> screenRepository,
-        IRepository<Booking> bookingRepository)
+        IRepository<Booking> bookingRepository,
+        IRepository<Campaign> campaignRepository)
     {
         _screenRepository = screenRepository;
         _bookingRepository = bookingRepository;
+        _campaignRepository = campaignRepository;
     }
 
     public async Task<SlotCalendarDto> Handle(GetSlotCalendarQuery request, CancellationToken cancellationToken)
@@ -33,6 +36,28 @@ public class GetSlotCalendarQueryHandler : IRequestHandler<GetSlotCalendarQuery,
                         b.Status == Domain.Enums.BookingStatus.Active ||
                         b.Status == Domain.Enums.BookingStatus.Completed))
             .ToList();
+
+        // Campaign name + advertiser per booking. The Campaign navigation is
+        // never loaded by the repository, so the old booking.Campaign?.Name
+        // lookup always fell back to "Unknown Campaign" — resolve explicitly.
+        var campaignIds = allBookings
+            .Where(b => b.CampaignId.HasValue)
+            .Select(b => b.CampaignId!.Value)
+            .Distinct()
+            .ToList();
+        var campaigns = (await _campaignRepository.FindAsync(
+                c => campaignIds.Contains(c.Id), cancellationToken))
+            .ToDictionary(c => c.Id, c => new { c.Name, c.AdvertiserId });
+
+        bool IsRequesters(Booking b)
+        {
+            if (request.RequesterId == null) return false;
+            if (b.CampaignId.HasValue && campaigns.TryGetValue(b.CampaignId.Value, out var c)
+                && c.AdvertiserId == request.RequesterId.Value) return true;
+            // The owner's own reservation on their own screen.
+            return screen.OwnerId == request.RequesterId.Value
+                   && b.Source == Domain.Enums.BookingSource.SelfReserved;
+        }
 
         var calendar = new SlotCalendarDto
         {
@@ -93,7 +118,12 @@ public class GetSlotCalendarQueryHandler : IRequestHandler<GetSlotCalendarQuery,
                     {
                         slotDto.Status = "booked";
                         slotDto.BookingId = booking.Id;
-                        slotDto.CampaignName = booking.Campaign?.Name ?? "Unknown Campaign";
+                        slotDto.CampaignName = booking.CampaignId.HasValue
+                            && campaigns.TryGetValue(booking.CampaignId.Value, out var c)
+                                ? c.Name
+                                : (booking.Source == Domain.Enums.BookingSource.SelfReserved
+                                    ? "Owner reservation" : "Direct booking");
+                        slotDto.IsMine = IsRequesters(booking);
                     }
 
                     dayDto.Slots.Add(slotDto);

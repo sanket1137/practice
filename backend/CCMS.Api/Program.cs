@@ -336,8 +336,18 @@ else if (fileStorageProvider.Equals("R2", StringComparison.OrdinalIgnoreCase))
 else
 {
     builder.Services.AddSingleton<IFileStorageService>(localFileService);
-    var r2Service = new R2StorageService(builder.Configuration);
-    builder.Services.AddSingleton<IPresignedUploadService>(r2Service);
+    // Presigned uploads need R2, but local-storage dev machines may have no R2
+    // config at all — don't let that keep the whole API from booting.
+    try
+    {
+        var r2Service = new R2StorageService(builder.Configuration);
+        builder.Services.AddSingleton<IPresignedUploadService>(r2Service);
+    }
+    catch (Exception ex)
+    {
+        Log.Warning("R2 not configured ({Message}) — presigned direct uploads disabled; local uploads still work.", ex.Message);
+        builder.Services.AddSingleton<IPresignedUploadService>(new UnconfiguredPresignedUploadService());
+    }
     Log.Information("Using Local File System for file uploads");
 }
 
@@ -628,6 +638,20 @@ using (var scope = app.Services.CreateScope())
                 seedLogger.LogWarning(seedEx, "DataSeeder skipped/failed (likely partial existing data); continuing with other seeders.");
                 // Critical: discard any tracked-but-unsaved entities from the failed seeder
                 // so subsequent seeders don't retry/clash with them on their next SaveChanges.
+                context.ChangeTracker.Clear();
+            }
+
+            // Screenshot-ready play history for the seeded bookings — the
+            // Monitor Room, Command Center and pacing charts render alive on a
+            // fresh dev database. Dev-only by design; never runs in production.
+            try
+            {
+                await DemoImpressionSeeder.SeedAsync(context);
+                seedLogger.LogInformation("Demo impression history seeded successfully.");
+            }
+            catch (Exception seedEx)
+            {
+                seedLogger.LogWarning(seedEx, "DemoImpressionSeeder failed; continuing.");
                 context.ChangeTracker.Clear();
             }
         }

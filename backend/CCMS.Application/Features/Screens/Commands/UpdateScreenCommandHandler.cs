@@ -101,6 +101,13 @@ public class UpdateScreenCommandHandler : IRequestHandler<UpdateScreenCommand, S
                 throw new InvalidOperationException($"Unknown screen type '{request.Request.ScreenType}'.");
             screen.ScreenType = screenType;
         }
+
+        if (request.Request.VenueType != null)
+        {
+            if (!Enum.TryParse<Domain.Enums.VenueType>(request.Request.VenueType, ignoreCase: true, out var venueType))
+                throw new InvalidOperationException($"Unknown venue type '{request.Request.VenueType}'.");
+            screen.VenueType = venueType;
+        }
         if (request.Request.PixelPitchMm.HasValue)
             screen.PixelPitchMm = request.Request.PixelPitchMm.Value;
 

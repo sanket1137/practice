@@ -5,6 +5,8 @@ import {
     AreaChart,
     CartesianGrid,
     Cell,
+    ComposedChart,
+    Line,
     Pie,
     PieChart,
     ResponsiveContainer,
@@ -37,7 +39,7 @@ export function ChartCard({ title, subtitle, actions, height = 280, children }: 
     );
 }
 
-const useChartPalette = () => {
+export const useChartPalette = () => {
     const theme = useTheme();
     const dark = theme.palette.mode === 'dark';
     return {
@@ -127,6 +129,62 @@ export function TrendAreaChart({ data, xKey, series }: {
                     />
                 ))}
             </AreaChart>
+        </ResponsiveContainer>
+    );
+}
+
+export interface PacingPoint {
+    date: string;
+    delivered: number;
+    deliveredCum: number;
+    targetCum: number;
+    [key: string]: unknown;
+}
+
+/**
+ * The "am I on track" chart: cumulative delivered plays as a filled area
+ * against a dashed straight-line target. Reads at a glance — area above the
+ * dashes = ahead of plan, below = behind.
+ */
+export function PacingChart({ data, mini = false }: { data: PacingPoint[]; mini?: boolean }) {
+    const p = useChartPalette();
+    const rows = data.map((d) => ({
+        ...d,
+        day: new Date(d.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+    }));
+    return (
+        <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={rows} margin={{ top: 6, right: 8, bottom: 0, left: mini ? -20 : -8 }}>
+                <defs>
+                    <linearGradient id="pacing-grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={p.primary} stopOpacity={0.35} />
+                        <stop offset="100%" stopColor={p.primary} stopOpacity={0.02} />
+                    </linearGradient>
+                </defs>
+                {!mini && <CartesianGrid stroke={p.grid} vertical={false} />}
+                <XAxis dataKey="day" stroke={p.axis} tick={{ fontSize: mini ? 9 : 11, fill: p.axis }}
+                    axisLine={false} tickLine={false} hide={mini} />
+                <YAxis stroke={p.axis} tick={{ fontSize: 11, fill: p.axis }} axisLine={false} tickLine={false}
+                    width={44} hide={mini}
+                    tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(v))} />
+                {!mini && (
+                    <ChartTooltip
+                        contentStyle={{
+                            background: p.tooltipBg, border: `1px solid ${p.tooltipBorder}`,
+                            borderRadius: 10, fontSize: 12, color: p.text,
+                        }}
+                        labelStyle={{ color: p.text, fontWeight: 600 }}
+                        formatter={(value: number | string, name: string) => {
+                            const num = typeof value === 'number' ? value : Number(value);
+                            return [num.toLocaleString(), name];
+                        }}
+                    />
+                )}
+                <Area type="monotone" dataKey="deliveredCum" name="Delivered" stroke={p.primary}
+                    strokeWidth={2} fill="url(#pacing-grad)" dot={false} activeDot={{ r: 4 }} />
+                <Line type="linear" dataKey="targetCum" name="Target" stroke={p.axis}
+                    strokeWidth={1.5} strokeDasharray="5 4" dot={false} activeDot={false} />
+            </ComposedChart>
         </ResponsiveContainer>
     );
 }

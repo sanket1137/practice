@@ -60,6 +60,31 @@ public class AdvertiserScreenAccessService
 
         if (accessGrantingBooking == null)
         {
+            // Marketplace preview: a public screen in a public place — an
+            // advertiser evaluating it may watch it live BEFORE booking
+            // ("verify placement before you pay"). Applies only to Active
+            // screens whose owner sells publicly; private-network screens
+            // stay booking-gated.
+            var marketplacePreview = await _context.Screens
+                .Where(s => s.Id == screenId && !s.IsDeleted
+                            && s.Status == Domain.Enums.ScreenStatus.Active)
+                .Join(_context.Users, s => s.OwnerId, u => u.Id,
+                    (s, u) => (Domain.Enums.ScreenVisibility?)u.AccountVisibility)
+                .FirstOrDefaultAsync();
+
+            if (marketplacePreview == Domain.Enums.ScreenVisibility.Public)
+            {
+                _logger.LogDebug(
+                    "Advertiser {AdvertiserId} granted MARKETPLACE preview to public screen {ScreenId}",
+                    advertiserId, screenId);
+                return new ScreenAccessResult
+                {
+                    HasAccess = true,
+                    IsPreviewAccess = true,
+                    Reason = "Marketplace live preview — watch the screen before you book"
+                };
+            }
+
             _logger.LogDebug(
                 "Advertiser {AdvertiserId} denied access to screen {ScreenId} - no active or upcoming booking",
                 advertiserId, screenId);

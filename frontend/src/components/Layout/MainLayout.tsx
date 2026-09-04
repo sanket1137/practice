@@ -58,6 +58,7 @@ import {
     Visibility as VisibilityIcon,
     PermMedia as MediaIcon,
     ReceiptLong as ReceiptLongIcon,
+    Sensors as SensorsIcon,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -106,6 +107,7 @@ const MainLayout = () => {
         visibility: <VisibilityIcon sx={{ fontSize: 16 }} />,
         media: <MediaIcon sx={{ fontSize: 16 }} />,
         logs: <ReceiptLongIcon sx={{ fontSize: 16 }} />,
+        monitor: <SensorsIcon sx={{ fontSize: 16 }} />,
     };
 
     const menuItems = getSidebarNavigation({
@@ -119,7 +121,7 @@ const MainLayout = () => {
 
     // Grouping helper
     const getGroup = (text: string) => {
-        if (['Dashboard', 'My Screens', 'Booking Requests', 'Campaigns', 'Media', 'Discover Screens', 'My Bookings', 'All Campaigns', 'All Screens', 'All Bookings'].includes(text)) {
+        if (['Dashboard', 'My Screens', 'Booking Requests', 'Campaigns', 'Monitor', 'Media', 'Discover Screens', 'My Bookings', 'All Campaigns', 'All Screens', 'All Bookings'].includes(text)) {
             return 'MAIN';
         }
         if (['Payouts', 'Machines', 'Verifications', 'Visibility Requests'].includes(text)) {

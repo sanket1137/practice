@@ -22,8 +22,10 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#101828" />
-  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
-  <script src="https://code.iconify.design/iconify-icon/1.0.7/iconify-icon.min.js" crossorigin="anonymous"></script>
+  <!-- Tailwind is compiled at build time and iconify-icon is bundled locally
+       (src/landing.ts) — the production CSP allows only first-party scripts,
+       so runtime CDN scripts would be (and were) silently blocked. -->
+  <script type="module" src="/src/landing.ts"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
 

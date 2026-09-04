@@ -105,6 +105,19 @@ echo 'Server setup complete! Now provision /opt/ccms/.env manually (scp it once)
 # ===========================================
 # DEPLOY APPLICATION
 # ===========================================
+function Invoke-SshRetry {
+    param([string]$ScriptText, [int]$Tries = 6)
+    $clean = $ScriptText -replace "`r", ""
+    for ($i = 1; $i -le $Tries; $i++) {
+        $out = ssh @script:SshArgs -o ConnectTimeout=20 -o ServerAliveInterval=10 "${script:RemoteUser}@${script:RemoteHost}" $clean
+        if ($LASTEXITCODE -eq 0) { return $out }
+        Write-Warn "ssh attempt $i/$Tries failed; retrying in 6s..."
+        Start-Sleep -Seconds 6
+    }
+    Write-Err "Remote command failed after $Tries attempts."
+    exit 1
+}
+
 function Deploy-Application {
     Write-Info "Deploying CCMS to production (image tag $ImageTag)..."
 
@@ -114,23 +127,56 @@ function Deploy-Application {
     }
 
     Write-Info "Verifying .env already exists on the server (it is never uploaded by this script)..."
-    Invoke-RemoteSsh "test -f ${RemoteDir}/.env || (echo 'ERROR: ${RemoteDir}/.env is missing on the server. Provision it once via: scp .env ${RemoteUser}@${RemoteHost}:${RemoteDir}/.env' && exit 1)"
+    Invoke-SshRetry "test -f ${RemoteDir}/.env || (echo 'ERROR: ${RemoteDir}/.env is missing on the server. Provision it once via: scp .env ${RemoteUser}@${RemoteHost}:${RemoteDir}/.env' && exit 1)"
 
-    Write-Info "Backing up database before deploy..."
-    Invoke-RemoteSsh @"
+    # ── Database backup ────────────────────────────────────────────────
+    # POSTGRES_CONNECTION_STRING on the server is .NET-style
+    # ("Host=x;Database=y;..."), which pg_dump cannot read — convert it to
+    # libpq keywords first. A failed backup ABORTS the deploy (that is the
+    # point of taking one); set SKIP_DB_BACKUP=1 to bypass deliberately.
+    if ($env:SKIP_DB_BACKUP -eq "1") {
+        Write-Warn "SKIP_DB_BACKUP=1 — deploying WITHOUT a database backup."
+    } else {
+        Write-Info "Backing up database before deploy..."
+        Invoke-SshRetry @"
+set -e
 cd ${RemoteDir}
 mkdir -p backups
-set -a; source .env; set +a
-if [ -n "`$POSTGRES_CONNECTION_STRING" ]; then
-    pg_dump "`$POSTGRES_CONNECTION_STRING" > backups/ccms_backup_`$(date +%Y%m%d_%H%M%S).sql
-    ls -1t backups/ccms_backup_*.sql | tail -n +15 | xargs -r rm --
-else
-    echo 'WARN: POSTGRES_CONNECTION_STRING not set, skipping backup'
+# Read the raw line instead of `source .env`: the value is an unquoted
+# .NET-style connection string, and shell sourcing truncates it at the
+# first ';' (docker-compose's own .env parser reads the full line).
+CONN=`$(grep -m1 '^POSTGRES_CONNECTION_STRING=' .env | cut -d= -f2- | sed -e 's/^"//' -e 's/"`$//' -e "s/^'//" -e "s/'`$//")
+if [ -z "`$CONN" ]; then
+    echo 'ERROR: POSTGRES_CONNECTION_STRING not set on server — cannot back up. Set SKIP_DB_BACKUP=1 to deploy anyway.'
+    exit 1
 fi
+LIBPQ=`$(python3 - "`$CONN" <<'PYEOF'
+import sys
+mapping = {'host':'host','server':'host','database':'dbname','username':'user','user id':'user','password':'password','port':'port','ssl mode':'sslmode','sslmode':'sslmode'}
+parts = []
+for kv in sys.argv[1].split(';'):
+    if '=' not in kv: continue
+    k, v = kv.split('=', 1)
+    lk = mapping.get(k.strip().lower())
+    if lk and v.strip():
+        parts.append(f"{lk}='{v.strip()}'")
+print(' '.join(parts))
+PYEOF
+)
+# Containerized pg_dump: the host's client is v16 while Neon runs v17+,
+# and pg_dump refuses cross-major dumps. postgres:17-alpine tracks the
+# server major; bump the tag when Neon does.
+OUT=backups/ccms_backup_`$(date +%Y%m%d_%H%M%S).sql
+docker run --rm postgres:17-alpine pg_dump "`$LIBPQ" > "`$OUT"
+if [ ! -s "`$OUT" ]; then echo 'ERROR: backup file is empty'; rm -f "`$OUT"; exit 1; fi
+ls -1t backups/ccms_backup_*.sql | tail -n +15 | xargs -r rm --
+echo "Backup complete: `$OUT (`$(stat -c %s `$OUT) bytes)"
 "@
+    }
 
+    # ── Archive ────────────────────────────────────────────────────────
     Write-Info "Archiving local files for transfer (excludes .env, creds.local.md, player/, node_modules, .venv)..."
-    if (Test-Path "ccms-deploy.tar") { Remove-Item "ccms-deploy.tar" }
+    if (Test-Path "ccms-deploy.tar.gz") { Remove-Item "ccms-deploy.tar.gz" }
 
     # uploads/logs/publish are local-only runtime artifacts (dev-time API
     # output, not source) — production's real uploads volume is ./uploads at
@@ -144,17 +190,52 @@ fi
         --exclude=".env" --exclude=".env.local" --exclude="creds.local.md" `
         --exclude="player" --exclude="backups" `
         --exclude="uploads" --exclude="logs" --exclude="publish" `
-        -cf ccms-deploy.tar ./backend ./frontend ./nginx ./docker-compose.production.yml
+        -czf ccms-deploy.tar.gz ./backend ./frontend ./nginx ./docker-compose.production.yml
 
-    Write-Info "Uploading deployment archive to server..."
-    if (Test-Path $SSHKeyPath) {
-        scp -i $SSHKeyPath ./ccms-deploy.tar "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-    } else {
-        scp ./ccms-deploy.tar "${RemoteUser}@${RemoteHost}:${RemoteDir}/"
-    }
+    $archive = Get-Item "ccms-deploy.tar.gz"
+    $localHash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower()
+    Write-Info ("Archive {0:N1} MB, sha256 {1}" -f ($archive.Length / 1MB), $localHash.Substring(0, 12))
 
+    # ── Chunked upload ─────────────────────────────────────────────────
+    # The link to the server drops mid-transfer routinely; a single scp of
+    # the full archive fails more often than it succeeds. 8 MB chunks are
+    # each retried independently and the reassembled file is hash-verified.
     try {
-        Write-Info "Building and starting containers (tag $ImageTag)..."
+        $chunkDir = Join-Path $env:TEMP "ccms-deploy-chunks"
+        if (Test-Path $chunkDir) { Remove-Item $chunkDir -Recurse -Force }
+        New-Item -ItemType Directory $chunkDir | Out-Null
+        $chunkSize = 8MB
+        $fs = [System.IO.File]::OpenRead($archive.FullName)
+        $buf = New-Object byte[] $chunkSize
+        $n = 0
+        while (($read = $fs.Read($buf, 0, $chunkSize)) -gt 0) {
+            $out = [System.IO.File]::OpenWrite((Join-Path $chunkDir ("chunk_{0:D3}" -f $n)))
+            $out.Write($buf, 0, $read); $out.Close(); $n++
+        }
+        $fs.Close()
+        Write-Info "Uploading archive in $n chunks..."
+
+        Invoke-SshRetry "mkdir -p ${RemoteDir}/chunks && rm -f ${RemoteDir}/chunks/chunk_*"
+        foreach ($chunk in (Get-ChildItem $chunkDir | Sort-Object Name)) {
+            $ok = $false
+            for ($try = 1; $try -le 6 -and -not $ok; $try++) {
+                scp @SshArgs -o ConnectTimeout=20 -o ServerAliveInterval=10 $chunk.FullName "${RemoteUser}@${RemoteHost}:${RemoteDir}/chunks/" 2>$null
+                $remoteSize = ssh @SshArgs -o ConnectTimeout=20 "${RemoteUser}@${RemoteHost}" "stat -c %s ${RemoteDir}/chunks/$($chunk.Name) 2>/dev/null"
+                if ("$remoteSize".Trim() -eq "$($chunk.Length)") { $ok = $true }
+                else { Write-Warn "$($chunk.Name) attempt $try failed; retrying..."; Start-Sleep -Seconds 4 }
+            }
+            if (-not $ok) { Write-Err "Chunk $($chunk.Name) failed after 6 attempts."; exit 1 }
+        }
+        $remoteHash = Invoke-SshRetry "cd ${RemoteDir} && cat chunks/chunk_* > ccms-deploy.tar.gz && rm -rf chunks && sha256sum ccms-deploy.tar.gz | cut -d' ' -f1"
+        if ("$remoteHash".Trim() -ne $localHash) {
+            Write-Err "Archive hash mismatch after upload (remote $remoteHash vs local $localHash)."
+            exit 1
+        }
+        Write-Info "Upload verified."
+
+        # ── Detached remote build ──────────────────────────────────────
+        # nohup + log polling: a dropped SSH connection cannot kill the
+        # build, and polling tolerates dropped polls.
         $deployScript = @"
 set -e
 cd ${RemoteDir}
@@ -165,8 +246,8 @@ cd ${RemoteDir}
 # Only the directories the archive fully re-creates are wiped — .env, uploads/,
 # backups/ and .deployed_tags live at the repo root and are untouched.
 rm -rf backend frontend nginx
-tar -xf ccms-deploy.tar
-rm -f ccms-deploy.tar
+tar -xzf ccms-deploy.tar.gz
+rm -f ccms-deploy.tar.gz
 
 # Host nginx config (TLS termination happens outside Docker — see nginx/README.md).
 # Validate before reloading so a bad config never takes down the currently-serving process.
@@ -185,11 +266,43 @@ mv .deployed_tags.tmp .deployed_tags
 
 docker image prune -f
 
-echo 'Deployment complete!'
+echo 'DEPLOY_DONE'
 "@
-        Invoke-RemoteSsh $deployScript
+        $cleanScript = $deployScript -replace "`r", ""
+        $tmpScript = Join-Path $env:TEMP "ccms-build-step.sh"
+        [System.IO.File]::WriteAllText($tmpScript, $cleanScript)
+        $uploaded = $false
+        for ($try = 1; $try -le 8 -and -not $uploaded; $try++) {
+            scp @SshArgs -o ConnectTimeout=20 $tmpScript "${RemoteUser}@${RemoteHost}:${RemoteDir}/build-step.sh" 2>$null
+            if ($LASTEXITCODE -eq 0) { $uploaded = $true } else { Write-Warn "build-step.sh upload attempt $try failed; retrying..."; Start-Sleep -Seconds 5 }
+        }
+        if (-not $uploaded) { Write-Err "Could not upload build script."; exit 1 }
+
+        Write-Info "Building and starting containers on the server (tag $ImageTag, detached)..."
+        Invoke-SshRetry "cd ${RemoteDir} && rm -f build-step.log && (nohup bash build-step.sh > build-step.log 2>&1 &) && echo LAUNCHED" | Out-Null
+
+        $deadline = (Get-Date).AddMinutes(15)
+        $done = $false
+        while ((Get-Date) -lt $deadline -and -not $done) {
+            Start-Sleep -Seconds 20
+            $tail = ssh @SshArgs -o ConnectTimeout=20 "${RemoteUser}@${RemoteHost}" "tail -n 3 ${RemoteDir}/build-step.log 2>/dev/null"
+            if ($LASTEXITCODE -ne 0) { Write-Warn "(build poll dropped, retrying)"; continue }
+            $flat = "$tail" -replace "`n", " | "
+            Write-Host "  [build] $flat"
+            if ("$tail" -match 'DEPLOY_DONE') { $done = $true }
+            elseif ("$tail" -match 'ERROR|error MSB|failed to solve|non-zero code') {
+                Write-Err "Remote build reported errors:"
+                ssh @SshArgs "${RemoteUser}@${RemoteHost}" "tail -n 40 ${RemoteDir}/build-step.log"
+                exit 1
+            }
+        }
+        if (-not $done) {
+            Write-Err "Timed out waiting for the remote build. Check: ssh ${RemoteUser}@${RemoteHost} 'tail -f ${RemoteDir}/build-step.log'"
+            exit 1
+        }
     } finally {
-        Remove-Item "ccms-deploy.tar" -ErrorAction SilentlyContinue
+        Remove-Item "ccms-deploy.tar.gz" -ErrorAction SilentlyContinue
+        if ($chunkDir -and (Test-Path $chunkDir)) { Remove-Item $chunkDir -Recurse -Force -ErrorAction SilentlyContinue }
     }
 
     Write-Info "Verifying deployment health..."
@@ -223,7 +336,9 @@ if [ ! -f .deployed_tags ] || [ `$(wc -l < .deployed_tags) -lt 2 ]; then
 fi
 PREVIOUS_TAG=`$(tail -n 2 .deployed_tags | head -n 1)
 echo "Rolling back to image tag `$PREVIOUS_TAG..."
-set -a; source .env; set +a
+# No `source .env` here: docker compose reads the adjacent .env itself, and
+# shell-sourcing an unquoted .NET connection string aborts under set -e
+# (everything after the first ';' runs as a command).
 export IMAGE_TAG=`$PREVIOUS_TAG
 docker compose -f docker-compose.production.yml up -d
 echo 'Rollback complete.'

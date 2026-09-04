@@ -103,6 +103,10 @@ export interface SearchScreensRequest {
     maxPrice?: number;
     /** "Indoor" | "Outdoor" | "SemiIndoor" */
     displayType?: string;
+    /** Billboard | LedWall | VideoWall | TvDisplay | Kiosk | Projection | TransitDisplay | Standee */
+    screenType?: string;
+    /** Venue the screen lives in: Cafe | Restaurant | Mall | Gym | Airport | ... */
+    venueType?: string;
     /** "Landscape" | "Portrait" */
     orientation?: string;
     minResolutionWidth?: number;
@@ -182,6 +186,8 @@ export interface Screen {
     primaryImage?: ScreenImage;
     /** "Indoor" | "Outdoor" | "SemiIndoor" */
     displayType?: string;
+    /** Venue the screen lives in (Cafe, Mall, Gym, ...); "Unclassified" when unset. */
+    venueType?: string;
     /** "Landscape" | "Portrait" */
     orientation?: string;
     /** Verification status string e.g. "Verified". */
@@ -197,6 +203,35 @@ export interface Screen {
     /** Whether the owner has a verified account. */
     ownerIsVerified?: boolean;
 }
+
+// Venue types a screen can live in — mirrors the backend VenueType enum.
+export const VENUE_TYPE_OPTIONS = [
+    { value: 'Cafe', label: 'Café' },
+    { value: 'Restaurant', label: 'Restaurant' },
+    { value: 'Bar', label: 'Bar / Pub' },
+    { value: 'Mall', label: 'Mall' },
+    { value: 'RetailStore', label: 'Retail store' },
+    { value: 'Supermarket', label: 'Supermarket' },
+    { value: 'Gym', label: 'Gym / Fitness' },
+    { value: 'Salon', label: 'Salon / Spa' },
+    { value: 'Office', label: 'Office' },
+    { value: 'CoworkingSpace', label: 'Coworking space' },
+    { value: 'Airport', label: 'Airport' },
+    { value: 'RailwayStation', label: 'Railway station' },
+    { value: 'MetroStation', label: 'Metro station' },
+    { value: 'BusStand', label: 'Bus stand' },
+    { value: 'Hotel', label: 'Hotel' },
+    { value: 'Hospital', label: 'Hospital' },
+    { value: 'Clinic', label: 'Clinic' },
+    { value: 'College', label: 'College / University' },
+    { value: 'School', label: 'School' },
+    { value: 'Cinema', label: 'Cinema' },
+    { value: 'Bank', label: 'Bank' },
+    { value: 'PetrolPump', label: 'Petrol pump' },
+    { value: 'Roadside', label: 'Roadside / Street' },
+    { value: 'ResidentialComplex', label: 'Residential complex' },
+    { value: 'Other', label: 'Other' },
+] as const;
 
 // Tag categories for filtering
 export const TAG_CATEGORIES = [

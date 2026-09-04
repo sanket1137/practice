@@ -23,6 +23,7 @@ import { useRevenueCalculation } from '../../hooks/useRevenueCalculation';
 import TimezoneSelector from '../../components/common/TimezoneSelector';
 import { getBrowserTimezone } from '../../utils/timezone';
 import { generateScreenTags } from '../../services/screenTagsService';
+import { VENUE_TYPE_OPTIONS } from '../../types/screen';
 
 export default function CreateScreenPage() {
     const navigate = useNavigate();
@@ -32,6 +33,7 @@ export default function CreateScreenPage() {
         name: '',
         description: '',
         screenType: 'LedWall',
+        venueType: '',
         physicalWidth: '',
         physicalHeight: '',
         dimensionUnit: 'feet',
@@ -83,6 +85,7 @@ export default function CreateScreenPage() {
                 name: data.name,
                 description: data.description,
                 screenType: data.screenType,
+                venueType: data.venueType,
                 physicalWidth: parseFloat(data.physicalWidth),
                 physicalHeight: parseFloat(data.physicalHeight),
                 dimensionUnit: data.dimensionUnit,
@@ -239,6 +242,25 @@ export default function CreateScreenPage() {
                                 <MenuItem value="Projection">Projection</MenuItem>
                                 <MenuItem value="TransitDisplay">Transit Display</MenuItem>
                                 <MenuItem value="Standee">Digital Standee</MenuItem>
+                            </TextField>
+                        </Grid>
+
+                        {/* Venue — what kind of place the screen lives in. Shown to
+                            advertisers on the marketplace and in media-plan proposals. */}
+                        <Grid size={{ xs: 12, sm: 6 }}>
+                            <TextField
+                                select
+                                required
+                                fullWidth
+                                name="venueType"
+                                label="Venue type"
+                                value={formData.venueType}
+                                onChange={handleChange}
+                                helperText="Where the screen is installed (cafe, mall, gym...)"
+                            >
+                                {VENUE_TYPE_OPTIONS.map((v) => (
+                                    <MenuItem key={v.value} value={v.value}>{v.label}</MenuItem>
+                                ))}
                             </TextField>
                         </Grid>
 
